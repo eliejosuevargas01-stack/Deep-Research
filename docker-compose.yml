@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: deep_research_db
       POSTGRES_USER: deep_research
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?run python3 scripts/generate_env.py first}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - research_db:/var/lib/postgresql/data
     healthcheck:
@@ -17,10 +17,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://deep_research:${DB_PASSWORD:?missing local DB_PASSWORD}@db:5432/deep_research_db
+      DATABASE_URL: postgresql+asyncpg://deep_research:${DB_PASSWORD}@db:5432/deep_research_db
       ENVIRONMENT: production
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      API_AUTH_SECRET: ${API_AUTH_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      JINA_API_KEY: ${JINA_API_KEY:-}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      APIFY_API_TOKEN: ${APIFY_API_TOKEN:-}
     depends_on:
       db:
         condition: service_healthy
