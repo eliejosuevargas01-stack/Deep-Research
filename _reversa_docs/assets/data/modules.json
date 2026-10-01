@@ -1,0 +1,86 @@
+[
+  {
+    "name": "app/main.py",
+    "folder": "app/api",
+    "loc": 120,
+    "complexity": 5,
+    "type": "code"
+  },
+  {
+    "name": "app/api/middleware.py",
+    "folder": "app/api",
+    "loc": 180,
+    "complexity": 8,
+    "type": "security"
+  },
+  {
+    "name": "app/agents/scout.py",
+    "folder": "app/agents",
+    "loc": 250,
+    "complexity": 10,
+    "type": "agent"
+  },
+  {
+    "name": "app/agents/workers/historian.py",
+    "folder": "app/agents/workers",
+    "loc": 210,
+    "complexity": 7,
+    "type": "worker"
+  },
+  {
+    "name": "app/agents/workers/skeptic.py",
+    "folder": "app/agents/workers",
+    "loc": 210,
+    "complexity": 7,
+    "type": "worker"
+  },
+  {
+    "name": "app/agents/workers/pragmatist.py",
+    "folder": "app/agents/workers",
+    "loc": 210,
+    "complexity": 7,
+    "type": "worker"
+  },
+  {
+    "name": "app/agents/workers/futurist.py",
+    "folder": "app/agents/workers",
+    "loc": 210,
+    "complexity": 7,
+    "type": "worker"
+  },
+  {
+    "name": "app/tools/search_pipeline.py",
+    "folder": "app/tools",
+    "loc": 340,
+    "complexity": 12,
+    "type": "tool"
+  },
+  {
+    "name": "app/agents/auditor.py",
+    "folder": "app/agents",
+    "loc": 290,
+    "complexity": 11,
+    "type": "auditor"
+  },
+  {
+    "name": "app/agents/writer.py",
+    "folder": "app/agents",
+    "loc": 230,
+    "complexity": 8,
+    "type": "writer"
+  },
+  {
+    "name": "app/db/repository.py",
+    "folder": "app/db",
+    "loc": 310,
+    "complexity": 9,
+    "type": "db"
+  },
+  {
+    "name": "app/services/webhook.py",
+    "folder": "app/services",
+    "loc": 150,
+    "complexity": 4,
+    "type": "service"
+  }
+]

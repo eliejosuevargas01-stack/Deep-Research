@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    { "id": "app/main.py", "label": "FastAPI App / Router" },
+    { "id": "app/api/middleware.py", "label": "Security & Auth Middleware" },
+    { "id": "app/agents/scout.py", "label": "Briefing & Scout Agent" },
+    { "id": "app/agents/workers/historian.py", "label": "Historiador Contextual" },
+    { "id": "app/agents/workers/skeptic.py", "label": "Cético Analítico" },
+    { "id": "app/agents/workers/pragmatist.py", "label": "Pragmático Aplicado" },
+    { "id": "app/agents/workers/futurist.py", "label": "Visionário Futurista" },
+    { "id": "app/tools/search_pipeline.py", "label": "Unified Search Subflow" },
+    { "id": "app/agents/auditor.py", "label": "Auditor & Gatekeeper" },
+    { "id": "app/agents/writer.py", "label": "Redator Editorial" },
+    { "id": "app/db/repository.py", "label": "Async SQLAlchemy DB" },
+    { "id": "app/services/webhook.py", "label": "Webhook Callback Service" }
+  ],
+  "edges": [
+    { "from": "app/main.py", "to": "app/api/middleware.py", "weight": 2 },
+    { "from": "app/api/middleware.py", "to": "app/agents/scout.py", "weight": 2 },
+    { "from": "app/agents/scout.py", "to": "app/db/repository.py", "weight": 1 },
+    { "from": "app/agents/scout.py", "to": "app/agents/workers/historian.py", "weight": 2 },
+    { "from": "app/agents/scout.py", "to": "app/agents/workers/skeptic.py", "weight": 2 },
+    { "from": "app/agents/scout.py", "to": "app/agents/workers/pragmatist.py", "weight": 2 },
+    { "from": "app/agents/scout.py", "to": "app/agents/workers/futurist.py", "weight": 2 },
+    { "from": "app/agents/workers/historian.py", "to": "app/tools/search_pipeline.py", "weight": 3 },
+    { "from": "app/agents/workers/skeptic.py", "to": "app/tools/search_pipeline.py", "weight": 3 },
+    { "from": "app/agents/workers/pragmatist.py", "to": "app/tools/search_pipeline.py", "weight": 3 },
+    { "from": "app/agents/workers/futurist.py", "to": "app/tools/search_pipeline.py", "weight": 3 },
+    { "from": "app/agents/workers/historian.py", "to": "app/db/repository.py", "weight": 1 },
+    { "from": "app/agents/workers/skeptic.py", "to": "app/db/repository.py", "weight": 1 },
+    { "from": "app/agents/workers/pragmatist.py", "to": "app/db/repository.py", "weight": 1 },
+    { "from": "app/agents/workers/futurist.py", "to": "app/db/repository.py", "weight": 1 },
+    { "from": "app/agents/auditor.py", "to": "app/db/repository.py", "weight": 2 },
+    { "from": "app/agents/auditor.py", "to": "app/agents/workers/historian.py", "weight": 1 },
+    { "from": "app/agents/auditor.py", "to": "app/agents/writer.py", "weight": 3 },
+    { "from": "app/agents/writer.py", "to": "app/db/repository.py", "weight": 2 },
+    { "from": "app/agents/writer.py", "to": "app/services/webhook.py", "weight": 2 }
+  ]
+}

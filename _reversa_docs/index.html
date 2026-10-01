@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Research Engine - Documentação Interativa</title>
+    <style>
+        :root {
+            --bg: #0b0d13;
+            --card-bg: #141824;
+            --accent: #3b82f6;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --border: #1e293b;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #60a5fa, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .tagline {
+            font-size: 1.15rem;
+            color: var(--muted);
+            max-width: 650px;
+            margin: 0 auto;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: transform 0.2s, border-color 0.2s;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+        }
+        .card h3 {
+            margin-top: 0;
+            color: #60a5fa;
+            font-size: 1.3rem;
+        }
+        .card p {
+            color: var(--muted);
+            flex-grow: 1;
+            font-size: 0.95rem;
+        }
+        .card .badge {
+            align-self: flex-start;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #1e3a8a;
+            color: #bfdbfe;
+            margin-top: 15px;
+        }
+        footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            padding-top: 25px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Deep Research Engine</h1>
+            <p class="tagline">Plataforma autônoma e distribuída de pesquisa profunda multiagente com validação formal, checagem cruzada de viés e auditoria de alucinações.</p>
+        </header>
+
+        <div class="grid">
+            <a href="arquitetura.html" class="card">
+                <h3>Arquitetura 3D</h3>
+                <p>Visualização interativa Three.js com navegação livre pela estrutura modular, camadas de segurança, personas e serviços distribuídos.</p>
+                <span class="badge">Visualização Interativa 3D</span>
+            </a>
+
+            <a href="../workflow.md" class="card">
+                <h3>Fluxo de Execução</h3>
+                <p>Mapeamento passo a passo do pipeline: Middleware de Segurança, Briefing, Paralelismo de 20 Workers, Auditoria e Redação Final.</p>
+                <span class="badge">Especificação Técnica</span>
+            </a>
+
+            <a href="../README.md" class="card">
+                <h3>Documentação & Briefing</h3>
+                <p>Definições conceituais das 4 personas especialistas (Historiador, Cético, Pragmático e Visionário), loop de auditoria e diretrizes editoriais.</p>
+                <span class="badge">README do Projeto</span>
+            </a>
+        </div>
+
+        <footer>
+            <p>Gerado pelo Reversa Docs para o ecossistema Deep Research.</p>
+        </footer>
+    </div>
+</body>
+</html>
