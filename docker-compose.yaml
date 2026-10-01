@@ -47,6 +47,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "127.0.0.1:3000:80"
+    labels:
+      - "traefik.http.services.traefik-frontend.loadbalancer.server.port=80"
     depends_on:
       backend:
         condition: service_healthy
