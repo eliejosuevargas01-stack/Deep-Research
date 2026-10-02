@@ -61,46 +61,77 @@ async def _apify_search(query: str, limit: int, token: str) -> list[Source]:
 
 
 async def _duckduckgo_search(query: str, limit: int = 8) -> list[Source]:
-    """Free, reliable fallback search requiring no API key."""
-    endpoint = "https://html.duckduckgo.com/html/"
+    """Free, reliable fallback search using Jina-proxied DuckDuckGo or direct DuckDuckGo."""
     timeout = aiohttp.ClientTimeout(total=settings.SEARCH_TIMEOUT_SECONDS)
     connector = aiohttp.TCPConnector(resolver=PinnedResolver(), use_dns_cache=False)
-    data = {"q": query}
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    }
+
+    # 1. Try Jina Reader proxy of DuckDuckGo HTML (bypasses datacenter VPS anti-bot challenges)
     try:
+        q_enc = quote(query)
+        jina_ddg_url = f"https://r.jina.ai/https://html.duckduckgo.com/html/?q={q_enc}"
+        headers = {"User-Agent": "Mozilla/5.0", "Accept": "text/plain"}
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=False) as client:
+            async with client.get(jina_ddg_url, headers=headers, allow_redirects=False) as resp:
+                if resp.status == 200:
+                    text = await resp.text(errors="replace")
+                    items = re.findall(r"##\s*\[(.*?)\]\((https?://duckduckgo\.com/l/\?uddg=[^\s\)]+)", text)
+                    results = []
+                    seen = set()
+                    for title, ddg_url in items:
+                        real_url = urllib.parse.unquote(ddg_url.split("uddg=")[1].split("&")[0])
+                        if not real_url.startswith(("http://", "https://")) or not _safe(real_url):
+                            continue
+                        if real_url in seen:
+                            continue
+                        seen.add(real_url)
+                        clean_title = re.sub(r"<[^>]+>", "", title).strip()
+                        results.append(Source(real_url, clean_title, ""))
+                        if len(results) >= limit:
+                            break
+                    if results:
+                        return results
+    except Exception:
+        pass
+
+    # 2. Direct DuckDuckGo HTML POST fallback
+    try:
+        endpoint = "https://html.duckduckgo.com/html/"
+        data = {"q": query}
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        }
         async with aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=False) as client:
             async with client.post(endpoint, data=data, headers=headers, allow_redirects=False) as response:
-                if response.status >= 300:
-                    return []
-                text = await response.text(errors="replace")
+                if response.status < 300:
+                    text = await response.text(errors="replace")
+                    matches = re.findall(
+                        r'<a[^>]+class=[\'"][^\'"]*result__a[^\'"]*[\'"][^>]+href=[\'"]([^\'"]+)[\'"][^>]*>(.*?)</a>',
+                        text,
+                        re.S,
+                    )
+                    snippets = re.findall(r'<a[^>]+class=[\'"][^\'"]*result__snippet[^\'"]*[\'"][^>]*>(.*?)</a>', text, re.S)
+                    results = []
+                    seen = set()
+                    for i, (href, title) in enumerate(matches):
+                        real_url = href
+                        if "uddg=" in href:
+                            real_url = urllib.parse.unquote(href.split("uddg=")[1].split("&")[0])
+                        if not real_url.startswith(("http://", "https://")) or not _safe(real_url):
+                            continue
+                        if real_url in seen:
+                            continue
+                        seen.add(real_url)
+                        snip = re.sub(r"<[^>]+>", "", snippets[i]).strip() if i < len(snippets) else ""
+                        clean_title = re.sub(r"<[^>]+>", "", title).strip()
+                        results.append(Source(real_url, clean_title, snip))
+                        if len(results) >= limit:
+                            break
+                    if results:
+                        return results
     except Exception:
-        return []
+        pass
 
-    matches = re.findall(
-        r'<a[^>]+class=[\'"][^\'"]*result__a[^\'"]*[\'"][^>]+href=[\'"]([^\'"]+)[\'"][^>]*>(.*?)</a>',
-        text,
-        re.S,
-    )
-    snippets = re.findall(r'<a[^>]+class=[\'"][^\'"]*result__snippet[^\'"]*[\'"][^>]*>(.*?)</a>', text, re.S)
-    results = []
-    seen = set()
-    for i, (href, title) in enumerate(matches):
-        real_url = href
-        if "uddg=" in href:
-            real_url = urllib.parse.unquote(href.split("uddg=")[1].split("&")[0])
-        if not real_url.startswith(("http://", "https://")) or not _safe(real_url):
-            continue
-        if real_url in seen:
-            continue
-        seen.add(real_url)
-        snip = re.sub(r"<[^>]+>", "", snippets[i]).strip() if i < len(snippets) else ""
-        clean_title = re.sub(r"<[^>]+>", "", title).strip()
-        results.append(Source(real_url, clean_title, snip))
-        if len(results) >= limit:
-            break
-    return results
+    return []
 
 
 async def search(query: str, limit: int = 8, keys: dict[str, str] | None = None) -> list[Source]:
