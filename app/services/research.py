@@ -315,10 +315,12 @@ async def run_research(research_id: uuid.UUID) -> None:
             from app.services.webhook import dispatch_callback
             await dispatch_callback(research_id)
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         async with AsyncSessionLocal() as db:
             research = await db.get(Research, research_id)
             if research:
                 research.status = "failed"
-                research.error = f"{type(exc).__name__}: research provider or pipeline failure"
+                research.error = f"{type(exc).__name__}: {str(exc)[:200]}"
                 await db.commit()
-        await add_event(research_id, "system", "research_failed", "Research stopped after controlled failure")
+        await add_event(research_id, "system", "research_failed", f"Research stopped after controlled failure: {type(exc).__name__} - {str(exc)[:200]}")

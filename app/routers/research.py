@@ -41,10 +41,12 @@ async def run_scout(research_id: uuid.UUID) -> None:
             await db.commit()
             await add_event(research_id, "scout", "briefing_ready", "Five-point briefing ready for one-time approval", {"points": 5})
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             research.status = "failed"
-            research.error = f"{type(exc).__name__}: scout failed"
+            research.error = f"{type(exc).__name__}: {str(exc)[:200]}"
             await db.commit()
-            await add_event(research_id, "scout", "scout_failed", "Scout failed; check provider configuration")
+            await add_event(research_id, "scout", "scout_failed", f"Scout failed: {type(exc).__name__} - {str(exc)[:200]}")
 
 
 def schedule_scout(research_id: uuid.UUID) -> None:
