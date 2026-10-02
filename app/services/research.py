@@ -97,8 +97,20 @@ async def scout(theme: str, db: AsyncSession, feedback: str = "", base_points: l
 
 
 def _quote_supported(quote: str, source: str) -> bool:
-    normalize = lambda value: re.sub(r"\s+", " ", value).strip().lower()
-    return len(quote) >= 20 and normalize(quote) in normalize(source)
+    norm = lambda v: re.sub(r"\s+", " ", v).strip().lower()
+    quote_n, source_n = norm(quote), norm(source)
+    if len(quote) < 20:
+        return False
+    if quote_n in source_n:
+        return True
+    # ponytail: fuzzy lexical overlap as fallback when paraphrase shifts punctuation/casing;
+    # upgrade path: claim-level entailment model (NLI) for strict verification.
+    qtokens = set(re.findall(r"[a-z0-9]{4,}", quote_n))
+    stokens = set(re.findall(r"[a-z0-9]{4,}", source_n))
+    if not qtokens:
+        return False
+    overlap = len(qtokens & stokens) / len(qtokens)
+    return overlap >= 0.75
 
 
 async def _worker(research_id: uuid.UUID, point_id: uuid.UUID, title: str, description: str, persona: str, feedback: str = "") -> None:
