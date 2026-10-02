@@ -110,9 +110,24 @@ async def _worker(research_id: uuid.UUID, point_id: uuid.UUID, title: str, descr
             memory: list[dict] = []   # per-point dynamic memory only; never persisted
             seen_urls: set[str] = set()
             sources: list = []
+
+            # If the auditor specified direct URLs in missing_research, fetch them directly
+            if feedback:
+                import re as _re
+                from app.tools.search_pipeline import read_source, Source
+                for ref_url in _re.findall(r"https?://[^\s)\];,]+", feedback):
+                    if ref_url not in seen_urls:
+                        try:
+                            direct_src = await read_source(Source(ref_url, "Audited Source", ""))
+                            if direct_src:
+                                seen_urls.add(ref_url)
+                                sources.append(direct_src)
+                        except Exception:
+                            pass
+
             for round_no in range(1, settings.MAX_WORKER_QUERIES + 1):
                 if not memory:
-                    query = f"{title} {description} {persona} evidence" + (f" missing: {feedback}" if feedback else "")
+                    query = f"{title} {persona}"
                 else:
                     notes = "\n".join(f"- {m['summary']}" for m in memory)
                     qresp = await complete(
@@ -123,7 +138,10 @@ async def _worker(research_id: uuid.UUID, point_id: uuid.UUID, title: str, descr
                     query = qresp.strip().splitlines()[0].strip() if qresp.strip() else "SATISFIED"
                     if query.upper().startswith("SATISFIED"):
                         break
-                batch = await search_read(query, 5, keys)
+                try:
+                    batch = await search_read(query, 5, keys)
+                except Exception:
+                    batch = []
                 new_sources = [s for s in batch if s.url not in seen_urls]
                 seen_urls.update(s.url for s in new_sources)
                 sources.extend(new_sources)

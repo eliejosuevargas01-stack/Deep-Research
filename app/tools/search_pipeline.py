@@ -181,10 +181,7 @@ async def search(query: str, limit: int = 8, keys: dict[str, str] | None = None)
 
     # 4. Free fallback when no search API key is provided or paid providers return errors:
     ddg_results = await _duckduckgo_search(query, limit)
-    if ddg_results:
-        return ddg_results
-
-    raise SearchProviderError("Nenhum provedor de busca retornou resultados válidos. Configure SerpAPI, Apify ou Jina em Configurações.")
+    return ddg_results
 
 
 def _safe(url: str) -> bool:
