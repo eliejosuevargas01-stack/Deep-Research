@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from typing import Any
@@ -61,11 +62,21 @@ async def complete(role: str, system: str, user: str, db: AsyncSession) -> str:
         if settings.LITELLM_API_BASE:
             kwargs["api_base"] = settings.LITELLM_API_BASE
 
-    response = await acompletion(**kwargs)
-    text = response.choices[0].message.content
-    if not text:
-        raise RuntimeError("LLM returned empty content")
-    return apply_output_guardrail(text)
+    for attempt in range(1, 4):
+        try:
+            response = await acompletion(**kwargs)
+            text = response.choices[0].message.content
+            if not text:
+                raise RuntimeError("LLM returned empty content")
+            return apply_output_guardrail(text)
+        except Exception as exc:
+            err_msg = str(exc).lower()
+            is_transient = any(w in err_msg for w in ("503", "429", "rate limit", "high demand", "unavailable", "timeout"))
+            if attempt < 3 and is_transient:
+                await asyncio.sleep(2 * attempt)
+                continue
+            raise
+    raise RuntimeError("All LLM retry attempts failed")
 
 
 def parse_json(text: str) -> Any:
