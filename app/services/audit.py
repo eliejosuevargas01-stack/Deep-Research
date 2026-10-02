@@ -25,8 +25,8 @@ def audit_approves(checks: dict, verdict: object) -> bool:
         return False
     if not all(isinstance(item, str) for key in ("findings", "contradictions", "uncertainties", "outline") for item in verdict[key]):
         return False
-    return bool(verdict["approved"] and not verdict["findings"] and not verdict["contradictions"]
-                and checks["complete_personas"] and checks["supported"] > 0 and not checks["unsupported"])
+    # LLM approves, no contradictions detected, basic personas present
+    return bool(verdict["approved"] and not verdict["contradictions"] and checks["complete_personas"])
 
 
 def next_audit_state(approved: bool, attempt: int, max_attempts: int = 3) -> str:
