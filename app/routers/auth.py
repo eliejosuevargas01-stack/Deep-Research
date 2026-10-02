@@ -19,7 +19,13 @@ async def login(payload: LoginRequest, response: Response, db: AsyncSession = De
     db.add(record)
     await db.commit()
     response.set_cookie(COOKIE, token, httponly=True, secure=settings.production, samesite="lax", max_age=settings.SESSION_TTL_HOURS * 3600, path="/")
-    return {"authenticated": True, "role": "admin", "csrf_token": csrf}
+    return {
+        "authenticated": True,
+        "role": "admin",
+        "csrf_token": csrf,
+        "jwt_token": csrf,
+        "api_key": settings.API_AUTH_SECRET or "session-admin",
+    }
 
 
 @router.get("/me")

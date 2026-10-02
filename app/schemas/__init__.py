@@ -10,8 +10,9 @@ class LoginRequest(BaseModel):
 
 
 class ResearchCreate(BaseModel):
-    theme: str = Field(min_length=3, max_length=500)
-    callback_url: HttpUrl | None = None
+    api_key: str = Field(min_length=1, description="Chave API")
+    jwt_token: str = Field(min_length=1, description="Token JWT do usuário")
+    theme: str = Field(min_length=3, max_length=500, description="Tema da pesquisa")
 
 
 class BriefingPoint(BaseModel):
@@ -33,6 +34,8 @@ class BriefingEdit(BaseModel):
 class SettingsUpdate(BaseModel):
     provider_keys: dict[str, str | None] = Field(default_factory=dict)
     models: dict[str, str] = Field(default_factory=dict)
+    callback_url: str | None = None
+    openai_base_url: str | None = None
 
     @field_validator("provider_keys")
     @classmethod
@@ -51,3 +54,14 @@ class SettingsUpdate(BaseModel):
         if any(not model.strip() for model in value.values()):
             raise ValueError("model IDs cannot be blank")
         return value
+
+
+class ProviderTestRequest(BaseModel):
+    provider: Literal["openai", "anthropic", "gemini", "litellm", "jina", "serpapi", "apify"]
+    api_key: str = Field(min_length=1)
+    base_url: str | None = None
+
+
+class ProviderTestResponse(BaseModel):
+    success: bool
+    message: str

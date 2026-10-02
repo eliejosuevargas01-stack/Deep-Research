@@ -119,4 +119,6 @@ class AppSettings(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     encrypted_credentials: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)
     models: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)
+    callback_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    openai_base_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)

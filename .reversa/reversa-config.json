@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "allowLegacyEdits": true,
+  "allowedPaths": [
+    "app/**",
+    "frontend/**",
+    "tests/**",
+    "alembic/**",
+    "requirements.txt",
+    "QA_MATRIX.md",
+    "PRODUCT.md",
+    "DESIGN.md"
+  ]
+}

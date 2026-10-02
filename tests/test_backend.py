@@ -71,7 +71,11 @@ def test_create_scout_approval_once_and_traceability(client, monkeypatch):
     async def fake_scout(theme, runtime):
         return [{"title": f"Point {i}", "description": "Investigate evidence", "dependencies": [], "is_parallelizable": True} for i in range(1, 6)]
     monkeypatch.setattr("app.routers.research.scout", fake_scout)
-    created = client.post("/api/research", json={"theme": "Test theme"}, headers={"X-CSRF-Token": csrf})
+    created = client.post(
+        "/api/research",
+        json={"api_key": "test-key", "jwt_token": "test-jwt", "theme": "Test theme"},
+        headers={"X-CSRF-Token": csrf},
+    )
     assert created.status_code == 201
     rid = created.json()["research_id"]
     import time
@@ -253,7 +257,11 @@ def test_full_pipeline_with_controlled_sources_and_models(client, monkeypatch):
     monkeypatch.setattr("app.services.research.complete", completion)
     csrf = login(client)
     headers = {"X-CSRF-Token": csrf}
-    response = client.post("/api/research", json={"theme": "Controlled full pipeline"}, headers=headers)
+    response = client.post(
+        "/api/research",
+        json={"api_key": "test-key", "jwt_token": "test-jwt", "theme": "Controlled full pipeline"},
+        headers=headers,
+    )
     assert response.status_code == 201
     rid = response.json()["research_id"]
     status = client.get(f"/api/research/{rid}").json()
@@ -323,3 +331,45 @@ def test_audit_missing_research_empty_when_approved():
     assert next_audit_state(False, 1, 3) == "retry_required"
     assert next_audit_state(False, 3, 3) == "blocked"
     assert next_audit_state(True, 1, 3) == "approved"
+
+
+def test_settings_test_and_models_endpoints(client, monkeypatch):
+    csrf = login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    async def fake_test_key(provider, key, base_url=None):
+        if key == "valid-key":
+            return True, f"{provider} ok"
+        return False, f"{provider} invalid"
+
+    monkeypatch.setattr("app.routers.settings.test_provider_key", fake_test_key)
+
+    # F1 test
+    res = client.post("/api/settings/test", json={"provider": "openai", "api_key": "valid-key"}, headers=headers)
+    assert res.status_code == 200
+    assert res.json()["success"] is True
+
+    res_fail = client.post("/api/settings/test", json={"provider": "openai", "api_key": "bad-key"}, headers=headers)
+    assert res_fail.status_code == 200
+    assert res_fail.json()["success"] is False
+
+    # Settings callback_url and openai_base_url
+    up = client.put(
+        "/api/settings",
+        json={"provider_keys": {}, "models": {}, "callback_url": "https://example.com/webhook", "openai_base_url": "https://custom.endpoint.com/v1"},
+        headers=headers,
+    )
+    assert up.status_code == 200
+    data = up.json()
+    assert data["callback_url"] == "https://example.com/webhook"
+    assert data["openai_base_url"] == "https://custom.endpoint.com/v1"
+
+    # F2 models endpoint
+    async def fake_models(provider, key=None, base_url=None):
+        return ["custom-model-1", "custom-model-2"]
+
+    monkeypatch.setattr("app.routers.settings.list_provider_models", fake_models)
+    res_m = client.get("/api/settings/models?provider=openai")
+    assert res_m.status_code == 200
+    assert "models_by_provider" in res_m.json()
+

@@ -45,7 +45,11 @@ def test_postgres_research_lifecycle(monkeypatch):
         assert login.status_code == 200
         csrf = {"X-CSRF-Token": login.json()["csrf_token"]}
         theme = f"Postgres cycle {uuid.uuid4()}"
-        created = client.post("/api/research", json={"theme": theme}, headers=csrf)
+        created = client.post(
+            "/api/research",
+            json={"api_key": "test-key", "jwt_token": "test-jwt", "theme": theme},
+            headers=csrf,
+        )
         assert created.status_code == 201
         rid = created.json()["research_id"]
         draft = {}

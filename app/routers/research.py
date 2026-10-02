@@ -55,12 +55,9 @@ def schedule_scout(research_id: uuid.UUID) -> None:
 
 @router.post("/research", status_code=201)
 async def create_research(payload: ResearchCreate, _: Principal = Depends(require_admin), db: AsyncSession = Depends(get_db)):
-    callback = str(payload.callback_url) if payload.callback_url else None
-    if callback:
-        try:
-            validate_public_url(callback)
-        except SSRFSecurityViolation as exc:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+    from app.services.settings import get_record
+    cfg = await get_record(db)
+    callback = cfg.callback_url
     research = Research(theme=payload.theme.strip(), callback_url=callback, status="scouting", briefing_draft={})
     db.add(research)
     await db.commit()
@@ -119,13 +116,18 @@ async def edit_briefing(research_id: uuid.UUID, payload: BriefingEdit, _: Princi
                 points = await scout(r.theme, sdb, feedback=note, base_points=[p.model_dump() for p in (payload.points or [])])
                 point_dependencies(points)
                 r.briefing_draft = {"points": points, "source": "revised_after_edit", "edit_note": note}
-                r.status = "pending_approval"
+                r.status = "approved"
+                r.approved_at = datetime.now(timezone.utc)
+                for position, pt in enumerate(points):
+                    sdb.add(ResearchPoint(research_id=research_id, position=position, **pt))
                 await sdb.commit()
-                await add_event(research_id, "scout", "briefing_ready", "Revised briefing ready", {"points": len(points)})
+                await add_event(research_id, "system", "briefing_approved", "Briefing revised and approved automatically", {"points": len(points)})
+                schedule(research_id)
             except Exception as exc:
                 r.status = "failed"
                 r.error = f"{type(exc).__name__}: briefing revision failed"
                 await sdb.commit()
+                await add_event(research_id, "system", "research_failed", "Briefing revision failed")
     task = asyncio.create_task(rerun())
     _running.add(task)
     task.add_done_callback(_running.discard)

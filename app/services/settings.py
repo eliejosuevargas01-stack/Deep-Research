@@ -15,7 +15,7 @@ ENV_KEYS = {
 async def get_record(db: AsyncSession) -> AppSettings:
     record = await db.get(AppSettings, 1)
     if not record:
-        record = AppSettings(id=1, encrypted_credentials={}, models={})
+        record = AppSettings(id=1, encrypted_credentials={}, models={}, callback_url=None, openai_base_url=None)
         db.add(record)
         await db.flush()
     return record
@@ -36,15 +36,24 @@ async def runtime_settings(db: AsyncSession) -> tuple[dict[str, str], dict[str, 
 
 
 async def public_settings(db: AsyncSession) -> dict:
+    record = await get_record(db)
     keys, models = await runtime_settings(db)
     return {
         "provider_keys": {p: mask_secret(keys[p]) if p in keys else None for p in PROVIDERS},
         "provider_configured": {p: p in keys for p in PROVIDERS},
         "models": {role: models.get(role) for role in ROLES},
+        "callback_url": record.callback_url,
+        "openai_base_url": record.openai_base_url,
     }
 
 
-async def update_settings(db: AsyncSession, provider_keys: dict, models: dict) -> dict:
+async def update_settings(
+    db: AsyncSession,
+    provider_keys: dict,
+    models: dict,
+    callback_url: str | None = None,
+    openai_base_url: str | None = None,
+) -> dict:
     record = await get_record(db)
     encrypted = dict(record.encrypted_credentials)
     for provider, value in provider_keys.items():
@@ -56,5 +65,16 @@ async def update_settings(db: AsyncSession, provider_keys: dict, models: dict) -
     merged_models.update(models)
     record.encrypted_credentials = encrypted
     record.models = merged_models
+    if callback_url is not None:
+        cleaned_callback = callback_url.strip() if callback_url else ""
+        if cleaned_callback:
+            from app.tools.outbound import validate_public_url
+            validate_public_url(cleaned_callback)
+            record.callback_url = cleaned_callback
+        else:
+            record.callback_url = None
+    if openai_base_url is not None:
+        cleaned_base = openai_base_url.strip() if openai_base_url else ""
+        record.openai_base_url = cleaned_base if cleaned_base else None
     await db.commit()
     return await public_settings(db)
