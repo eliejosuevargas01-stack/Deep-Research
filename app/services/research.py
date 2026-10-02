@@ -166,11 +166,14 @@ async def _worker(research_id: uuid.UUID, point_id: uuid.UUID, title: str, descr
             items = parse_json(response)
             by_url = {s.url: s for s in sources}
             count = 0
+            seen_evidence_urls: set[str] = set()
             if isinstance(items, list):
                 for item in items:
                     if not isinstance(item, dict) or item.get("source_url") not in by_url:
                         continue
                     source = by_url[item["source_url"]]
+                    if source.url in seen_evidence_urls:
+                        continue
                     quote = str(item.get("exact_quote", ""))
                     if not _quote_supported(quote, source.excerpt):
                         continue
@@ -180,14 +183,19 @@ async def _worker(research_id: uuid.UUID, point_id: uuid.UUID, title: str, descr
                         Evidence.source_url == source.url,
                     ))
                     if existing:
+                        seen_evidence_urls.add(source.url)
                         continue
                     db.add(Evidence(
                         research_point_id=point_id, persona=persona, source_url=source.url,
                         source_title=source.title, excerpt=quote[:4000], claim=str(item.get("claim", ""))[:4000],
                         analysis=str(item.get("analysis", ""))[:8000],
                     ))
+                    seen_evidence_urls.add(source.url)
                     count += 1
-            await db.commit()
+            try:
+                await db.commit()
+            except Exception:
+                await db.rollback()
         await add_event(research_id, persona, "sources_scanned", f"{persona.title()} retained {count} traceable sources", {"sources_fetched": len(sources), "citations_retained": count})
 
 
