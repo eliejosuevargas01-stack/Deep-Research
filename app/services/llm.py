@@ -39,6 +39,9 @@ def _provider(model: str) -> str:
     return {"azure": "openai", "google": "gemini"}.get(prefix, prefix)
 
 
+_LLM_SEMAPHORE = asyncio.Semaphore(4)
+
+
 async def complete(role: str, system: str, user: str, db: AsyncSession) -> str:
     keys, models = await runtime_settings(db)
     record = await get_record(db)
@@ -62,32 +65,35 @@ async def complete(role: str, system: str, user: str, db: AsyncSession) -> str:
         if settings.LITELLM_API_BASE:
             kwargs["api_base"] = settings.LITELLM_API_BASE
 
-    attempts = 4
-    for attempt in range(1, attempts + 1):
-        try:
-            response = await acompletion(**kwargs)
-            text = response.choices[0].message.content
-            if not text:
-                raise RuntimeError("LLM returned empty content")
-            return apply_output_guardrail(text)
-        except Exception as exc:
-            err_msg = str(exc).lower()
-            is_transient = any(w in err_msg for w in ("503", "429", "rate limit", "high demand", "unavailable", "timeout", "resource_exhausted"))
-            if attempt < attempts and is_transient:
-                await asyncio.sleep(2 * attempt)
-                continue
-            if provider == "gemini" and "gemini-3.8-flash" in str(kwargs.get("model", "")).lower() and is_transient:
-                try:
-                    fallback_kwargs = dict(kwargs)
-                    fallback_kwargs["model"] = "gemini/gemini-3.5-flash-lite"
-                    fb_resp = await acompletion(**fallback_kwargs)
-                    fb_text = fb_resp.choices[0].message.content
-                    if fb_text:
-                        return apply_output_guardrail(fb_text)
-                except Exception:
-                    pass
-            raise
-    raise RuntimeError("All LLM retry attempts failed")
+    async with _LLM_SEMAPHORE:
+        attempts = 5
+        for attempt in range(1, attempts + 1):
+            try:
+                response = await acompletion(**kwargs)
+                text = response.choices[0].message.content
+                if not text:
+                    raise RuntimeError("LLM returned empty content")
+                return apply_output_guardrail(text)
+            except Exception as exc:
+                err_msg = str(exc).lower()
+                is_rate_limit = any(w in err_msg for w in ("429", "rate limit", "quota", "resource_exhausted"))
+                is_transient = is_rate_limit or any(w in err_msg for w in ("503", "high demand", "unavailable", "timeout"))
+                if attempt < attempts and is_transient:
+                    backoff = (12 * attempt) if is_rate_limit else (2 * attempt)
+                    await asyncio.sleep(backoff)
+                    continue
+                if provider == "gemini" and "gemini-3.8-flash" in str(kwargs.get("model", "")).lower() and is_transient:
+                    try:
+                        fallback_kwargs = dict(kwargs)
+                        fallback_kwargs["model"] = "gemini/gemini-3.5-flash-lite"
+                        fb_resp = await acompletion(**fallback_kwargs)
+                        fb_text = fb_resp.choices[0].message.content
+                        if fb_text:
+                            return apply_output_guardrail(fb_text)
+                    except Exception:
+                        pass
+                raise
+        raise RuntimeError("All LLM retry attempts failed")
 
 
 def parse_json(text: str) -> Any:
