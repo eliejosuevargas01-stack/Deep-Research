@@ -23,8 +23,6 @@ async def login(payload: LoginRequest, response: Response, db: AsyncSession = De
         "authenticated": True,
         "role": "admin",
         "csrf_token": csrf,
-        "jwt_token": csrf,
-        "api_key": settings.API_AUTH_SECRET or "session-admin",
     }
 
 

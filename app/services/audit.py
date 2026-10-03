@@ -29,7 +29,7 @@ def audit_approves(checks: dict, verdict: object) -> bool:
     return bool(verdict["approved"] and not verdict["contradictions"] and checks["complete_personas"])
 
 
-def next_audit_state(approved: bool, attempt: int, max_attempts: int = 3) -> str:
+def next_audit_state(approved: bool, attempt: int, max_attempts: int = 4) -> str:
     if approved:
         return "approved"
     return "blocked" if attempt >= max_attempts else "retry_required"

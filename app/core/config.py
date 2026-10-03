@@ -1,6 +1,6 @@
 from functools import lru_cache
 from typing import Optional
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,8 +15,15 @@ class Settings(BaseSettings):
     SESSION_TTL_HOURS: int = 24
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
     SEARCH_TIMEOUT_SECONDS: int = 30
-    MAX_AUDIT_ATTEMPTS: int = 3
+    MAX_AUDIT_ATTEMPTS: int = 4
     MAX_WORKER_QUERIES: int = 3
+
+    @field_validator("MAX_WORKER_QUERIES")
+    @classmethod
+    def validate_worker_queries_cap(cls, v: int) -> int:
+        if v > 3:
+            raise ValueError("MAX_WORKER_QUERIES cannot exceed absolute maximum of 3")
+        return v
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None

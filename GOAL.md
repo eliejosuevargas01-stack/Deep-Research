@@ -31,16 +31,18 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 1. **Access & Administrator Authentication**:
    - Operator navigates to `https://research.dominuslabs.online` (or local development URL).
    - Access is secured under a single-admin application model via `POST /api/auth/login`.
-   - Browser receives an opaque session identifier in an `HttpOnly`, `SameSite=Lax` (or `Strict`), `Secure` session cookie with anti-CSRF protection. PostgreSQL stores only the session identifier hash, expiry, revocation, and CSRF metadata. Client-side code never receives raw secret keys (`API_AUTH_SECRET`).
+   - Browser receives the user's signed JWT in an `HttpOnly`, `SameSite=Lax` (or `Strict`), `Secure` cookie with anti-CSRF protection. PostgreSQL stores only the JWT identifier (`jti`) hash, expiry, revocation, and CSRF metadata. Client-side code never reads the JWT or receives raw API keys (`API_AUTH_SECRET`).
+   - Backend-to-backend API clients authenticate with `X-API-Key`; this credential is not required from browser clients. Each request uses exactly one authentication method according to its client type: user JWT cookie for the frontend, or API key for backend clients.
    - Tenant context is strictly server-derived (`default`), ignoring any spoofed client headers like `X-Tenant-ID`.
 2. **Settings Configuration**:
    - Operator navigates to the Settings page (`/settings`).
    - Local cryptographic keys (`APP_ENCRYPTION_KEY`, `SESSION_SECRET`, local DB password) are initialized on first run via `scripts/generate_env.py` and saved to `.env` only if absent. Existing `.env` files are strictly preserved.
    - External provider keys (OpenAI, Anthropic, Gemini, SerpAPI, Apify, Jina) are entered via the UI and persisted to PostgreSQL encrypted with AES-256-GCM.
+   - Frontend operators may configure an optional callback URL in Settings, persisted by the backend. Backend-to-backend clients have no Settings UI and may instead submit an optional `callback_url` with each authenticated `POST /api/research` request.
    - Operator selects currently available provider/model identifiers for each role: Scout, Historian, Skeptic, Pragmatist, Futurist, Auditor, and Writer. Values come from configuration/provider discovery rather than speculative hardcoded versions.
    - Changes take immediate runtime effect via in-memory provider cache refresh without container restart.
 3. **Research Submission**:
-   - Operator enters the research topic/theme in the chat interface and optionally provides a webhook `callback_url`.
+   - Frontend operators enter only the research topic/theme; the backend uses the optional callback URL saved in Settings. Backend-to-backend clients submit the topic and may include a per-request `callback_url`, which is validated and persisted with that research for delivery and retry; otherwise they retrieve the report by ID.
    - Clicks "Start Deep Research" (`POST /api/research`).
 4. **Scout & One-Time Human Brief Review**:
    - Scout agent runs web exploration, extracts recurring themes, and drafts 5 investigation points with dependency and parallelism flags.
@@ -55,12 +57,12 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
      - **Privacy Boundary**: Public streams emit strictly explicitly generated structured lifecycle events. Raw model completion streams and private chain-of-thought tokens are never queued or streamed.
 6. **Auditor Fact-Check & Quality Loop**:
    - As workers finish a point, the Auditor evaluates evidence completeness, detects contradictions (e.g., Skeptic vs Futurist), and verifies citations against extracted source content (not merely URL accessibility).
-   - If evidence is deficient, the Auditor triggers a targeted retry (up to 3 attempts).
-   - If 3 attempts fail, the Auditor raises a blocker flag and advances with explicit caveats and uncertainty reporting.
+   - If evidence is deficient, the Auditor triggers a targeted retry, up to 3 retries after the initial worker execution (4 total executions per point).
+   - If all 3 retries fail, the Auditor raises a blocker flag and advances with explicit caveats and uncertainty reporting.
 7. **Report Delivery & Inspection**:
    - Writer synthesizes the final Markdown report grounded strictly in audited outlines and extracted quotes.
-   - The final report renders in the chat UI with an outline drawer, verified citation links, and copy/export options.
-   - If a `callback_url` was registered, the system validates the destination using connection-level IP pinning and dispatches an asynchronous HTTP POST payload.
+   - The final report is persisted and remains retrievable through `GET /api/reports/{id}`. Frontend users can inspect it in the research UI; backend API clients can fetch it by research/report ID.
+   - If a callback URL is configured in frontend Settings or supplied by a backend-to-backend client on the research request, the system validates the destination using connection-level IP pinning and dispatches an asynchronous HTTP POST payload. Callback delivery is optional and does not replace report retrieval by ID.
 
 ---
 
@@ -71,7 +73,7 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
    - Endpoints operational: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/research`, `GET /api/research/{id}`, `POST /api/research/{id}/briefing/approve`, `GET /api/research/{id}/stream`, `GET /api/reports/{id}`, `POST /api/reports/{id}/retry-callback`, `GET /api/settings`, `PUT /api/settings`, `GET /health`.
 2. **Security & Session Authentication**:
    - Single-admin security model. Server derives context without trusting client `X-Tenant-ID` headers.
-   - Session authentication middleware validates HttpOnly session cookies for browser clients and Bearer tokens for API clients, rejecting unauthenticated requests with `401 Unauthorized`.
+   - Authentication middleware validates the user JWT in the HttpOnly cookie for browser clients and `X-API-Key` for backend-to-backend clients, rejecting unauthenticated requests with `401 Unauthorized`. The two credentials are alternatives, not cumulative requirements.
    - CSRF protection enforced on mutating browser requests.
 3. **Encrypted Settings & Dynamic Precedence**:
    - `app_settings` table stores provider API keys encrypted with AES-256-GCM at rest.
@@ -94,14 +96,14 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
    - URLs read via Jina Reader or Apify scraper with connection-level SSRF checks, cleaned and fused into consolidated markdown (5-10 sources per worker).
 7. **Stateless Fact-Checking Auditor & Blocker Loop**:
    - Auditor validates persona completeness, maps contradictions, audits citations against extracted source content snippets, scores uncertainty, and generates writer outlines.
-   - Max 3 retry attempts per point; automatically activates `BLOCKED` status on third failure and forwards caveats to writer.
+   - Max 3 retry attempts after the initial worker execution per point (4 total executions); automatically activates `BLOCKED` status after the third retry fails and forwards caveats to writer.
 8. **Privacy-Sanitized Live Process Stream**:
    - SSE endpoint `/api/research/{id}/stream` streams strictly explicitly generated structured events (`scout_started`, `worker_progress`, `audit_verdict`, `report_ready`).
    - Zero leakage of raw internal reasoning, chain of thought, or system prompt internals.
 9. **Full-Stack Chat Frontend**:
    - React 19 + TanStack Router + Tailwind CSS interface matching Linear dark-mode tokens.
    - Chat view supporting submission, interactive 5-point brief review/edit, real-time persona cards, markdown report view, and settings management.
-   - Uses HttpOnly cookie session auth with CSRF; never exposes `API_AUTH_SECRET`.
+   - Uses the user's JWT in an HttpOnly cookie with CSRF; never exposes the JWT to client-side code or `API_AUTH_SECRET` to the frontend.
 10. **Docker Compose & Deployment Gates**:
     - Multi-container `docker-compose.yml` with `postgres`, single `backend` replica, and `frontend` (Nginx reverse proxy).
     - Database auto-migrates on startup via `alembic upgrade head`.
@@ -116,12 +118,12 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 ### Codebase & Reference Inventory
 
 1. **Current Codebase (`/root/projects/deep-research`)**:
-   - `app/core/config.py`: Basic Pydantic settings loading `.env`. Needs `APP_ENCRYPTION_KEY` (for secrets encryption), `SESSION_SECRET` (for session cookies), and dynamic override integration. Local secrets generated on first run preserving existing `.env`.
+   - `app/core/config.py`: Basic Pydantic settings loading `.env`. Needs `APP_ENCRYPTION_KEY` (for secrets encryption), `SESSION_SECRET` (for signing user JWTs), and dynamic override integration. Local secrets generated on first run preserving existing `.env`.
    - `app/db/database.py`: SQLAlchemy async engine and sessionmaker.
    - `app/models/domain_models.py`: Partial SQLAlchemy models (`Research`, `ResearchPoint`, `EvidenceRecord`, `AuditTrail`, `Report`). Needs `AppSettings`, `AgentEventLog`, revocable `AdminSession`, and server-scoped `tenant_id="default"` columns (no client trust). Ensure durable job states.
    - `app/schemas/`: Pydantic schemas for request/response. Needs settings, SSE event, and auth session schemas.
    - `app/routers/research.py`: Basic CRUD endpoints. Needs authentication routes (`/api/auth/login`, `/api/auth/logout`, `/api/auth/me`), SSE streaming, settings management, and callback retry.
-   - `app/middleware/security.py`: Basic token check. Needs connection-level SSRF validation, session cookie handling, and CSRF protection (no client-supplied `X-Tenant-ID` trust).
+   - `app/middleware/security.py`: Basic token check. Needs connection-level SSRF validation, user JWT validation from the frontend's HttpOnly cookie, `X-API-Key` validation for backend-to-backend clients, and CSRF protection (no client-supplied `X-Tenant-ID` trust).
    - `app/prompts/personas.json`: Prompts for 4 personas, scout, auditor, writer.
    - `app/tools/search_pipeline.py`: Search and reader functions with fallbacks. Needs connection-level SSRF socket pinning.
    - `app/agents/workers/`: `BaseWorker` and 4 persona subclasses (`HistorianWorker`, `SkepticWorker`, `PragmatistWorker`, `FuturistWorker`). BaseWorker must precede personas in implementation.
@@ -140,10 +142,10 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 | `app/models/domain_models.py` | 5 partial entities | Maintain server-scoped `tenant_id="default"`; add `AppSettings` (encrypted credentials, model mappings), `AgentEventLog` (explicit public summaries), and revocable `AdminSession`. Ensure durable job states. |
 | `app/core/config.py` | Static `.env` loading | Add encryption secret, session secret, dynamic override resolver, and preserve existing `.env`. |
 | `app/services/` | `webhook.py` only | Add `llm.py` (unified provider gateway using LiteLLM/OpenAI/Anthropic/Gemini) and `crypto.py` (AES-256-GCM settings encryption). |
-| `app/middleware/security.py` | Basic token string match | Add connection-pinned SSRF guardrails (blocking private IPs), HttpOnly session cookies, CSRF protection, and reject client `X-Tenant-ID`. |
+| `app/middleware/security.py` | Basic token string match | Add connection-pinned SSRF guardrails (blocking private IPs), user JWT validation from HttpOnly cookies, `X-API-Key` validation for backend-to-backend clients, CSRF protection, and reject client `X-Tenant-ID`. |
 | `app/engine/orchestrator.py` | Basic linear flow | Final integration after workers/auditor/writer; add `asyncio.Semaphore(20)`, durable state recovery on startup, SSE event dispatcher, and real Scout outline generation. |
 | `app/routers/` | Partial research router | Add auth endpoints (`/api/auth/login`, `/api/auth/logout`, `/api/auth/me`), `/api/research/{id}/stream` (SSE), `/api/settings` (GET/PUT), and `/api/reports/{id}/retry-callback`. |
-| `frontend/` | Only `package.json` & `PLAN.md` | Implement complete React 19 UI: Chat submission, 5-point brief editor, live persona panels, markdown report renderer, settings page. Authenticate via HttpOnly cookie; no `API_AUTH_SECRET` in bundle. |
+| `frontend/` | Only `package.json` & `PLAN.md` | Implement complete React 19 UI: Chat submission, 5-point brief editor, live persona panels, markdown report renderer, settings page. Authenticate with the user's JWT in an HttpOnly cookie; no JWT or `API_AUTH_SECRET` in the frontend bundle. |
 | `docker-compose.yml` | Not present | Create production multi-service Compose (Postgres, single Backend replica, Frontend Nginx) with health checks, auto-migration, and Traefik labels. |
 | `alembic/` | Initialized without version files | Generate initial migration `001_initial_schema.py` covering all canonical tables. |
 
@@ -162,9 +164,9 @@ To protect delivery velocity and focus on core research capabilities, the follow
 
 ## 7. Architectural Constraints & Security Guarantees
 
-1. **Single-Admin Security Boundary**: Application is secured under a single-admin authentication model with server-derived context. Client-supplied `X-Tenant-ID` headers are ignored and rejected. Frontend uses secure HttpOnly session cookies with CSRF protection; raw API secrets are never exposed in client code.
+1. **Single-Admin Security Boundary**: Application is secured under a single-admin authentication model with server-derived context. Client-supplied `X-Tenant-ID` headers are ignored and rejected. Frontend authenticates with the user's JWT in a secure HttpOnly cookie with CSRF protection; backend-to-backend clients authenticate with `X-API-Key`. These methods are alternatives by client type, and raw credentials are never exposed in frontend code.
 2. **Zero Plaintext Secrets & First-Run Initialization**: LLM and search provider credentials stored in PostgreSQL must be encrypted using AES-256-GCM. Decryption occurs strictly in-memory during request dispatch. First-run scripts generate local secrets only (`APP_ENCRYPTION_KEY`, `SESSION_SECRET`, DB password) and preserve existing `.env`.
 3. **SSRF Immune (Connection-Level Pinning)**: Outbound network requests for web reading, scraping, and webhook notifications must enforce IP validation and socket-level pinning at connection time, reject any destination mapping to loopback, private IPv4/IPv6, or cloud metadata endpoints (`169.254.169.254`), and re-validate redirects.
 4. **Reasoning Privacy Boundary**: Public streaming APIs emit only explicitly generated structured status summaries and lifecycle events. Raw model scratchpads, chain-of-thought tokens, and internal prompt templates must never enter the event queue.
 5. **Durable Concurrency Bounds & Restart Recovery**: Maximum 20 concurrent worker executions system-wide across all points (`asyncio.Semaphore(20)`). Job state is durably persisted in PostgreSQL with startup recovery sweep preventing job loss across process restarts. Compose runs a single backend replica to avoid uncoordinated multi-instance conflicts.
-6. **Audit Retry Ceiling & Traceable Citations**: Maximum 3 attempts per research point before forcing a blocker transition with explicit caveats. All factual claims must be traceable to extracted evidence text; source URL existence does not constitute factual verification. Uncertainty is reported explicitly rather than assuming zero hallucinations.
+6. **Audit Retry Ceiling & Traceable Citations**: Maximum 3 retries after the initial execution (4 total worker executions) per research point before forcing a blocker transition with explicit caveats. All factual claims must be traceable to extracted evidence text; source URL existence does not constitute factual verification. Uncertainty is reported explicitly rather than assuming zero hallucinations.

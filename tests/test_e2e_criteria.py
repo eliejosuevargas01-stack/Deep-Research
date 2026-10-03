@@ -41,7 +41,7 @@ def test_criteria_full_flow(client):
     assert models_res.status_code == 200
     assert "models_by_provider" in models_res.json()
 
-    # 5. Create Research without callback in payload, with api_key & jwt_token (A, A2)
+    # 5. Create Research without callback in payload (A, A2)
     async def fake_scout(theme, db, feedback="", base_points=None):
         return [
             {"title": f"Aspecto {i}", "description": f"Investigação {i}", "dependencies": [], "is_parallelizable": True}
@@ -54,7 +54,7 @@ def test_criteria_full_flow(client):
     try:
         create_res = client.post(
             "/api/research",
-            json={"api_key": api_key, "jwt_token": jwt_token, "theme": "Avanços em Computação Quântica"},
+            json={"theme": "Avanços em Computação Quântica"},
             headers=headers,
         )
         assert create_res.status_code == 201

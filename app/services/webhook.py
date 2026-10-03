@@ -31,7 +31,7 @@ async def dispatch_callback(research_id: uuid.UUID) -> bool:
         async with aiohttp.ClientSession(connector=connector, timeout=timeout, trust_env=False) as client:
             async with client.post(url, json=payload, allow_redirects=False) as response:
                 delivered = 200 <= response.status < 300
-    except (aiohttp.ClientError, asyncio.TimeoutError, SSRFSecurityViolation):
+    except Exception:
         delivered = False
     async with AsyncSessionLocal() as db:
         db.add(AuditTrail(research_id=research_id, stage="callback", details={"delivered": delivered}))
@@ -45,5 +45,12 @@ async def dispatch_callback(research_id: uuid.UUID) -> bool:
 
 async def add_callback_event(research_id: uuid.UUID, delivered: bool) -> None:
     from app.services.research import add_event
-    await add_event(research_id, "system", "callback_delivered" if delivered else "callback_failed",
-                    "Webhook delivered" if delivered else "Webhook delivery failed; report remains available")
+    try:
+        await add_event(
+            research_id,
+            "system",
+            "callback_delivered" if delivered else "callback_failed",
+            "Webhook delivered" if delivered else "Webhook delivery failed; report remains available",
+        )
+    except Exception:
+        pass

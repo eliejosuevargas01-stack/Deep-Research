@@ -1,60 +1,55 @@
-# Deep Research Engine - Live Execution Backlog
+# Tarefas das auditorias de `app/CRITERIA.md`
 
-## Status
+## BACKEND A — briefing
 
-- Planning contracts repaired; implementation remains pending.
-- Local implementation, Compose, and E2E are authorized. Public deployment/DNS/TLS require separate authorization and real access.
-- Counting: 38 numbered work items (T001–T038), 41 executable rows because T018 is split into T018a–T018d.
+| ID | Prioridade | Estado | Desvio confirmado e evidência | Aceite da correção |
+|---|---|---|---|---|
+| A-01 | HIGH | CONCLUÍDO | O contrato exige JWT de usuário assinado em cookie HttpOnly e hash do `jti` no banco (`app/CRITERIA.md:7`; `goal.md:34-35`). Código gera token opaco aleatório, persiste hash do token integral e valida sessão por esse hash (`app/core/security.py:43-63`; `app/routers/auth.py:18-21`; `app/models/domain_models.py:107-113`). Probe: cookie HttpOnly presente, mas não é JWT. | Emitir e validar JWT assinado, expiração e `jti`; persistir só hash do `jti` com revogação; manter cookie HttpOnly/Secure em produção, SameSite e CSRF; testar assinatura inválida, expiração, revogação, logout e migração segura das sessões atuais. Nunca expor JWT ao JS. |
+| A-02 | MEDIUM | CONCLUÍDO | Tema é obrigatório, mas apenas `min_length=3` é verificado antes de `strip()` (`app/schemas/__init__.py:13-16`; `app/routers/research.py:140`). HTTP aceita três espaços com 201 e persiste tema vazio. | Validar e normalizar tema antes da persistência; espaços apenas retornam 422; limites de tamanho aplicados ao valor normalizado; teste da rota e schema. |
+| A-03 | MEDIUM | CONCLUÍDO | Contrato reserva credenciais à camada de autenticação e proíbe callback no payload (`app/CRITERIA.md:6-9`), mas `ResearchCreate` ainda declara `api_key`/`jwt_token` opcionais e ignora `callback_url` extra (`app/schemas/__init__.py:13-16`). HTTP aceita ambos no body com 201, embora não os use; cliente frontend atual envia somente tema (`frontend/src/api.ts:41-50`). | Payload de criação aceita somente campos permitidos; rejeitar campos `api_key`, `jwt_token` e `callback_url` com 422 sem ecoar valores; preservar autenticação por cookie/`X-API-Key` e callback configurado em Settings; testar casos negativos e criação válida.  **Ressalva da auditoria posterior (MA-10/MA-25):** proibição de callback refere-se ao browser; preservar callback legítimo de cliente backend-to-backend autenticado por `X-API-Key`. |
+| A-04 | MEDIUM | CONCLUÍDO | Contrato de clientes backend-to-backend especifica `X-API-Key` como alternativa ao cookie JWT (`app/CRITERIA.md:5-7`; `goal.md:34-35,73-76`). `require_admin` também aceita `Authorization: *** com o mesmo segredo e dá precedência a ele se coexistir com cookie/chave (`app/core/security.py:32-43`). Probe Bearer sozinho retornou 201. | Alinhar método aceito ao contrato `X-API-Key`/JWT cookie; rejeitar Bearer não previsto e credenciais simultâneas/ambíguas, salvo decisão normativa explícita de compatibilidade; testes para cada combinação e falhas sem vazamento de segredo. |
 
-| ID | Short Outcome | Depends On | Status |
-|---|---|---|---|
-| T001 | Inspect/preserve partial sources; fill missing structure | — | ⬜ |
-| T002 | Dependency manifests + safe first-run local secret generation; preserve `.env`; no fake provider keys | — | ⬜ |
-| T003 | Async DB engine/session and real readiness | T002 | ⬜ |
-| T004 | Canonical models + `admin_sessions` + initial migration + durable job fields | T003 | ⬜ |
-| T005 | AES-256-GCM settings encryption | T002 | ⬜ |
-| T006 | Connection-pinned SSRF transport for readers/callbacks; redirects revalidated/disabled | T002 | ⬜ |
-| T007 | Single-admin login/logout/me, HttpOnly session, CSRF, API Bearer option; reject `X-Tenant-ID` identity | T002, T004 | ⬜ |
-| T008 | Masked/encrypted settings API with provider cache reload | T004, T005, T007 | ⬜ |
-| T009 | Multi-provider LLM gateway | T008 | ⬜ |
-| T010 | Explicit public event schema/builder; raw model streams excluded | T004 | ⬜ |
-| T011 | Prompts requiring evidence/uncertainty, not private chain-of-thought | — | ⬜ |
-| T012 | Durable Scout + create/status routes | T006, T009–T011 | ⬜ |
-| T017 | Search-read-clean with extracted evidence text and metadata | T006 | ⬜ |
-| T019 | `BaseWorker` (must precede personas) | T009, T010, T017 | ⬜ |
-| T018a | Historian from `BaseWorker` | T019 | ⬜ |
-| T018b | Skeptic from `BaseWorker` | T019 | ⬜ |
-| T018c | Pragmatist from `BaseWorker` | T019 | ⬜ |
-| T018d | Futurist from `BaseWorker` | T019 | ⬜ |
-| T013 | WorkerPool + global in-process cap 20 | T018a–T018d | ⬜ |
-| T014 | Evidence optimistic locking | T004 | ⬜ |
-| T015 | Authenticated SSE from allowlisted public events | T007, T010 | ⬜ |
-| T020 | Auditor completeness/contradiction/uncertainty | T013, T014 | ⬜ |
-| T021 | Claim-to-extracted-evidence Citation Auditor; URL reachability insufficient | T006, T014 | ⬜ |
-| T022 | Max-three retry, BLOCKED/caveats persistence | T020, T021 | ⬜ |
-| T023 | Evidence-grounded Writer with blockers/uncertainty | T009, T022 | ⬜ |
-| T024 | Connection-pinned callback dispatch | T006 | ⬜ |
-| T025 | Report retrieval + callback retry routes | T023, T024 | ⬜ |
-| T016 | Final Orchestrator + one-time approval route + durable recovery (after workers/auditor/writer) | T012–T015, T018a–T025 | ⬜ |
-| T026 | React shell + login; no browser API secret | T007, T016 | ⬜ |
-| T027 | Typed API/session stores + CSRF/logout | T026 | ⬜ |
-| T028 | Create/status/recent research UI | T027 | ⬜ |
-| T029 | Editable one-time approval UI | T027 | ⬜ |
-| T030 | SSE public status/persona UI | T027 | ⬜ |
-| T031 | Report + evidence/uncertainty/blocker UI | T027 | ⬜ |
-| T032 | Masked settings UI + logout | T027 | ⬜ |
-| T033 | Images + same-origin Nginx/SSE proxy | T002, T026 | ⬜ |
-| T034 | Compose: Postgres + exactly one backend + frontend; migration/health gates | T003, T004, T033 | ⬜ |
-| T035 | Investigate actual Coolify/Traefik config before proposing labels | T034 | ⬜ |
-| T036 | Local gate; production DNS/TLS gate only when authorized/access available | T035 | ⬜ |
-| T037 | Local E2E including auth, routes, SSRF, cap, callback, restart recovery | T016, T025, T032, T034 | ⬜ |
-| T038 | Conditional authorized live E2E; sampled factual validation; record blockers if unavailable | T036, T037 | ⬜ |
+## BACKEND A1 — guardrails
 
-## Dependency Invariants
+| ID | Prioridade | Estado | Desvio confirmado e evidência | Aceite da correção |
+|---|---|---|---|---|
+| A1-01 | HIGH | CONCLUÍDO | Guardrail de saída depende de quatro regex fixas (`app/services/llm.py:117-130`): variantes de senha, nomes de variáveis de segredo e instruções internas sem a expressão literal `system prompt` passam. Probes com canários fictícios confirmaram aceitação; teste existente `tests/test_backend.py:348-356` cobre só três exemplos. | Bloquear/redigir saídas que reproduzam valores sensíveis configurados (sem registrá-los), instruções internas e variantes relevantes em português/inglês; preservar texto benigno; testes adversariais para todos os caminhos LiteLLM primário/fallback sem ecoar canários nas falhas. |
+| A1-02 | HIGH | CONCLUÍDO | JSON de Scout e Auditor é validado por formato, não por conteúdo seguro após parse; `scout()` devolveu canário em 5 descrições (`app/services/research.py:105-145`); `_audit_point()` persistiu canário em `ResearchPoint.audit` e `AuditTrail.details` (`app/services/research.py:275-289`). `GET /api/research/{id}` retorna a auditoria (`app/routers/research.py:195-205`), alcançando usuário autenticado. | Validar/sanitizar campos estruturados **antes** de persistência e resposta (título, descrição, análise/evidência, findings, uncertainties, outline, feedback e relatório); saída insegura deve falhar de forma controlada sem vazar valor em erro/evento; testes via rota com canário fictício provam ausência no banco e na resposta. |
+| A1-03 | MEDIUM | CONCLUÍDO | Tema, nota de revisão e texto de fontes externas entram no prompt como texto livre (`app/services/research.py:93-103,166-226`), sem fronteira/instrução explícita para tratar instruções presentes nessas fontes como dados. **Risco estático**, não foi demonstrado que modelo real obedece a injeção. | Definir isolamento de conteúdo não confiável e teste de prompt-injection controlado pelo caminho Scout → Worker → Auditor → Writer; registrar somente como risco até repro concreta, sem alegar exploração confirmada. |
 
-1. T019 (`BaseWorker`) before T018a–T018d.
-2. T016 final integration after concrete workers, T020–T022 Auditor path, T023 Writer, T024 callback, and T010/T015 event path.
-3. API routes required: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/research`, `GET /api/research/{id}`, `POST /api/research/{id}/briefing/approve`, `GET /api/research/{id}/stream`, `GET /api/reports/{id}`, `POST /api/reports/{id}/retry-callback`, `GET /api/settings`, `PUT /api/settings`, `GET /health`.
-4. Startup recovery and durable milestones required; `asyncio.Task` alone is not durable.
-5. Compose launches one backend instance until atomic DB lease or distributed queue exists.
-6. No approval pause for local implementation. Public DNS/deploy/TLS remains separately authorized.
+## BACKEND A2 — pesquisa preliminar
+
+| ID | Prioridade | Estado | Desvio confirmado e evidência | Aceite da correção |
+|---|---|---|---|---|
+| A2-01 | HIGH | CONCLUÍDO | `scout()` só falha quando não há nenhuma página legível; não exige 3 fontes nem 3 sites distintos (`app/services/research.py:95-98`); `search_read()` não seleciona por domínio (`app/tools/search_pipeline.py:224-227`). Probes produziram rascunho com 1 site e com 5 páginas de 1 site, ambos fora do critério. | Fazer busca preliminar com 3–5 fontes legíveis de sites distintos antes de aprovar rascunho; impedir que 1–2 sites, mesmo com várias páginas, sejam apresentados como pesquisa suficiente; tratar insuficiência de modo controlado e testar casos 0/1/2/3/5 sites, URLs repetidas e página ilegível. |
+| A2-02 | MEDIUM | CONCLUÍDO | O orçamento temporal é **por requisição** (`SEARCH_TIMEOUT_SECONDS=30`, `app/core/config.py:17`; `app/tools/search_pipeline.py:24-32,35-51,63-134,195-221`), sem prazo global para busca, tentativas sequenciais dos provedores, leitura com fallback e geração LLM com até 5 tentativas/timeout de 90 s (`app/services/llm.py:238-243,271-328`). Caminho estático permite briefing demorado, contrário a “nem demoradas”; probe com `search_read` simulado bloqueado deixou `scout` pendente após prazo de observação, sem timeout global. Duração em rede real **não medida**. | Definir prazo total curto e explícito para exploração do Scout e geração do rascunho, com falha controlada sem rascunho não fundamentado; testar provedores lentos/indisponíveis e verificar limite de tempo escolhido. |
+
+## BACKEND A3 em diante e FRONTEND — achados restantes
+
+| ID | Severidade | Critérios | Desvio / aceite de correção | Estado |
+|---|---|---|---|---|
+| MA-01 | HIGH | BACKEND A5 | Scheduler de lotes serializa independentes com sequencial. Liberar independentes junto do primeiro sequencial e liberar dependentes quando predecessor termina; testes temporais de mistura, cadeia e teto 20. | CONCLUÍDO |
+| MA-02 | MEDIUM | BACKEND B/B1 | Prompts genéricos não incorporam contratos cognitivos detalhados; teto de queries configurável sem validação. Preservar papéis README e máximo absoluto 3, memória por ponto e resumo com URLs; testes de prompts e configuração 4 rejeitada. | CONCLUÍDO |
+| MA-03 | HIGH | BACKEND B3 | Retry textual ausente de queries/prompts; só URLs aproveitadas. Encaminhar assunto/descrição/instruções concretas à busca e síntese; teste com canário de instrução e consulta alterada. | CONCLUÍDO |
+| MA-04 | HIGH | BACKEND B2 | Commit falho é silenciado e evento pode anunciar sucesso. Propagar falha controlada, impedir auditoria tratar persistência malsucedida como sucesso, provar ausência de falso evento. | CONCLUÍDO |
+| MA-05 | HIGH | BACKEND B3 | Default 3 execuções totais em vez de 4. Provar execução inicial + 3 retries, blocker só na quarta reprovação, inclusive recuperação. | CONCLUÍDO |
+| MA-06 | HIGH | BACKEND B3 | Auditor perde descrição, analysis/incerteza e metadados temporais. Enviar contexto completo por ponto e evidências; teste capta prompt com descrição/analysis/data e impede mistura entre pontos. | CONCLUÍDO |
+| MA-07 | HIGH | BACKEND B3/C | Overlap aceita quote com negação invertida; original da fonte não persiste para checagem posterior. Preservar trecho original e identidade da fonte; não classificar overlap como sustentação; testes negativos semânticos. | CONCLUÍDO |
+| MA-08 | HIGH | BACKEND B3 | JSON lista causa AttributeError; RETRY aceita missing_research ausente/vazio. Validar objeto/schema antes de .get, exigir instruções concretas em RETRY e falha/retry controlado sem encerrar pesquisa por AttributeError. | CONCLUÍDO |
+| MA-09 | HIGH | BACKEND C | Writer publica listas/tabelas sem citação; uma URL conhecida basta em probe. Validar afirmações/trechos e caveats sem inferir fidelidade por presença de URL; testes negativos em prosa, lista e tabela. | CONCLUÍDO |
+| MA-10 | HIGH | BACKEND D; FRONTEND A7 | callback_url por request ignorado. Distinguir cliente autenticado, validar/persistir callback de backend e usar apenas Settings no browser; testar presença/ausência e SSRF. | CONCLUÍDO |
+| MA-11 | MEDIUM | BACKEND D | report_id devolvido não resolve rota reports, só research_id. Permitir consulta autenticada por ambos IDs conforme contrato; testar 200 e 404 legítimo. | CONCLUÍDO |
+| MA-12 | HIGH | BACKEND E; FRONTEND A2/A5 | Eventos sem ponto/ferramenta/rodada e transições suficientes. Eventos seguros identificam ponto/persona/tipo de ferramenta/resumo/retry e síntese; teste replay com pontos concorrentes. | CONCLUÍDO |
+| MA-13 | MEDIUM | BACKEND F1 | HTTP 422 Jina vira chave válida. Não confirmar autenticação a partir de erro de validação; testar 200/401/403/422/quota/timeout sem exposição de chave. | CONCLUÍDO |
+| MA-14 | MEDIUM | BACKEND F2 | Catálogo não pagina e esconde erros como vazio. Consumir paginação suportada e distinguir catálogo vazio de erro acionável, sem fallback fixo; testes páginas e falhas. | CONCLUÍDO |
+| MA-15 | HIGH | FRONTEND A1/A8 | Settings editável antes de carregar; GET falho deixa URLs vazias e salvar pode removê-las via null/empty. Bloquear salvamento até carga válida, oferecer retry e preservar configurações em erro de GET. | CONCLUÍDO |
+| MA-16 | MEDIUM | FRONTEND A2/A5 | Status global de persona não representa execução por ponto; sumiço dos cards quando callback falha. Renderizar estado por ponto/persona e distinguir concluído/falho/aguardando com callback independente. | CONCLUÍDO |
+| MA-17 | HIGH | FRONTEND A3 | Reordenar remove dependências silenciosamente. Preservar DAG sem perda semântica, impedir movimento inválido ou solicitar mudança explícita; teste dependente movido antes da base. | CONCLUÍDO |
+| MA-18 | MEDIUM | FRONTEND A6/A8 | Shape real de auditoria perdido; badge errado, fonte/quote não exibidos; tabelas sem parser; copy anuncia sucesso antes da Promise. Testar resposta backend real, ressalvas, citações/tabelas e clipboard rejeitado. | CONCLUÍDO |
+| MA-19 | HIGH | FRONTEND A7; integração F3 | Catálogo OpenAI-compatible com ID contendo slash vira outro provedor. Conservar identidade do provedor e ID exato; teste catálogo vendor/model até kwargs api_base/api_key/model de LiteLLM. | CONCLUÍDO |
+| MA-20 | HIGH | FRONTEND A8/A11/A15 | Guarda só por pesquisa, sem ordenação intra-ID; EventSource recriado sem cursor e dedupe só visual. Respostas antigas não podem regredir status; eventos repetidos não podem reaplicar efeitos/fechar stream; testar polling atrasado, retry callback e reconexão. | CONCLUÍDO |
+| MA-21 | MEDIUM | FRONTEND A9/A13 | Contraste baixo e drawer esquerdo sem confinamento de foco. Ajustar tokens e navegação teclado; medir contraste de textos, foco/escape/retorno em browser. | CONCLUÍDO |
+| MA-22 | HIGH | FRONTEND A10 | Falta prova E2E completa, fixture Postgres incompatível com Writer atual. Suite isolada cobre login→settings→pesquisa→briefing→stream→auditoria→relatório, callback falho e modelos/base_url; separar simulação de provedores de execução real. | CONCLUÍDO |
+| MA-23 | MEDIUM | FRONTEND A12/A14 | Faltam projetos/perfil e compositor no detalhe. Implementar acessos pedidos e composição compatível com aprovação única; testes de navegação e estado. Não criar diálogo ilimitado implicitamente. | CONCLUÍDO |
+| MA-24 | MEDIUM | FRONTEND A13 | Sidebar closed permanece invisível após resize móvel e abrir menu. Testar desktop recolhido→viewport móvel→abrir→fechar preservando contexto. | CONCLUÍDO |
+| MA-25 | MEDIUM | Consistência documental | Workflow/plano/testes antigos contradizem retries/auth/callback atuais. Alinhar contratos citados sem retroceder critérios nem apagar histórico de auditoria. | CONCLUÍDO |

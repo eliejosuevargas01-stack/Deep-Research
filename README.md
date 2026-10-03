@@ -61,7 +61,7 @@ Os workers utilizam uma tool unificada com subfluxo integrado:
 * **Mapeamento de Contradições:** Identifica divergências entre as evidências dos agentes (ex: Cético vs. Visionário) e define como estruturar o debate.
 * **Controle de Alucinação & Veracidade:** Audita se todas as alegações contêm links e citações de fontes reais auditadas.
 * **Criação do Roteiro (Outline):** Constrói a estrutura hierárquica ideal de tópicos em formato de esqueleto/sumário para o Redator.
-* **Loop de Qualidade:** Avalia se o ponto de pesquisa foi satisfatório (`APPROVED` / `RETRY`). Limite máximo de **3 tentativas** de reexecução dos workers. Atingido o limite, o *blocker* é ativado e os dados acumulados seguem diretamente para o redator final com as devidas ressalvas.
+* **Loop de Qualidade:** Avalia se o ponto de pesquisa foi satisfatório (`APPROVED` / `RETRY`). Limite máximo de **3 retries após a execução inicial**, totalizando até 4 execuções dos workers por ponto. Atingido o limite, o *blocker* é ativado e os dados acumulados seguem diretamente para o redator final com as devidas ressalvas.
 
 > **Prompt de Perspectiva:**
 > *"Você é um editor-chefe acadêmico e auditor de fatos. Seu trabalho é garantir que a pesquisa coletada seja robusta, sem furos lógicos e estruturada no melhor sumário possível."*
@@ -77,7 +77,7 @@ Os workers utilizam uma tool unificada com subfluxo integrado:
 * **Fluidez Textual:** Transforma notas brutas e descobertas isoladas em uma narrativa técnica coesa, eliminando redundâncias.
 * **Garantia de Tom & Formatação:** Gera relatório Markdown de alta densidade informativa, utilizando tabelas comparativas, destaques e links canônicos de fontes.
 * **Fidelidade ao Roteiro:** Respeita com rigor a taxonomia do Auditor, sem adicionar inferências não respaldadas por evidências coletadas.
-* **Callback & Entrega:** Ao finalizar a compilação do relatório final, despacha o payload completo para o webhook remetente cadastrado.
+* **Callback & Entrega:** Para o frontend, a URL de callback é opcional e configurada na página de configurações. Clientes backend-to-backend não têm essa página e podem enviar `callback_url` opcional em cada request de pesquisa. O relatório final é sempre persistido e pode ser consultado por ID pela API ou pela interface frontend; quando houver callback, o backend também despacha o relatório para esse destino. Falha no webhook não remove nem bloqueia o acesso ao relatório.
 
 > **Prompt de Perspectiva:**
 > *"Você é um redator técnico sênior especializado em transformar relatórios complexos em documentos Markdown claros, escaneáveis e didáticos, sem adicionar qualquer informação que não tenha sido explicitamente fornecida."*

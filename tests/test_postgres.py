@@ -1,21 +1,57 @@
 """Exercise full HTTP lifecycle against migrated PostgreSQL with controlled providers."""
+import asyncio
 import json
+import os
 import time
 import uuid
+from urllib.parse import urlsplit
 
 from fastapi.testclient import TestClient
 import pytest
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import settings
 from app.main import app
 from app.tools.search_pipeline import Source
 
-pytestmark = pytest.mark.skipif(not settings.DATABASE_URL.startswith("postgresql+asyncpg://"),
-                                reason="Requires migrated PostgreSQL; run in Compose backend")
+
+def _isolated_postgres_url() -> bool:
+    url = os.environ.get("TEST_DATABASE_URL", "")
+    database = urlsplit(url).path.lstrip("/")
+    return (
+        settings.ENVIRONMENT.lower() != "production"
+        and url.startswith("postgresql+asyncpg://")
+        and url == settings.DATABASE_URL
+        and database.endswith("_test")
+    )
 
 
-def test_postgres_research_lifecycle(monkeypatch):
-    assert settings.DATABASE_URL.startswith("postgresql+asyncpg://")
+pytestmark = pytest.mark.skipif(
+    not _isolated_postgres_url(),
+    reason="Requires explicit TEST_DATABASE_URL matching DATABASE_URL and a dedicated *_test database",
+)
+
+
+async def _remove_test_research(research_id: str) -> None:
+    engine = create_async_engine(settings.DATABASE_URL)
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DELETE FROM research WHERE id = :id"), {"id": uuid.UUID(research_id)})
+    finally:
+        await engine.dispose()
+
+
+@pytest.fixture
+def isolated_research():
+    created = []
+    yield created
+    for research_id in created:
+        asyncio.run(_remove_test_research(research_id))
+
+
+def test_postgres_research_lifecycle(monkeypatch, isolated_research):
+    assert _isolated_postgres_url()
     roles_seen = []
 
     async def sources(query, limit=8, keys=None):
@@ -52,6 +88,7 @@ def test_postgres_research_lifecycle(monkeypatch):
         )
         assert created.status_code == 201
         rid = created.json()["research_id"]
+        isolated_research.append(rid)
         draft = {}
         for _ in range(100):
             draft = client.get(f"/api/research/{rid}").json()
