@@ -124,6 +124,12 @@ def _validate_base_url_impl(url: str | None, provider_hint: str | None = None) -
                     raise ValueError(f"Invalid base_url: DNS lookup failed or host is not IP ({addr})")
     return clean
 
+ENV_KEYS = {
+    "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY",
+    "litellm": "LITELLM_API_KEY", "jina": "JINA_API_KEY", "serpapi": "SERPAPI_API_KEY",
+    "apify": "APIFY_API_TOKEN",
+}
+
 _FORBIDDEN_METADATA_IPS = {
     "169.254.169.254",
     "169.254.170.2",
