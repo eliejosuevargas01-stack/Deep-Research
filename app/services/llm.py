@@ -267,10 +267,14 @@ async def complete(role: str, system: str, user: str, db: AsyncSession) -> str:
         raise ProviderConfigurationError(f"No API key configured for model provider '{provider}'")
     kwargs: dict[str, Any] = {
         "model": model,
-        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         "api_key": api_key,
-        "timeout": 90,
+        "timeout": 180,
     }
+    if any(k in model.lower() for k in ("kimi", "moonshot")):
+        kwargs["messages"] = [{"role": "user", "content": f"INSTRUÇÕES DO SISTEMA:\n{system}\n\nDADOS E TAREFA:\n{user}"}]
+        kwargs["max_tokens"] = 4000
+    else:
+        kwargs["messages"] = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     if provider == "openai" and record.openai_base_url:
         validate_base_url(record.openai_base_url)
         kwargs["api_base"] = record.openai_base_url
@@ -304,7 +308,8 @@ async def complete(role: str, system: str, user: str, db: AsyncSession) -> str:
         for attempt in range(1, attempts + 1):
             try:
                 response = await acompletion(**kwargs)
-                text = response.choices[0].message.content
+                msg = response.choices[0].message
+                text = msg.content or getattr(msg, "reasoning_content", "") or ""
                 if not text:
                     raise RuntimeError("LLM returned empty content")
                 return apply_output_guardrail(text, extra_sensitive_values=sensitive_keys)
@@ -327,7 +332,8 @@ async def complete(role: str, system: str, user: str, db: AsyncSession) -> str:
                                 fallback_kwargs["api_key"] = router_key
                                 fallback_kwargs["api_base"] = router_base
                                 fb_resp = await acompletion(**fallback_kwargs)
-                                fb_text = fb_resp.choices[0].message.content
+                                fb_msg = fb_resp.choices[0].message
+                                fb_text = fb_msg.content or getattr(fb_msg, "reasoning_content", "") or ""
                                 if fb_text:
                                     return apply_output_guardrail(fb_text, extra_sensitive_values=sensitive_keys)
                         except Exception as fb_exc:

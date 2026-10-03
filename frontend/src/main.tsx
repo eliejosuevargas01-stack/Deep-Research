@@ -587,6 +587,7 @@ function ResearchPage() {
   const [activeTab, setActiveTab] = useState<'plan' | 'evidence' | 'report'>('plan')
   const [busy, setBusy] = useState(false)
   const [retryingCallback, setRetryingCallback] = useState(false)
+  const [resuming, setResuming] = useState(false)
   const [sseState, setSseState] = useState<'connecting' | 'connected' | 'reconnecting' | 'error' | 'closed'>('connecting')
   const [reconnectCount, setReconnectCount] = useState(0)
   const chatBottomRef = useRef<HTMLDivElement>(null)
@@ -984,6 +985,32 @@ function ResearchPage() {
     }
   }
 
+  async function handleResume() {
+    if (!id || busy || resuming) return
+    const request = activeRequestRef.current
+    if (!request?.isCurrent()) return
+    setResuming(true)
+    setError('')
+    try {
+      await api('/api/research/' + id + '/resume', {
+        method: 'POST',
+        signal: request.signal,
+      })
+      if (!request.isCurrent()) return
+      const refreshed = await api<Research>('/api/research/' + id, { signal: request.signal })
+      if (!request.isCurrent()) return
+      setResearch(refreshed)
+      setCachedResearch(id, refreshed)
+      setNotice('Pesquisa retomada com sucesso! Acompanhando execução…')
+      setReconnectCount(c => c + 1)
+      await refreshHistory()
+    } catch (e) {
+      if (request.isCurrent()) setError('Erro ao retomar pesquisa: ' + (e as Error).message)
+    } finally {
+      if (request.isCurrent()) setResuming(false)
+    }
+  }
+
   function editPoint(index: number, key: keyof Point, value: any) {
     setPoints(old => {
       const updated = old.map((p, i) => (i === index ? { ...p, [key]: value } : p))
@@ -1099,6 +1126,19 @@ function ResearchPage() {
                 </span>
               )}
               <span className={'status-pill ' + research.status}>{statusLabel(research.status)}</span>
+              {research.status === 'failed' && (
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ padding: '3px 8px', fontSize: '11px', gap: '4px', height: '24px', display: 'inline-flex', alignItems: 'center' }}
+                  disabled={resuming || busy}
+                  onClick={handleResume}
+                  title="Retomar execução da pesquisa"
+                >
+                  <RefreshCw size={11} className={resuming ? 'spin' : ''} />
+                  {resuming ? 'Retomando…' : 'Retomar'}
+                </button>
+              )}
               <button
                 ref={artifactsToggleBtnRef}
                 className={'icon-btn artifacts-toggle ' + (artifactsOpen ? 'active' : '')}
@@ -1496,7 +1536,16 @@ function ResearchPage() {
                 <p>
                   {research.error || 'Verifique as chaves e modelos configurados na página de configurações.'}
                 </p>
-                <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={resuming || busy}
+                    onClick={handleResume}
+                  >
+                    <RefreshCw size={14} className={resuming ? 'spin' : ''} />
+                    {resuming ? 'Retomando…' : 'Retomar Pesquisa'}
+                  </button>
                   <button
                     type="button"
                     className="secondary"

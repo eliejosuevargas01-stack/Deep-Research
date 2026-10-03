@@ -380,3 +380,48 @@ async def retry_callback(identifier: uuid.UUID, _: Principal = Depends(require_a
             raise HTTPException(409, "Report not ready")
     delivered = await dispatch_callback(effective_research_id)
     return {"success": delivered, "delivered": delivered}
+
+
+@router.post("/research/{research_id}/resume")
+async def resume(
+    research_id: uuid.UUID,
+    _: Principal = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    research = await db.get(Research, research_id)
+    if not research:
+        raise HTTPException(404, "Research not found")
+    if research.status in {"completed", "completed_but_callback_failed"}:
+        raise HTTPException(409, "Research already completed")
+    if research.status in {"in_progress", "scouting"}:
+        raise HTTPException(409, f"Research is already {research.status}")
+
+    points = list(
+        (await db.scalars(
+            select(ResearchPoint)
+            .where(ResearchPoint.research_id == research_id)
+            .order_by(ResearchPoint.position)
+        )).all()
+    )
+
+    if not points:
+        research.status = "scouting"
+        research.error = None
+        await db.commit()
+        schedule_scout(research_id)
+        try:
+            await add_event(research_id, "system", "research_resumed", "Research scout resumed by operator")
+        except Exception:
+            pass
+        return {"research_id": research_id, "status": "scouting"}
+
+    research.status = "in_progress"
+    research.error = None
+    await db.commit()
+    schedule(research_id)
+    try:
+        await add_event(research_id, "system", "research_resumed", "Research execution resumed by operator", {"points": len(points)})
+    except Exception:
+        pass
+    return {"research_id": research_id, "status": "in_progress"}
+

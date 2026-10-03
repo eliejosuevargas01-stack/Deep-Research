@@ -2169,3 +2169,58 @@ def test_ma_provider_model_discovery_pagination_and_errors(monkeypatch):
 
     asyncio.run(run_disc())
 
+
+def test_resume_research_endpoint(client, monkeypatch):
+    import uuid
+    from app.models import Research, ResearchPoint
+    from app.db.database import AsyncSessionLocal
+
+    scout_scheduled = []
+    research_scheduled = []
+    monkeypatch.setattr("app.routers.research.schedule_scout", lambda rid: scout_scheduled.append(rid))
+    monkeypatch.setattr("app.routers.research.schedule", lambda rid: research_scheduled.append(rid))
+
+    async def setup_data():
+        async with AsyncSessionLocal() as db:
+            # 1. Non-existent -> 404
+            pass
+            # 2. Completed -> 409
+            r_comp = Research(theme="Completed research", status="completed", briefing_draft={})
+            db.add(r_comp)
+            # 3. Failed without points -> resumes to scouting
+            r_scout_fail = Research(theme="Failed scout research", status="failed", briefing_draft={})
+            db.add(r_scout_fail)
+            # 4. Failed with points -> resumes to in_progress
+            r_pts_fail = Research(theme="Failed with points", status="failed", briefing_draft={})
+            db.add(r_pts_fail)
+            await db.flush()
+            db.add(ResearchPoint(research_id=r_pts_fail.id, position=0, title="P0", description="D0", dependencies=[], is_parallelizable=True, status="approved"))
+            await db.commit()
+            return str(r_comp.id), str(r_scout_fail.id), str(r_pts_fail.id)
+
+    comp_id, scout_fail_id, pts_fail_id = client.portal.call(setup_data)
+
+    csrf = login(client)
+    headers = {"X-CSRF-Token": csrf}
+
+    # 404
+    resp = client.post(f"/api/research/{uuid.uuid4()}/resume", headers=headers)
+    assert resp.status_code == 404
+
+    # 409 already completed
+    resp = client.post(f"/api/research/{comp_id}/resume", headers=headers)
+    assert resp.status_code == 409
+
+    # Failed without points -> scouting
+    resp = client.post(f"/api/research/{scout_fail_id}/resume", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "scouting"
+    assert len(scout_scheduled) == 1
+
+    # Failed with points -> in_progress
+    resp = client.post(f"/api/research/{pts_fail_id}/resume", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "in_progress"
+    assert len(research_scheduled) == 1
+
+

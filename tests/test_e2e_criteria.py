@@ -4,7 +4,8 @@ from tests.test_backend import client, login
 import app.routers.research as rr
 
 
-def test_criteria_full_flow(client):
+def test_criteria_full_flow(client, monkeypatch):
+    monkeypatch.setattr("app.services.settings.validate_base_url", lambda url: url)
     # 1. Login (A4)
     csrf = login(client)
     headers = {"X-CSRF-Token": csrf}

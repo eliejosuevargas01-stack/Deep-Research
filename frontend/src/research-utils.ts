@@ -454,6 +454,13 @@ export function canTransitionStatus(
   newStatus: string | undefined | null,
 ): boolean {
   if (!currentStatus || !newStatus) return true
+  // Resuming from failed or interrupted to in_progress or scouting is an explicit forward recovery
+  if (
+    (currentStatus === 'failed' || currentStatus === 'interrupted') &&
+    (newStatus === 'in_progress' || newStatus === 'scouting')
+  ) {
+    return true
+  }
   const curRank = STATUS_RANK[currentStatus] || 0
   const newRank = STATUS_RANK[newStatus] || 0
   // MA-20: Never allow delayed responses to regress a research status from a higher rank to a lower rank
