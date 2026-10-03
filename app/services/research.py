@@ -334,7 +334,7 @@ async def _worker(research_id: uuid.UUID, point_id: uuid.UUID, title: str, descr
             context = "\n\n".join(f"URL: {s.url}\nTITLE: {s.title}\nTEXT: {s.excerpt[:2500]}" for s in sources)
             response = await complete(
                 persona,
-                f"Analyze evidence as {persona}. {cognitive_contract} Return a strict JSON array only (use double quotes for all keys and string values, e.g. [{{\"source_url\": \"...\"}}]). Each item: source_url, claim, exact_quote, analysis. Use only supplied URLs and verbatim quotes. Mark uncertainty in analysis. Never expose chain-of-thought.",
+                f"Analyze evidence as {persona}. {cognitive_contract} Return a strict JSON array only (use double quotes for all keys and string values, e.g. [{{\"source_url\": \"...\"}}]). Each item: source_url, claim, exact_quote, analysis. CRITICAL RULE: exact_quote must be an exact verbatim substring copied from the provided source text without modifications or paraphrasing. Use only supplied URLs. Mark uncertainty in analysis. Never expose chain-of-thought.",
                 f"<research_point>\nTitle: {title}\nDescription: {description}\n</research_point>\n\n<untrusted_external_content>\n{context}\n</untrusted_external_content>", db,
             )
             items = parse_json(response)
