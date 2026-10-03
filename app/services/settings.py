@@ -9,6 +9,121 @@ from app.models import AppSettings
 from app.schemas import PROVIDERS, ROLES
 from app.services.crypto import decrypt_secret, encrypt_secret, mask_secret
 
+DEFAULT_ROLE_MODELS = {
+    "scout": "gemini/gemini-3.1-flash-lite-preview",
+    "historian": "gemini/gemini-3.1-flash-lite-preview",
+    "skeptic": "gemini/gemini-3.1-flash-lite-preview",
+    "pragmatist": "gemini/gemini-3.1-flash-lite-preview",
+    "futurist": "gemini/gemini-3.1-flash-lite-preview",
+    "auditor": "gemini/gemini-3.8-flash",
+    "writer": "gemini/gemini-3.6-flash",
+}
+
+PROVIDER_BASE_URLS: dict[str, tuple[str | None, str]] = {
+    "openai": ("https://api.openai.com/v1", "openai_base_url"),
+    "anthropic": ("https://api.anthropic.com", "anthropic_base_url"),
+    "gemini": ("https://generativelanguage.googleapis.com", "gemini_base_url"),
+    "litellm": (None, "litellm_api_base"),
+    "jina": ("https://r.jina.ai/", "jina_base_url"),
+    "serpapi": ("https://serpapi.com/search", "serpapi_base_url"),
+    "apify": ("https://api.apify.com/v2", "apify_base_url"),
+}
+
+SERVER_DEFAULT_BASE_URL = "SERVER_DEFAULT_BASE_URL"
+_SERVER_DEFAULT_ALLOWED_PORTS = {80, 443}
+
+
+def _allowed_base_url_ports() -> set[int]:
+    raw = os.getenv("BASE_URL_ALLOWED_PORTS") or ""
+    extra = {int(p.strip()) for p in raw.split(",") if p.strip().isdigit()}
+    return _SERVER_DEFAULT_ALLOWED_PORTS | extra
+
+
+def _is_trusted_proxy_url(scheme: str, host: str, port: int) -> bool:
+    proxy_url = (settings.LITELLM_API_BASE or "").strip()
+    if not proxy_url:
+        return False
+    parsed = urlparse(proxy_url)
+    parsed_port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+    return (
+        parsed.scheme.lower() == scheme
+        and (parsed.hostname or "").lower() == host
+        and parsed_port == port
+    )
+
+
+def _is_private_dns_allowed(scheme: str, host: str) -> bool:
+    value = (os.getenv("ALLOW_PRIVATE_BASE_URL_DNS") or "").strip().lower()
+    allowed_hosts = {h.strip().lower() for h in value.split(",") if h.strip()}
+    label_match = all(len(label) > 0 and label != "localhost" for label in host.split("."))
+    return host in allowed_hosts and scheme == "http" and label_match
+
+
+def _get_openai_proxy_base_url() -> str | None:
+    env_value = (os.getenv("OPENAI_PROXY_BASE_URL") or "").strip()
+    if env_value:
+        try:
+            return validate_base_url(env_value)
+        except ValueError as exc:
+            logger = logging.getLogger(__name__)
+            logger.warning("Ignoring invalid OPENAI_PROXY_BASE_URL: %s", exc)
+    record = None  # Read from DB later if passed
+    return None
+
+
+def _validate_base_url_impl(url: str | None, provider_hint: str | None = None) -> str | None:
+    env_value = os.getenv("ALLOW_PRIVATE_BASE_URL_IPS") or ""
+    allow_private = env_value.strip().lower() in ("1", "true", "yes", "on")
+    denied_hostnames = {"metadata.google.internal"}
+
+    if not url or not url.strip():
+        return None
+    clean = url.strip().rstrip("/")
+    low = clean.lower()
+
+    allowed_ports = _allowed_base_url_ports()
+
+    if allow_private:
+        parsed = urlparse(clean)
+        if (parsed.hostname or "").lower() in denied_hostnames:
+            raise ValueError("Invalid base_url: blocked metadata host")
+        return clean
+
+    if not (low.startswith("http://") or low.startswith("https://")):
+        raise ValueError("Invalid base_url: must use http:// or https://")
+    host = urlparse(low).hostname or ""
+    port = urlparse(low).port or (443 if low.startswith("https") else 80)
+    if port not in allowed_ports:
+        raise ValueError("Invalid base_url: blocked port")
+
+    try:
+        ip = ipaddress.ip_address(host)
+        if not ip.is_global:
+            raise ValueError("Invalid base_url: must be a public routable IP")
+    except ValueError:
+        if ipaddress is None or not ipaddress.ip_address is ip:
+            pass  # it's a hostname
+        if host in denied_hostnames:
+            raise ValueError("Invalid base_url: blocked metadata host")
+        if _is_private_dns_allowed("https" if low.startswith("https") else "http", host):
+            pass  # Allowed per explicit DNS whitelist
+        elif _is_trusted_proxy_url("https" if low.startswith("https") else "http", host, port):
+            pass  # Trusted proxy
+        else:
+            try:
+                infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+                addrs = {info[4][0] for info in infos}
+            except Exception:
+                raise ValueError(f"Invalid base_url: DNS resolution failed for host '{host}'")
+            for addr in addrs:
+                try:
+                    ip = ipaddress.ip_address(addr)
+                    if not ip.is_global:
+                        raise ValueError(f"Invalid base_url: host resolves to untrusted private IP ({addr})")
+                except ValueError:
+                    raise ValueError(f"Invalid base_url: DNS lookup failed or host is not IP ({addr})")
+    return clean
+
 _FORBIDDEN_METADATA_IPS = {
     "169.254.169.254",
     "169.254.170.2",
@@ -128,8 +243,10 @@ def validate_base_url(url: str | None) -> str | None:
     trusted = get_trusted_router_hosts()
     try:
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        found_any_ip = False
         infos = socket.getaddrinfo(host_lower, port, type=socket.SOCK_STREAM)
         for _, _, _, _, addr in infos:
+            found_any_ip = True
             ip_str = addr[0]
             raw_ip = ipaddress.ip_address(ip_str)
             mapped = getattr(raw_ip, "ipv4_mapped", None)
@@ -138,25 +255,15 @@ def validate_base_url(url: str | None) -> str | None:
                 raise ValueError(f"Invalid base_url: host resolves to blocked IP ({raw_ip})")
             if not effective_ip.is_global:
                 if effective_ip.is_private:
-                    if host_lower not in trusted and ip_str not in trusted and str(effective_ip) not in trusted:
+                    if host_lower not in trusted and ip_str not in trusted and str(effective_ip) not in trusted and not _is_private_dns_allowed(parsed.scheme, host_lower):
                         raise ValueError(f"Invalid base_url: host resolves to untrusted private IP ({raw_ip})")
                 else:
                     raise ValueError(f"Invalid base_url: host resolves to non-global IP ({raw_ip})")
+        if not found_any_ip and not _is_private_dns_allowed(parsed.scheme, host_lower):
+            raise ValueError(f"Invalid base_url: DNS resolution returned no addresses ({host_lower})")
     except socket.gaierror:
-        # If domain cannot be resolved and ends in internal TLD, reject unless in trusted config
-        if host_lower.endswith((".internal", ".local", ".lan", ".home", ".corp")):
-            if host_lower not in trusted:
-                raise ValueError(f"Invalid base_url: unverified internal host blocked ({host_lower})")
-
-    return cleaned
-
-ENV_KEYS = {
-    "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY",
-    "litellm": "LITELLM_API_KEY", "jina": "JINA_API_KEY", "serpapi": "SERPAPI_API_KEY",
-    "apify": "APIFY_API_TOKEN",
-}
-
-
+        raise
+    return cleaned.strip().rstrip("/")
 async def get_record(db: AsyncSession) -> AppSettings:
     record = await db.get(AppSettings, 1)
     if not record:

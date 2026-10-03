@@ -31,6 +31,9 @@ services:
       JINA_API_KEY: ${JINA_API_KEY:-}
       SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
       APIFY_API_TOKEN: ${APIFY_API_TOKEN:-}
+      LITELLM_API_BASE: ${LITELLM_API_BASE:-}
+      OPENAI_PROXY_BASE_URL: ${OPENAI_PROXY_BASE_URL:-}
+      ALLOW_PRIVATE_BASE_URL_DNS: ${ALLOW_PRIVATE_BASE_URL_DNS:-}
     depends_on:
       db:
         condition: service_healthy
