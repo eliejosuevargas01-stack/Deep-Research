@@ -19,7 +19,7 @@ from app.tools.search_pipeline import Source, search_read
 
 PERSONAS = ("historian", "skeptic", "pragmatist", "futurist")
 WORK_LIMIT = asyncio.Semaphore(20)
-SCOUT_GLOBAL_TIMEOUT = 45.0
+SCOUT_GLOBAL_TIMEOUT = 120.0
 
 
 def extract_site_domain(url: str) -> str:
