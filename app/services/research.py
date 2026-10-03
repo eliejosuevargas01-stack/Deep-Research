@@ -334,7 +334,7 @@ async def _worker(research_id: uuid.UUID, point_id: uuid.UUID, title: str, descr
             context = "\n\n".join(f"URL: {s.url}\nTITLE: {s.title}\nTEXT: {s.excerpt[:2500]}" for s in sources)
             response = await complete(
                 persona,
-                f"Analyze evidence as {persona}. {cognitive_contract} Return JSON array only. Each item: source_url, claim, exact_quote, analysis. Use only supplied URLs and verbatim quotes. Mark uncertainty in analysis. Never expose chain-of-thought.",
+                f"Analyze evidence as {persona}. {cognitive_contract} Return a strict JSON array only (use double quotes for all keys and string values, e.g. [{{\"source_url\": \"...\"}}]). Each item: source_url, claim, exact_quote, analysis. Use only supplied URLs and verbatim quotes. Mark uncertainty in analysis. Never expose chain-of-thought.",
                 f"<research_point>\nTitle: {title}\nDescription: {description}\n</research_point>\n\n<untrusted_external_content>\n{context}\n</untrusted_external_content>", db,
             )
             items = parse_json(response)
@@ -520,7 +520,7 @@ async def _write_report(research: Research, points: list[ResearchPoint]) -> None
         audits = [{"point": point.title, "status": point.status, "audit": point.audit} for point in points]
         text = await complete(
             "writer",
-            "Write a substantive Markdown research report in Brazilian Portuguese (pt-BR) using only supplied evidence. Include a ## heading matching each research point title exactly and explain its evidence, gaps and uncertainty; aim for at least 400 words overall. Cite every factual claim with inline Markdown URL. Include blocked-point caveats, then References. Do not invent facts or expose private reasoning.",
+            "Write a substantive Markdown research report in Brazilian Portuguese (pt-BR) using only supplied evidence. Include a ## heading matching each research point title exactly and explain its evidence, gaps and uncertainty; aim for at least 400 words overall. CRITICAL CITATION RULE: Every sentence and bullet point asserting facts must include an inline markdown link to its source url from the evidence, formatted as [texto](url). Include blocked-point caveats, then References. Do not invent facts or expose private reasoning.",
             json.dumps({"theme": research.theme, "evidence": bundle, "audits": audits}, ensure_ascii=False)[:100000], db,
         )
         if not text.strip() or not evidence:

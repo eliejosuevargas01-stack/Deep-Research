@@ -364,13 +364,32 @@ async def complete(role: str, system: str, user: str, db: AsyncSession) -> str:
 
 
 def parse_json(text: str) -> Any:
+    cleaned = text.strip()
+    match = re.search(r"```(?:json)?\s*(.*?)\s*```", cleaned, re.DOTALL)
+    if match:
+        cleaned = match.group(1).strip()
     try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        match = re.search(r"(?:```json\s*)?(\{.*\}|\[.*\])(?:\s*```)?", text, re.S)
-        if not match:
-            raise ValueError("LLM response did not contain JSON")
-        return json.loads(match.group(1))
+        return json.loads(cleaned)
+    except Exception:
+        pass
+    m = re.search(r"(\{.*\}|\[.*\])", cleaned, re.DOTALL)
+    if m:
+        candidate = m.group(1).strip()
+        try:
+            return json.loads(candidate)
+        except Exception:
+            pass
+        try:
+            import ast
+            return ast.literal_eval(candidate)
+        except Exception:
+            pass
+    try:
+        import ast
+        return ast.literal_eval(cleaned)
+    except Exception:
+        pass
+    raise ValueError("LLM response did not contain JSON")
 
 
 async def test_provider_key(provider: str, api_key: str, base_url: str | None = None) -> tuple[bool, str]:
