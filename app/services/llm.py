@@ -339,9 +339,13 @@ async def complete(role: str, system: str, user: str, db: AsyncSession) -> str:
                                 fb_status,
                             )
 
-                # If retryable, sleep with small bounded backoff (do not increase backoff unnecessarily)
+                # If retryable, sleep with appropriate backoff
                 if attempt < attempts and is_retryable:
-                    backoff = min(1.0 * attempt, 3.0)
+                    if status_code == 429:
+                        # Respect enough time for the window to reset
+                        backoff = min(30.0 * attempt, 120.0)
+                    else:
+                        backoff = min(2.0 * attempt, 10.0)
                     await asyncio.sleep(backoff)
                     continue
 

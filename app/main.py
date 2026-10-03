@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
@@ -30,6 +31,13 @@ async def lifespan(_: FastAPI):
     for research_id in active:
         schedule(research_id)
     yield
+    # Clean shutdown: cancel pending background tasks and dispose engine
+    from app.routers.research import _running
+    if _running:
+        for t in list(_running):
+            if not t.done():
+                t.cancel()
+        await asyncio.gather(*_running, return_exceptions=True)
     if settings.ENVIRONMENT.lower() != "test":
         await engine.dispose()
 

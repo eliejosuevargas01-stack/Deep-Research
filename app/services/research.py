@@ -585,5 +585,6 @@ async def run_research(research_id: uuid.UUID) -> None:
             if research:
                 research.status = "failed"
                 research.error = safe_msg
+                # Do not mark approved points as failed, keep their evidence
                 await db.commit()
         await add_event(research_id, "system", "research_failed", safe_msg)
