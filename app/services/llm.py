@@ -272,7 +272,7 @@ async def complete(role: str, system: str, user: str, db: AsyncSession) -> str:
     }
     if any(k in model.lower() for k in ("kimi", "moonshot")):
         kwargs["messages"] = [{"role": "user", "content": f"INSTRUÇÕES DO SISTEMA:\n{system}\n\nDADOS E TAREFA:\n{user}"}]
-        kwargs["max_tokens"] = 4000
+        kwargs["max_tokens"] = 8000
     else:
         kwargs["messages"] = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     if provider == "openai" and record.openai_base_url:
