@@ -5,10 +5,12 @@
 Build an autonomous, distributed, full-stack Deep Research Engine capable of executing rigorous, multi-agent investigative workflows across the live web. The system combines:
 1. **Cognitive 4-Phase Research Pipeline**: Scout & Briefing → 4-Persona Parallel Investigation → Fact-Checking Auditor → Markdown Report Synthesizer.
 2. **Interactive Chat Frontend**: A precision Linear-styled UI (React 19, Tailwind CSS, TanStack Router) providing a one-time human-in-the-loop brief review/edit, real-time agent process summaries, and interactive report rendering.
-3. **Persisted Encrypted Settings**: Database storage for LLM provider keys and per-agent model assignments with AES-256-GCM encryption and immediate runtime effect.
-4. **Production Deployment Target**: Locally verified Docker Compose environment with automated database migrations, plus an investigated Traefik/Coolify deployment specification for `research.dominuslabs.online`. Public DNS/TLS execution requires real infrastructure access and separate authorization.
+3. **API-First Backend**: The complete research lifecycle must also be usable without the frontend through authenticated backend-to-backend API calls using `X-API-Key`. Frontend and API are two supported surfaces over the same research engine.
+4. **Persisted Encrypted Settings**: Database storage for LLM provider keys, optional search/proxy credentials and per-agent model assignments with AES-256-GCM encryption and immediate runtime effect.
+5. **Self-Managed Deployment**: The repository must include a Docker Compose stack that provisions its own PostgreSQL service, persistent volume, backend, frontend/reverse proxy, runtime dependencies, health checks and database migrations. Local infrastructure bootstraps itself without manual database/schema/table creation.
+6. **Production Deployment Target**: Locally verified Docker Compose environment with automated database migrations, plus an investigated Traefik/Coolify deployment specification for `research.dominuslabs.online`. Public DNS/TLS execution requires real infrastructure access and separate authorization.
 
-The engine must produce high-density, fact-checked research reports backed by rigorous, traceable citations mapped to extracted source content, evidence-grounded synthesis, explicit uncertainty scoring, and adversarial contradiction auditing.
+The engine must produce high-density, fact-checked research reports backed by rigorous, traceable citations mapped to extracted source content, evidence-grounded synthesis, explicit uncertainty scoring, adversarial contradiction auditing, resumable durable execution and bounded provider-aware performance.
 
 ---
 
@@ -18,12 +20,15 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 
 | Component | Legacy Status | Canonical Reconciled Status | Rationale |
 |-----------|---------------|-----------------------------|-----------|
-| **Chat Frontend UI** | *Out of scope* | **IN SCOPE (Mandatory)** | Operators require a chat UI to submit research topics, edit/approve the 5-point brief in one round, monitor live agent process summaries, configure settings, and inspect reports. |
-| **Live LLM Execution** | *Out of scope (mocked)* | **IN SCOPE (Mandatory)** | The pipeline must execute real LLM calls (OpenAI, Anthropic, Gemini, LiteLLM) for Scout, 4 Persona Workers, Auditor, and Writer using dynamic model configuration. |
-| **Encrypted Settings** | *Not specified* | **IN SCOPE (Mandatory)** | API keys and per-agent model selections must be persisted in PostgreSQL with AES-256-GCM encryption and dynamic runtime hot-reload. Local personal secrets (`SESSION_SECRET`, `APP_ENCRYPTION_KEY`) auto-generated on first run only. |
+| **Chat Frontend UI** | *Out of scope* | **IN SCOPE (Mandatory)** | Operators require a chat UI to submit research topics, edit/approve the 5-point brief in one round, monitor live agent process summaries, configure settings, resume work and inspect reports. |
+| **Backend API Surface** | *Partially specified* | **IN SCOPE (Mandatory)** | The system must remain fully operable without the frontend for backend-to-backend clients authenticated by `X-API-Key`. |
+| **Live LLM Execution** | *Out of scope (mocked)* | **IN SCOPE (Mandatory)** | The pipeline must execute real LLM calls for Scout, 4 Persona Workers, Auditor, and Writer using dynamic model configuration through the common backend gateway. |
+| **Encrypted Settings** | *Not specified* | **IN SCOPE (Mandatory)** | API keys, proxy authentication secrets and per-agent model selections must be persisted in PostgreSQL with AES-256-GCM encryption and dynamic runtime hot-reload. Local personal secrets (`SESSION_SECRET`, `APP_ENCRYPTION_KEY`) auto-generated on first run only. |
+| **Self-Managed Docker Compose** | *Partial/local* | **IN SCOPE (Mandatory)** | A single documented build/up flow must provision Postgres, persistent storage, migrations, backend and frontend without manual DB/schema/table setup. |
 | **Docker Compose & Deployment** | *Out of scope (local only)* | **IN SCOPE (Mandatory)** | The complete system must be containerized locally with health checks and auto-migration. Public cloud deployment to `research.dominuslabs.online` requires specification, distinct from actual execution because external DNS/TLS configuration require explicit authorization and real access. |
-| **Agent Process Streaming** | *Not specified* | **IN SCOPE (Mandatory)** | Server-Sent Events (SSE) must stream explicitly generated structured public status summaries while strictly preventing private reasoning tokens or raw completion streams from entering the pipeline. |
+| **Agent Process Streaming** | *Not specified* | **IN SCOPE (Mandatory)** | Server-Sent Events (SSE) must stream explicitly generated structured public status summaries, learning summaries and declared next steps while strictly preventing private reasoning tokens or raw completion streams from entering the pipeline. |
 | **Dual Search Mode** | *Not specified* | **IN SCOPE (Mandatory)** | The engine must work with zero search credentials by default and optionally switch to an authenticated Jina relay/proxy for high-speed search-and-read execution. |
+| **Durable Resume** | *Restart-only recovery* | **IN SCOPE (Mandatory)** | Interrupted or `failed` research must be explicitly resumable from the latest valid persisted checkpoint without discarding approved points or collected evidence. |
 
 ---
 
@@ -34,93 +39,112 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
    - Access is secured under a single-admin application model via `POST /api/auth/login`.
    - Browser receives the user's signed JWT in an `HttpOnly`, `SameSite=Lax` (or `Strict`), `Secure` cookie with anti-CSRF protection. PostgreSQL stores only the JWT identifier (`jti`) hash, expiry, revocation, and CSRF metadata. Client-side code never reads the JWT or receives raw API keys (`API_AUTH_SECRET`).
    - Backend-to-backend API clients authenticate with `X-API-Key`; this credential is not required from browser clients. Each request uses exactly one authentication method according to its client type: user JWT cookie for the frontend, or API key for backend clients.
+   - The backend API must expose the complete research lifecycle required by non-browser clients: create research, inspect status, approve/edit briefing, consume events, fetch reports, configure callback per request and resume eligible interrupted/failed research.
    - Tenant context is strictly server-derived (`default`), ignoring any spoofed client headers like `X-Tenant-ID`.
 2. **Settings Configuration**:
    - Operator navigates to the Settings page (`/settings`).
-   - Local cryptographic keys (`APP_ENCRYPTION_KEY`, `SESSION_SECRET`, local DB password) are initialized on first run via `scripts/generate_env.py` and saved to `.env` only if absent. Existing `.env` files are strictly preserved.
+   - Local cryptographic keys (`APP_ENCRYPTION_KEY`, `SESSION_SECRET`, local DB password) are initialized on first run and persisted safely only if absent. Existing values are strictly preserved.
    - External provider keys (OpenAI, Anthropic, Gemini, SerpAPI, Apify, Jina) are entered via the UI when those providers are intentionally configured and persisted to PostgreSQL encrypted with AES-256-GCM.
-   - Search works in **free mode by default**, with no search-provider credential required. Free mode uses a credential-free search source and the public Jina Reader path for page extraction, subject to provider rate limits.
+   - Search works in **free mode by default**, with no search-provider credential required. Free mode uses a credential-free search source and Jina Reader without authentication for readable page extraction when applicable, subject to provider rate limits.
    - The operator may enable **Jina Proxy accelerated mode** by configuring only a Jina relay/Cloudflare Worker base URL and the relay authentication secret. The Deep Research application must not require, expose, rotate, or manage the Jina API-key pool behind that relay; key rotation/failover belongs to the relay implementation.
-   - SerpAPI and Apify remain supported as optional alternative search/extraction providers and are not mandatory for the zero-configuration default path.
+   - SerpAPI and Apify remain supported as optional alternative search/extraction providers and are not mandatory for the zero-configuration default search path.
    - Frontend operators may configure an optional callback URL in Settings, persisted by the backend. Backend-to-backend clients have no Settings UI and may instead submit an optional `callback_url` with each authenticated `POST /api/research` request.
    - Operator selects currently available provider/model identifiers for each role: Scout, Historian, Skeptic, Pragmatist, Futurist, Auditor, and Writer. Values come from configuration/provider discovery rather than speculative hardcoded versions.
-   - Changes take immediate runtime effect via in-memory provider cache refresh without container restart.
+   - Changes take immediate runtime effect without container restart.
 3. **Research Submission**:
    - Frontend operators enter only the research topic/theme; the backend uses the optional callback URL saved in Settings. Backend-to-backend clients submit the topic and may include a per-request `callback_url`, which is validated and persisted with that research for delivery and retry; otherwise they retrieve the report by ID.
-   - Clicks "Start Deep Research" (`POST /api/research`).
+   - The same engine must be reachable through the frontend flow and through the authenticated REST API.
 4. **Scout & One-Time Human Brief Review**:
-   - Scout agent runs web exploration, extracts recurring themes, and drafts 5 investigation points with dependency and parallelism flags.
-   - The UI presents the 5-point brief in an interactive review card.
+   - Scout agent runs concise web exploration, extracts recurring themes, and drafts exactly 5 investigation points with dependency and parallelism flags.
+   - The UI presents the 5-point brief in an interactive review card; API clients receive the same draft structurally through the backend.
    - Operator can reorder points, edit titles/descriptions, toggle parallel execution, or add missing angles.
-   - Operator clicks "Approve Brief" (`POST /api/research/{id}/briefing/approve`).
+   - Approval persists the canonical research points and starts execution.
 5. **Live Process Streaming (Privacy-Guarded)**:
    - Orchestrator spawns 4 specialist personas per point (up to 20 concurrent workers).
-   - The UI displays live progress cards for each point and persona:
-     - Real-time status badges (`Searching`, `Reading 6 sources`, `Synthesizing`, `Auditing`).
-     - Live process summaries (e.g., *"Historical consensus identified across 4 academic sources"*).
-     - **Privacy Boundary**: Public streams emit strictly explicitly generated structured lifecycle events. Raw model completion streams and private chain-of-thought tokens are never queued or streamed.
+   - The UI and authenticated API event stream expose live progress per point and persona:
+     - status badges (`Searching`, `Reading sources`, `Synthesizing`, `Auditing`);
+     - source/result counts;
+     - explicitly generated public learning summaries;
+     - declared next search/action;
+     - audit score/verdict and retry instructions.
+   - **Privacy Boundary**: Public streams emit only explicitly generated structured lifecycle events. Raw model completion streams and private chain-of-thought tokens are never queued or streamed.
 6. **Auditor Fact-Check & Quality Loop**:
-   - As workers finish a point, the Auditor evaluates evidence completeness, detects contradictions (e.g., Skeptic vs Futurist), and verifies citations against extracted source content (not merely URL accessibility).
-   - If evidence is deficient, the Auditor triggers a targeted retry, up to 3 retries after the initial worker execution (4 total executions per point).
-   - If all 3 retries fail, the Auditor raises a blocker flag and advances with explicit caveats and uncertainty reporting.
-7. **Report Delivery & Inspection**:
-   - Writer synthesizes the final Markdown report grounded strictly in audited outlines and extracted quotes.
-   - The final report is persisted and remains retrievable through `GET /api/reports/{id}`. Frontend users can inspect it in the research UI; backend API clients can fetch it by research/report ID.
-   - If a callback URL is configured in frontend Settings or supplied by a backend-to-backend client on the research request, the system validates the destination using connection-level IP pinning and dispatches an asynchronous HTTP POST payload. Callback delivery is optional and does not replace report retrieval by ID.
+   - As workers finish a point, the Auditor evaluates the 4 perspectives for that single point against 12 canonical criteria.
+   - Each criterion is recorded as satisfied/not satisfied. **10 of 12 or more (≥80%) means `APPROVED`; fewer than 10 means `RETRY` unless the retry ceiling has been reached.**
+   - On retry, the Auditor emits concrete missing-research instructions and workers reuse valid persisted evidence, researching only remaining gaps whenever possible.
+   - There are up to 3 retries after the initial worker execution (4 total executions per point).
+   - If the fourth execution remains insufficient, the point transitions to `BLOCKED`, retains evidence and audit findings, and advances with explicit caveats instead of preventing the Writer forever.
+7. **Durable Resume & Recovery**:
+   - All valid progress is durably persisted in PostgreSQL: briefing, points, point status, attempt counters, evidence, audits, events and reports.
+   - Startup recovery resumes in-flight states after process restart.
+   - A separate explicit resume capability must allow eligible `failed`/interrupted research to continue from the latest valid checkpoint. Already `APPROVED` or `BLOCKED` points are not automatically redone.
+8. **Report Delivery & Inspection**:
+   - Writer starts after every point has reached a terminal research state (`APPROVED` or `BLOCKED`).
+   - Writer synthesizes the final Markdown report grounded strictly in persisted evidence, audited outlines and explicit caveats for blocked/inconclusive points.
+   - The final report is persisted and remains retrievable through `GET /api/reports/{id}`. Frontend users inspect it in the research UI; backend API clients fetch it by research/report ID.
+   - If a callback URL is configured in frontend Settings or supplied by a backend-to-backend client on the research request, the system validates the destination and dispatches an asynchronous HTTP POST payload. Callback delivery is optional and does not replace report retrieval by ID.
 
 ---
 
 ## 4. Definition of Done (Testable Acceptance Criteria)
 
-1. **FastAPI Backend Core & Routers**:
-   - Clean architecture implemented in `app/{core,db,models,schemas,services,routers,prompts,tools,docs,main.py}`.
-   - Endpoints operational: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/research`, `GET /api/research/{id}`, `POST /api/research/{id}/briefing/approve`, `GET /api/research/{id}/stream`, `GET /api/reports/{id}`, `POST /api/reports/{id}/retry-callback`, `GET /api/settings`, `PUT /api/settings`, `GET /health`.
+1. **FastAPI Backend Core & Complete API Surface**:
+   - Clean architecture implemented in `app/{core,db,models,schemas,services,routers,prompts,tools,docs,main.py}` or a documented refined equivalent produced by the architecture refactor.
+   - Browser/frontend and backend-to-backend clients both exercise the same research engine.
+   - Operational API includes authentication/session operations as appropriate, research creation/status, briefing approval/edit, authenticated event stream, report retrieval, callback retry, settings operations needed by frontend, health and an explicit research-resume operation for eligible failed/interrupted jobs.
 2. **Security & Session Authentication**:
    - Single-admin security model. Server derives context without trusting client `X-Tenant-ID` headers.
-   - Authentication middleware validates the user JWT in the HttpOnly cookie for browser clients and `X-API-Key` for backend-to-backend clients, rejecting unauthenticated requests with `401 Unauthorized`. The two credentials are alternatives, not cumulative requirements.
+   - Authentication validates the user JWT in the HttpOnly cookie for browser clients and `X-API-Key` for backend-to-backend clients, rejecting unauthenticated requests with `401 Unauthorized`. The two credentials are alternatives, not cumulative requirements.
    - CSRF protection enforced on mutating browser requests.
 3. **Encrypted Settings & Dynamic Precedence**:
-   - `app_settings` table stores provider API keys and proxy authentication secrets encrypted with AES-256-GCM at rest.
+   - `app_settings` stores provider API keys and proxy authentication secrets encrypted with AES-256-GCM at rest.
    - Search mode defaults to `free` and requires no search credential.
    - Optional `jina_proxy` mode stores a configurable proxy/Worker base URL and encrypted proxy authentication secret. Jina upstream keys managed by the proxy must not be copied into the Deep Research application.
    - Configuration precedence strictly enforced: Database Stored Settings > Environment / `.env` defaults.
-   - Changes via `PUT /api/settings` take immediate runtime effect without container restart.
-   - Local secrets generated on first run, preserving existing `.env`.
+   - Changes take immediate runtime effect without container restart.
+   - Local secrets generated on first run, preserving existing values.
 4. **SSRF Guardrails & IP Pinning**:
-   - `callback_url` and web reader/scraping URLs enforce connection-level IP pinning at socket creation.
-   - Outbound redirects are re-validated before following or disabled (`follow_redirects=False`).
-   - Requests targeting RFC1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`), link-local (`169.254.0.0/16`), cloud metadata (`169.254.169.254`), and IPv6 unicast/loopback (`::1`, `fc00::/7`, `fe80::/10`) are blocked with `SSRFSecurityViolation`.
-5. **Real Multi-Agent Orchestration, Concurrency & Restart Durability**:
+   - `callback_url`, web reader/scraping URLs and configurable proxy endpoints enforce connection-level IP validation/pinning where technically applicable.
+   - Outbound redirects are re-validated before following or disabled.
+   - Requests targeting loopback, private/link-local networks and cloud metadata destinations are blocked.
+5. **Real Multi-Agent Orchestration, Concurrency & Durable State**:
    - Scout agent uses real LLM calls to generate 5 distinct research points.
-   - Orchestrator manages worker execution under a hard ceiling of **20 concurrent workers** (`asyncio.Semaphore(20)`).
-   - Durable job state stored in PostgreSQL. On restart, startup recovery detects in-flight research records (`scouting`, `in_progress`) to prevent silent job loss.
-   - Single backend replica in Compose to prevent uncoordinated multi-instance race conditions.
-   - Optimistic locking on `evidences` table using `version` column prevents race conditions.
+   - Orchestrator manages worker execution under a hard ceiling of **20 concurrent workers** (`asyncio.Semaphore(20)` or a functionally equivalent global limiter).
+   - Durable job state stored in PostgreSQL.
+   - Startup recovery detects in-flight research records and resumes them safely.
+   - Explicit resume supports eligible interrupted/`failed` jobs without throwing away persisted valid progress.
 6. **Search-Read-Clean Tooling, Performance & BaseWorker DAG**:
-   - `BaseWorker` implemented before concrete persona workers (`Historian`, `Skeptic`, `Pragmatist`, `Futurist`).
+   - Shared worker/search abstractions implemented before concrete persona workers.
    - **Default free path:** with no search credentials configured, workers use a credential-free web-search source and Jina Reader without authentication for readable page extraction. Provider rate limits must be respected through bounded concurrency, queuing and backoff rather than intentional limit bypass.
-   - **Accelerated Jina Proxy path:** when `jina_proxy` is enabled, workers send the search/read request to the configured Cloudflare Worker/Jina relay using the configured relay authentication secret. The relay is responsible for its own upstream Jina-key pool, rotation and provider-level failover.
-   - If Jina Search returns usable page content together with search results, workers must consume that returned content directly. They must not automatically perform a second Jina Reader request for each same URL unless the returned content is missing, insufficient, stale for the audit requirement, or explicitly needs revalidation.
+   - **Accelerated Jina Proxy path:** when `jina_proxy` is enabled, workers send search/read requests to the configured Cloudflare Worker/Jina relay using the configured relay authentication secret. The relay is responsible for its own upstream Jina-key pool, rotation and provider-level failover.
+   - If Jina Search returns usable page content together with search results, workers consume that returned content directly and do not automatically re-read the same URLs through Jina Reader unless needed.
    - SerpAPI and Apify remain optional alternate providers/fallbacks.
-   - A worker search round (query + source acquisition + reading/extraction required for that round) has a target hard deadline of approximately **30 seconds**. With at most 3 rounds, one worker should not normally exceed approximately **90 seconds** of search-round wall time; independent personas and research points continue to run concurrently according to the DAG and global concurrency ceiling.
-   - Retries requested by the Auditor must reuse persisted valid evidence and search only for identified gaps whenever possible rather than repeating already-satisfied research.
-7. **Stateless Fact-Checking Auditor & Blocker Loop**:
-   - Auditor validates persona completeness, maps contradictions, audits citations against extracted source content snippets, scores uncertainty, and generates writer outlines.
-   - Max 3 retry attempts after the initial worker execution per point (4 total executions); automatically activates `BLOCKED` status after the third retry fails and forwards caveats to writer.
+   - A worker search round (query + source acquisition + reading/extraction + public learning summary) has a target hard deadline of approximately **30 seconds**. With at most 3 rounds, one worker should not normally exceed approximately **90 seconds** of search-round wall time; independent personas and research points continue concurrently according to the DAG and global ceiling.
+   - Auditor retries reuse persisted valid evidence and search only identified gaps whenever possible.
+7. **Fact-Checking Auditor & Blocker Loop**:
+   - Auditor records the 12 canonical checks and calculates the score explicitly.
+   - `APPROVED` requires at least **10/12** criteria satisfied.
+   - Below 10/12 yields targeted `RETRY` until the ceiling of 4 total point executions.
+   - After the fourth insufficient execution the point becomes `BLOCKED`, retains findings/evidence and forwards caveats to Writer instead of halting the whole research.
 8. **Privacy-Sanitized Live Process Stream**:
-   - SSE endpoint `/api/research/{id}/stream` streams strictly explicitly generated structured events (`scout_started`, `worker_progress`, `audit_verdict`, `report_ready`).
-   - Zero leakage of raw internal reasoning, chain of thought, or system prompt internals.
+   - SSE endpoint streams explicitly generated structured events for scout progress, worker searches, source results, public learning summaries, next steps, audit scores/verdicts/retries and report readiness.
+   - Zero leakage of raw internal reasoning, chain of thought, secret tool content or system prompt internals.
+   - Stream reconnection resumes from the last event ID without duplication.
 9. **Full-Stack Chat Frontend**:
-   - React 19 + TanStack Router + Tailwind CSS interface matching Linear dark-mode tokens.
-   - Chat view supporting submission, interactive 5-point brief review/edit, real-time persona cards, markdown report view, and settings management.
-   - Settings expose the default `free` search mode plus optional `jina_proxy` configuration fields for relay base URL and relay authentication secret; the UI does not ask for the relay's internal Jina-key pool.
-   - Uses the user's JWT in an HttpOnly cookie with CSRF; never exposes the JWT to client-side code or `API_AUTH_SECRET` to the frontend.
-10. **Docker Compose & Deployment Gates**:
-    - Multi-container `docker-compose.yml` with `postgres`, single `backend` replica, and `frontend` (Nginx reverse proxy).
-    - Database auto-migrates on startup via `alembic upgrade head`.
-    - Health checks ensure Postgres is ready before backend boots.
-    - Local implementation and container verification run autonomously without approval pause gates.
-    - Cloud deployment, public DNS for `research.dominuslabs.online`, and Let's Encrypt TLS verification gates distinguish local verification from cloud deployment requiring real infrastructure credentials and separate authorization.
+   - React 19 + TanStack Router + Tailwind CSS interface with a chat-centered agent experience.
+   - Chat view supports submission, interactive 5-point brief review/edit, real-time persona activity, public learning/next-step summaries, resume flow, markdown report view and settings management.
+   - Settings expose the default `free` search mode plus optional `jina_proxy` fields for relay base URL and relay authentication secret; the UI does not ask for the relay's internal Jina-key pool.
+   - Uses the user's JWT in an HttpOnly cookie with CSRF; never exposes the JWT to client-side code or backend API secrets to the frontend.
+10. **Self-Managed Docker Compose & Deployment Gates**:
+    - Multi-container Compose includes `postgres`, single `backend` replica and `frontend`/reverse proxy as applicable.
+    - Compose automatically creates and mounts a named persistent PostgreSQL volume.
+    - Health checks ensure Postgres is ready before backend initialization.
+    - Backend automatically executes `alembic upgrade head` before serving traffic; migrations are the canonical creation/evolution mechanism for schemas, tables, indexes and constraints.
+    - Image builds install all Python/Node/runtime dependencies; the operator does not manually install packages inside containers.
+    - First-run bootstrap safely creates missing local system secrets/passwords required by the stack without overwriting existing values.
+    - The documented local happy path is a single `docker compose up --build` (or equivalent) flow; no manual PostgreSQL database, volume, schema, table or SQL preparation is required.
+    - External credentials remain necessary only for deliberately chosen external LLM/integration providers; the canonical free search path itself requires no search credential.
+    - Cloud deployment, public DNS for `research.dominuslabs.online`, and TLS verification remain separate infrastructure actions requiring real access/authorization.
 
 ---
 
@@ -128,20 +152,18 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 
 ### Codebase & Reference Inventory
 
-1. **Current Codebase (`/root/projects/deep-research`)**:
-   - `app/core/config.py`: Basic Pydantic settings loading `.env`. Needs `APP_ENCRYPTION_KEY` (for secrets encryption), `SESSION_SECRET` (for signing user JWTs), and dynamic override integration. Local secrets generated on first run preserving existing `.env`.
-   - `app/db/database.py`: SQLAlchemy async engine and sessionmaker.
-   - `app/models/domain_models.py`: Partial SQLAlchemy models (`Research`, `ResearchPoint`, `EvidenceRecord`, `AuditTrail`, `Report`). Needs `AppSettings`, `AgentEventLog`, revocable `AdminSession`, and server-scoped `tenant_id="default"` columns (no client trust). Ensure durable job states.
-   - `app/schemas/`: Pydantic schemas for request/response. Needs settings, SSE event, and auth session schemas.
-   - `app/routers/research.py`: Basic CRUD endpoints. Needs authentication routes (`/api/auth/login`, `/api/auth/logout`, `/api/auth/me`), SSE streaming, settings management, and callback retry.
-   - `app/middleware/security.py`: Basic token check. Needs connection-level SSRF validation, user JWT validation from the frontend's HttpOnly cookie, `X-API-Key` validation for backend-to-backend clients, and CSRF protection (no client-supplied `X-Tenant-ID` trust).
-   - `app/prompts/personas.json`: Prompts for 4 personas, scout, auditor, writer.
-   - `app/tools/search_pipeline.py`: Search and reader functions with fallbacks. Needs connection-level SSRF socket pinning and the canonical `free`/`jina_proxy` search-mode split, including direct reuse of content returned by accelerated Jina Search.
-   - `app/agents/workers/`: `BaseWorker` and 4 persona subclasses (`HistorianWorker`, `SkepticWorker`, `PragmatistWorker`, `FuturistWorker`). BaseWorker must precede personas in implementation.
-   - `app/engine/`: `WorkerPool`, `Auditor`, `Orchestrator`. Needs semaphore concurrency cap (20), durable job state recovery on startup, live event emission, and real LLM client integration. Orchestrator final integration after workers/auditor/writer.
-   - `app/services/webhook.py`: Webhook dispatcher. Needs connection-pinned SSRF validation.
-   - `frontend/`: Partial scaffolding with `package.json` (React 19, TanStack Router, Zustand) and `PLAN.md`.
-   - `alembic/`: `env.py` and `alembic.ini`. Migration versions directory must be created.
+1. **Current Codebase**:
+   - `app/core/config.py`: Pydantic settings and environment fallback; must coexist with dynamic encrypted database settings and first-run local secret bootstrap.
+   - `app/db/database.py`: async SQLAlchemy engine/session layer; must support migration-first self-managed boot.
+   - `app/models/domain_models.py`: canonical persistence for research, points, evidence, events, reports, audits, sessions and settings.
+   - `app/schemas/`: request/response schemas for frontend and backend API consumers.
+   - `app/routers/`: API boundaries for auth, research, settings, events/reports and explicit resume.
+   - `app/services/`: business/application services, including research orchestration, LLM gateway, audit, settings, crypto and webhook functionality.
+   - `app/tools/search_pipeline.py`: search/reader functions; needs the canonical `free`/`jina_proxy` split, direct reuse of content returned by accelerated Jina Search, provider-aware limits and explicit per-round deadlines.
+   - Worker/agent modules: common BaseWorker/WorkerResult contracts plus the four persona implementations, Scout, Auditor and Writer.
+   - `frontend/`: full UI target; current monolithic implementation remains a refactor target.
+   - `alembic/`: canonical database evolution mechanism.
+   - `docker-compose.yml`/`compose.yml`: must become the zero-manual-database-setup local bootstrap path.
 2. **Reference Projects**:
    - `/root/projects/Dominuslabs`: Dockerfile patterns, Nginx proxy configuration, and Coolify/Traefik integration for `*.dominuslabs.online`.
    - `/root/RENDER_LLM_ROUTER`: Multi-provider LLM routing patterns, schema validation, and provider fallback logic.
@@ -149,17 +171,16 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 
 ### Adaptation Mapping
 
-| Existing Asset | Current State | Required Canonical Adaptation |
-|----------------|---------------|-------------------------------|
-| `app/models/domain_models.py` | 5 partial entities | Maintain server-scoped `tenant_id="default"`; add `AppSettings` (encrypted credentials, model mappings), `AgentEventLog` (explicit public summaries), and revocable `AdminSession`. Ensure durable job states. |
-| `app/core/config.py` | Static `.env` loading | Add encryption secret, session secret, dynamic override resolver, and preserve existing `.env`. |
-| `app/services/` | `webhook.py` only | Add `llm.py` (unified provider gateway using LiteLLM/OpenAI/Anthropic/Gemini) and `crypto.py` (AES-256-GCM settings encryption). |
-| `app/middleware/security.py` | Basic token string match | Add connection-pinned SSRF guardrails (blocking private IPs), user JWT validation from HttpOnly cookies, `X-API-Key` validation for backend-to-backend clients, CSRF protection, and reject client `X-Tenant-ID`. |
-| `app/engine/orchestrator.py` | Basic linear flow | Final integration after workers/auditor/writer; add `asyncio.Semaphore(20)`, durable state recovery on startup, SSE event dispatcher, and real Scout outline generation. |
-| `app/routers/` | Partial research router | Add auth endpoints (`/api/auth/login`, `/api/auth/logout`, `/api/auth/me`), `/api/research/{id}/stream` (SSE), `/api/settings` (GET/PUT), and `/api/reports/{id}/retry-callback`. |
-| `frontend/` | Only `package.json` & `PLAN.md` | Implement complete React 19 UI: Chat submission, 5-point brief editor, live persona panels, markdown report renderer, settings page. Authenticate with the user's JWT in an HttpOnly cookie; no JWT or `API_AUTH_SECRET` in the frontend bundle. |
-| `docker-compose.yml` | Not present | Create production multi-service Compose (Postgres, single Backend replica, Frontend Nginx) with health checks, auto-migration, and Traefik labels. |
-| `alembic/` | Initialized without version files | Generate initial migration `001_initial_schema.py` covering all canonical tables. |
+| Existing Asset | Canonical Adaptation |
+|----------------|----------------------|
+| `app/models/domain_models.py` | Ensure durable job state, evidence/audit retention, settings, event log, sessions and checkpoint/resume data required by the canonical flow. |
+| `app/core/config.py` | Preserve environment fallback while adding safe first-run bootstrap and dynamic encrypted settings resolution. |
+| `app/services/` / worker-agent layer | Separate orchestration from worker/auditor/writer behavior using explicit contracts; orchestration must remain resumable and thin enough to test. |
+| `app/tools/search_pipeline.py` | Implement free/default mode, optional authenticated Jina proxy mode, provider-aware rate limiting, direct Jina Search content reuse and bounded query deadlines. |
+| `app/routers/` | Maintain complete API-first research lifecycle, including frontend/session routes and backend-to-backend `X-API-Key` access plus explicit resume. |
+| `frontend/` | Implement/reshape chat-centered UI with real-time safe agent activity, briefing artifacts, reports, settings and resume UX. |
+| `docker-compose.yml` / `compose.yml` | Provision Postgres + persistent named volume + backend + frontend, health checks and migration gate with one documented build/up flow. |
+| `alembic/` | Own all schema/table/index/constraint creation and evolution; no manual SQL prerequisite. |
 
 ---
 
@@ -167,7 +188,7 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 
 To protect delivery velocity and focus on core research capabilities, the following features are strictly excluded from this epic:
 - Multi-party conversational audio/voice streaming.
-- Unbounded autonomous web scraping ignoring `robots.txt` or executing client-side JavaScript crawlers (e.g. headless Chrome clusters).
+- Unbounded autonomous web scraping ignoring `robots.txt` or executing client-side JavaScript crawler clusters.
 - Payment processing, billing subscriptions, and customer checkout portals.
 - Native mobile applications (iOS/Android).
 - Fine-tuning or local training of proprietary neural weights.
@@ -176,10 +197,11 @@ To protect delivery velocity and focus on core research capabilities, the follow
 
 ## 7. Architectural Constraints & Security Guarantees
 
-1. **Single-Admin Security Boundary**: Application is secured under a single-admin authentication model with server-derived context. Client-supplied `X-Tenant-ID` headers are ignored and rejected. Frontend authenticates with the user's JWT in a secure HttpOnly cookie with CSRF protection; backend-to-backend clients authenticate with `X-API-Key`. These methods are alternatives by client type, and raw credentials are never exposed in frontend code.
-2. **Zero Plaintext Secrets & First-Run Initialization**: LLM and search provider credentials plus optional proxy authentication secrets stored in PostgreSQL must be encrypted using AES-256-GCM. Decryption occurs strictly in-memory during request dispatch. First-run scripts generate local secrets only (`APP_ENCRYPTION_KEY`, `SESSION_SECRET`, DB password) and preserve existing `.env`.
-3. **SSRF Immune (Connection-Level Pinning)**: Outbound network requests for web reading, scraping, proxy access, and webhook notifications must enforce IP validation and socket-level pinning at connection time, reject any destination mapping to loopback, private IPv4/IPv6, or cloud metadata endpoints (`169.254.169.254`), and re-validate redirects.
-4. **Reasoning Privacy Boundary**: Public streaming APIs emit only explicitly generated structured status summaries and lifecycle events. Raw model scratchpads, chain-of-thought tokens, and internal prompt templates must never enter the event queue.
-5. **Durable Concurrency Bounds & Restart Recovery**: Maximum 20 concurrent worker executions system-wide across all points (`asyncio.Semaphore(20)`). Job state is durably persisted in PostgreSQL with startup recovery sweep preventing job loss across process restarts. Compose runs a single backend replica to avoid uncoordinated multi-instance conflicts.
-6. **Audit Retry Ceiling & Traceable Citations**: Maximum 3 retries after the initial execution (4 total worker executions) per research point before forcing a blocker transition with explicit caveats. All factual claims must be traceable to extracted evidence text; source URL existence does not constitute factual verification. Uncertainty is reported explicitly rather than assuming zero hallucinations.
-7. **Provider-Aware Rate Limiting & Search Deadlines**: The default free mode and every configured paid/proxy mode must respect provider RPM/TPM/concurrency limits using queues, bounded concurrency, retry/backoff and explicit timeouts. The system must never intentionally exceed or circumvent provider limits. Worker query rounds target a maximum wall time of approximately 30 seconds and should fall back or fail explicitly when the selected provider cannot satisfy the deadline.
+1. **Single-Admin Security Boundary & Dual Access**: Application is secured under a single-admin authentication model with server-derived context. Frontend authenticates with the user's JWT in a secure HttpOnly cookie with CSRF protection; backend-to-backend clients authenticate with `X-API-Key`. Both are first-class supported access surfaces over the same backend capabilities.
+2. **Zero Plaintext Secrets & First-Run Initialization**: LLM/search/provider credentials plus optional proxy authentication secrets stored in PostgreSQL must be encrypted using AES-256-GCM. Decryption occurs strictly in memory. Missing local system secrets/passwords are bootstrapped safely on first run without overwriting existing values.
+3. **SSRF Defense**: Outbound network requests for web reading, scraping, proxy access and webhook notifications must validate destinations and block loopback/private/link-local/metadata endpoints; redirects must be disabled or revalidated.
+4. **Reasoning Privacy Boundary**: Public streaming APIs emit only explicitly generated structured status summaries, learning summaries and declared next actions. Raw model scratchpads, chain-of-thought tokens and internal prompt templates must never enter the event queue.
+5. **Durable Concurrency Bounds, Checkpoints & Recovery**: Maximum 20 concurrent worker executions system-wide across all points. Job state is durably persisted in PostgreSQL. Startup recovery and explicit resume must prevent loss of valid progress and must not automatically redo terminal points.
+6. **Audit Retry Ceiling & Traceable Citations**: Auditor scores 12 criteria; ≥10/12 approves. Maximum 3 retries after initial execution (4 total worker executions) per point. Persistent insufficiency becomes `BLOCKED` and proceeds to Writer with caveats. All factual claims remain traceable to extracted evidence text.
+7. **Provider-Aware Rate Limiting & Search Deadlines**: Default free mode and configured paid/proxy modes respect provider RPM/TPM/concurrency limits through queues, bounded concurrency, retry/backoff and explicit timeouts. The system never intentionally exceeds or circumvents provider limits. Worker query rounds target approximately 30 seconds maximum wall time.
+8. **Self-Managing Local Infrastructure**: Local Compose owns the database container, persistent volume, dependency installation, health ordering and migration execution. Starting the stack must not require the operator to manually create PostgreSQL databases, volumes, schemas, tables or run SQL.
