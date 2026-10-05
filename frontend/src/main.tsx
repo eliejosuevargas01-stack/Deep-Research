@@ -43,6 +43,8 @@ import {
   X,
 } from 'lucide-react'
 import './style.css'
+import './tokens.css'
+import './components.css'
 import type { Point, Research, Event, ReportData, Settings } from './types.ts'
 export type { Point, Research, Event, ReportData, Settings }
 
@@ -251,6 +253,9 @@ function RootLayout() {
 
   return (
     <div className="shell">
+      <a className="skip-link" href="#workspace-main">
+        Ir para o conteúdo principal
+      </a>
       {/* AREA 1: LEFT SIDEBAR (COLLAPSIBLE) */}
       <aside
         id="sidebar-navigation"
@@ -361,7 +366,7 @@ function RootLayout() {
       {mobileMenu && <div className="scrim" onClick={() => setMobileMenu(false)} />}
 
       {/* AREA 2: CENTRAL WORKSPACE */}
-      <main className="workspace">
+      <main className="workspace" id="workspace-main">
         <header className="topbar">
           <div className="topbar-left">
             <button
@@ -1085,8 +1090,11 @@ function ResearchPage() {
       )
     }
     return (
-      <div className="loading" style={{ height: '70vh' }}>
-        <LoaderCircle className="spin" size={28} />
+      <div className="research-skeleton" role="status" aria-label="Carregando pesquisa">
+        <div className="skeleton" style={{ width: '40%', height: '20px', marginBottom: '18px' }} />
+        <div className="skeleton" style={{ width: '70%', height: '14px', marginBottom: '12px' }} />
+        <div className="skeleton" style={{ width: '100%', height: '120px', marginBottom: '18px', borderRadius: '12px' }} />
+        <div className="skeleton" style={{ width: '100%', height: '80px', borderRadius: '12px' }} />
       </div>
     )
   }
@@ -1638,10 +1646,11 @@ function ResearchPage() {
             aria-label="Painel de artefatos da pesquisa"
             role={artifactsModal ? 'dialog' : undefined}
             aria-modal={artifactsModal ? true : undefined}
+            aria-labelledby="drawer-title"
             tabIndex={artifactsModal ? -1 : undefined}
           >
             <div className="drawer-header">
-              <div className="drawer-title">
+              <div className="drawer-title" id="drawer-title">
                 <BookOpen size={17} />
                 <span>Artefatos</span>
               </div>
@@ -2418,6 +2427,33 @@ declare module '@tanstack/react-router' {
 }
 
 // ----------------------------------------------------
+// ERROR BOUNDARY
+// ----------------------------------------------------
+interface ErrorBoundaryProps {
+  children: React.ReactNode
+  fallback: React.ReactNode
+}
+interface ErrorBoundaryState {
+  hasError: boolean
+}
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true }
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[ErrorBoundary]', error, info)
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback
+    return this.props.children
+  }
+}
+
+// ----------------------------------------------------
 // APP PROVIDER & ROOT RENDER
 // ----------------------------------------------------
 function App() {
@@ -2539,7 +2575,24 @@ if (typeof document !== 'undefined') {
   if (rootEl) {
     createRoot(rootEl).render(
       <React.StrictMode>
-        <App />
+        <ErrorBoundary
+          fallback={
+            <div className="error-state-card" role="alert">
+              <h3>Algo falhou</h3>
+              <p>Erro inesperado na interface. Recarregue a página ou volte ao painel.</p>
+              <div className="error-actions">
+                <button className="primary" onClick={() => window.location.reload()}>
+                  Recarregar
+                </button>
+                <button className="secondary" onClick={() => (window.location.href = '/')}>
+                  Voltar ao painel
+                </button>
+              </div>
+            </div>
+          }
+        >
+          <App />
+        </ErrorBoundary>
       </React.StrictMode>,
     )
   }

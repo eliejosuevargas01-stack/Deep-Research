@@ -1,0 +1,273 @@
+/* ===== DESIGN TOKENS — Deep Research Engine (Linear-inspired) ===== */
+/* Single source of truth for spacing, color, type, radius, shadow, z-index */
+
+:root {
+  /* ---- FONT STACKS ---- */
+  --font-primary: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-feature-settings: 'cv01' 1, 'ss03' 1;
+
+  /* ---- SPACING SCALE (8px base) ---- */
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-3: 4px;
+  --space-4: 6px;
+  --space-5: 8px;
+  --space-6: 10px;
+  --space-7: 12px;
+  --space-8: 14px;
+  --space-9: 16px;
+  --space-10: 18px;
+  --space-11: 20px;
+  --space-12: 22px;
+  --space-13: 24px;
+  --space-14: 28px;
+  --space-15: 32px;
+  --space-16: 36px;
+  --space-17: 40px;
+  --space-18: 48px;
+  --space-19: 56px;
+  --space-20: 64px;
+  --space-21: 72px;
+  --space-22: 80px;
+  --space-23: 96px;
+  --space-24: 128px;
+
+  /* ---- BORDER RADIUS SCALE ---- */
+  --radius-micro: 2px;
+  --radius-small: 4px;
+  --radius-standard: 6px;
+  --radius-card: 8px;
+  --radius-panel: 12px;
+  --radius-large: 22px;
+  --radius-pill: 9999px;
+  --radius-circle: 50%;
+
+  /* ---- COLOR: BACKGROUND SURFACES ---- */
+  --color-bg-marketing: #08090a;
+  --color-bg-panel: #0f1011;
+  --color-bg-surface: #191a1b;
+  --color-bg-surface-hover: #28282c;
+  --color-bg-surface-elevated: rgba(255, 255, 255, 0.02);
+  --color-bg-surface-strong: rgba(255, 255, 255, 0.05);
+
+  /* ---- COLOR: TEXT ---- */
+  --color-text-primary: #f7f8f8;
+  --color-text-secondary: #d0d6e0;
+  --color-text-tertiary: #8a8f98;
+  --color-text-quaternary: #62666d;
+  --color-text-inverse: #08090a;
+
+  /* ---- COLOR: BRAND / ACCENT ---- */
+  --color-brand-indigo: #5e6ad2;
+  --color-accent-violet: #7170ff;
+  --color-accent-hover: #828fff;
+  --color-brand-bg: rgba(94, 106, 210, 0.15);
+  --color-brand-border: rgba(94, 106, 210, 0.3);
+
+  /* ---- COLOR: STATUS ---- */
+  --color-status-success: #10b981;
+  --color-status-success-bg: rgba(16, 185, 129, 0.12);
+  --color-status-success-border: rgba(16, 185, 129, 0.25);
+  --color-status-warning: #f59e0b;
+  --color-status-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-status-warning-border: rgba(245, 158, 11, 0.25);
+  --color-status-error: #ef4444;
+  --color-status-error-bg: rgba(239, 68, 68, 0.12);
+  --color-status-error-border: rgba(239, 68, 68, 0.25);
+  --color-status-info: #7170ff;
+  --color-status-info-bg: rgba(113, 112, 255, 0.12);
+  --color-status-info-border: rgba(113, 112, 255, 0.25);
+
+  /* ---- COLOR: BORDERS ---- */
+  --color-border-subtle: rgba(255, 255, 255, 0.05);
+  --color-border-standard: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+  --color-border-focus: #7170ff;
+  --color-border-focus-ring: rgba(113, 112, 255, 0.4);
+
+  /* ---- SHADOW / ELEVATION ---- */
+  --shadow-micro: 0 1px 0 rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --shadow-ring: 0 0 0 2px var(--color-border-focus-ring);
+  --shadow-inset: inset 0 0 12px rgba(0, 0, 0, 0.2);
+  --shadow-focus: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* ---- TRANSITIONS ---- */
+  --transition-fast: 80ms ease;
+  --transition-standard: 150ms ease;
+  --transition-slow: 250ms ease;
+  --transition-spring: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ---- Z-INDEX LAYERS ---- */
+  --z-base: 0;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-fixed: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+  --z-popover: 60;
+  --z-tooltip: 70;
+  --z-toast: 80;
+
+  /* ---- BREAKPOINTS ---- */
+  --bp-sm: 600px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --bp-2xl: 1536px;
+
+  /* ---- CONTAINER WIDTHS ---- */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1440px;
+
+  /* ---- TYPOGRAPHY SCALE ---- */
+  /* Display */
+  --text-display-xl: clamp(48px, 6vw, 72px);
+  --text-display-lg: clamp(40px, 5vw, 64px);
+  --text-display: clamp(32px, 4vw, 48px);
+  /* Heading */
+  --text-h1: clamp(28px, 3vw, 32px);
+  --text-h2: clamp(22px, 2.5vw, 24px);
+  --text-h3: clamp(18px, 2vw, 20px);
+  /* Body */
+  --text-body-lg: 18px;
+  --text-body: 16px;
+  --text-body-sm: 15px;
+  --text-body-xs: 14px;
+  /* Caption / Label */
+  --text-caption-lg: 13px;
+  --text-caption: 12px;
+  --text-caption-sm: 11px;
+  --text-micro: 10px;
+
+  /* ---- LINE HEIGHTS ---- */
+  --leading-tight: 1.05;
+  --leading-snug: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;
+
+  /* ---- LETTER SPACING ---- */
+  --tracking-tightest: -0.04em;
+  --tracking-tighter: -0.03em;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.08em;
+
+  /* ---- FONT WEIGHTS ---- */
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 590;
+  --weight-bold: 600;
+
+  /* ---- FOCUS RING ---- */
+  --focus-ring: 0 0 0 2px var(--color-bg-panel), 0 0 0 4px var(--color-border-focus-ring);
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0ms;
+    --transition-standard: 0ms;
+    --transition-slow: 0ms;
+    --transition-spring: 0ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== VISIBLE FOCUS (WCAG 2.4.7) ===== */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ===== SCREEN READER ONLY ===== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ===== SKIP LINK ===== */
+.skip-link {
+  position: fixed;
+  top: var(--space-5);
+  left: var(--space-5);
+  z-index: var(--z-toast);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-standard);
+  background: var(--color-brand-indigo);
+  color: #fff;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform var(--transition-fast);
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+/* ===== SKELETON SHIMMER ===== */
+.skeleton {
+  border-radius: var(--radius-standard);
+  background: linear-gradient(90deg,
+    var(--color-bg-surface) 25%,
+    var(--color-bg-surface-hover) 50%,
+    var(--color-bg-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ===== GLOBAL BASE ===== */
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-primary);
+  font-feature-settings: var(--font-feature-settings);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  color: var(--color-text-primary);
+  background: var(--color-bg-marketing);
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button, input, textarea, select {
+  font: inherit;
+}
+button { cursor: pointer; }
+a { color: var(--color-accent-violet); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ===== SELECTION ===== */
+::selection {
+  background: var(--color-brand-bg);
+  color: var(--color-text-primary);
+}
