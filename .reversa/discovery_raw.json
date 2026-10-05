@@ -1,0 +1,509 @@
+{
+  "files": [
+    {
+      "file": "tests/test_backend.py",
+      "loc": 2226,
+      "classes": [],
+      "funcs": [
+        "init_test_db",
+        "client",
+        "login",
+        "test_auth_cookie_csrf_and_logout",
+        "test_settings_are_encrypted_and_masked",
+        "test_create_scout_approval_once_and_traceability",
+        "test_ssrf_and_audit_retry_cap",
+        "test_contradictory_excerpt_never_supports_claim",
+        "test_auditor_verdict_fails_closed_on_invalid_or_contradictory_output",
+        "test_recovery_never_restarts_completed_or_exhausted_attempts",
+        "test_env_initializer_preserves_existing_values_and_generates_missing",
+        "test_audit_trail_model_and_callback_failure_status",
+        "test_search_falls_back_after_empty_serpapi_and_apify",
+        "test_failed_callback_preserves_report_and_records_status",
+        "test_point_dependencies_schedule_and_cycles",
+        "test_health_checks_database",
+        "test_writer_rejects_stub_and_requires_each_research_point",
+        "test_full_pipeline_with_controlled_sources_and_models",
+        "test_connection_resolver_rejects_mixed_and_rebound_dns",
+        "test_output_guardrail_blocks_secret_leakage",
+        "test_audit_missing_research_empty_when_approved",
+        "test_settings_test_and_models_endpoints",
+        "test_point_dependencies_handles_point_prefix_and_scout_sanitizes_sources",
+        "test_llm_complete_fallback_to_9router_on_primary_rate_limit",
+        "test_briefing_approval_schema_validates_five_points_and_prior_deps",
+        "test_atomic_provider_binding_and_negative_cases",
+        "test_base_url_ssrf_validation",
+        "test_research_controlled_failure_sanitizes_secrets",
+        "test_f01_login_never_leaks_api_auth_secret",
+        "test_f01_browser_creation_payload_minimal_and_legacy_compatible",
+        "test_bearer_and_api_key_authentication_for_api_clients",
+        "test_negative_auth_scenarios_and_trust_boundary",
+        "test_f04_candidate_key_model_discovery",
+        "test_llm_complete_auth_error_401_does_not_fallback",
+        "test_llm_complete_auth_error_403_does_not_fallback",
+        "test_litellm_transport_redirects_disabled",
+        "test_litellm_transport_unsupported_fails_closed",
+        "test_scout_controlled_failure_sanitizes_secrets_and_suppresses_traceback",
+        "test_briefing_edit_cas_intermediate_state_and_one_time_execution",
+        "test_briefing_edit_concurrent_requests_race_condition",
+        "test_briefing_edit_and_approve_race_condition",
+        "test_briefing_edit_negative_and_validation_cases",
+        "test_research_status_contract_callback_configured_and_status",
+        "test_retry_callback_returns_success_and_delivered",
+        "test_put_settings_removal_with_null_and_empty_string_and_omit",
+        "test_scout_and_revising_not_orphaned_on_event_failure",
+        "test_revising_recovery_on_startup_lifespan",
+        "test_revising_prevents_duplicate_research_points_and_idempotency",
+        "test_edit_briefing_and_revising_resilient_to_add_event_failure",
+        "test_a01_jwt_cookie_authentication_lifecycle",
+        "test_a02_theme_validation_and_normalization",
+        "test_a03_creation_payload_strict_and_backend_callback",
+        "test_a04_prohibit_tenant_header_and_ambiguous_credentials",
+        "test_a1_guardrails_secrets_and_prompts_adversarial",
+        "test_a1_structured_content_sanitization_and_isolation",
+        "test_a2_scout_distinct_domains_and_timeout",
+        "test_ma_quote_supported_semantic_negation",
+        "test_ma_reports_endpoint_resolves_both_ids",
+        "test_ma_jina_key_validation_rejects_422",
+        "test_ma_provider_model_discovery_pagination_and_errors",
+        "test_resume_research_endpoint"
+      ],
+      "imports": [
+        "import os",
+        "import tempfile",
+        "from pathlib import Path",
+        "import pytest",
+        "from fastapi.testclient import TestClient"
+      ]
+    },
+    {
+      "file": "app/services/research.py",
+      "loc": 591,
+      "classes": [],
+      "funcs": [
+        "extract_site_domain",
+        "sanitize_audit_dict",
+        "point_dependencies",
+        "ready_point_batches",
+        "remaining_attempts",
+        "add_event",
+        "sanitize_error",
+        "_scout_impl",
+        "scout",
+        "_quote_supported",
+        "_worker",
+        "_audit_point",
+        "_run_point",
+        "validate_report_quality",
+        "_write_report",
+        "run_research"
+      ],
+      "imports": [
+        "import asyncio",
+        "import json",
+        "import re",
+        "import uuid",
+        "from datetime import datetime, timezone"
+      ]
+    },
+    {
+      "file": "app/services/llm.py",
+      "loc": 558,
+      "classes": [
+        "ProviderConfigurationError"
+      ],
+      "funcs": [
+        "_enforce_safe_transport",
+        "apply_output_guardrail",
+        "_provider",
+        "_router_cache_key",
+        "_get_router_models",
+        "_resolve_router_fallback",
+        "_classify_error",
+        "complete",
+        "parse_json",
+        "test_provider_key",
+        "list_provider_models"
+      ],
+      "imports": [
+        "import asyncio",
+        "import hashlib",
+        "import json",
+        "import logging",
+        "import re"
+      ]
+    },
+    {
+      "file": "app/routers/research.py",
+      "loc": 427,
+      "classes": [],
+      "funcs": [
+        "schedule",
+        "run_scout",
+        "schedule_scout",
+        "run_revision",
+        "schedule_revision",
+        "create_research",
+        "list_research",
+        "research_status",
+        "edit_briefing",
+        "approve",
+        "events",
+        "report",
+        "retry_callback",
+        "resume"
+      ],
+      "imports": [
+        "import asyncio",
+        "import json",
+        "import uuid",
+        "from datetime import datetime, timezone",
+        "from fastapi import APIRouter, Depends, Header, HTTPException, Request, status"
+      ]
+    },
+    {
+      "file": "app/services/settings.py",
+      "loc": 351,
+      "classes": [],
+      "funcs": [
+        "_allowed_base_url_ports",
+        "_is_trusted_proxy_url",
+        "_is_private_dns_allowed",
+        "_get_openai_proxy_base_url",
+        "_validate_base_url_impl",
+        "is_forbidden_ip",
+        "get_trusted_router_hosts",
+        "validate_base_url",
+        "get_record",
+        "runtime_settings",
+        "public_settings",
+        "update_settings"
+      ],
+      "imports": [
+        "from sqlalchemy import select",
+        "from sqlalchemy.ext.asyncio import AsyncSession",
+        "import ipaddress",
+        "import os",
+        "import socket"
+      ]
+    },
+    {
+      "file": "app/tools/search_pipeline.py",
+      "loc": 227,
+      "classes": [
+        "Source",
+        "SearchProviderError"
+      ],
+      "funcs": [
+        "_get",
+        "_apify_search",
+        "_duckduckgo_search",
+        "search",
+        "_safe",
+        "read_source",
+        "search_read"
+      ],
+      "imports": [
+        "import asyncio",
+        "import html",
+        "import json",
+        "import re",
+        "import urllib.parse"
+      ]
+    },
+    {
+      "file": "app/models/domain_models.py",
+      "loc": 124,
+      "classes": [
+        "Base",
+        "ResearchStatus",
+        "Research",
+        "ResearchPoint",
+        "Evidence",
+        "Event",
+        "Report",
+        "AuditTrail",
+        "AdminSession",
+        "AppSettings"
+      ],
+      "funcs": [
+        "now"
+      ],
+      "imports": [
+        "import enum",
+        "import uuid",
+        "from datetime import datetime, timezone",
+        "from typing import Any",
+        "from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, Uuid"
+      ]
+    },
+    {
+      "file": "app/CRITERIA.md",
+      "loc": 120,
+      "classes": [],
+      "funcs": [],
+      "imports": []
+    },
+    {
+      "file": "tests/test_postgres.py",
+      "loc": 116,
+      "classes": [],
+      "funcs": [
+        "_isolated_postgres_url",
+        "_remove_test_research",
+        "isolated_research",
+        "test_postgres_research_lifecycle"
+      ],
+      "imports": [
+        "import asyncio",
+        "import json",
+        "import os",
+        "import time",
+        "import uuid"
+      ]
+    },
+    {
+      "file": "app/core/security.py",
+      "loc": 114,
+      "classes": [
+        "Principal"
+      ],
+      "funcs": [
+        "digest",
+        "require_admin",
+        "new_session_values"
+      ],
+      "imports": [
+        "import hashlib",
+        "import hmac",
+        "import secrets",
+        "from dataclasses import dataclass",
+        "from datetime import datetime, timedelta, timezone"
+      ]
+    },
+    {
+      "file": "tests/test_e2e_criteria.py",
+      "loc": 86,
+      "classes": [],
+      "funcs": [
+        "test_criteria_full_flow"
+      ],
+      "imports": [
+        "import time",
+        "import pytest",
+        "from tests.test_backend import client, login",
+        "import app.routers.research as rr"
+      ]
+    },
+    {
+      "file": "app/main.py",
+      "loc": 81,
+      "classes": [],
+      "funcs": [
+        "lifespan",
+        "validation_exception_handler",
+        "health"
+      ],
+      "imports": [
+        "import asyncio",
+        "from contextlib import asynccontextmanager",
+        "from fastapi import FastAPI, HTTPException, Request",
+        "from fastapi.encoders import jsonable_encoder",
+        "from fastapi.exceptions import RequestValidationError"
+      ]
+    },
+    {
+      "file": "app/routers/settings.py",
+      "loc": 80,
+      "classes": [],
+      "funcs": [
+        "get_settings",
+        "put_settings",
+        "test_setting_key",
+        "discover_models",
+        "get_provider_models"
+      ],
+      "imports": [
+        "from fastapi import APIRouter, Depends, HTTPException, Query, status",
+        "from sqlalchemy.ext.asyncio import AsyncSession",
+        "from app.core.security import Principal, require_admin",
+        "from app.db.database import get_db",
+        "from app.schemas import ("
+      ]
+    },
+    {
+      "file": "alembic/versions/0001_initial.py",
+      "loc": 60,
+      "classes": [],
+      "funcs": [
+        "upgrade",
+        "downgrade"
+      ],
+      "imports": [
+        "from alembic import op",
+        "import sqlalchemy as sa"
+      ]
+    },
+    {
+      "file": "app/core/config.py",
+      "loc": 57,
+      "classes": [
+        "Settings"
+      ],
+      "funcs": [
+        "get_settings"
+      ],
+      "imports": [
+        "from functools import lru_cache",
+        "from typing import Optional",
+        "from pydantic import Field, field_validator",
+        "from pydantic_settings import BaseSettings, SettingsConfigDict"
+      ]
+    },
+    {
+      "file": "app/services/webhook.py",
+      "loc": 56,
+      "classes": [],
+      "funcs": [
+        "dispatch_callback",
+        "add_callback_event"
+      ],
+      "imports": [
+        "import asyncio",
+        "import uuid",
+        "import aiohttp",
+        "from sqlalchemy import select",
+        "from app.core.config import settings"
+      ]
+    },
+    {
+      "file": "app/tools/outbound.py",
+      "loc": 51,
+      "classes": [
+        "SSRFSecurityViolation",
+        "PinnedResolver"
+      ],
+      "funcs": [
+        "_validate_ip",
+        "validate_public_url"
+      ],
+      "imports": [
+        "import asyncio",
+        "import ipaddress",
+        "import socket",
+        "from urllib.parse import urlparse",
+        "from aiohttp.abc import AbstractResolver"
+      ]
+    },
+    {
+      "file": "app/routers/auth.py",
+      "loc": 49,
+      "classes": [],
+      "funcs": [
+        "login",
+        "me",
+        "refresh_csrf",
+        "logout"
+      ],
+      "imports": [
+        "import hmac",
+        "import secrets",
+        "from datetime import datetime, timezone",
+        "from fastapi import APIRouter, Depends, HTTPException, Response, status",
+        "from sqlalchemy.ext.asyncio import AsyncSession"
+      ]
+    },
+    {
+      "file": "app/db/database.py",
+      "loc": 48,
+      "classes": [],
+      "funcs": [
+        "get_db",
+        "session_scope"
+      ],
+      "imports": [
+        "from contextlib import asynccontextmanager",
+        "from sqlalchemy import event",
+        "from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine",
+        "from sqlalchemy.pool import NullPool",
+        "from app.core.config import settings"
+      ]
+    },
+    {
+      "file": "alembic/env.py",
+      "loc": 38,
+      "classes": [],
+      "funcs": [
+        "run_migrations_offline",
+        "do_run_migrations",
+        "run_async_migrations"
+      ],
+      "imports": [
+        "import asyncio",
+        "from logging.config import fileConfig",
+        "from alembic import context",
+        "from sqlalchemy.ext.asyncio import async_engine_from_config",
+        "from sqlalchemy import pool"
+      ]
+    },
+    {
+      "file": "app/services/audit.py",
+      "loc": 35,
+      "classes": [],
+      "funcs": [
+        "deterministic_citation_audit",
+        "audit_approves",
+        "next_audit_state"
+      ],
+      "imports": [
+        "import re",
+        "from collections import Counter"
+      ]
+    },
+    {
+      "file": "app/services/crypto.py",
+      "loc": 32,
+      "classes": [],
+      "funcs": [
+        "_key",
+        "encrypt_secret",
+        "decrypt_secret",
+        "mask_secret"
+      ],
+      "imports": [
+        "import base64",
+        "import hashlib",
+        "import os",
+        "from cryptography.hazmat.primitives.ciphers.aead import AESGCM",
+        "from app.core.config import settings"
+      ]
+    },
+    {
+      "file": "alembic/versions/0002_audit_trails.py",
+      "loc": 29,
+      "classes": [],
+      "funcs": [
+        "upgrade",
+        "downgrade"
+      ],
+      "imports": [
+        "from alembic import op",
+        "import sqlalchemy as sa"
+      ]
+    },
+    {
+      "file": "alembic/versions/0003_settings_callback_and_base_url.py",
+      "loc": 22,
+      "classes": [],
+      "funcs": [
+        "upgrade",
+        "downgrade"
+      ],
+      "imports": [
+        "from alembic import op",
+        "import sqlalchemy as sa"
+      ]
+    }
+  ],
+  "total_loc": 5578,
+  "file_count": 24
+}
