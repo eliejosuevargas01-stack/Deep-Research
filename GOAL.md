@@ -23,6 +23,7 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 | **Encrypted Settings** | *Not specified* | **IN SCOPE (Mandatory)** | API keys and per-agent model selections must be persisted in PostgreSQL with AES-256-GCM encryption and dynamic runtime hot-reload. Local personal secrets (`SESSION_SECRET`, `APP_ENCRYPTION_KEY`) auto-generated on first run only. |
 | **Docker Compose & Deployment** | *Out of scope (local only)* | **IN SCOPE (Mandatory)** | The complete system must be containerized locally with health checks and auto-migration. Public cloud deployment to `research.dominuslabs.online` requires specification, distinct from actual execution because external DNS/TLS configuration require explicit authorization and real access. |
 | **Agent Process Streaming** | *Not specified* | **IN SCOPE (Mandatory)** | Server-Sent Events (SSE) must stream explicitly generated structured public status summaries while strictly preventing private reasoning tokens or raw completion streams from entering the pipeline. |
+| **Dual Search Mode** | *Not specified* | **IN SCOPE (Mandatory)** | The engine must work with zero search credentials by default and optionally switch to an authenticated Jina relay/proxy for high-speed search-and-read execution. |
 
 ---
 
@@ -37,7 +38,10 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 2. **Settings Configuration**:
    - Operator navigates to the Settings page (`/settings`).
    - Local cryptographic keys (`APP_ENCRYPTION_KEY`, `SESSION_SECRET`, local DB password) are initialized on first run via `scripts/generate_env.py` and saved to `.env` only if absent. Existing `.env` files are strictly preserved.
-   - External provider keys (OpenAI, Anthropic, Gemini, SerpAPI, Apify, Jina) are entered via the UI and persisted to PostgreSQL encrypted with AES-256-GCM.
+   - External provider keys (OpenAI, Anthropic, Gemini, SerpAPI, Apify, Jina) are entered via the UI when those providers are intentionally configured and persisted to PostgreSQL encrypted with AES-256-GCM.
+   - Search works in **free mode by default**, with no search-provider credential required. Free mode uses a credential-free search source and the public Jina Reader path for page extraction, subject to provider rate limits.
+   - The operator may enable **Jina Proxy accelerated mode** by configuring only a Jina relay/Cloudflare Worker base URL and the relay authentication secret. The Deep Research application must not require, expose, rotate, or manage the Jina API-key pool behind that relay; key rotation/failover belongs to the relay implementation.
+   - SerpAPI and Apify remain supported as optional alternative search/extraction providers and are not mandatory for the zero-configuration default path.
    - Frontend operators may configure an optional callback URL in Settings, persisted by the backend. Backend-to-backend clients have no Settings UI and may instead submit an optional `callback_url` with each authenticated `POST /api/research` request.
    - Operator selects currently available provider/model identifiers for each role: Scout, Historian, Skeptic, Pragmatist, Futurist, Auditor, and Writer. Values come from configuration/provider discovery rather than speculative hardcoded versions.
    - Changes take immediate runtime effect via in-memory provider cache refresh without container restart.
@@ -76,7 +80,9 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
    - Authentication middleware validates the user JWT in the HttpOnly cookie for browser clients and `X-API-Key` for backend-to-backend clients, rejecting unauthenticated requests with `401 Unauthorized`. The two credentials are alternatives, not cumulative requirements.
    - CSRF protection enforced on mutating browser requests.
 3. **Encrypted Settings & Dynamic Precedence**:
-   - `app_settings` table stores provider API keys encrypted with AES-256-GCM at rest.
+   - `app_settings` table stores provider API keys and proxy authentication secrets encrypted with AES-256-GCM at rest.
+   - Search mode defaults to `free` and requires no search credential.
+   - Optional `jina_proxy` mode stores a configurable proxy/Worker base URL and encrypted proxy authentication secret. Jina upstream keys managed by the proxy must not be copied into the Deep Research application.
    - Configuration precedence strictly enforced: Database Stored Settings > Environment / `.env` defaults.
    - Changes via `PUT /api/settings` take immediate runtime effect without container restart.
    - Local secrets generated on first run, preserving existing `.env`.
@@ -90,10 +96,14 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
    - Durable job state stored in PostgreSQL. On restart, startup recovery detects in-flight research records (`scouting`, `in_progress`) to prevent silent job loss.
    - Single backend replica in Compose to prevent uncoordinated multi-instance race conditions.
    - Optimistic locking on `evidences` table using `version` column prevents race conditions.
-6. **Search-Read-Clean Tooling & BaseWorker DAG**:
+6. **Search-Read-Clean Tooling, Performance & BaseWorker DAG**:
    - `BaseWorker` implemented before concrete persona workers (`Historian`, `Skeptic`, `Pragmatist`, `Futurist`).
-   - Workers query SerpAPI, Apify, or Jina Search with automated fallback to free Jina Search.
-   - URLs read via Jina Reader or Apify scraper with connection-level SSRF checks, cleaned and fused into consolidated markdown (5-10 sources per worker).
+   - **Default free path:** with no search credentials configured, workers use a credential-free web-search source and Jina Reader without authentication for readable page extraction. Provider rate limits must be respected through bounded concurrency, queuing and backoff rather than intentional limit bypass.
+   - **Accelerated Jina Proxy path:** when `jina_proxy` is enabled, workers send the search/read request to the configured Cloudflare Worker/Jina relay using the configured relay authentication secret. The relay is responsible for its own upstream Jina-key pool, rotation and provider-level failover.
+   - If Jina Search returns usable page content together with search results, workers must consume that returned content directly. They must not automatically perform a second Jina Reader request for each same URL unless the returned content is missing, insufficient, stale for the audit requirement, or explicitly needs revalidation.
+   - SerpAPI and Apify remain optional alternate providers/fallbacks.
+   - A worker search round (query + source acquisition + reading/extraction required for that round) has a target hard deadline of approximately **30 seconds**. With at most 3 rounds, one worker should not normally exceed approximately **90 seconds** of search-round wall time; independent personas and research points continue to run concurrently according to the DAG and global concurrency ceiling.
+   - Retries requested by the Auditor must reuse persisted valid evidence and search only for identified gaps whenever possible rather than repeating already-satisfied research.
 7. **Stateless Fact-Checking Auditor & Blocker Loop**:
    - Auditor validates persona completeness, maps contradictions, audits citations against extracted source content snippets, scores uncertainty, and generates writer outlines.
    - Max 3 retry attempts after the initial worker execution per point (4 total executions); automatically activates `BLOCKED` status after the third retry fails and forwards caveats to writer.
@@ -103,6 +113,7 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 9. **Full-Stack Chat Frontend**:
    - React 19 + TanStack Router + Tailwind CSS interface matching Linear dark-mode tokens.
    - Chat view supporting submission, interactive 5-point brief review/edit, real-time persona cards, markdown report view, and settings management.
+   - Settings expose the default `free` search mode plus optional `jina_proxy` configuration fields for relay base URL and relay authentication secret; the UI does not ask for the relay's internal Jina-key pool.
    - Uses the user's JWT in an HttpOnly cookie with CSRF; never exposes the JWT to client-side code or `API_AUTH_SECRET` to the frontend.
 10. **Docker Compose & Deployment Gates**:
     - Multi-container `docker-compose.yml` with `postgres`, single `backend` replica, and `frontend` (Nginx reverse proxy).
@@ -125,7 +136,7 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
    - `app/routers/research.py`: Basic CRUD endpoints. Needs authentication routes (`/api/auth/login`, `/api/auth/logout`, `/api/auth/me`), SSE streaming, settings management, and callback retry.
    - `app/middleware/security.py`: Basic token check. Needs connection-level SSRF validation, user JWT validation from the frontend's HttpOnly cookie, `X-API-Key` validation for backend-to-backend clients, and CSRF protection (no client-supplied `X-Tenant-ID` trust).
    - `app/prompts/personas.json`: Prompts for 4 personas, scout, auditor, writer.
-   - `app/tools/search_pipeline.py`: Search and reader functions with fallbacks. Needs connection-level SSRF socket pinning.
+   - `app/tools/search_pipeline.py`: Search and reader functions with fallbacks. Needs connection-level SSRF socket pinning and the canonical `free`/`jina_proxy` search-mode split, including direct reuse of content returned by accelerated Jina Search.
    - `app/agents/workers/`: `BaseWorker` and 4 persona subclasses (`HistorianWorker`, `SkepticWorker`, `PragmatistWorker`, `FuturistWorker`). BaseWorker must precede personas in implementation.
    - `app/engine/`: `WorkerPool`, `Auditor`, `Orchestrator`. Needs semaphore concurrency cap (20), durable job state recovery on startup, live event emission, and real LLM client integration. Orchestrator final integration after workers/auditor/writer.
    - `app/services/webhook.py`: Webhook dispatcher. Needs connection-pinned SSRF validation.
@@ -134,6 +145,7 @@ Previous planning documents mistakenly marked the frontend interface, real LLM e
 2. **Reference Projects**:
    - `/root/projects/Dominuslabs`: Dockerfile patterns, Nginx proxy configuration, and Coolify/Traefik integration for `*.dominuslabs.online`.
    - `/root/RENDER_LLM_ROUTER`: Multi-provider LLM routing patterns, schema validation, and provider fallback logic.
+   - `eliejosuevargas01-stack/cloudflare_worker`: Reference implementation for the authenticated Jina relay/proxy, including upstream key rotation/failover. Deep Research consumes only its base URL and relay authentication secret when `jina_proxy` mode is enabled.
 
 ### Adaptation Mapping
 
@@ -165,8 +177,9 @@ To protect delivery velocity and focus on core research capabilities, the follow
 ## 7. Architectural Constraints & Security Guarantees
 
 1. **Single-Admin Security Boundary**: Application is secured under a single-admin authentication model with server-derived context. Client-supplied `X-Tenant-ID` headers are ignored and rejected. Frontend authenticates with the user's JWT in a secure HttpOnly cookie with CSRF protection; backend-to-backend clients authenticate with `X-API-Key`. These methods are alternatives by client type, and raw credentials are never exposed in frontend code.
-2. **Zero Plaintext Secrets & First-Run Initialization**: LLM and search provider credentials stored in PostgreSQL must be encrypted using AES-256-GCM. Decryption occurs strictly in-memory during request dispatch. First-run scripts generate local secrets only (`APP_ENCRYPTION_KEY`, `SESSION_SECRET`, DB password) and preserve existing `.env`.
-3. **SSRF Immune (Connection-Level Pinning)**: Outbound network requests for web reading, scraping, and webhook notifications must enforce IP validation and socket-level pinning at connection time, reject any destination mapping to loopback, private IPv4/IPv6, or cloud metadata endpoints (`169.254.169.254`), and re-validate redirects.
+2. **Zero Plaintext Secrets & First-Run Initialization**: LLM and search provider credentials plus optional proxy authentication secrets stored in PostgreSQL must be encrypted using AES-256-GCM. Decryption occurs strictly in-memory during request dispatch. First-run scripts generate local secrets only (`APP_ENCRYPTION_KEY`, `SESSION_SECRET`, DB password) and preserve existing `.env`.
+3. **SSRF Immune (Connection-Level Pinning)**: Outbound network requests for web reading, scraping, proxy access, and webhook notifications must enforce IP validation and socket-level pinning at connection time, reject any destination mapping to loopback, private IPv4/IPv6, or cloud metadata endpoints (`169.254.169.254`), and re-validate redirects.
 4. **Reasoning Privacy Boundary**: Public streaming APIs emit only explicitly generated structured status summaries and lifecycle events. Raw model scratchpads, chain-of-thought tokens, and internal prompt templates must never enter the event queue.
 5. **Durable Concurrency Bounds & Restart Recovery**: Maximum 20 concurrent worker executions system-wide across all points (`asyncio.Semaphore(20)`). Job state is durably persisted in PostgreSQL with startup recovery sweep preventing job loss across process restarts. Compose runs a single backend replica to avoid uncoordinated multi-instance conflicts.
 6. **Audit Retry Ceiling & Traceable Citations**: Maximum 3 retries after the initial execution (4 total worker executions) per research point before forcing a blocker transition with explicit caveats. All factual claims must be traceable to extracted evidence text; source URL existence does not constitute factual verification. Uncertainty is reported explicitly rather than assuming zero hallucinations.
+7. **Provider-Aware Rate Limiting & Search Deadlines**: The default free mode and every configured paid/proxy mode must respect provider RPM/TPM/concurrency limits using queues, bounded concurrency, retry/backoff and explicit timeouts. The system must never intentionally exceed or circumvent provider limits. Worker query rounds target a maximum wall time of approximately 30 seconds and should fall back or fail explicitly when the selected provider cannot satisfy the deadline.
