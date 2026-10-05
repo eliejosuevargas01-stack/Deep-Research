@@ -296,8 +296,8 @@ def test_full_pipeline_with_controlled_sources_and_models(client, monkeypatch):
         return json.dumps([{"source_url": "https://alpha-lab.org/result", "claim": "result was 42 percent in clinical trials.",
                             "exact_quote": "The measured result was 42 percent in clinical trials.", "analysis": "Source states result."}])
 
-    monkeypatch.setattr("app.services.research.search_read", sources)
-    monkeypatch.setattr("app.services.research.complete", completion)
+    monkeypatch.setattr("app.services.pipeline.scout.search_read", sources)
+    monkeypatch.setattr("app.services.pipeline.scout.complete", completion)
     csrf = login(client)
     headers = {"X-CSRF-Token": csrf}
     response = client.post(
@@ -452,8 +452,8 @@ def test_point_dependencies_handles_point_prefix_and_scout_sanitizes_sources(mon
                 {"title": "T5", "description": "D5", "dependencies": []},
             ])
 
-        monkeypatch.setattr("app.services.research.search_read", fake_search)
-        monkeypatch.setattr("app.services.research.complete", fake_complete)
+        monkeypatch.setattr("app.services.pipeline.scout.search_read", fake_search)
+        monkeypatch.setattr("app.services.pipeline.scout.complete", fake_complete)
 
         async with AsyncSessionLocal() as db:
             cleaned = await scout("test theme", db)
@@ -2022,12 +2022,13 @@ def test_a2_scout_distinct_domains_and_timeout(monkeypatch):
 
     async def fake_runtime(db):
         return ({}, {})
-    monkeypatch.setattr("app.services.research.runtime_settings", fake_runtime)
+    monkeypatch.setattr("app.services.pipeline.scout.runtime_settings", fake_runtime)
 
     # Test distinct domain requirement: only 1 domain with multiple pages must raise
     async def run_insufficient():
-        from app.services import research
-        old_sr = research.search_read
+        from app.services import pipeline
+        from app.services.pipeline import scout as scout_module
+        old_sr = scout_module.search_read
         try:
             async def fake_search(theme, limit, keys):
                 return [
@@ -2035,11 +2036,11 @@ def test_a2_scout_distinct_domains_and_timeout(monkeypatch):
                     Source("https://single-site.com/p2", "P2", "Long enough excerpt content for site 1 page 2"),
                     Source("https://single-site.com/p3", "P3", "Long enough excerpt content for site 1 page 3"),
                 ]
-            research.search_read = fake_search
+            scout_module.search_read = fake_search
             with pytest.raises(RuntimeError, match="minimum 3 required"):
                 await _scout_impl("Test Theme", cast(AsyncSession, MockAsyncSession()))
         finally:
-            research.search_read = old_sr
+            scout_module.search_read = old_sr
 
     asyncio.run(run_insufficient())
 

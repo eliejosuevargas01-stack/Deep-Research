@@ -1,0 +1,27 @@
+{
+  "project": "Deep Research Engine",
+  "scanned_at": "2026-10-05T04:15:39Z",
+  "total_files": 61,
+  "languages": {
+    ".md": 10,
+    ".ini": 1,
+    ".yml": 1,
+    ".yaml": 1,
+    ".py": 34,
+    ".json": 5,
+    ".js": 3,
+    ".ts": 5,
+    ".tsx": 1
+  },
+  "top_modules": [],
+  "organization_suggestion": {
+    "granularity": "feature",
+    "folders": [
+      "app",
+      "frontend",
+      "tests",
+      "alembic"
+    ]
+  },
+  "files": []
+}

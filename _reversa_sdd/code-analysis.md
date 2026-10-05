@@ -1,59 +1,88 @@
-# Análise de Código e Qualidade: Deep Research Engine
+# Code Analysis — Deep Research Engine
 
-> Gerado por Reversa SDD Engine  
-> Data: 2026-10-04  
-> Projeto: Deep Research Engine
+> Inspector — consolidação 6 módulos + métricas + débito  
+> Doc level: Completo (métricas LOC, padrões, traceability)  
+> Regenerado: 2026-10-05 (ciclo autônomo)
 
-## 1. Estrutura de Módulos e Dependências
+---
 
-```
-app/
-├── core/
-│   ├── config.py             # Pydantic Settings (.env, limites de queries, semáforos)
-│   └── security.py           # Autenticação JWT Cookie + X-API-Key + CSRF
-├── db/
-│   └── database.py           # Engine assíncrona SQLAlchemy (asyncpg / aiosqlite)
-├── models/
-│   └── domain_models.py      # Declarative Base com 8 tabelas de domínio
-├── schemas/
-│   └── __init__.py           # Schemas Pydantic com validação rigorosa
-├── routers/
-│   ├── auth.py               # Rotas /api/auth/login, /api/auth/logout, /api/auth/me
-│   ├── settings.py           # Rotas /api/settings (GET, PUT, credenciais e modelos)
-│   └── research.py           # Rotas /api/research, briefing edit/approve, events SSE, reports
-├── services/
-│   ├── crypto.py             # AES-256-GCM com chave mestra
-│   ├── settings.py           # Gestão de credenciais com hot-reload e mascaramento
-│   ├── llm.py                # LiteLLM SDK gateway, guardrails de saída, fallback
-│   ├── audit.py              # Auditoria determinística e cognitiva de citações
-│   ├── research.py           # Orquestração Scout, Workers, Auditor, Writer e recovery
-│   └── webhook.py            # Despacho assíncrono com retry seguro e proteção SSRF
-└── tools/
-    ├── outbound.py           # Validador SSRF com socket-level IP pinning
-    └── search_pipeline.py    # Pipeline Jina Search/Reader, SerpAPI, Apify com fallbacks
-```
+## 1. Estrutura de Módulos e LOC
 
-## 2. Padrões de Segurança e Confiabilidade Implementados
+| Módulo | Arquivos | LOC | Responsabilidade |
+|--------|----------|-----|------------------|
+| `app/core` | 2 | 229 | Settings + Auth/CSRF |
+| `app/db` | 1 | 48 | Engine async + session |
+| `app/models` | 1 | 124 | 8 entidades Declarative |
+| `app/schemas` | 1 | 152 | Pydantic request/response |
+| `app/routers` | 3 | 556 | Auth(49), Settings(80), Research(427) |
+| `app/services` | 7 | 1,687 | Research(591), LLM(558), Settings(351), Crypto(32), Audit(35), Webhook(56) |
+| `app/tools` | 2 | 278 | Search pipeline(227), Outbound(51) |
+| `app/prompts` | 2 | personas.json | init vazio (0 bytes) |
+| `frontend/src` | 6 | 5,357 | main.tsx(2546), style.css(2014), utils(549), api(132), types(83), routes(33) |
+| `tests` | 3 | ~2,500 | test_backend(2226), test_e2e(86), test_postgres(~200) |
+| `alembic` | 3 | ~100 | migrations 0001-0003 |
 
-1. **Guardrail de Privacidade e Canários (`app/services/llm.py:apply_output_guardrail`)**:
-   - Bloqueio de senhas, chaves de API, variáveis de ambiente e prompts de sistema no texto gerado antes de alcançar o usuário ou banco.
-2. **SSRF Defense-in-Depth (`app/tools/outbound.py`)**:
-   - Resolução de DNS com validação contra CIDRs privadas (RFC1918, loopback, link-local, AWS metadata).
-   - Bloqueio de redirecionamentos inseguros.
-3. **Controle de Concorrência e Isolamento (`app/services/research.py:WORK_LIMIT`)**:
-   - `asyncio.Semaphore(20)` garante que nenhuma pesquisa exceda 20 workers simultâneos.
-   - Resolução de lotes DAG (`ready_point_batches`) para execução simultânea de pontos paralelos e despacho progressivo de pontos sequenciais.
-4. **Ciclo de Auditoria de 4 Tentativas (`app/services/research.py:remaining_attempts`)**:
-   - Execução inicial + 3 retries (total de 4 execuções por ponto).
-   - Na quarta reprovação, ativa o modo `BLOCKED` e anexa ressalvas ao invés de quebrar a pipeline.
-5. **Validação de Citação Exata Verbatim (`app/services/audit.py:deterministic_citation_audit`)**:
-   - Validação se cada `claim` possui um `exact_quote` que é substring real do conteúdo raspado da fonte.
-   - O Redator é obrigado a citar as fontes em formato de link Markdown em cada frase afirmativa factual.
+**Total backend Python**: ~3,074 LOC | **Frontend**: 5,357 LOC
 
-## 3. Avaliação de Débito Técnico e Oportunidades de Melhoria
+## 2. Padrões de Segurança (🟢 confirmados)
 
-| Área | Situação Atual | Oportunidade / Melhoria |
-|---|---|---|
-| **Test Runner** | Testes completos em `tests/` (`test_backend.py`, `test_e2e_criteria.py`), mas ambiente local requer virtualenv dedicado para execução direta de `pytest`. | Configurar venv padronizado ou rodar via container docker de testes. |
-| **Frontend Bundle** | React 19 em arquivo consolidado `main.tsx` (95KB). | Modularizar componentes de UI em arquivos dedicados (`components/chat/`, `components/report/`, etc.). |
-| **Recovery de Tarefas** | `lifespan` do FastAPI reinicia pesquisas pendentes na subida do backend. | Implementar heartbeat periódico no banco para detecção de nós mortos em caso de cluster multi-réplica. |
+| Padrão | Arquivo | Detalhe |
+|--------|---------|---------|
+| Output Guardrail | `llm.py:apply_output_guardrail` | Regex `sk|gsk|ghp|gho` + bearer/token/secret; redige antes de persistir |
+| SSRF Defence | `outbound.py` | validate_public_url + PinnedResolver + no redirects (fail-closed) |
+| LiteLLM SafeTransport | `llm.py:_enforce_safe_transport` | Monkey-patch follow_redirects=False, fail-closed |
+| Concurrency | `research.py` | Semaphore(20), batches topológicos (MA-01) |
+| Audit Cycle | `audit.py` + `remaining_attempts` | 4 execuções (1+3 retries); 4ª reprovação → BLOCKED |
+| Verbatim Citation | `audit.py:deterministic_citation_audit` | claim.casefold() in excerpt.casefold() obrigatório |
+
+## 3. Débito Técnico
+
+| Área | Situação | Impacto | Plano |
+|------|----------|---------|-------|
+| Orquestrador monolítico | `research.py` 591 LOC | Difícil testar/modificar | T010: <200 LOC + workers/ |
+| Frontend monolítico | `main.tsx` 2546 LOC | Zero separação | T005: componentes |
+| Testes mistos | `test_backend.py` 2226 LOC | Sem isolamento | T011: separar |
+| Search pipeline legado | `tools/search_pipeline.py` | Migração | T001: services/search.py |
+| Prompts vazio | `prompts/__init__.py` | Dead code? | LACUNA 2 |
+| pytest ausente | venv | Bloqueia testes | LACUNA 4 |
+| Read source 8000 chars | `search_pipeline.py:205,217` | Perde citação em artigos longos | LACUNA 3 |
+| Status revising fora enum | `domain_models.py:18-27` | Inconsistência | LACUNA 1 |
+
+## 4. Padrões de Código
+
+| Padrão | Onde | Status |
+|--------|------|-------|
+| Dependency Injection | FastAPI Depends | ✅ |
+| Async Context Managers | session_scope | ✅ |
+| Pydantic Validation | schemas + validate_base_url | ✅ |
+| Optimistic Locking | Evidence.version | ✅ (sem teste concorrência) |
+| Error Sanitization | sanitize_error/audit_dict | ✅ |
+| Fail-closed SSRF | outbound + SafeTransport | ✅ |
+
+## 5. Traceability
+
+| Critério | Código | Evidência |
+|----------|--------|------------|
+| A-01 | `_scout_impl:149-159` site_map | distinct_sources >= 3 |
+| A-02 | sanitize_error regex | test_sanitize_error |
+| A-04 | security.py:32-34 + api.ts | test_auth_cookie_csrf_and_logout |
+| A-05 | security.py:41-47 | test dedicated |
+| D | outbound.py | test_ssrf_guard |
+| MA-01 | ready_point_batches | topologia |
+| MA-08 | audit.py:next_audit_state | retry concreto |
+
+## 6. Lacunas → questions.md
+
+1. LACUNA 1: ResearchStatus sem `revising`
+2. LACUNA 2: prompts/__init__.py vazio
+3. LACUNA 3: read_source 8000 chars vs verbatim contract
+4. LACUNA 4: pytest não instalado
+5. LACUNA 5: main.tsx monolítico (prioridade refactoring)
+
+## 7. Recomendações
+
+1. Instalar pytest no venv (habilita T001 checkpoint).
+2. Adicionar `REVISING = "revising"` ao enum (baixo risco).
+3. Remover `prompts/__init__.py` ou popular com prompts .md.
+4. Avaliar truncamento 8000 → 20000 chars ou smart-truncate.
+5. Iniciar T001: search_pipeline → services/search.py.

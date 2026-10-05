@@ -178,9 +178,7 @@
 
 | ID | Tarefa | Responsável | Status |
 |----|--------|-------------|--------|
-| **T001** | Migrar `search_pipeline.py` → `app/services/search.py` | Coding Agent | ⬜ Pendente |
-| **T002** | Criar `app/services/workers/` + `BaseWorker`, `WorkerResult`, `AuditorAgent` | Coding Agent | ⬜ Pendente |
-| **T003–T009** | Implementar 6 workers + agents (paralelizáveis) | Coding Agents | ⬜ Pendente |
+| **T001–T009** | Modularização dos workers e agentes em `app/services/workers/` | Coding Agent | ✅ Concluído |
 | **T010** | Refatorar `research.py` orquestrador (< 200 LOC) | Coding Agent | ⬜ Pendente |
 | **T011** | Teste E2E integração completa | QA Specialist | ⬜ Pendente |
 | **T012** | CI/CD GitHub Actions + cobertura ≥ 80% | DevOps | ⬜ Pendente |

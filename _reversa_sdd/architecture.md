@@ -1,62 +1,183 @@
-# Arquitetura do Sistema: Deep Research Engine
+# Arquitetura — Deep Research Engine
 
-> Gerado por Reversa SDD Engine  
-> Data: 2026-10-04  
-> Projeto: Deep Research Engine
+> Architect — consolidação de 6 módulos + princípios + contracts  
+> Doc level: Completo (C4 Context/Container/Component, ERD, ADRs, OpenAPI, traceability)  
+> Última regeneração: 2026-10-05 (ciclo autônomo)
 
-## 1. Visão Geral e Topologia
+---
 
-O Deep Research Engine é uma plataforma de pesquisa profunda distribuída e multiagente com pipeline cognitivo desacoplado em 4 fases e frontend em tempo real.
+## 1. C4 Context Diagram
 
-```
-                                  HTTPS Request
-                                        │
-                                        ▼
-    ┌────────────────────────────────────────────────────────────────────────┐
-    │  Traefik / Nginx Ingress Reverse Proxy (Port 80/443)                   │
-    └───────────────────┬────────────────────────────────┬───────────────────┘
-                        │ /                              │ /api/*
-                        ▼                                ▼
-    ┌──────────────────────────────────────┐  ┌──────────────────────────────────────┐
-    │ Frontend (React 19 + Vite + Nginx)   │  │ Backend (FastAPI + Python 3.12/14)   │
-    │ - Tailwind CSS Dark Tokens (Linear)  │  │ - Session Auth (HttpOnly Cookie JWT) │
-    │ - SSE Realtime Consumer              │  │ - Connection-pinned SSRF Guard       │
-    │ - Briefing Human-in-the-Loop Editor  │  │ - Async Multi-Agent Pipeline         │
-    └──────────────────────────────────────┘  └──────────────────┬───────────────────┘
-                                                                 │
-                   ┌─────────────────────────────────────────────┼────────────────────────────────────────────┐
-                   ▼                                             ▼                                            ▼
-    ┌─────────────────────────────┐               ┌─────────────────────────────┐              ┌─────────────────────────────┐
-    │ Pipeline Cognitivo          │               │ Camada de Busca e Extração  │              │ Camada de Dados (PostgreSQL)│
-    │ 1. Scout Agent (LLM)        │               │ - Connection-pinned SSRF    │              │ - Async SQLAlchemy          │
-    │ 2. Human Review (1x)        │──────────────►│ - Jina / SerpAPI / Apify    │─────────────►│ - Modelos com versioning    │
-    │ 3. WorkerPool (20 Max Cap)  │               │ - Jina Reader Scraper       │              │ - Configs Criptografadas    │
-    │ 4. Auditor de Citações      │               │ - Webhook Callback Client   │              │ - Alembic Migrations        │
-    │ 5. Redator Markdown         │               └─────────────────────────────┘              └─────────────────────────────┘
-    └─────────────────────────────┘
+```mermaid
+C4Context
+title Deep Research Engine — Context
+Person(admin, "Operador/Cliente", "Admin da plataforma, dispara pesquisas via UI ou API")
+Person(ext_client, "Cliente Backend", "Sistema externo integra via callback_url + Bearer/API Key")
+System_Boundary(b, "Deep Research Engine") {
+  System(api, "FastAPI Backend", "Orquestração pipeline, auth, SSE, webhook")
+  System(db, "PostgreSQL/SQLite", "Persistência: Research, Points, Evidence, Events, Reports, Audit, Sessions, Settings")
+  System(llm, "LiteLLM Gateway", "Roteamento LLM multi-provedor (OpenAI, Anthropic, Gemini, LiteLLM)")
+  System(search, "Search Providers", "SerpAPI, Apify, Jina Search, DuckDuckGo (fallback)")
+  System(reader, "Jina Reader", "Extração limpa de conteúdo web (r.jina.ai)")
+}
+Rel(admin, api, "HTTPS / SSE", "Cookie HttpOnly + CSRF")
+Rel(ext_client, api, "HTTPS / Bearer", "API_AUTH_SECRET / callback_url")
+Rel(api, db, "asyncpg / aiosqlite", "SQLAlchemy 2.0 async")
+Rel(api, llm, "acompletion", "LiteLLM + SafeTransport")
+Rel(api, search, "HTTP/JSON", "PinnedResolver + no redirects")
+Rel(search, reader, "HTTP", "Jina proxy para extração")
 ```
 
-## 2. Componentes Principais
+## 2. C4 Container Diagram
 
-| Componente | Caminho | Responsabilidade | Contratos Principais |
-|---|---|---|---|
-| **Auth & Security** | `app/core/security.py` | Emissão de cookies JWT HttpOnly, hash de `jti`, validação de API Key `X-API-Key`, proteção CSRF. | Single-admin, sem exposição de segredos ao JS. |
-| **Ingresso API** | `app/routers/` | Endpoints de autenticação (`auth.py`), pesquisas (`research.py`) e configurações (`settings.py`). | Validação Pydantic estrita, SSE Streaming com retomada via `Last-Event-ID`. |
-| **Pipeline & Agentes** | `app/services/research.py` | Orquestração de Scout, Workers (4 personas), Auditor de citações e Redator. | Concorrência máxima de 20 workers (`asyncio.Semaphore(20)`), até 3 retries por ponto. |
-| **LLM Gateway** | `app/services/llm.py` | Interface unificada via LiteLLM SDK com guardrails de saída para canários e segredos. | Sem chamadas HTTP diretas por provedor, suporte a OpenAI-compatible com `base_url`. |
-| **Ferramentas de Busca** | `app/tools/search_pipeline.py` | Busca e leitura de páginas com fallback Jina/SerpAPI/Apify e extração de trechos limpos. | Verificação de domínio único, 3 a 5 fontes legíveis para o Scout. |
-| **SSRF Guard** | `app/tools/outbound.py` | Validação de URLs públicas e bloqueio de redes privadas (RFC1918, loopback, link-local, AWS metadata). | Proteção a nível de socket antes da conexão TCP. |
-| **Criptografia** | `app/services/crypto.py` | Criptografia simétrica AES-256-GCM para chaves de provedores no PostgreSQL. | Chave mestra em `APP_ENCRYPTION_KEY`. |
-| **Frontend UI** | `frontend/src/` | Interface React 19 em modo escuro estilo Linear com stream SSE, editor de briefing e configurações. | Sessão via cookie transparente, proteção contra reordenamento inválido de DAG. |
+```mermaid
+C4Container
+title Deep Research Engine — Containers
+Container(frontend, "React SPA", "TypeScript, Vite, React Router, Tailwind", "UI monolítica (main.tsx 2.5k LOC)")
+Container(backend, "FastAPI Backend", "Python 3.11+, Uvicorn, SQLAlchemy 2.0 async", "Auth, Research pipeline, SSE, Webhook, Settings")
+ContainerDb(db, "PostgreSQL / SQLite", "asyncpg / aiosqlite", "8 tabelas")
+ContainerExt(llm_gateway, "LiteLLM Gateway", "litellm.acompletion", "Roteamento multi-provedor, SafeTransport (no redirects)")
+ContainerExt(search_providers, "Search Providers", "SerpAPI, Apify, Jina, DuckDuckGo", "Busca web multi-provedor com failover")
+ContainerExt(jina_reader, "Jina AI Reader", "r.jina.ai", "Extração markdown limpa de páginas web")
+```
 
-## 3. Fluxo de Vida de uma Pesquisa
+## 3. C4 Component Diagram (Backend)
 
-1. **Ingresso (`POST /api/research`)**: Recebe `theme` e `callback_url` opcional para backend. Cria registro em estado `scouting`.
-2. **Scout & Briefing**: O Scout faz busca preliminar (3 a 5 sites distintos) e gera 5 pontos de pesquisa em JSON com dependências e paralelismo. Transiciona para `pending_approval`.
-3. **Revisão Humana Única**:
-   - Se aprovado (`POST /api/research/{id}/briefing/approve`): grava pontos e inicia execução paralela.
-   - Se editado (`POST /api/research/{id}/briefing/edit`): Scout refaz rascunho com o feedback e aprova automaticamente.
-4. **Execução Paralela de Workers**: Orquestrador despacha até 20 workers simultâneos (4 personas por ponto: *Historiador*, *Cético*, *Pragmático*, *Visionário*). Cada persona busca até 3 queries e extrai citações exatas.
-5. **Auditoria por Ponto**: O Auditor checa se afirmações têm citações exatas do texto coletado e detecta contradições. Se aprovado, avança. Se reprovado, gera até 3 retries com instruções específicas de busca. Se falhar 4x, marca ponto como `blocked` e inclui ressalvas.
-6. **Redação Final**: O Redator compila o relatório final em Markdown com links para todas as fontes e alertas para pontos bloqueados.
-7. **Callback & Stream**: O relatório é persistido, disponibilizado no endpoint `/api/reports/{id}` e enviado via Webhook com retry seguro. O stream SSE emite eventos seguros em tempo real.
+```mermaid
+C4Component
+title Deep Research Engine — Componentes Backend
+Container(backend, "FastAPI Backend", "Python 3.11+")
+Component(auth, "Auth Router", "POST /login, GET /me, /csrf, POST /logout", "JWT HS256 cookie + CSRF")
+Component(settings_router, "Settings Router", "CRUD /api/settings + /test /models", "AES-256-GCM encryption")
+Component(research_router, "Research Router", "/api/research + /events + /reports", "SSE Last-Event-ID recovery")
+Component(lifespan, "Lifespan Recovery", "Startup scan scouting/revising/approved", "Re-agenda jobs órfãos")
+Component(scout_svc, "Scout Service", "Live search + 5-point briefing draft", "A2-01: 3-5 distinct sites")
+Component(worker_svc, "Worker Pipeline", "4 personas × N rounds search→synthesis", "Semaphore(20), audit loop")
+Component(auditor_svc, "Auditor Agent", "Deterministic + LLM audit", "Verbatim quote contract")
+Component(writer_svc, "Writer Agent", "Evidence-grounded report", "Citation validation")
+Component(webhook_svc, "Webhook Dispatcher", "POST callback_url", "PinnedResolver, no redirects")
+Component(llm_gateway, "LLM Gateway", "complete(), parse_json(), guardrails", "SafeTransport monkey-patch")
+Component(search_pipeline, "Search Pipeline", "search_read() multi-provider", "SSRF guard + DNS pin")
+Component(crypto, "Crypto", "AES-256-GCM encrypt/decrypt", "Key from APP_ENCRYPTION_KEY")
+Component(outbound, "Outbound Guard", "validate_public_url + PinnedResolver", "Anti-SSRF, forbidden IPs")
+```
+
+## 4. Topologia & Fluxo
+
+### 4.1 Stack
+- **Backend**: Python 3.11+, FastAPI, SQLAlchemy 2.0 async (asyncpg/aiosqlite), LiteLLM, aiohttp, cryptography.
+- **Frontend**: React + Vite + TypeScript, React Router, Tailwind, IndexedDB cache.
+- **DB**: PostgreSQL (prod) / SQLite (dev/testes).
+- **Migrations**: Alembic (0001 → 0002 → 0003).
+
+### 4.2 Fluxo de vida da pesquisa
+```
+POST /api/research
+  → Research(status=scouting)
+  → run_scout: search_read → 3+ sites distintos → LLM briefing 5 pontos
+  → status=pending_approval, SSE briefing_ready
+  → POST /briefing/approve (ou /briefing/edit → revising → auto-approve)
+  → status=approved, cria ResearchPoints, run_research
+  → batches topológicos: run_point (4 personas em paralelo, Semaphore 20)
+     cada point: busca iterativa ≤3 → síntese JSON → evidências
+     auditor determinístico (verbatim) + LLM → approved/blocked
+     até 3 tentativas; blocked → ponto não entra no relatório
+  → run_writer: report markdown com citations (1:1 claim:quote:url, URL única por evidence)
+  → status=completed → dispatch_callback (webhook)
+  → callback falhou → completed_but_callback_failed (retry manual)
+```
+
+### 4.3 Estado de retomada
+Lifespan no startup: `scouting` → re-agenda scout; `revising` → re-agenda revision; `approved/in_progress` → marca `interrupted` para retomada via endpoint (feature: resume).
+
+## 5. Contratos
+- **HTTP**: ver OpenAPI summary (§7).
+- **SSE**: `text/event-stream`, eventos `briefing_ready`, `point_started`, `evidence_collected`, `audit_passed`, `report_ready`, `callback_delivered`; `Last-Event-ID` para re-sincronização; poll fallback 5s.
+- **Worker result**: `evidence_schema` JSON (intent, evidence_completeness, evidence[], key_claims[], uncertainties[], contradictions[], missing_research[]).
+- **Verbatim contract**: `exact_quote` substring exata (casefold) de `excerpt`; fonte truncada em 8000 chars (🔴 LACUNA 3).
+
+## 6. ERD
+Ver `domain.md` §entidades (8 tabelas). Relacionamentos:
+```
+research 1──* research_points
+research_points 1──* evidences  (uq: point+persona+source_url)
+research 1──1 reports
+research 1──* agent_event_logs
+research 1──* audit_trails
+```
+
+## 7. OpenAPI Summary (endpoints principais)
+
+| Método | Path | Auth | Descrição |
+|--------|------|------|-----------|
+| POST | `/api/auth/login` | — | Login admin, set cookie |
+| GET | `/api/auth/me` | Cookie/Bearer/API Key | Sessão atual |
+| GET | `/api/auth/csrf` | Cookie | Refresh CSRF |
+| POST | `/api/auth/logout` | Cookie | Revoga sessão |
+| GET/PUT | `/api/settings` | Admin | Config mascarada / atualização |
+| POST | `/api/settings/test` | Admin | Testa provider key |
+| POST | `/api/settings/models` | Admin | Discovery modelos |
+| GET | `/api/settings/models` | Admin | Catálogo dinâmico |
+| POST | `/api/research` | Admin/Bearer | Cria pesquisa |
+| GET | `/api/research` | Admin | Lista (100) |
+| GET | `/api/research/{id}` | Admin | Status detalhado |
+| POST | `/api/research/{id}/briefing/edit` | Admin | Edita → revising |
+| POST | `/api/research/{id}/briefing/approve` | Admin | Aprova → run |
+| GET | `/api/research/{id}/events` | Admin | Eventos (polling) |
+| GET | `/api/research/{id}/events/stream` | Admin | SSE + Last-Event-ID |
+| GET | `/api/reports/{id}` | Admin | Relatório |
+| POST | `/api/reports/{id}/retry-callback` | Admin | Reenvia webhook |
+
+## 8. ADRs
+
+### ADR-001: JWT-in-cookie + CSRF separation
+JWT HS256 cookie HttpOnly (`dr_session`), `jti` hashado em DB (revogável). CSRF em header separado. Bearer/API Key alternativos para B2B (mesmo segredo `API_AUTH_SECRET`). Credencial única por request (A-05).
+
+### ADR-002: SSRF Defence em profundidade (fail-closed)
+`validate_public_url` (DNS resolve → IP público) → `PinnedResolver` (anti-rebinding) → `allow_redirects=False` em todo client aiohttp → LiteLLM `SafeTransport` monkey-patch (`follow_redirects=False`). `TRUSTED_ROUTER_HOSTS` allowlist admin-only. `is_forbidden_ip`: loopback/link-local/multicast/reserved + cloud metadata (169.254.169.254 etc).
+
+### ADR-003: Citação Verbatim como contract
+`Evidence.excerpt` substring exata da fonte. Auditor determinístico: `claim.casefold() in exact_quote.casefold()`. LLM só aprova com todas claims essenciais verbatim. Risco: truncamento 8000 chars (LACUNA 3).
+
+### ADR-004: Pipeline 4-personas + Auditor + Writer
+Personas fixas (historian/skeptic/pragmatist/futurist). `Semaphore(20)`, 3 tentativas, batches topológicos por dependência (MA-01: paralelo + 1 sequencial por batch).
+
+### ADR-005: Estado `revising` runtime-only
+Status usado em fluxo de revisão mas ausente do enum Python; coluna `String(32)` sem constraint DB. 🔴 LACUNA — decidir inclusão no enum.
+
+### ADR-006: Multi-provider Search Failover
+SerpAPI → Apify → Jina Search → DuckDuckGo (Jina proxy HTML, fallback POST direto). Todos com `PinnedResolver`, `trust_env=False`, no redirects.
+
+### ADR-007: AES-256-GCM para secrets
+Key de `APP_ENCRYPTION_KEY` (base64 32B ou SHA-256 fallback), AAD fixo. Chaves encriptadas em `app_settings.encrypted_credentials`; GET retorna mascaradas; força re-entrada quando `re-entry_required`.
+
+## 9. Matriz de Rastreabilidade (Critério → Código → Evidência)
+
+| Critério | Descrição | Código Principal | Verificação |
+|----------|-----------|------------------|-------------|
+| A-01 | 3–5 fontes legíveis de sites distintos | `services/research.py:scout/_scout_impl` (site_map) | A-01 no prompt de seleção; filtro runtime |
+| A-02 | Sanitização de outputs | `sanitize_error`, `sanitize_audit_dict` | Regex `sk|gsk|ghp|gho` + bearer patterns |
+| A-03 | Isolamento de conteúdo untrusted | prompts `<untrusted_search_results>` | Base de prompts em `llm.py` |
+| A-04 | Proibição `x-tenant-id` | `security.py:32-34` + frontend `api.ts` `headers.delete` | Test `test_auth_cookie_csrf_and_logout` |
+| A-05 | Credencial única | `security.py:41-47` (400 ambiguous) | Test dedicated |
+| F1–F3 | Settings: keys, models, callback | `services/settings.py` | `test_settings_are_encrypted_and_masked` |
+| D | SSRF guard em outbound | `tools/outbound.py` | Test dedicated (loopback/priv/metadata) |
+| MA-01 | Batch paralelo + 1 sequencial | `ready_point_batches` | Lógica topológica |
+| MA-02 | max_tokens explorer | `llm.py:complete` | — |
+| MA-03 | Models from settings | `runtime_settings` | Fallback ENV→DB |
+| MA-05 | Callback global admin | `app_settings.callback_url` + `retry-callback` | Flow no router |
+| MA-06 | Autor civil em pt-BR | prompt writer (auditor L) | Regra no prompt |
+| MA-07 | Normalização títulos | prompt writer (auditor G2) | Rule check |
+| MA-08 | Auditor retry concreto | `audit.py:next_audit_state` | Specific retry instructions |
+| MA-09 | Workers miram personas | `llm.py:WORKER_BASE_PROMPT` | Composição de prompt |
+| MA-10 | Verificação citação report | `run_writer` validation pass | Rejita report sem `URL/claim/quote` |
+
+## 10. Débito Técnico
+
+| Componente | LOC | Problema | Plano |
+|------------|-----|----------|-------|
+| `services/research.py` | 591 | Orquestrador monolítico | T010: < 200 LOC + workers |
+| `frontend/main.tsx` | 2546 | UI monolítica | T005: componentes feature |
+| `tests/test_backend.py` | 2226 | Mistura unit+integration | T011: separar |
+| `tools/search_pipeline.py` | 227 | Alvo de migração | T001: `services/search.py` |
+| `prompts/__init__.py` | 0 | Dead code | LACUNA 2 |

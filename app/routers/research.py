@@ -16,7 +16,7 @@ from app.services.llm import ProviderConfigurationError
 from app.services.research import add_event, point_dependencies, run_research, sanitize_error, scout
 from app.services.webhook import dispatch_callback
 from app.tools.outbound import SSRFSecurityViolation, validate_public_url
-from app.tools.search_pipeline import SearchProviderError
+from app.services.search import SearchProviderError
 
 router = APIRouter(prefix="/api", tags=["research"])
 _running: set[asyncio.Task] = set()

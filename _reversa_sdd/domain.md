@@ -10,8 +10,9 @@
 Representa uma sessão de pesquisa profunda solicitada por um operador ou cliente backend.
 - `id` (UUID): Identificador único global.
 - `theme` (String 500): Assunto de pesquisa submetido pelo usuário.
-- `callback_url` (String 2048, nullable): URL de webhook para despacho do relatório final.
-- `status` (Enum): `scouting`, `pending_approval`, `revising`, `approved`, `in_progress`, `completed`, `completed_but_callback_failed`, `blocked`, `failed`, `interrupted`.
+- `callback_url` (String 2048, nullable): URL de webhook com despacho do relatório final.
+- `status` (String 32, indexado): `scouting`, `pending_approval`, `revising`, `approved`, `in_progress`, `completed`, `completed_but_callback_failed`, `blocked`, `failed`, `interrupted`.
+  - **🔴 LACUNA**: `revising` usado em `research.py:68` e lifespan (`main.py`) mas ausente do enum Python `ResearchStatus` (`app/models/domain_models.py:18-27`). Coluna é `String(32)` — valor persiste como string, não há constraint DB. Definir se enum ganha `REVISING = "revising"`.
 - `briefing_draft` (JSON): Rascunho de 5 pontos gerado pelo Scout com notas de revisão.
 - `error` (Text, nullable): Mensagem de erro higienizada.
 - `approved_at` (DateTime, nullable): Timestamp de aprovação única do briefing.

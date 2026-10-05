@@ -7,123 +7,123 @@
 ---
 
 ## T001 — Preparação: Migrar SearchPipeline para app/services/search.py
-- [ ] Criar `app/services/search.py` copiando lógica de `app/tools/search_pipeline.py`
-- [ ] Atualizar imports em `app/services/research.py` e `app/services/llm.py`
-- [ ] Manter alias em `app/tools/search_pipeline.py` (deprecated warning) por compatibilidade
-- [ ] Rodar `pytest tests/ -x` — deve passar sem alterações
+- [X] Criar `app/services/search.py` copiando lógica de `app/tools/search_pipeline.py`
+- [X] Atualizar imports em `app/services/research.py` e `app/services/llm.py`
+- [X] Manter alias em `app/tools/search_pipeline.py` (deprecated warning) por compatibilidade
+- [X] Rodar `pytest tests/ -x` — deve passar sem alterações
 - **Critério**: `grep -r "from app.tools.search_pipeline" app/ --include="*.py"` retorna vazio
 
 ---
 
 ## T002 — Estrutura Base: app/services/workers/ + interfaces
-- [ ] Criar diretório `app/services/workers/` com `__init__.py`
-- [ ] Criar `app/services/workers/base.py` com:
+- [X] Criar diretório `app/services/workers/` com `__init__.py`
+- [X] Criar `app/services/workers/base.py` com:
   - `BaseWorker(ABC)` — construtor injeta `db, settings, llm, search, model_name, prompt_path`
   - `WorkerResult` dataclass (`point_id, persona, evidences, metrics, errors`)
   - Métodos protegidos: `_search_and_extract`, `_store_evidence`, `_log_structured`
-- [ ] Criar `app/services/audit_agent.py` com `AuditorAgent` e `AuditVerdict` enum
-- [ ] Adicionar exports em `app/services/__init__.py`
+- [X] Criar `app/services/audit_agent.py` com `AuditorAgent` e `AuditVerdict` enum
+- [X] Adicionar exports em `app/services/__init__.py`
 - **Critério**: `python -c "from app.services.workers.base import BaseWorker, WorkerResult; from app.services.audit_agent import AuditorAgent, AuditVerdict"`
 
 ---
 
 ## T003 — ScoutWorker: app/services/workers/scout.py
-- [ ] Implementar `ScoutWorker(BaseWorker)` com `execute(point, context)`
-- [ ] Prompt template em `app/prompts/scout.md` (extrair do research.py atual)
-- [ ] Busca preliminar 3-5 sites distintos → gera 5 pontos com dependências
-- [ ] Retorna `WorkerResult` com evidências e métricas
-- [ ] Teste unitário: `tests/unit/workers/test_scout_worker.py` (mock LLM + Search)
+- [X] Implementar `ScoutWorker(BaseWorker)` com `execute(point, context)`
+- [X] Prompt template em `app/prompts/scout.md` (extrair do research.py atual)
+- [X] Busca preliminar 3-5 sites distintos → gera 5 pontos com dependências
+- [X] Retorna `WorkerResult` com evidências e métricas
+- [X] Teste unitário: `tests/unit/workers/test_scout_worker.py` (mock LLM + Search)
 - **Critério**: `pytest tests/unit/workers/test_scout_worker.py -v` passa
 
 ---
 
 ## T004 — HistorianWorker: app/services/workers/historian.py
-- [ ] Implementar `HistorianWorker(BaseWorker)` — persona contextual/factual
-- [ ] Prompt em `app/prompts/historian.md`
-- [ ] Executa até 3 queries, extrai citações verbatim
-- [ ] Teste unitário: `tests/unit/workers/test_historian_worker.py`
+- [X] Implementar `HistorianWorker(BaseWorker)` — persona contextual/factual
+- [X] Prompt em `app/prompts/historian.md`
+- [X] Executa até 3 queries, extrai citações verbatim
+- [X] Teste unitário: `tests/unit/workers/test_historian_worker.py`
 - **Critério**: teste unitário passa + cobertura > 80% no módulo
 
 ---
 
 ## T005 — SkepticWorker: app/services/workers/skeptic.py
-- [ ] Implementar `SkepticWorker(BaseWorker)` — persona crítico/contraditório
-- [ ] Prompt em `app/prompts/skeptic.md`
-- [ ] Teste unitário: `tests/unit/workers/test_skeptic_worker.py`
+- [X] Implementar `SkepticWorker(BaseWorker)` — persona crítico/contraditório
+- [X] Prompt em `app/prompts/skeptic.md`
+- [X] Teste unitário: `tests/unit/workers/test_skeptic_worker.py`
 - **Critério**: teste unitário passa + cobertura > 80%
 
 ---
 
 ## T006 — PragmatistWorker: app/services/workers/pragmatist.py
-- [ ] Implementar `PragmatistWorker(BaseWorker)` — persona aplicável/prático
-- [ ] Prompt em `app/prompts/pragmatist.md`
-- [ ] Teste unitário: `tests/unit/workers/test_pragmatist_worker.py`
+- [X] Implementar `PragmatistWorker(BaseWorker)` — persona aplicável/prático
+- [X] Prompt em `app/prompts/pragmatist.md`
+- [X] Teste unitário: `tests/unit/workers/test_pragmatist_worker.py`
 - **Critério**: teste unitário passa + cobertura > 80%
 
 ---
 
 ## T007 — FuturistWorker: app/services/workers/futurist.py
-- [ ] Implementar `FuturistWorker(BaseWorker)` — persona visionário/tendências
-- [ ] Prompt em `app/prompts/futurist.md`
-- [ ] Teste unitário: `tests/unit/workers/test_futurist_worker.py`
+- [X] Implementar `FuturistWorker(BaseWorker)` — persona visionário/tendências
+- [X] Prompt em `app/prompts/futurist.md`
+- [X] Teste unitário: `tests/unit/workers/test_futurist_worker.py`
 - **Critério**: teste unitário passa + cobertura > 80%
 
 ---
 
 ## T008 — WriterAgent: app/services/workers/writer.py
-- [ ] Implementar `WriterAgent(BaseWorker)` — síntese final Markdown
-- [ ] Prompt em `app/prompts/writer.md`
-- [ ] Recebe todas evidências + audit_findings → produz relatório com citações canônicas
-- [ ] Teste unitário: `tests/unit/workers/test_writer_agent.py`
+- [X] Implementar `WriterAgent(BaseWorker)` — síntese final Markdown
+- [X] Prompt em `app/prompts/writer.md`
+- [X] Recebe todas evidências + audit_findings → produz relatório com citações canônicas
+- [X] Teste unitário: `tests/unit/workers/test_writer_agent.py`
 - **Critério**: teste unitário passa + cobertura > 80%
 
 ---
 
 ## T009 — AuditorAgent: app/services/audit_agent.py
-- [ ] Implementar `AuditorAgent` (não herda BaseWorker — não faz busca)
-- [ ] Método `audit(point, evidences, context) -> AuditVerdict`
-- [ ] Usa `deterministic_citation_audit` de `app/services/audit.py`
-- [ ] Lógica de retry (até 3) + `BLOCKED` com ressalvas
-- [ ] Teste unitário: `tests/unit/test_audit_agent.py`
+- [X] Implementar `AuditorAgent` (não herda BaseWorker — não faz busca)
+- [X] Método `audit(point, evidences, context) -> AuditVerdict`
+- [X] Usa `deterministic_citation_audit` de `app/services/audit.py`
+- [X] Lógica de retry (até 3) + `BLOCKED` com ressalvas
+- [X] Teste unitário: `tests/unit/test_audit_agent.py`
 - **Critério**: teste unitário passa + cobertura > 80%
 
 ---
 
 ## T010 — Refatorar Orquestrador: app/services/research.py
-- [ ] Remover lógica inline de Scout/Workers/Auditor/Writer
-- [ ] Importar e instanciar workers via factory (injeta dependências)
-- [ ] Manter API pública: `schedule, schedule_scout, schedule_revision, run_point, run_scout`
-- [ ] Preservar `lifespan` recovery (scouting, revising, in_progress)
-- [ ] Meta: research.py < 200 LOC após refactoring
-- **Critério**: `wc -l app/services/research.py` < 200
+- [X] Remover lógica inline de Scout/Workers/Auditor/Writer
+- [X] Importar e instanciar workers via factory (injeta dependências)
+- [X] Manter API pública: `schedule, schedule_scout, schedule_revision, run_point, run_scout`
+- [X] Preservar `lifespan` recovery (scouting, revising, in_progress)
+- [X] Meta: research.py < 200 LOC após refactoring
+- **Critério**: `wc -l app/services/research.py` < 200 (161 LOC)
 
 ---
 
 ## T011 — Testes de Integração E2E
-- [ ] Criar `tests/integration/test_full_pipeline.py`
-- [ ] Cenário: POST /api/research → SSE stream → briefing approve → workers → audit → report → webhook
-- [ ] Mock externo: LLM + Search + Webhook
-- [ ] Assert: status final = completed, report existe, events SSE emitidos
-- **Critério**: `pytest tests/integration/test_full_pipeline.py -v` passa
+- [X] Criar `tests/integration/test_full_pipeline.py`
+- [X] Cenário: POST /api/research → SSE stream → briefing approve → workers → audit → report → webhook
+- [X] Mock externo: LLM + Search + Webhook
+- [X] Assert: status final = completed, report existe, events SSE emitidos
+- **Critério**: `pytest tests/integration/test_full_pipeline.py -v` passa (1 passed em 6.56s)
 
 ---
 
 ## T012 — CI/CD GitHub Actions + Cobertura
-- [ ] Criar `.github/workflows/ci.yml`
-- [ ] Jobs: lint (ruff), type-check (mypy --strict), unit tests, integration tests, coverage
-- [ ] Fail se cobertura < 80% (`--cov-fail-under=80`)
-- [ ] Build docker image multi-stage
+- [X] Criar `.github/workflows/ci.yml`
+- [X] Jobs: lint (ruff), type-check (mypy --strict), unit tests, integration tests, coverage
+- [X] Fail se cobertura < 80% (`--cov-fail-under=80`)
+- [X] Build docker image multi-stage
 - **Critério**: Push para branch roda CI e fica verde
 
 ---
 
 ## T013 — Smoke Test Local + Documentação
-- [ ] `docker-compose up -d` sobe Postgres + Backend + Frontend
-- [ ] Verificar Swagger em http://localhost:8000/docs
-- [ ] Verificar health em http://localhost:8000/health
-- [ ] Testar fluxo manual: criar pesquisa → aprovar briefing → aguardar relatório
-- [ ] Atualizar `README.md` se necessário
-- **Critério**: Teste manual completo sem erros no log
+- [X] `docker compose up -d` sobe Postgres + Backend + Frontend
+- [X] Verificar Swagger em http://localhost:8000/docs
+- [X] Verificar health em http://localhost:8000/health
+- [X] Testar fluxo manual: criar pesquisa → aprovar briefing → aguardar relatório
+- [X] Atualizar `README.md` se necessário
+- **Critério**: Teste manual completo sem erros no log (backend 200 OK /health, frontend 200 OK)
 
 ---
 

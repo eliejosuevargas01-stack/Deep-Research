@@ -1,0 +1,64 @@
+{
+  "data": "2026-10-05T04:51:20.267655+00:00",
+  "artefatos_analisados": [
+    "_reversa_forward/requirements.md",
+    "_reversa_forward/roadmap.md",
+    "_reversa_forward/actions.md"
+  ],
+  "resumo": {
+    "total_findings": 5,
+    "CRITICAL": 0,
+    "HIGH": 1,
+    "MEDIUM": 3,
+    "LOW": 1
+  },
+  "findings": [
+    {
+      "id": "AC-01",
+      "severidade": "MEDIUM",
+      "eixo": "consistência",
+      "descricao": "requirements.md §3 cita 'DataPanel.tsx → componentes' como fora de escopo, mas arquivo não existe (frontend monolítico é main.tsx, 2546 LOC)",
+      "onde": "_reversa_forward/requirements.md §3",
+      "correcao": "Substituir 'DataPanel.tsx' por 'main.tsx' (frontend/src/main.tsx)"
+    },
+    {
+      "id": "AC-02",
+      "severidade": "HIGH",
+      "eixo": "coerência-legado",
+      "descricao": "actions.md T003-T008 exigem 'app/prompts/{persona}.md' mas app/prompts/__init__.py está vazio (0 bytes) e .md files não existem — criação dos templates não é ação explícita em nenhuma T",
+      "onde": "_reversa_forward/actions.md T003-T008 vs app/prompts/",
+      "correcao": "Adicionar ação explícita 'criar app/prompts/{persona}.md extraindo de personas.json' antes de T003, ou incorporar em T002"
+    },
+    {
+      "id": "AC-03",
+      "severidade": "MEDIUM",
+      "eixo": "consistência",
+      "descricao": "requirements.md §2.1 estrutura alvo mostra 'search_pipeline.py (movido para app/tools/ ou mantido)' — decisão já resolvida (T001 move para app/services/search.py), estrutura desatualizada",
+      "onde": "_reversa_forward/requirements.md §2.1",
+      "correcao": "Atualizar estrutura alvo: 'search.py # (movido de app/tools/search_pipeline.py)'"
+    },
+    {
+      "id": "AC-05",
+      "severidade": "LOW",
+      "eixo": "consistência",
+      "descricao": "Logging estruturado citado em requirements §2.5 e actions.md Notas #4 mas schema JSON de log não definido (campos obrigatórios: research_id, point_id, persona — implícito mas não formalizado)",
+      "onde": "_reversa_forward/requirements.md §2.5 + actions.md Notas",
+      "correcao": "Formalizar schema de log em T002 (BaseWorker._log_structured)"
+    },
+    {
+      "id": "AC-06",
+      "severidade": "MEDIUM",
+      "eixo": "coerência-legado",
+      "descricao": "requirements §2.5 exige backwards-compat de lifespan recovery para 'revising' mas ResearchStatus enum não contém REVISING (LACUNA 1 em _reversa_sdd/questions.md) — refactoring herdará a inconsistência",
+      "onde": "_reversa_forward/requirements.md §2.5 vs _reversa_sdd/domain.md#1.1",
+      "correcao": "Resolver LACUNA 1 (adicionar REVISING ao enum) ANTES de T010 — adicionar ação pré-T001 ou em T002"
+    }
+  ],
+  "verificacoes_ok": [
+    "Cobertura: REQ-01..07 → T002..T013 mapeados",
+    "Sanidade: todas referências T### existem, sem ciclos",
+    "Dependências: T001→T002→T003-09(paralelo)→T010→T011→T012→T013 válida",
+    "Roadmap 4 fases/5 semanas presente (resolves audit BAIXA prazo)",
+    "Gap analysis 4 perguntas resolvidas e incorporadas"
+  ]
+}

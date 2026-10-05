@@ -84,6 +84,12 @@ Os workers utilizam uma tool unificada com subfluxo integrado:
 
 ---
 
-## Objetivo Central do Fluxo
+## Arquitetura
+
+- Fluxo: scout aprovação humana (cas único) workers paralelos (4 personas) auditor LLM writer
+- Backend FastAPI (SQLite por defeito) with JWT cookie + CSRF double-submit, API key fallback, alembic migrations, SSRF guards, fail-closed on provider misconfig
+- **Refatoração T010**: `app/services/research.py` é uma facade fina (161 LOC) que orquestra módulos em `app/services/pipeline/` (scout.py, worker.py, audit_stage.py, point_executor.py, writer.py, constants.py)
+- Módulos pipeline: implementam a lógica padrão: scraper, searcher, extractor, verifier, synthesizer
+- Frontend (placeholder): point to your own UI or consume API/stream directly; reverse-proxy `/static` optional (StaticFiles apenas se o diretório não estiver vazio)
 
 Garantir o mais alto padrão de profundidade informacional e veracidade documental, entregando relatórios extensos, estruturados e com 100% de rastreabilidade de fontes para tomada de decisão crítica.

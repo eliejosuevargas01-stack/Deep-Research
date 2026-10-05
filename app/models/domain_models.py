@@ -18,6 +18,7 @@ class Base(DeclarativeBase):
 class ResearchStatus(str, enum.Enum):
     SCOUTING = "scouting"
     PENDING_APPROVAL = "pending_approval"
+    REVISING = "revising"
     APPROVED = "approved"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
