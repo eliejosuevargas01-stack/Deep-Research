@@ -44,8 +44,21 @@ async def _run_point(research_id: uuid.UUID, point: ResearchPoint) -> bool:
                 await db.commit()
             from app.services.research import add_event
             await add_event(research_id, "system", "worker_failures", f"{failures} worker executions failed safely", {"failed_workers": failures})
-        if await _audit_point(research_id, point, attempt):
-            return True
+        try:
+            if await _audit_point(research_id, point, attempt):
+                return True
+        except Exception as exc:
+            # Graceful degradation: audit infrastructure failure must not kill the
+            # research. Mark attempt as failed and continue the retry loop.
+            async with AsyncSessionLocal() as db:
+                db.add(AuditTrail(research_id=research_id, point_id=point.id, stage="audit_failure",
+                                  attempt=attempt, details={"error_type": type(exc).__name__}))
+                await db.commit()
+            from app.services.research import add_event
+            await add_event(research_id, "system", "audit_failure",
+                            f"Audit attempt {attempt} failed safely: {type(exc).__name__}",
+                            {"error_type": type(exc).__name__}, point_id=point.id, point_title=point.title)
+            continue
         async with AsyncSessionLocal() as db:
             refreshed = await db.get(ResearchPoint, point.id)
             missing = (refreshed.audit or {}).get("llm", {}).get("missing_research", []) if refreshed else []

@@ -73,7 +73,9 @@ async def run_worker(
             point_id=point_id, point_title=title, tool_type="worker_start",
         )
         async with AsyncSessionLocal() as db:
-            keys, _ = await __import__("app.services.settings", fromlist=["runtime_settings"]).runtime_settings(db)
+            settings_mod = __import__("app.services.settings", fromlist=["runtime_settings", "runtime_jina_base_url"])
+            keys, _ = await settings_mod.runtime_settings(db)
+            jina_base_url = await settings_mod.runtime_jina_base_url(db)
             sensitive_keys = [str(k) for k in keys.values() if k]
             memory: list[dict] = []
             seen_urls: set[str] = set()
@@ -104,7 +106,7 @@ async def run_worker(
                     if query.upper().startswith("SATISFIED"):
                         break
                 try:
-                    batch = await search_read(query, 5, keys)
+                    batch = await search_read(query, 5, keys, jina_base_url=jina_base_url)
                 except Exception:
                     batch = []
                 new_sources = [s for s in batch if s.url not in seen_urls]

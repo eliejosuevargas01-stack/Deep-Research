@@ -122,4 +122,5 @@ class AppSettings(Base):
     models: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)
     callback_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     openai_base_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    jina_base_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)

@@ -7,38 +7,109 @@
   "doc_level": "completo",
   "answer_mode": "file",
   "specs_choice": "auto",
-  "phase": "forward-ready",
+  "phase": "forward-complete",
   "completed": [
     "scout",
-    "module-app-core-db-models-schemas",
-    "module-app-routers-main",
-    "module-app-services",
-    "module-app-tools-prompts",
-    "module-frontend-src",
-    "module-tests-alembic",
-    "architect",
-    "data-master",
     "inspector",
-    "detective",
+    "architect",
+    "module-frontend-src",
+    "module-app-tools-prompts",
+    "module-tests-alembic",
+    "data-master",
     "quality-completo",
     "regression-check",
-    "lacunas-resolvidas"
+    "detective",
+    "module-app-core-db-models-schemas",
+    "lacunas-resolvidas",
+    "forward-coding",
+    "module-app-services",
+    "module-app-routers-main"
   ],
-  "pending": ["forward-coding"],
+  "pending": [],
   "checkpoints": {
-    "scout": {"completed_at": "2026-10-05T04:25:00Z", "artifacts": ["_reversa_sdd/surface.json"]},
-    "foundation": {"completed_at": "2026-10-05T04:30:00Z", "artifacts": ["_reversa_sdd/foundation.md"]},
-    "api-ingress": {"completed_at": "2026-10-05T04:35:00Z", "artifacts": ["_reversa_sdd/api-ingress.md"]},
-    "services": {"completed_at": "2026-10-05T04:45:00Z", "artifacts": ["_reversa_sdd/services.md"]},
-    "external-tools": {"completed_at": "2026-10-05T04:50:00Z", "artifacts": ["_reversa_sdd/external-tools.md"]},
-    "frontend": {"completed_at": "2026-10-05T04:55:00Z", "artifacts": ["_reversa_sdd/frontend.md"]},
-    "tests-migrations": {"completed_at": "2026-10-05T05:00:00Z", "artifacts": ["_reversa_sdd/tests-migrations.md"]},
-    "domain": {"completed_at": "2026-10-05T05:05:00Z", "artifacts": ["_reversa_sdd/domain.md"]},
-    "architecture": {"completed_at": "2026-10-05T05:10:00Z", "artifacts": ["_reversa_sdd/architecture.md"]},
-    "code-analysis": {"completed_at": "2026-10-05T05:15:00Z", "artifacts": ["_reversa_sdd/code-analysis.md"]},
-    "business-knowledge": {"completed_at": "2026-10-05T05:20:00Z", "artifacts": ["_reversa_sdd/business-knowledge.md"]},
-    "regression": {"completed_at": "2026-10-05T05:30:00Z", "artifacts": ["_reversa_sdd/regression-check.md"]},
-    "audit": {"completed_at": "2026-10-05T06:00:00Z", "artifacts": ["_reversa_forward/reversa-audit-report.md"]},
-    "lacunas": {"completed_at": "2026-10-05T07:00:00Z", "artifacts": ["_reversa_sdd/questions.md"]}
+    "scout": {
+      "completed_at": "2026-10-05T04:25:00Z",
+      "artifacts": [
+        "_reversa_sdd/surface.json"
+      ]
+    },
+    "foundation": {
+      "completed_at": "2026-10-05T04:30:00Z",
+      "artifacts": [
+        "_reversa_sdd/foundation.md"
+      ]
+    },
+    "api-ingress": {
+      "completed_at": "2026-10-05T04:35:00Z",
+      "artifacts": [
+        "_reversa_sdd/api-ingress.md"
+      ]
+    },
+    "services": {
+      "completed_at": "2026-10-05T04:45:00Z",
+      "artifacts": [
+        "_reversa_sdd/services.md"
+      ]
+    },
+    "external-tools": {
+      "completed_at": "2026-10-05T04:50:00Z",
+      "artifacts": [
+        "_reversa_sdd/external-tools.md"
+      ]
+    },
+    "frontend": {
+      "completed_at": "2026-10-05T04:55:00Z",
+      "artifacts": [
+        "_reversa_sdd/frontend.md"
+      ]
+    },
+    "tests-migrations": {
+      "completed_at": "2026-10-05T05:00:00Z",
+      "artifacts": [
+        "_reversa_sdd/tests-migrations.md"
+      ]
+    },
+    "domain": {
+      "completed_at": "2026-10-05T05:05:00Z",
+      "artifacts": [
+        "_reversa_sdd/domain.md"
+      ]
+    },
+    "architecture": {
+      "completed_at": "2026-10-05T05:10:00Z",
+      "artifacts": [
+        "_reversa_sdd/architecture.md"
+      ]
+    },
+    "code-analysis": {
+      "completed_at": "2026-10-05T05:15:00Z",
+      "artifacts": [
+        "_reversa_sdd/code-analysis.md"
+      ]
+    },
+    "business-knowledge": {
+      "completed_at": "2026-10-05T05:20:00Z",
+      "artifacts": [
+        "_reversa_sdd/business-knowledge.md"
+      ]
+    },
+    "regression": {
+      "completed_at": "2026-10-05T05:30:00Z",
+      "artifacts": [
+        "_reversa_sdd/regression-check.md"
+      ]
+    },
+    "audit": {
+      "completed_at": "2026-10-05T06:00:00Z",
+      "artifacts": [
+        "_reversa_forward/reversa-audit-report.md"
+      ]
+    },
+    "lacunas": {
+      "completed_at": "2026-10-05T07:00:00Z",
+      "artifacts": [
+        "_reversa_sdd/questions.md"
+      ]
+    }
   }
 }

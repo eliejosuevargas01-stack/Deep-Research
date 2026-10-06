@@ -52,21 +52,38 @@ async def _audit_point(research_id: str, point: ResearchPoint, attempt: int) -> 
             "deterministic_checks": deterministic,
         }
         prompt = f"<evidence_to_audit>\n{json.dumps(prompt_data, ensure_ascii=False)[:60000]}\n</evidence_to_audit>"
-        llm_text = await complete(
-            "auditor",
-            "Audit supplied evidence for the single research point. Answer: was the question directly answered? are essential points covered? do important claims have identifiable sources? are sources adequate (prefer primary)? do sources actually say what workers claim (quote must support claim)? is info current enough? are contradictions surfaced? is fact separated from inference/uncertainty? did research stay in scope? Return JSON object with approved (boolean), findings (array of strings), contradictions (array of irreconcilable factual conflicts between sources, return empty array [] if sources are coherent), uncertainties (array of strings), outline (array of strings), missing_research (array of concrete search instructions describing exactly what is still missing; empty if approved). Approve only when each claim is supported by its exact quote and no irreconcilable contradiction remains. Never reveal private reasoning.",
-            prompt, db,
-        )
+        llm_audit: dict[str, Any] = {}
         try:
-            parsed = parse_json(llm_text)
-            if isinstance(parsed, list) and len(parsed) > 0 and isinstance(parsed[0], dict):
-                llm_audit = parsed[0]
-            elif isinstance(parsed, dict):
-                llm_audit = parsed
-            else:
-                llm_audit = {"findings": ["Auditor returned non-dict structured output"], "uncertainties": [], "missing_research": []}
-        except (ValueError, json.JSONDecodeError):
-            llm_audit = {"findings": ["Auditor returned invalid structured output"], "uncertainties": [], "missing_research": []}
+            llm_text = await complete(
+                "auditor",
+                "Audit supplied evidence for the single research point. Answer: was the question directly answered? are essential points covered? do important claims have identifiable sources? are sources adequate (prefer primary)? do sources actually say what workers claim (quote must support claim)? is info current enough? are contradictions surfaced? is fact separated from inference/uncertainty? did research stay in scope? Return JSON object with approved (boolean), findings (array of strings), contradictions (array of irreconcilable factual conflicts between sources, return empty array [] if sources are coherent), uncertainties (array of strings), outline (array of strings), missing_research (array of concrete search instructions describing exactly what is still missing; empty if approved). Approve only when each claim is supported by its exact quote and no irreconcilable contradiction remains. Never reveal private reasoning.",
+                prompt, db,
+            )
+            try:
+                parsed = parse_json(llm_text)
+                if isinstance(parsed, list) and len(parsed) > 0 and isinstance(parsed[0], dict):
+                    llm_audit = parsed[0]
+                elif isinstance(parsed, dict):
+                    llm_audit = parsed
+                else:
+                    llm_audit = {"findings": ["Auditor returned non-dict structured output"], "uncertainties": [], "missing_research": []}
+            except (ValueError, json.JSONDecodeError):
+                llm_audit = {"findings": ["Auditor returned invalid structured output"], "uncertainties": [], "missing_research": []}
+        except Exception as exc:
+            # Graceful degradation (principles.md): a transient LLM outage must not
+            # abort the whole research. Record this attempt as failed audit so the
+            # point retries or blocks after MAX_AUDIT_ATTEMPTS, then continue.
+            llm_audit = {
+                "findings": [f"Auditor LLM unavailable: {type(exc).__name__}"],
+                "uncertainties": ["Evidence audit skipped due to LLM outage"],
+                "missing_research": ["Re-run evidence audit when LLM service recovers"],
+            }
+            await add_event(
+                research_id, "auditor", "audit_llm_unavailable",
+                f"Audit attempt {attempt}: LLM unavailable ({type(exc).__name__})",
+                {"error_type": type(exc).__name__},
+                point_id=point.id, point_title=point.title, tool_type="auditor_verdict", round_no=attempt,
+            )
 
         if not isinstance(llm_audit.get("missing_research"), list):
             llm_audit["missing_research"] = []

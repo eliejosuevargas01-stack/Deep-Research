@@ -24,6 +24,7 @@ async def get_settings(_: Principal = Depends(require_admin), db: AsyncSession =
 async def put_settings(payload: SettingsUpdate, _: Principal = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     callback_url = payload.callback_url if "callback_url" in payload.model_fields_set else _UNSET
     openai_base_url = payload.openai_base_url if "openai_base_url" in payload.model_fields_set else _UNSET
+    jina_base_url = payload.jina_base_url if "jina_base_url" in payload.model_fields_set else _UNSET
     try:
         res = await update_settings(
             db,
@@ -31,6 +32,7 @@ async def put_settings(payload: SettingsUpdate, _: Principal = Depends(require_a
             payload.models,
             callback_url=callback_url,
             openai_base_url=openai_base_url,
+            jina_base_url=jina_base_url,
         )
         return res
     except ValueError as exc:

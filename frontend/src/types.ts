@@ -80,4 +80,5 @@ export type Settings = {
   models: Record<string, string | null>
   callback_url?: string | null
   openai_base_url?: string | null
+  jina_base_url?: string | null
 }

@@ -113,7 +113,7 @@ async def test_full_pipeline_e2e_integration(client, monkeypatch):
         "Source", (), {"url": source_url, "title": "Multi-Persona Debate in LLM", "excerpt": source_text}
     )()
 
-    async def fake_search_read(query, limit, keys, timeout=25.0):
+    async def fake_search_read(query, limit, keys, timeout=25.0, jina_base_url=None):
         return [mock_source]
 
     # complete() is called 3x per persona: notes_summary, next_query, final_analysis
@@ -181,8 +181,14 @@ async def test_full_pipeline_e2e_integration(client, monkeypatch):
     monkeypatch.setattr("app.services.webhook.dispatch_callback", fake_dispatch_callback)
     monkeypatch.setattr("app.services.research.sanitize_error", lambda exc, ctx: f"{type(exc).__name__}: {exc}")
 
-    # 8. Execute pipeline
-    await run_research(rid)
+    # 8. Execute pipeline (already scheduled by approve endpoint)
+    # Wait for background run_research to complete
+    for _ in range(200):
+        async with AsyncSessionLocal() as db:
+            res = await db.get(Research, rid)
+            if res and res.status in {"completed", "completed_but_callback_failed", "blocked", "failed"}:
+                break
+        await asyncio.sleep(0.1)
 
     # 9. Assertions on Database State
     from sqlalchemy import select

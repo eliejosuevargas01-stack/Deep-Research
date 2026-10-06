@@ -60,15 +60,16 @@ async def _apify_search(query: str, limit: int, token: str) -> list[Source]:
     ][:limit]
 
 
-async def _duckduckgo_search(query: str, limit: int = 8) -> list[Source]:
+async def _duckduckgo_search(query: str, limit: int = 8, jina_base_url: str | None = None) -> list[Source]:
     """Free, reliable fallback search using Jina-proxied DuckDuckGo or direct DuckDuckGo."""
     timeout = aiohttp.ClientTimeout(total=settings.SEARCH_TIMEOUT_SECONDS)
     connector = aiohttp.TCPConnector(resolver=PinnedResolver(), use_dns_cache=False)
+    jina_base = (jina_base_url or DEFAULT_JINA_BASE_URL).rstrip("/")
 
     # 1. Try Jina Reader proxy of DuckDuckGo HTML (bypasses datacenter VPS anti-bot challenges)
     try:
         q_enc = quote(query)
-        jina_ddg_url = f"https://r.jina.ai/https://html.duckduckgo.com/html/?q={q_enc}"
+        jina_ddg_url = f"{jina_base}/https://html.duckduckgo.com/html/?q={q_enc}"
         headers = {"User-Agent": "Mozilla/5.0", "Accept": "text/plain"}
         async with aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=False) as client:
             async with client.get(jina_ddg_url, headers=headers, allow_redirects=False) as resp:
@@ -134,8 +135,12 @@ async def _duckduckgo_search(query: str, limit: int = 8) -> list[Source]:
     return []
 
 
-async def search(query: str, limit: int = 8, keys: dict[str, str] | None = None) -> list[Source]:
+DEFAULT_JINA_BASE_URL = "https://r.jina.ai"
+
+
+async def search(query: str, limit: int = 8, keys: dict[str, str] | None = None, jina_base_url: str | None = None) -> list[Source]:
     keys = keys or {}
+    jina_base = (jina_base_url or DEFAULT_JINA_BASE_URL).rstrip("/")
     if keys.get("serpapi"):
         try:
             params = urlencode({"q": query, "engine": "google", "num": limit, "api_key": keys["serpapi"]})
@@ -165,7 +170,7 @@ async def search(query: str, limit: int = 8, keys: dict[str, str] | None = None)
         headers = {"Accept": "text/plain", "X-Return-Format": "markdown"}
         if keys.get("jina"):
             headers["Authorization"] = f"Bearer {keys['jina']}"
-        status, text = await _get(f"https://s.jina.ai/{quote(query, safe='')}", headers)
+        status, text = await _get(f"{jina_base}/{quote(query, safe='')}", headers)
         if status < 300:
             found, seen = [], set()
             for title, url in re.findall(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", text):
@@ -180,7 +185,7 @@ async def search(query: str, limit: int = 8, keys: dict[str, str] | None = None)
         pass
 
     # 4. Free fallback when no search API key is provided or paid providers return errors:
-    ddg_results = await _duckduckgo_search(query, limit)
+    ddg_results = await _duckduckgo_search(query, limit, jina_base_url=jina_base_url)
     return ddg_results
 
 
@@ -195,14 +200,18 @@ def _safe(url: str) -> bool:
 MAX_SOURCE_CHARS = 50000  # full page cap; LLM selects the relevant verbatim excerpt (decision LACUNA 3)
 
 
-async def read_source(source: Source) -> Source | None:
+async def read_source(source: Source, jina_base_url: str | None = None, jina_api_key: str | None = None) -> Source | None:
     if not _safe(source.url):
         return None
 
     # 1. Try Jina Reader first for clean markdown extraction
     try:
-        jina_url = f"https://r.jina.ai/{source.url}"
-        status, text = await _get(jina_url, {"User-Agent": "Mozilla/5.0", "Accept": "text/plain"})
+        jina_base = (jina_base_url or DEFAULT_JINA_BASE_URL).rstrip("/")
+        jina_url = f"{jina_base}/{source.url}"
+        headers = {"User-Agent": "Mozilla/5.0", "Accept": "text/plain"}
+        if jina_api_key:
+            headers["Authorization"] = f"Bearer {jina_api_key}"
+        status, text = await _get(jina_url, headers)
         if status == 200 and text and len(text.strip()) > 50:
             clean = re.sub(r"\s+", " ", text).strip()
             return Source(source.url, source.title, clean[:MAX_SOURCE_CHARS])
@@ -213,7 +222,7 @@ async def read_source(source: Source) -> Source | None:
     try:
         status, body = await _get(source.url, {"User-Agent": "DeepResearchBot/1.0", "Accept": "text/html,text/plain"})
         if status < 300 and body:
-            body = re.sub(r"(?is)<(script|style|noscript).*?>.*?</\1>", " ", body)
+            body = re.sub(r"(?is)<(script|style|noscript).*?>.*?</\\1>", " ", body)
             text = html.unescape(re.sub(r"(?s)<[^>]+>", " ", body))
             text = re.sub(r"\s+", " ", text).strip()
             if text:
@@ -224,7 +233,11 @@ async def read_source(source: Source) -> Source | None:
     return None
 
 
-async def search_read(query: str, limit: int = 8, keys: dict[str, str] | None = None) -> list[Source]:
-    results = await search(query, min(10, max(5, limit)), keys)
-    pages = await asyncio.gather(*(read_source(item) for item in results), return_exceptions=True)
+async def search_read(query: str, limit: int = 8, keys: dict[str, str] | None = None, jina_base_url: str | None = None)-> list[Source]:
+    keys = keys or {}
+    results = await search(query, min(10, max(5, limit)), keys, jina_base_url=jina_base_url)
+    pages = await asyncio.gather(
+        *(read_source(item, jina_base_url=jina_base_url, jina_api_key=keys.get("jina")) for item in results),
+        return_exceptions=True,
+    )
     return [page for page in pages if isinstance(page, Source)]

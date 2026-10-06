@@ -1,0 +1,18 @@
+area:
+  - research-pipeline
+  - frontend
+  - settings
+  - scout
+  - report
+module:
+  - research-orchestrator
+  - llm-client
+  - audit-stage
+  - settings-router
+  - research-ui
+feature:
+  - deep-research-execution
+  - llm-gateway-fallback
+  - report-rendering
+  - scout-discovery
+# Adicionar termos novos com proposta registrada em Agent Notes do bug

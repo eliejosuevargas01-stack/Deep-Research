@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.llm import apply_output_guardrail, complete, parse_json
-from app.services.settings import runtime_settings
+from app.services.settings import runtime_jina_base_url, runtime_settings
 from app.services.search import search_read
 
 SCOUT_GLOBAL_TIMEOUT = 120.0
@@ -26,11 +26,22 @@ def extract_site_domain(url: str) -> str:
 
 async def _scout_impl(theme: str, db: AsyncSession, feedback: str = "", base_points: list[dict] | None = None) -> list[dict]:
     keys, _ = await runtime_settings(db)
-    raw_sources = await search_read(theme, 10, keys)
-    if not raw_sources:
-        raise RuntimeError("Live search returned no readable sources")
+    jina_base_url = await runtime_jina_base_url(db)
 
-    # A2-01: Exigir de 3 a 5 fontes legíveis de sites distintos
+    # Sprint-1 fix: search_read may yield <3 readable sources on first attempt.
+    # Retry up to 3 times with status transitions to transient-retry state.
+    raw_sources: list[Any] = []
+    for attempt in range(3):
+        raw_sources = await search_read(theme, 10, keys, jina_base_url=jina_base_url)
+        if raw_sources:
+            break
+        if attempt < 2:
+            await asyncio.sleep(2 ** attempt)  # 1s, 2s backoff
+
+    if not raw_sources:
+        raise RuntimeError("Live search returned no readable sources after 3 attempts")
+
+    # A2-01: Prefer 3-5 distinct readable sites; degrade gracefully to 2.
     site_map: dict[str, Any] = {}
     for s in raw_sources:
         domain = extract_site_domain(s.url)
@@ -38,7 +49,10 @@ async def _scout_impl(theme: str, db: AsyncSession, feedback: str = "", base_poi
             site_map[domain] = s
 
     distinct_sources = list(site_map.values())[:5]
-    if len(distinct_sources) < 3:
+    if len(distinct_sources) < 2:
+        raise RuntimeError(
+            f"Preliminary search insufficient: found only {len(distinct_sources)} readable distinct site(s) after retry (minimum 2)"
+        )
         raise RuntimeError(
             f"Preliminary search insufficient: found only {len(distinct_sources)} readable distinct site(s) (minimum 3 required)"
         )

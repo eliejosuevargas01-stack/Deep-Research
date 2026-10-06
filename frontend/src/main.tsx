@@ -2027,6 +2027,7 @@ function SettingsPage() {
   const [models, setModels] = useState<Record<string, string>>({})
   const [callbackUrl, setCallbackUrl] = useState('')
   const [openaiBaseUrl, setOpenaiBaseUrl] = useState('')
+  const [jinaBaseUrl, setJinaBaseUrl] = useState('')
   const [testingProvider, setTestingProvider] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({})
   const [availableModels, setAvailableModels] = useState<Record<string, string[]>>({})
@@ -2043,6 +2044,7 @@ function SettingsPage() {
       setModels(Object.fromEntries(Object.entries(data.models).map(([k, v]) => [k, v || ''])))
       setCallbackUrl(data.callback_url || '')
       setOpenaiBaseUrl(data.openai_base_url || '')
+      setJinaBaseUrl(data.jina_base_url || '')
       loadDynamicModels()
     } catch (e) {
       const msg = (e as Error).message
@@ -2119,7 +2121,7 @@ function SettingsPage() {
     setError('')
     setNotice('')
     try {
-      const payload = buildSettingsPayload(newKeys, models, callbackUrl, openaiBaseUrl)
+      const payload = buildSettingsPayload(newKeys, models, callbackUrl, openaiBaseUrl, jinaBaseUrl)
       await api('/api/settings', {
         method: 'PUT',
         body: JSON.stringify(payload),
@@ -2287,7 +2289,7 @@ function SettingsPage() {
             </div>
             <h2>Endpoints & Webhooks</h2>
             <p>
-              Defina um endpoint OpenAI-compatible personalizado (Ollama, vLLM, OpenRouter) e a URL global de callback.
+              Defina endpoints personalizados (OpenAI-compatible, proxy Jina) e a URL global de callback.
             </p>
           </div>
 
@@ -2303,6 +2305,20 @@ function SettingsPage() {
                 value={openaiBaseUrl}
                 onChange={e => setOpenaiBaseUrl(e.target.value)}
                 placeholder="https://api.openai.com/v1"
+              />
+            </div>
+
+            <div className="setting-card">
+              <label htmlFor="jina-base-url">
+                <strong>Proxy Jina via Cloudflare Worker (Opcional)</strong>
+                <small>Ex: https://meu-worker.workers.dev — envia Authorization: Bearer com a chave Jina quando configurada.</small>
+              </label>
+              <input
+                id="jina-base-url"
+                type="url"
+                value={jinaBaseUrl}
+                onChange={e => setJinaBaseUrl(e.target.value)}
+                placeholder="https://r.jina.ai"
               />
             </div>
 

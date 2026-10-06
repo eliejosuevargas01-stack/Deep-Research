@@ -19,7 +19,7 @@ services:
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://deep_research:${DB_PASSWORD}@db:5432/deep_research_db
-      ENVIRONMENT: production
+      ENVIRONMENT: ${ENVIRONMENT:-development}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       SESSION_SECRET: ${SESSION_SECRET}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}

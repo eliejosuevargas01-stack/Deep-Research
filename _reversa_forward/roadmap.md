@@ -11,27 +11,27 @@ Evoluir o pipeline cognitivo monolítico (`app/services/research.py`, 591 LOC) p
 ## Fases e Milestones
 
 ### Fase 1: Preparação e Infraestrutura de Bases (Semana 1)
-- Migrar `app/tools/search_pipeline.py` → `app/services/search.py`
-- Criar estrutura `app/services/workers/` com `__init__.py` e `base.py`
-- Definir interfaces `BaseWorker`, `WorkerResult`, `AuditVerdict`
-- Configurar ambiente de testes local (`venv`, `pytest`, `pytest-asyncio`, `pytest-cov`)
+- Migrar `app/tools/search_pipeline.py` → `app/services/search.py` (REQ-01)
+- Criar estrutura `app/services/workers/` com `__init__.py` e `base.py` (REQ-01, REQ-06)
+- Definir interfaces `BaseWorker`, `WorkerResult`, `AuditVerdict` (REQ-01)
+- Configurar ambiente de testes local (`venv`, `pytest`, `pytest-asyncio`, `pytest-cov`) (REQ-03, REQ-06)
 
 ### Fase 2: Modularização do Pipeline (Semana 2–3)
-- Extrair `BaseWorker` (lógica comum de busca/extracção de evidências/persistência)
-- Criar `ScoutWorker` (`app/services/workers/scout.py`)
-- Criar 4 personas: `HistorianWorker`, `SkepticWorker`, `PragmatistWorker`, `FuturistWorker`
-- Criar `AuditorAgent` (`app/services/audit_agent.py`)
-- Criar `WriterAgent` (`app/services/workers/writer.py`)
-- Refatorar `app/services/research.py` para orquestrar via injeção de dependência
+- Extrair `BaseWorker` (lógica comum de busca/extracção de evidências/persistência) (REQ-01, REQ-02)
+- Criar `ScoutWorker` (`app/services/workers/scout.py`) (REQ-01)
+- Criar 4 personas: `HistorianWorker`, `SkepticWorker`, `PragmatistWorker`, `FuturistWorker` (REQ-01)
+- Criar `AuditorAgent` (`app/services/audit_agent.py`) (REQ-01)
+- Criar `WriterAgent` (`app/services/workers/writer.py`) (REQ-01)
+- Refatorar `app/services/research.py` para orquestrar via injeção de dependência (REQ-02, REQ-04)
 
 ### Fase 3: Testes e Validação (Semana 4)
-- Testes unitários para cada worker (mocks LLM + Search)
-- Teste de integração E2E completo
-- Relatório de cobertura >= 80%
+- Testes unitários para cada worker (mocks LLM + Search) (REQ-03)
+- Teste de integração E2E completo (REQ-04)
+- Relatório de cobertura >= 80% (REQ-05)
 
 ### Fase 4: CI/CD e Qualidade (Semana 5)
-- Configurar GitHub Actions: lint (ruff), type-check (mypy), testes, cobertura
-- Smoke test `docker-compose up` local
+- Configurar GitHub Actions: lint (ruff), type-check (mypy), testes, cobertura (REQ-06)
+- Smoke test `docker-compose up` local (REQ-07)
 
 ## Prioridades de Risco
 

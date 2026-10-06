@@ -273,7 +273,14 @@ def validate_base_url(url: str | None) -> str | None:
 async def get_record(db: AsyncSession) -> AppSettings:
     record = await db.get(AppSettings, 1)
     if not record:
-        record = AppSettings(id=1, encrypted_credentials={}, models={}, callback_url=None, openai_base_url=None)
+        record = AppSettings(
+            id=1,
+            encrypted_credentials={},
+            models={},
+            callback_url=None,
+            openai_base_url=None,
+            jina_base_url=None,
+        )
         db.add(record)
         await db.flush()
     return record
@@ -293,6 +300,12 @@ async def runtime_settings(db: AsyncSession) -> tuple[dict[str, str], dict[str, 
     return keys, {role: model for role, model in models.items() if model}
 
 
+async def runtime_jina_base_url(db: AsyncSession) -> str | None:
+    """Custom Jina proxy base URL (Cloudflare Worker) or None for default https://r.jina.ai."""
+    record = await get_record(db)
+    return record.jina_base_url
+
+
 async def public_settings(db: AsyncSession) -> dict:
     record = await get_record(db)
     keys, models = await runtime_settings(db)
@@ -302,6 +315,7 @@ async def public_settings(db: AsyncSession) -> dict:
         "models": {role: models.get(role) for role in ROLES},
         "callback_url": record.callback_url,
         "openai_base_url": record.openai_base_url,
+        "jina_base_url": record.jina_base_url,
     }
 
 
@@ -314,6 +328,7 @@ async def update_settings(
     models: dict,
     callback_url: str | None | object = _UNSET,
     openai_base_url: str | None | object = _UNSET,
+    jina_base_url: str | None | object = _UNSET,
 ) -> dict:
     record = await get_record(db)
     encrypted = dict(record.encrypted_credentials)
@@ -347,5 +362,15 @@ async def update_settings(
                 record.openai_base_url = cleaned_base
             else:
                 record.openai_base_url = None
+    if jina_base_url is not _UNSET:
+        if jina_base_url is None:
+            record.jina_base_url = None
+        else:
+            cleaned_base = jina_base_url.strip() if isinstance(jina_base_url, str) else ""
+            if cleaned_base:
+                validate_base_url(cleaned_base)
+                record.jina_base_url = cleaned_base
+            else:
+                record.jina_base_url = None
     await db.commit()
     return await public_settings(db)

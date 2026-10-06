@@ -518,11 +518,13 @@ export function buildSettingsPayload(
   models: Record<string, string>,
   callbackUrl?: string | null,
   openaiBaseUrl?: string | null,
+  jinaBaseUrl?: string | null,
 ): {
   provider_keys: Record<string, string>
   models: Record<string, string>
   callback_url: string | null
   openai_base_url: string | null
+  jina_base_url: string | null
 } {
   const provider_keys: Record<string, string> = {}
   for (const [provider, val] of Object.entries(newKeys)) {
@@ -545,5 +547,6 @@ export function buildSettingsPayload(
     models: model_updates,
     callback_url: callbackUrl ? callbackUrl.trim() : callbackUrl === '' ? '' : null,
     openai_base_url: openaiBaseUrl ? openaiBaseUrl.trim() : openaiBaseUrl === '' ? '' : null,
+    jina_base_url: jinaBaseUrl ? jinaBaseUrl.trim() : jinaBaseUrl === '' ? '' : null,
   }
 }

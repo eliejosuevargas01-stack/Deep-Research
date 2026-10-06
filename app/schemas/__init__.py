@@ -73,14 +73,16 @@ class BriefingEdit(BaseModel):
 
 
 class SettingsUpdate(BaseModel):
+    model_config = {"extra": "forbid"}
     provider_keys: dict[str, str | None] = Field(default_factory=dict)
     models: dict[str, str] = Field(default_factory=dict)
     callback_url: str | None = None
     openai_base_url: str | None = None
+    jina_base_url: str | None = None
 
-    @field_validator("openai_base_url")
+    @field_validator("openai_base_url", "jina_base_url")
     @classmethod
-    def validate_openai_base_url(cls, value: str | None) -> str | None:
+    def validate_base_urls(cls, value: str | None) -> str | None:
         if value is not None and value.strip():
             from app.services.settings import validate_base_url
             return validate_base_url(value.strip())
