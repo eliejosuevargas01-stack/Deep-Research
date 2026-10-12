@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -123,4 +123,37 @@ class AppSettings(Base):
     callback_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     openai_base_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     jina_base_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    jina_proxy_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    jina_proxy_timeout_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class BriefingRecord(Base):
+    __tablename__ = "briefings"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    theme: Mapped[str] = mapped_column(String(300), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    points_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
+class BriefingVersion(Base):
+    __tablename__ = "briefing_versions"
+    __table_args__ = (
+        UniqueConstraint("briefing_id", "version", name="uq_briefing_version"),
+        Index("ix_briefing_versions_briefing_id_version", "briefing_id", "version"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    briefing_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("briefings.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    points_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=now)

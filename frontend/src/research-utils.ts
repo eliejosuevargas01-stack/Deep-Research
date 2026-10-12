@@ -519,12 +519,18 @@ export function buildSettingsPayload(
   callbackUrl?: string | null,
   openaiBaseUrl?: string | null,
   jinaBaseUrl?: string | null,
+  jinaProxyUrl?: string | null,
+  jinaProxyAuthKey?: string | null,
+  jinaProxyTimeoutSeconds?: number | null,
 ): {
   provider_keys: Record<string, string>
   models: Record<string, string>
   callback_url: string | null
   openai_base_url: string | null
   jina_base_url: string | null
+  jina_proxy_url: string | null
+  jina_proxy_auth_key: string | null
+  jina_proxy_timeout_seconds: number | null
 } {
   const provider_keys: Record<string, string> = {}
   for (const [provider, val] of Object.entries(newKeys)) {
@@ -548,5 +554,8 @@ export function buildSettingsPayload(
     callback_url: callbackUrl ? callbackUrl.trim() : callbackUrl === '' ? '' : null,
     openai_base_url: openaiBaseUrl ? openaiBaseUrl.trim() : openaiBaseUrl === '' ? '' : null,
     jina_base_url: jinaBaseUrl ? jinaBaseUrl.trim() : jinaBaseUrl === '' ? '' : null,
+    jina_proxy_url: jinaProxyUrl ? jinaProxyUrl.trim() : jinaProxyUrl === '' ? '' : null,
+    jina_proxy_auth_key: jinaProxyAuthKey ? jinaProxyAuthKey.trim() : jinaProxyAuthKey === '' ? '' : null,
+    jina_proxy_timeout_seconds: jinaProxyTimeoutSeconds ?? null,
   }
 }

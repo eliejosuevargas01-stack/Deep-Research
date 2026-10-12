@@ -2028,12 +2028,17 @@ function SettingsPage() {
   const [callbackUrl, setCallbackUrl] = useState('')
   const [openaiBaseUrl, setOpenaiBaseUrl] = useState('')
   const [jinaBaseUrl, setJinaBaseUrl] = useState('')
+  const [jinaProxyUrl, setJinaProxyUrl] = useState('')
+  const [jinaProxyAuthKey, setJinaProxyAuthKey] = useState('')
+  const [jinaProxyTimeoutSeconds, setJinaProxyTimeoutSeconds] = useState('')
   const [testingProvider, setTestingProvider] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({})
   const [availableModels, setAvailableModels] = useState<Record<string, string[]>>({})
   const [catalogLoading, setCatalogLoading] = useState(false)
   const [catalogError, setCatalogError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [testingJinaProxy, setTestingJinaProxy] = useState(false)
+  const [jinaProxyTestResult, setJinaProxyTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const loadSettings = async () => {
     setLoadingSettings(true)
@@ -2045,6 +2050,11 @@ function SettingsPage() {
       setCallbackUrl(data.callback_url || '')
       setOpenaiBaseUrl(data.openai_base_url || '')
       setJinaBaseUrl(data.jina_base_url || '')
+      setJinaProxyUrl(data.jina_proxy_url || '')
+      setJinaProxyAuthKey('')
+      setJinaProxyTimeoutSeconds(
+        data.jina_proxy_timeout_seconds != null ? String(data.jina_proxy_timeout_seconds) : '',
+      )
       loadDynamicModels()
     } catch (e) {
       const msg = (e as Error).message
@@ -2121,12 +2131,22 @@ function SettingsPage() {
     setError('')
     setNotice('')
     try {
-      const payload = buildSettingsPayload(newKeys, models, callbackUrl, openaiBaseUrl, jinaBaseUrl)
+      const payload = buildSettingsPayload(
+        newKeys,
+        models,
+        callbackUrl,
+        openaiBaseUrl,
+        jinaBaseUrl,
+        jinaProxyUrl,
+        jinaProxyAuthKey,
+        jinaProxyTimeoutSeconds ? Number(jinaProxyTimeoutSeconds) : null,
+      )
       await api('/api/settings', {
         method: 'PUT',
         body: JSON.stringify(payload),
       })
       setNewKeys({})
+      setJinaProxyAuthKey('')
       setNotice('Configurações e credenciais salvas com sucesso!')
       await loadSettings()
     } catch (e) {
@@ -2309,9 +2329,71 @@ function SettingsPage() {
             </div>
 
             <div className="setting-card">
+              <label htmlFor="jina-proxy-url">
+                <strong>Jina Proxy URL (Cloudflare Worker)</strong>
+                <small>URL do Cloudflare Worker para busca + leitura unificada. Ex: https://meu-worker.workers.dev</small>
+              </label>
+              <input
+                id="jina-proxy-url"
+                type="url"
+                value={jinaProxyUrl}
+                onChange={e => setJinaProxyUrl(e.target.value)}
+                placeholder="https://meu-worker.workers.dev"
+              />
+            </div>
+
+            <div className="setting-card">
+              <label htmlFor="jina-proxy-auth-key">
+                <strong>Jina Proxy Auth Key (PROXY_SECRET_KEY)</strong>
+                <small>
+                  {config?.jina_proxy_auth_configured
+                    ? 'Chave configurada e criptografada (AES-256-GCM). Preencha apenas para alterar.'
+                    : 'Segredo de autenticação do Worker (enviado em Authorization: Bearer).'}
+                </small>
+              </label>
+              <input
+                id="jina-proxy-auth-key"
+                type="password"
+                value={jinaProxyAuthKey}
+                onChange={e => setJinaProxyAuthKey(e.target.value)}
+                placeholder={config?.jina_proxy_auth_configured ? '••••••••••••••••' : 'Insira a PROXY_SECRET_KEY'}
+                autoComplete="new-password"
+              />
+              <div className="setting-actions" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  disabled={testingJinaProxy}
+                  onClick={async () => {
+                    setTestingJinaProxy(true)
+                    setJinaProxyTestResult(null)
+                    try {
+                      const res = await api<{ success: boolean; message: string }>('/api/settings/test', {
+                        method: 'POST',
+                        body: JSON.stringify({ provider: 'jina_proxy', api_key: '', base_url: null }),
+                      })
+                      setJinaProxyTestResult(res)
+                    } catch (e) {
+                      setJinaProxyTestResult({ success: false, message: (e as Error).message })
+                    } finally {
+                      setTestingJinaProxy(false)
+                    }
+                  }}
+                >
+                  {testingJinaProxy ? 'Testando…' : 'Testar Proxy'}
+                </button>
+              </div>
+              {jinaProxyTestResult && (
+                <div className={`test-feedback ${jinaProxyTestResult.success ? 'success' : 'failure'}`} role="alert">
+                  {jinaProxyTestResult.message}
+                </div>
+              )}
+            </div>
+
+            <div className="setting-card">
               <label htmlFor="jina-base-url">
-                <strong>Proxy Jina via Cloudflare Worker (Opcional)</strong>
-                <small>Ex: https://meu-worker.workers.dev — envia Authorization: Bearer com a chave Jina quando configurada.</small>
+                <strong>Jina Direct Base URL (Fallback)</strong>
+                <small>Base URL direta do Jina Reader para fallback. Padrão: https://r.jina.ai</small>
               </label>
               <input
                 id="jina-base-url"

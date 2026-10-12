@@ -56,7 +56,29 @@ async def _audit_point(research_id: str, point: ResearchPoint, attempt: int) -> 
         try:
             llm_text = await complete(
                 "auditor",
-                "Audit supplied evidence for the single research point. Answer: was the question directly answered? are essential points covered? do important claims have identifiable sources? are sources adequate (prefer primary)? do sources actually say what workers claim (quote must support claim)? is info current enough? are contradictions surfaced? is fact separated from inference/uncertainty? did research stay in scope? Return JSON object with approved (boolean), findings (array of strings), contradictions (array of irreconcilable factual conflicts between sources, return empty array [] if sources are coherent), uncertainties (array of strings), outline (array of strings), missing_research (array of concrete search instructions describing exactly what is still missing; empty if approved). Approve only when each claim is supported by its exact quote and no irreconcilable contradiction remains. Never reveal private reasoning.",
+                "Audit supplied evidence for the single research point against the 12 canonical criteria:\n"
+                "1. Original question answered?\n"
+                "2. Essential sub-topics covered?\n"
+                "3. Main claims backed by verifiable sources?\n"
+                "4. Sources reliable/primary?\n"
+                "5. Quotes truly support claims?\n"
+                "6. No over-reliance on a single source?\n"
+                "7. Information sufficiently current?\n"
+                "8. Contradictions between sources surfaced and resolved?\n"
+                "9. Facts separated from inference/uncertainty?\n"
+                "10. No generalizations, logical leaps, or hallucinations?\n"
+                "11. No critical gaps remaining?\n"
+                "12. Material enables a faithful synthesis?\n\n"
+                "Return a JSON object with:\n"
+                "- checklist: object with boolean keys q1 through q12\n"
+                "- score: integer from 0 to 12 (count of true in checklist)\n"
+                "- approved: boolean (true ONLY if score >= 10 and no critical contradiction/hallucination)\n"
+                "- findings: array of strings describing shortcomings\n"
+                "- contradictions: array of strings (empty [] if none)\n"
+                "- uncertainties: array of strings\n"
+                "- outline: array of strings with recommended report structure\n"
+                "- missing_research: array of strings with concrete instructions for missing facts (empty [] if approved)\n"
+                "Never reveal private reasoning or chain-of-thought.",
                 prompt, db,
             )
             try:

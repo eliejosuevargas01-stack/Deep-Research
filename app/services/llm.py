@@ -476,6 +476,26 @@ async def test_provider_key(provider: str, api_key: str, base_url: str | None = 
                     return False, "Limite de taxa ou cota do Jina excedida (HTTP 429)."
                 return False, f"Jina retornou HTTP {resp.status_code}"
 
+            if provider == "jina_proxy":
+                base_url = payload.base_url
+                if not base_url:
+                    return False, "jina_proxy_url não configurada."
+                validate_base_url(base_url)
+                resp = await client.get(
+                    f"{base_url.rstrip('/')}/r/https://example.com",
+                    headers={"Authorization": f"Bearer {clean_key}", "Accept": "text/plain"},
+                    timeout=30.0,
+                )
+                if 200 <= resp.status_code < 300:
+                    return True, "Worker Jina Proxy validado com sucesso."
+                if resp.status_code in {401, 403}:
+                    return False, f"PROXY_SECRET_KEY inválida ou não autorizada (HTTP {resp.status_code})."
+                if resp.status_code == 422:
+                    return False, "Worker retornou erro de validação (HTTP 422). URL inválida."
+                if resp.status_code == 429:
+                    return False, "Limite de taxa do Worker excedida (HTTP 429)."
+                return False, f"Worker retornou HTTP {resp.status_code}"
+
             return False, f"Provedor '{provider}' não reconhecido para teste."
     except Exception as exc:
         return False, f"Falha de conexão ao testar provedor: {type(exc).__name__}"

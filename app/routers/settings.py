@@ -25,6 +25,9 @@ async def put_settings(payload: SettingsUpdate, _: Principal = Depends(require_a
     callback_url = payload.callback_url if "callback_url" in payload.model_fields_set else _UNSET
     openai_base_url = payload.openai_base_url if "openai_base_url" in payload.model_fields_set else _UNSET
     jina_base_url = payload.jina_base_url if "jina_base_url" in payload.model_fields_set else _UNSET
+    jina_proxy_url = payload.jina_proxy_url if "jina_proxy_url" in payload.model_fields_set else _UNSET
+    jina_proxy_auth_key = payload.jina_proxy_auth_key if "jina_proxy_auth_key" in payload.model_fields_set else _UNSET
+    jina_proxy_timeout_seconds = payload.jina_proxy_timeout_seconds if "jina_proxy_timeout_seconds" in payload.model_fields_set else _UNSET
     try:
         res = await update_settings(
             db,
@@ -33,6 +36,9 @@ async def put_settings(payload: SettingsUpdate, _: Principal = Depends(require_a
             callback_url=callback_url,
             openai_base_url=openai_base_url,
             jina_base_url=jina_base_url,
+            jina_proxy_url=jina_proxy_url,
+            jina_proxy_auth_key=jina_proxy_auth_key,
+            jina_proxy_timeout_seconds=jina_proxy_timeout_seconds,
         )
         return res
     except ValueError as exc:
@@ -41,6 +47,17 @@ async def put_settings(payload: SettingsUpdate, _: Principal = Depends(require_a
 
 @router.post("/test", response_model=ProviderTestResponse)
 async def test_setting_key(payload: ProviderTestRequest, _: Principal = Depends(require_admin)):
+    # jina_proxy não usa api_key do payload, pega do DB
+    if payload.provider == "jina_proxy":
+        from app.services.settings import runtime_jina_proxy
+        from app.db.database import get_db
+        async for db in get_db():
+            proxy_url, proxy_auth, _ = await runtime_jina_proxy(db)
+            if not proxy_url:
+                return ProviderTestResponse(success=False, message="jina_proxy_url não configurada.")
+            # usar proxy_auth do DB, não api_key do payload
+            success, message = await test_provider_key("jina_proxy", proxy_auth or "", proxy_url)
+            return ProviderTestResponse(success=success, message=message, models=[])
     success, message = await test_provider_key(payload.provider, payload.api_key, payload.base_url)
     models: list[str] = []
     if success and payload.provider in {"openai", "anthropic", "gemini", "litellm"}:

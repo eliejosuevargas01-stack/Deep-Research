@@ -13,6 +13,7 @@ from app.models import Base, Research
 from app.routers.auth import router as auth_router
 from app.routers.research import router as research_router, schedule, schedule_revision, schedule_scout
 from app.routers.settings import router as settings_router
+from app.briefing.router import router as briefing_router
 
 
 @asynccontextmanager
@@ -69,6 +70,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(settings_router)
 app.include_router(research_router)
+app.include_router(briefing_router)
 
 
 @app.get("/health")
