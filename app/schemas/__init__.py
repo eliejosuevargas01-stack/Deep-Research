@@ -79,8 +79,11 @@ class SettingsUpdate(BaseModel):
     callback_url: str | None = None
     openai_base_url: str | None = None
     jina_base_url: str | None = None
+    jina_proxy_url: str | None = None
+    jina_proxy_auth_key: str | None = None
+    jina_proxy_timeout_seconds: int | None = None
 
-    @field_validator("openai_base_url", "jina_base_url")
+    @field_validator("openai_base_url", "jina_base_url", "jina_proxy_url")
     @classmethod
     def validate_base_urls(cls, value: str | None) -> str | None:
         if value is not None and value.strip():
@@ -116,8 +119,8 @@ class SettingsUpdate(BaseModel):
 
 
 class ProviderTestRequest(BaseModel):
-    provider: Literal["openai", "anthropic", "gemini", "litellm", "jina", "serpapi", "apify"]
-    api_key: str = Field(min_length=1)
+    provider: Literal["openai", "anthropic", "gemini", "litellm", "jina", "jina_proxy", "serpapi", "apify"]
+    api_key: str = Field(default="", min_length=0)
     base_url: str | None = None
 
     @field_validator("base_url")

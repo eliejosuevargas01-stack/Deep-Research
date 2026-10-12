@@ -386,6 +386,7 @@ def test_settings_test_and_models_endpoints(client, monkeypatch):
         return False, f"{provider} invalid"
 
     monkeypatch.setattr("app.routers.settings.test_provider_key", fake_test_key)
+    monkeypatch.setattr("app.services.settings.validate_base_url", lambda url: url)
 
     # F1 test
     res = client.post("/api/settings/test", json={"provider": "openai", "api_key": "valid-key"}, headers=headers)
@@ -435,7 +436,7 @@ def test_point_dependencies_handles_point_prefix_and_scout_sanitizes_sources(mon
 
     # Test scout sanitizing Source 1 references from LLM
     async def test_scout_clean():
-        async def fake_search(theme, limit, keys):
+        async def fake_search(theme, limit, keys, **kwargs):
             from app.tools.search_pipeline import Source
             return [
                 Source("https://site-alpha.org/1", "S1", "Detailed content from Alpha source exceeding length threshold"),
@@ -2030,7 +2031,7 @@ def test_a2_scout_distinct_domains_and_timeout(monkeypatch):
         from app.services.pipeline import scout as scout_module
         old_sr = scout_module.search_read
         try:
-            async def fake_search(theme, limit, keys):
+            async def fake_search(theme, limit, keys, **kwargs):
                 return [
                     Source("https://single-site.com/p1", "P1", "Long enough excerpt content for site 1"),
                     Source("https://single-site.com/p2", "P2", "Long enough excerpt content for site 1 page 2"),

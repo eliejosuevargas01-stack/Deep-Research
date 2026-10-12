@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.llm import apply_output_guardrail, complete, parse_json
-from app.services.settings import runtime_jina_base_url, runtime_settings
+from app.services.settings import runtime_jina_base_url, runtime_jina_proxy, runtime_settings
 from app.services.search import search_read
 
 SCOUT_GLOBAL_TIMEOUT = 120.0
@@ -27,12 +27,21 @@ def extract_site_domain(url: str) -> str:
 async def _scout_impl(theme: str, db: AsyncSession, feedback: str = "", base_points: list[dict] | None = None) -> list[dict]:
     keys, _ = await runtime_settings(db)
     jina_base_url = await runtime_jina_base_url(db)
+    jina_proxy_url, jina_proxy_auth, jina_proxy_timeout = await runtime_jina_proxy(db)
 
     # Sprint-1 fix: search_read may yield <3 readable sources on first attempt.
     # Retry up to 3 times with status transitions to transient-retry state.
     raw_sources: list[Any] = []
     for attempt in range(3):
-        raw_sources = await search_read(theme, 10, keys, jina_base_url=jina_base_url)
+        raw_sources = await search_read(
+            theme,
+            10,
+            keys,
+            jina_base_url=jina_base_url,
+            jina_proxy_url=jina_proxy_url,
+            jina_proxy_auth=jina_proxy_auth,
+            jina_proxy_timeout=jina_proxy_timeout,
+        )
         if raw_sources:
             break
         if attempt < 2:

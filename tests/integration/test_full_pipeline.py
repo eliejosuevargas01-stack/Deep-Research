@@ -106,14 +106,14 @@ async def test_full_pipeline_e2e_integration(client, monkeypatch):
     # 7. Pipeline Mocks
     # Verbatim source text so auditor citation check passes
     source_text = (
-        "Autonomous agents using multi-persona debate achieve higher factual accuracy."
+        "Autonomous agents using multi-persona debate achieve higher factual accuracy in autonomous agents benchmarks."
     )
     source_url = "https://research.arxiv.org/abs/2601.12345"
     mock_source = type(
         "Source", (), {"url": source_url, "title": "Multi-Persona Debate in LLM", "excerpt": source_text}
     )()
 
-    async def fake_search_read(query, limit, keys, timeout=25.0, jina_base_url=None):
+    async def fake_search_read(query, limit, keys, timeout=25.0, jina_base_url=None, **kwargs):
         return [mock_source]
 
     # complete() is called 3x per persona: notes_summary, next_query, final_analysis
@@ -139,8 +139,8 @@ async def test_full_pipeline_e2e_integration(client, monkeypatch):
                 return json.dumps([
                     {
                         "source_url": source_url,
-                        "claim": "Multi-persona debate improves factual accuracy in autonomous agents.",
-                        "exact_quote": "multi-persona debate achieve higher factual accuracy",
+                        "claim": "multi-persona debate achieve higher factual accuracy",
+                        "exact_quote": "multi-persona debate achieve higher factual accuracy in autonomous agents benchmarks",
                         "analysis": "The source directly supports the claim about accuracy improvements.",
                     }
                 ])
@@ -149,6 +149,8 @@ async def test_full_pipeline_e2e_integration(client, monkeypatch):
         if role == "auditor":
             return json.dumps({
                 "approved": True,
+                "checklist": {f"q{i}": True for i in range(1, 13)},
+                "score": 12,
                 "findings": ["Evidence verified verbatim against primary source"],
                 "contradictions": [],
                 "uncertainties": [],

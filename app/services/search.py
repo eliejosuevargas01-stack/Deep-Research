@@ -21,8 +21,9 @@ class SearchProviderError(RuntimeError):
     pass
 
 
-async def _get(endpoint: str, headers: dict[str, str] | None = None) -> tuple[int, str]:
-    timeout = aiohttp.ClientTimeout(total=settings.SEARCH_TIMEOUT_SECONDS)
+async def _get(endpoint: str, headers: dict[str, str] | None = None, timeout_seconds: int | None = None) -> tuple[int, str]:
+    timeout_val = timeout_seconds or settings.SEARCH_TIMEOUT_SECONDS
+    timeout = aiohttp.ClientTimeout(total=timeout_val)
     connector = aiohttp.TCPConnector(resolver=PinnedResolver(), use_dns_cache=True)
     try:
         async with aiohttp.ClientSession(timeout=timeout, connector=connector, headers=headers, trust_env=False) as client:
@@ -138,9 +139,70 @@ async def _duckduckgo_search(query: str, limit: int = 8, jina_base_url: str | No
 DEFAULT_JINA_BASE_URL = "https://r.jina.ai"
 
 
-async def search(query: str, limit: int = 8, keys: dict[str, str] | None = None, jina_base_url: str | None = None) -> list[Source]:
+def _parse_search_payload(text: str) -> list[tuple[str, str]]:
+    """Parse worker/jina search response: JSON array or markdown links."""
+    stripped = text.strip()
+    if stripped.startswith(("{", "[")):
+        try:
+            payload = json.loads(stripped)
+            items = payload if isinstance(payload, list) else payload.get("results", payload.get("data", []))
+            pairs = []
+            for item in items if isinstance(items, list) else []:
+                if not isinstance(item, dict):
+                    continue
+                url = item.get("url") or item.get("link") or ""
+                title = item.get("title") or ""
+                if isinstance(url, str) and url.startswith(("http://", "https://")):
+                    pairs.append((title, url))
+            return pairs
+        except (ValueError, TypeError):
+            pass
+    return re.findall(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", text)
+
+
+async def _proxy_get(
+    proxy_url: str,
+    path: str,
+    proxy_auth: str | None = None,
+    timeout_seconds: int = 20,
+) -> tuple[int, str]:
+    headers = {"Accept": "text/plain"}
+    if proxy_auth:
+        headers["Authorization"] = f"Bearer {proxy_auth}"
+    endpoint = f"{proxy_url.rstrip('/')}/{path}"
+    return await _get(endpoint, headers, timeout_seconds=timeout_seconds)
+
+
+async def search(
+    query: str,
+    limit: int = 8,
+    keys: dict[str, str] | None = None,
+    jina_base_url: str | None = None,
+    jina_proxy_url: str | None = None,
+    jina_proxy_auth: str | None = None,
+    jina_proxy_timeout: int = 20,
+) -> list[Source]:
     keys = keys or {}
     jina_base = (jina_base_url or DEFAULT_JINA_BASE_URL).rstrip("/")
+
+    # 0. Jina Proxy Worker (Cloudflare): single static endpoint, search + read
+    if jina_proxy_url:
+        try:
+            q_enc = quote(query, safe="")
+            status, text = await _proxy_get(jina_proxy_url, f"?q={q_enc}", jina_proxy_auth, jina_proxy_timeout)
+            if status < 300 and text.strip():
+                found, seen = [], set()
+                for title, url in _parse_search_payload(text):
+                    if url not in seen and _safe(url):
+                        seen.add(url)
+                        found.append(Source(url, title.strip(), ""))
+                    if len(found) >= limit:
+                        break
+                if found:
+                    return found
+        except Exception:
+            pass  # graceful degradation: fall through to direct Jina
+
     if keys.get("serpapi"):
         try:
             params = urlencode({"q": query, "engine": "google", "num": limit, "api_key": keys["serpapi"]})
@@ -200,9 +262,31 @@ def _safe(url: str) -> bool:
 MAX_SOURCE_CHARS = 50000  # full page cap; LLM selects the relevant verbatim excerpt (decision LACUNA 3)
 
 
-async def read_source(source: Source, jina_base_url: str | None = None, jina_api_key: str | None = None) -> Source | None:
+async def read_source(
+    source: Source,
+    jina_base_url: str | None = None,
+    jina_api_key: str | None = None,
+    jina_proxy_url: str | None = None,
+    jina_proxy_auth: str | None = None,
+    jina_proxy_timeout: int = 20,
+) -> Source | None:
     if not _safe(source.url):
         return None
+
+    # 0. Jina Proxy Worker (Cloudflare): path /r/{url}
+    if jina_proxy_url:
+        try:
+            status, text = await _proxy_get(
+                jina_proxy_url,
+                f"r/{source.url}",
+                jina_proxy_auth,
+                jina_proxy_timeout,
+            )
+            if status == 200 and text and len(text.strip()) > 50:
+                clean = re.sub(r"\s+", " ", text).strip()
+                return Source(source.url, source.title, clean[:MAX_SOURCE_CHARS])
+        except Exception:
+            pass  # graceful degradation: fallback to direct Jina reader / scrape
 
     # 1. Try Jina Reader first for clean markdown extraction
     try:
@@ -233,11 +317,37 @@ async def read_source(source: Source, jina_base_url: str | None = None, jina_api
     return None
 
 
-async def search_read(query: str, limit: int = 8, keys: dict[str, str] | None = None, jina_base_url: str | None = None)-> list[Source]:
+async def search_read(
+    query: str,
+    limit: int = 8,
+    keys: dict[str, str] | None = None,
+    jina_base_url: str | None = None,
+    jina_proxy_url: str | None = None,
+    jina_proxy_auth: str | None = None,
+    jina_proxy_timeout: int = 20,
+) -> list[Source]:
     keys = keys or {}
-    results = await search(query, min(10, max(5, limit)), keys, jina_base_url=jina_base_url)
+    results = await search(
+        query,
+        min(10, max(5, limit)),
+        keys,
+        jina_base_url=jina_base_url,
+        jina_proxy_url=jina_proxy_url,
+        jina_proxy_auth=jina_proxy_auth,
+        jina_proxy_timeout=jina_proxy_timeout,
+    )
     pages = await asyncio.gather(
-        *(read_source(item, jina_base_url=jina_base_url, jina_api_key=keys.get("jina")) for item in results),
+        *(
+            read_source(
+                item,
+                jina_base_url=jina_base_url,
+                jina_api_key=keys.get("jina"),
+                jina_proxy_url=jina_proxy_url,
+                jina_proxy_auth=jina_proxy_auth,
+                jina_proxy_timeout=jina_proxy_timeout,
+            )
+            for item in results
+        ),
         return_exceptions=True,
     )
     return [page for page in pages if isinstance(page, Source)]

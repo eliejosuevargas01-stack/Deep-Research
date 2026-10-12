@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.domain_models import Evidence, ResearchPoint
 from app.services.search import Source, search_read
-from app.services.settings import runtime_jina_base_url
+from app.services.settings import runtime_jina_base_url, runtime_jina_proxy
 
 
 @dataclass
@@ -71,4 +71,13 @@ class BaseWorker(ABC):
         """Protected helper to invoke the unified search & source extraction pipeline."""
         search_keys = keys or self.settings.search_keys()
         jina_base_url = await runtime_jina_base_url(self.session)
-        return await search_read(query=query, limit=limit, keys=search_keys, jina_base_url=jina_base_url)
+        jina_proxy_url, jina_proxy_auth, jina_proxy_timeout = await runtime_jina_proxy(self.session)
+        return await search_read(
+            query=query,
+            limit=limit,
+            keys=search_keys,
+            jina_base_url=jina_base_url,
+            jina_proxy_url=jina_proxy_url,
+            jina_proxy_auth=jina_proxy_auth,
+            jina_proxy_timeout=jina_proxy_timeout,
+        )

@@ -81,4 +81,7 @@ export type Settings = {
   callback_url?: string | null
   openai_base_url?: string | null
   jina_base_url?: string | null
+  jina_proxy_url?: string | null
+  jina_proxy_auth_configured?: boolean
+  jina_proxy_timeout_seconds?: number | null
 }

@@ -10,7 +10,7 @@ from app.schemas import PROVIDERS, ROLES
 from app.services.crypto import decrypt_secret, encrypt_secret, mask_secret
 
 DEFAULT_ROLE_MODELS = {
-    "scout": "gemini/gemini-3.1-flash-lite-preview",
+    "scout": "gemini/gemini-3.8-flash",
     "historian": "gemini/gemini-3.1-flash-lite-preview",
     "skeptic": "gemini/gemini-3.1-flash-lite-preview",
     "pragmatist": "gemini/gemini-3.1-flash-lite-preview",
@@ -267,8 +267,8 @@ def validate_base_url(url: str | None) -> str | None:
                     raise ValueError(f"Invalid base_url: host resolves to non-global IP ({raw_ip})")
         if not found_any_ip and not _is_private_dns_allowed(parsed.scheme, host_lower):
             raise ValueError(f"Invalid base_url: DNS resolution returned no addresses ({host_lower})")
-    except socket.gaierror:
-        raise
+    except socket.gaierror as e:
+        raise ValueError(f"Invalid base_url: DNS resolution failed for host '{host_lower}' ({e})") from e
     return cleaned.strip().rstrip("/")
 async def get_record(db: AsyncSession) -> AppSettings:
     record = await db.get(AppSettings, 1)
@@ -297,6 +297,7 @@ async def runtime_settings(db: AsyncSession) -> tuple[dict[str, str], dict[str, 
         elif env_value:
             keys[provider] = env_value
     models = {role: record.models.get(role) or getattr(settings, f"{role.upper()}_MODEL", None) for role in ROLES}
+    models["scout"] = models.get("scout") or DEFAULT_ROLE_MODELS["scout"]
     return keys, {role: model for role, model in models.items() if model}
 
 
@@ -306,9 +307,24 @@ async def runtime_jina_base_url(db: AsyncSession) -> str | None:
     return record.jina_base_url
 
 
+async def runtime_jina_proxy(db: AsyncSession) -> tuple[str | None, str | None, int]:
+    """(jina_proxy_url, decrypted jina_proxy_auth_key, timeout_seconds).
+
+    Auth key stored encrypted in encrypted_credentials['jina_proxy_auth'].
+    URL validated via validate_base_url (SSRF guard). Timeout default 20s.
+    """
+    record = await get_record(db)
+    proxy_url = record.jina_proxy_url
+    encrypted_auth = record.encrypted_credentials.get("jina_proxy_auth")
+    proxy_auth = decrypt_secret(encrypted_auth) if encrypted_auth else None
+    timeout = record.jina_proxy_timeout_seconds or 20
+    return proxy_url, proxy_auth, timeout
+
+
 async def public_settings(db: AsyncSession) -> dict:
     record = await get_record(db)
     keys, models = await runtime_settings(db)
+    encrypted_auth = record.encrypted_credentials.get("jina_proxy_auth")
     return {
         "provider_keys": {p: mask_secret(keys[p]) if p in keys else None for p in PROVIDERS},
         "provider_configured": {p: p in keys for p in PROVIDERS},
@@ -316,6 +332,10 @@ async def public_settings(db: AsyncSession) -> dict:
         "callback_url": record.callback_url,
         "openai_base_url": record.openai_base_url,
         "jina_base_url": record.jina_base_url,
+        "jina_proxy_url": record.jina_proxy_url,
+        "jina_proxy_auth_key": mask_secret(decrypt_secret(encrypted_auth)) if encrypted_auth else None,
+        "jina_proxy_configured": bool(encrypted_auth),
+        "jina_proxy_timeout_seconds": record.jina_proxy_timeout_seconds or 20,
     }
 
 
@@ -329,6 +349,9 @@ async def update_settings(
     callback_url: str | None | object = _UNSET,
     openai_base_url: str | None | object = _UNSET,
     jina_base_url: str | None | object = _UNSET,
+    jina_proxy_url: str | None | object = _UNSET,
+    jina_proxy_auth_key: str | None | object = _UNSET,
+    jina_proxy_timeout_seconds: int | None | object = _UNSET,
 ) -> dict:
     record = await get_record(db)
     encrypted = dict(record.encrypted_credentials)
@@ -337,6 +360,14 @@ async def update_settings(
             encrypted.pop(provider, None)
         elif "*" not in value:
             encrypted[provider] = encrypt_secret(value)
+
+    # Handle jina_proxy_auth_key encryption inside encrypted_credentials
+    if jina_proxy_auth_key is not _UNSET:
+        if jina_proxy_auth_key is None or jina_proxy_auth_key == "":
+            encrypted.pop("jina_proxy_auth", None)
+        elif isinstance(jina_proxy_auth_key, str) and "*" not in jina_proxy_auth_key:
+            encrypted["jina_proxy_auth"] = encrypt_secret(jina_proxy_auth_key.strip())
+
     merged_models = dict(record.models)
     merged_models.update(models)
     record.encrypted_credentials = encrypted
@@ -372,5 +403,20 @@ async def update_settings(
                 record.jina_base_url = cleaned_base
             else:
                 record.jina_base_url = None
+    if jina_proxy_url is not _UNSET:
+        if jina_proxy_url is None:
+            record.jina_proxy_url = None
+        else:
+            cleaned_base = jina_proxy_url.strip() if isinstance(jina_proxy_url, str) else ""
+            if cleaned_base:
+                validate_base_url(cleaned_base)
+                record.jina_proxy_url = cleaned_base
+            else:
+                record.jina_proxy_url = None
+    if jina_proxy_timeout_seconds is not _UNSET:
+        if jina_proxy_timeout_seconds is None:
+            record.jina_proxy_timeout_seconds = 20
+        elif isinstance(jina_proxy_timeout_seconds, int) and 1 <= jina_proxy_timeout_seconds <= 120:
+            record.jina_proxy_timeout_seconds = jina_proxy_timeout_seconds
     await db.commit()
     return await public_settings(db)
