@@ -7,8 +7,45 @@ Sistema autônomo e distribuído de pesquisa profunda (Deep Research) multiagent
 ## 1. Briefing & Scout
 
 Agente inicial de exploração cognitiva equipado com:
-* **Tool de Pesquisa Web**: busca rápida e direcionada.
+* **Tool de Pesquisa Web**: busca rápida e direcionada via Jina SERP.
 * **Tool de Leitura de Arquivos**: varredura de referências e documentos prévios.
+
+### Operação via API
+
+- Geração de briefing: LLM **assíncrono** (Jina SERP + ag. LLM 3–7 pontos), aprovação humana única, controle CAS de versão v1..vN, reabertura, leitura read-only e histórico de versões.
+- Documentação técnica detalhada da API: [docs/api/briefing-scout.md](docs/api/briefing-scout.md).
+
+#### Quickstart via API (cURL)
+
+```bash
+# 1. Criar briefing (assíncrono; 201 retorna snapshot do draft)
+BRIEFING_ID=$(curl -s -X POST \
+  -H "Authorization: Bearer $API_AUTH_SECRET" \
+  -H "Content-Type: application/json" \
+  https://api.deepresearchengine.com/v1/briefings \
+  -d '{"theme": "impacto da IA na medicina"}' | jq -r '.id')
+
+# 2. Consultar status / pontos
+curl -s -H "Authorization: Bearer $API_AUTH_SECRET" \
+  https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID | jq '{status, points}'
+
+# 3. Opcional: editar pontos (somente em draft, versão +1)
+curl -s -X PATCH -H "Authorization: Bearer $API_AUTH_SECRET" \
+  -H "Content-Type: application/json" \
+  https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID \
+  -d '{"points":[{"title":"p1","description":"d1"},{"title":"p2","description":"d2"},{"title":"p3","description":"d3"}]}'
+
+# 4. Aprovar (draft → approved, versão +1, define approved_at)
+curl -s -X POST -H "Authorization: Bearer $API_AUTH_SECRET" \
+  https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID/approve -d '{}'
+
+# 5. Consumir aprovado (read-only; 409 se não aprovado)
+curl -s -H "Authorization: Bearer $API_AUTH_SECRET" \
+  https://api.deepresearchengine.com/v1/briefings/approved/$BRIEFING_ID | jq '.'
+```
+
+> [!TIP]
+> Erros 409 (concorrência CAS): reenviar a operação com a versão corrente. Erros 503 (SERP/LLM): retry exponencial, ≤4 tentativas. Veja o guia de referência completo em [docs/api/briefing-scout.md](docs/api/briefing-scout.md).
 
 ### Objetivo
 Realizar o *scout* do assunto, reconhecer o terreno e responder perguntas preliminares essenciais:
