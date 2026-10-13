@@ -29,3 +29,6 @@
 
 ### IV. Concorrência Segura e Idempotência
 **Descrição.** A concorrência máxima do sistema é limitada por semáforo de aplicação (`Semaphore(20)`), os estados de transição são persistidos no banco de dados antes da execução e a escrita concorrente de evidências utiliza controle otimista de versão (`version_id_col`).
+
+**Emenda da Feature 002 (Investigação Paralela por Personas):** Por deliberação explícita do operador para maximizar paralelismo analítico de 4 personas concorrentes por ponto (até 28 workers simultâneos), o loop de investigação em `app/investigation/` opera com `asyncio.gather` concorrente irrestrito sobre as tarefas da pesquisa, sem submissão ao semáforo legado de `app/services/llm.py`. A segurança operacional é garantida por timeout estrito por chamada (90s LLM, 90s Jina), timeout global por worker (600s), retries limitados a 3 tentativas e persistência append-only de cada resultado em `research_step_results`.
+

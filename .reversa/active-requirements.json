@@ -1,17 +1,16 @@
 {
   "schema-version": 1,
-  "feature-dir": "_reversa_forward/001-modulo-briefing",
-  "feature-id": "001",
-  "short-name": "modulo-briefing",
-  "started-at": "2026-10-10T21:40:00Z",
-  "current-stage": "done",
+  "feature-dir": "_reversa_forward/002-investigacao-personas",
+  "feature-id": "002",
+  "short-name": "investigacao-personas",
+  "started-at": "2026-10-12T21:45:00Z",
+  "current-stage": "coding",
   "stages-completed": [
     "requirements",
-    "clarify",
     "plan",
     "to-do",
-    "coding",
-    "sync"
+    "audit",
+    "quality"
   ],
   "paused-features": []
 }
