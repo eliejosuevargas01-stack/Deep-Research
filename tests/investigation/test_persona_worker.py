@@ -457,6 +457,32 @@ async def test_worker_error_sanitization_masks_bearer_and_api_secrets(monkeypatc
     assert "api_key=***" in result.error
 
 
+@pytest.mark.anyio
+async def test_worker_success_result_not_truncated(
+    monkeypatch,
+    make_litellm_final_response,
+):
+    """
+    RN-17: Análises finais de sucesso não devem sofrer truncamento a 500 chars.
+    """
+    mock_adapter = AsyncMock(spec=JinaToolAdapter)
+    long_result = "A" * 1000
+    llm_mock = AsyncMock(return_value=make_litellm_final_response(long_result, []))
+    monkeypatch.setattr("app.investigation.worker.call_llm_with_retries", llm_mock)
+
+    worker = PersonaWorker(jina_adapter=mock_adapter)
+    result = await worker.execute(
+        research_id=uuid4(),
+        step_id=uuid4(),
+        step_title="Análise com resposta longa",
+        persona="historian",
+    )
+
+    assert result.success is True
+    assert result.result == long_result
+    assert len(result.result) == 1000
+
+
 def test_sanitize_error_comprehensive():
     """
     Valida unitariamente a função _sanitize_error em múltiplos padrões de segredo:
