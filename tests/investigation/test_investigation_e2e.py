@@ -429,3 +429,73 @@ async def test_investigation_e2e_total_failure(
         assert final_research is not None
         assert final_research.status == ResearchStatus.FAILED.value
         assert final_research.status == "FAILED"
+
+
+@pytest.mark.anyio
+async def test_investigation_e2e_json_exhaustion(
+    e2e_db: async_sessionmaker[AsyncSession],
+    make_litellm_final_response: Callable[[str, list[str]], Any],
+    monkeypatch,
+):
+    """
+    T031: Resiliência a JSON Inválido.
+    - Simula exaustão de 4 turnos sem formato JSON válido.
+    - Valida registro em research_step_results com status FAILED,
+      result "Invalid JSON response after 3 corrections" e used_urls vazia.
+    - Valida incremento de attempt_count = 1.
+    """
+    session_factory = e2e_db
+    research_id, point_ids = await _seed_approved_research_with_5_points(session_factory)
+    target_point_id = point_ids[0]
+
+    mock_jina_adapter = AsyncMock(spec=JinaToolAdapter)
+
+    failed_worker_executed = False
+
+    def _make_invalid_msg(txt: str):
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        role="assistant",
+                        content=txt,
+                        tool_calls=None,
+                    )
+                )
+            ]
+        )
+
+    async def fake_llm(model: str, messages: list[dict], tools: list[dict] | None = None, **kwargs):
+        nonlocal failed_worker_executed
+        system_content = messages[0].get("content", "") if messages else ""
+        is_first_point = "Precisão em Imagens" in system_content
+        is_skeptic = "Cético Analítico" in system_content
+
+        if is_first_point and is_skeptic:
+            failed_worker_executed = True
+            return _make_invalid_msg("Texto puro sem JSON")
+
+        return make_litellm_final_response("Síntese analítica", ["https://example.com/ok"])
+
+    monkeypatch.setattr("app.investigation.worker.call_llm_with_retries", fake_llm)
+
+    service = InvestigationService(session_factory, jina_adapter=mock_jina_adapter)
+    await service.run_investigation(research_id)
+
+    assert failed_worker_executed is True
+
+    async with session_factory() as session:
+        step_results = await get_step_results(session, research_id)
+
+        failed_results = [r for r in step_results if r.status == "FAILED"]
+        assert len(failed_results) == 1
+
+        failed_r = failed_results[0]
+        assert failed_r.worker == "skeptic"
+        assert failed_r.step_id == target_point_id
+        assert failed_r.result == "Invalid JSON response after 3 corrections"
+        assert failed_r.used_urls == []
+
+        point_record = await session.get(ResearchPoint, target_point_id)
+        assert point_record is not None
+        assert point_record.attempt_count == 1
