@@ -11,7 +11,7 @@ from app.briefing.schemas import ApprovedBriefingResponse, BriefingResponse, Bri
 class BriefingResponseSchemaTests(unittest.TestCase):
     def response(self, status, points=None):
         return BriefingResponse(
-            id=UUID(int=1), theme="tema", status=status, points=points or []
+            research_id=UUID(int=1), theme="tema", status=status, points=points or []
         )
 
     def version_response(self, status, points=None):
@@ -21,7 +21,7 @@ class BriefingResponseSchemaTests(unittest.TestCase):
         )
 
     def approved(self, points):
-        return ApprovedBriefingResponse(id=UUID(int=1), theme="tema", points=points)
+        return ApprovedBriefingResponse(research_id=UUID(int=1), theme="tema", points=points)
 
     def valid_points(self, count):
         return [{"title": f"title {n}", "description": f"description {n}"} for n in range(count)]
@@ -80,7 +80,7 @@ class BriefingResponseSchemaTests(unittest.TestCase):
 
     # T035 — BriefingResponse new fields: version, error, approved_at
     def test_briefing_response_version_default_and_serialization(self):
-        resp = BriefingResponse(id=UUID(int=1), theme="tema", status=BriefingStatus.GENERATING)
+        resp = BriefingResponse(research_id=UUID(int=1), theme="tema", status=BriefingStatus.GENERATING)
         self.assertEqual(resp.version, 1)
         dumped = resp.model_dump(mode="json")
         self.assertEqual(dumped["version"], 1)
@@ -89,19 +89,19 @@ class BriefingResponseSchemaTests(unittest.TestCase):
     def test_briefing_response_version_invalid_zero_negative_rejected(self):
         for bad in (0, -1):
             with self.subTest(version=bad), self.assertRaises(ValidationError):
-                BriefingResponse(id=UUID(int=1), theme="tema", status=BriefingStatus.GENERATING, version=bad)
+                BriefingResponse(research_id=UUID(int=1), theme="tema", status=BriefingStatus.GENERATING, version=bad)
 
     def test_briefing_response_error_default_none_and_optional(self):
-        resp = BriefingResponse(id=UUID(int=1), theme="tema", status=BriefingStatus.GENERATING)
+        resp = BriefingResponse(research_id=UUID(int=1), theme="tema", status=BriefingStatus.GENERATING)
         self.assertIsNone(resp.error)
-        resp2 = BriefingResponse(id=UUID(int=1), theme="tema", status=BriefingStatus.FAILED, error="falha")
+        resp2 = BriefingResponse(research_id=UUID(int=1), theme="tema", status=BriefingStatus.FAILED, error="falha")
         self.assertEqual(resp2.error, "falha")
 
     def test_briefing_response_approved_at_default_none_and_optional(self):
-        resp = BriefingResponse(id=UUID(int=1), theme="tema", status=BriefingStatus.GENERATING)
+        resp = BriefingResponse(research_id=UUID(int=1), theme="tema", status=BriefingStatus.GENERATING)
         self.assertIsNone(resp.approved_at)
         dt = datetime(2026, 1, 1, 12, 0, 0)
-        resp2 = BriefingResponse(id=UUID(int=1), theme="tema", status=BriefingStatus.APPROVED, approved_at=dt, points=self.valid_points(3))
+        resp2 = BriefingResponse(research_id=UUID(int=1), theme="tema", status=BriefingStatus.APPROVED, approved_at=dt, points=self.valid_points(3))
         self.assertEqual(resp2.approved_at, dt)
 
     # T035 — BriefingVersionResponse schema
@@ -180,15 +180,15 @@ class BriefingResponseSchemaTests(unittest.TestCase):
     # T035 — Backward compatibility: existing BriefingResponse construction preserved
     def test_briefing_response_backward_construction_no_new_required(self):
         # Old code constructing without version/error/approved_at must still work
-        resp = BriefingResponse(id=UUID(int=1), theme="tema", status=BriefingStatus.DRAFT, points=self.valid_points(3))
+        resp = BriefingResponse(research_id=UUID(int=1), theme="tema", status=BriefingStatus.DRAFT, points=self.valid_points(3))
         self.assertEqual(resp.version, 1)
         self.assertIsNone(resp.error)
         self.assertIsNone(resp.approved_at)
 
     # T035 — Mutable default points not aliased
     def test_briefing_response_points_default_mutable_isolation(self):
-        r1 = BriefingResponse(id=UUID(int=1), theme="tema", status=BriefingStatus.GENERATING)
-        r2 = BriefingResponse(id=UUID(int=2), theme="tema", status=BriefingStatus.GENERATING)
+        r1 = BriefingResponse(research_id=UUID(int=1), theme="tema", status=BriefingStatus.GENERATING)
+        r2 = BriefingResponse(research_id=UUID(int=2), theme="tema", status=BriefingStatus.GENERATING)
         r1.points.append({"title": "t", "description": "d"})
         self.assertEqual(r2.points, [])
 
@@ -204,17 +204,15 @@ class BriefingResponseSchemaTests(unittest.TestCase):
 
         approved_at = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         resp = BriefingResponse(
-            id=UUID(int=1), theme="tema", status=BriefingStatus.DRAFT,
+            research_id=UUID(int=1), theme="tema", status=BriefingStatus.DRAFT,
             points=self.valid_points(3), version=2, error=None, approved_at=approved_at,
         )
         self.assertEqual(resp.model_dump(mode="json"), {
-            "id": "00000000-0000-0000-0000-000000000001",
             "research_id": "00000000-0000-0000-0000-000000000001",
             "theme": "tema", "status": "draft",
             "points": self.valid_points(3), "version": 2, "error": None,
             "approved_at": "2026-01-01T12:00:00Z",
         })
-        self.assertEqual(resp.id, resp.research_id)
 
     def test_briefing_version_response_json_dump_exact_fields_defaults_and_schema(self):
         from datetime import timezone

@@ -73,7 +73,7 @@ def upgrade():
             sa.ForeignKey("research_points.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("step_title", sa.String(500), nullable=False),
+        sa.Column("step_title", sa.Text, nullable=False),
         sa.Column("result", sa.Text, nullable=False),
         sa.Column("used_urls", sa.JSON, nullable=False),
         sa.Column("read_urls", sa.JSON, nullable=False),
@@ -91,6 +91,13 @@ def upgrade():
         "research_step_results",
         ["step_id"],
     )
+
+    with op.batch_alter_table("research_points") as batch_op:
+        batch_op.alter_column(
+            "title",
+            type_=sa.Text(),
+            existing_type=sa.String(500),
+        )
 
     conn = op.get_bind()
 
@@ -167,6 +174,13 @@ def upgrade():
 
 
 def downgrade():
+    with op.batch_alter_table("research_points") as batch_op:
+        batch_op.alter_column(
+            "title",
+            type_=sa.String(500),
+            existing_type=sa.Text(),
+        )
+
     conn = op.get_bind()
     conn.execute(
         sa.text(
