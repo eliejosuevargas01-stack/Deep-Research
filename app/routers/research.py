@@ -101,7 +101,6 @@ async def run_revision(research_id: uuid.UUID) -> None:
             for position, pt in enumerate(points):
                 sdb.add(ResearchPoint(research_id=research_id, position=position, **pt))
             await sdb.commit()
-            schedule(research_id)
             try:
                 await add_event(
                     research_id,
@@ -311,7 +310,6 @@ async def approve(research_id: uuid.UUID, payload: BriefingApproval, _: Principa
         if exists and (exists.status not in (ResearchStatus.PENDING_APPROVAL, ResearchStatus.PENDING_APPROVAL.value) or exists.approved_at is not None):
             raise HTTPException(409, "Briefing already approved or no longer approvable")
         raise
-    schedule(research_id)
     try:
         await add_event(research_id, "system", "briefing_approved", "Briefing approved exactly once", {"points": len(payload.approved_points)})
     except Exception:
