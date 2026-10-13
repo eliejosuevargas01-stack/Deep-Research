@@ -124,3 +124,78 @@ def test_persona_credentials_follow_each_models_provider(monkeypatch):
         assert "synthetic-A" not in str(credentials["skeptic"])
 
     anyio.run(run)
+
+import httpx
+
+def test_approval_does_not_schedule_run_research(monkeypatch):
+    async def run():
+        engine, session_factory = await _session_factory()
+        research_id = uuid4()
+        async with session_factory() as db:
+            db.add(Research(id=research_id, theme="topic", status="PENDING_APPROVAL"))
+            from app.models.domain_models import AdminSession
+            from datetime import datetime, timezone, timedelta
+            db.add(AdminSession(id=uuid4(), token_hash="fake", csrf_hash="fake", expires_at=datetime.now(timezone.utc) + timedelta(days=1)))
+            await db.commit()
+
+        calls = []
+        def mock_schedule(r_id):
+            calls.append(r_id)
+
+        monkeypatch.setattr("app.routers.research.schedule", mock_schedule)
+        from app.main import app
+
+        def override_get_db():
+            return session_factory()
+
+        async def override_require_admin():
+            from app.core.security import Principal
+            return Principal(session=None)
+
+        app.dependency_overrides["app.db.database.get_db"] = override_get_db
+        app.dependency_overrides["app.core.security.require_admin"] = override_require_admin
+
+        from app.db.database import get_db
+        from app.core.security import require_admin
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[require_admin] = override_require_admin
+
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                f"/api/research/{research_id}/briefing/approve",
+                json={"approved_points": [{"title": f"title{i}", "description": f"description{i}", "dependencies": [], "is_parallelizable": True} for i in range(5)]}
+            )
+            assert resp.status_code == 200, resp.text
+
+        assert calls == []
+
+    anyio.run(run)
+
+def test_revision_does_not_schedule_run_research(monkeypatch):
+    async def run():
+        engine, session_factory = await _session_factory()
+        research_id = uuid4()
+        async with session_factory() as db:
+            db.add(Research(id=research_id, theme="topic", status="BRIEFING", briefing_draft={"edit_note": "test", "points": [{"title": "title", "description": "desc", "dependencies": [], "is_parallelizable": True}]}))
+            await db.commit()
+
+        calls = []
+        def mock_schedule(r_id):
+            calls.append(r_id)
+
+        monkeypatch.setattr("app.routers.research.schedule", mock_schedule)
+
+        async def mock_scout(*args, **kwargs):
+            return [{"title": f"title{i}", "description": f"desc{i}", "dependencies": [], "is_parallelizable": True} for i in range(5)]
+
+        monkeypatch.setattr("app.routers.research.scout", mock_scout)
+
+        from app.routers.research import run_revision
+
+        monkeypatch.setattr("app.routers.research.AsyncSessionLocal", session_factory)
+
+        await run_revision(research_id)
+
+        assert calls == []
+
+    anyio.run(run)
