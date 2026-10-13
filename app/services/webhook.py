@@ -36,8 +36,8 @@ async def dispatch_callback(research_id: uuid.UUID) -> bool:
     async with AsyncSessionLocal() as db:
         db.add(AuditTrail(research_id=research_id, stage="callback", details={"delivered": delivered}))
         stored = await db.get(Research, research_id)
-        if stored and stored.status in {"completed", "completed_but_callback_failed"}:
-            stored.status = "completed" if delivered else "completed_but_callback_failed"
+        if stored and stored.status in {"DONE", "completed", "completed_but_callback_failed"}:
+            stored.status = "DONE"  # falha de callback fica em AuditTrail/evento, não em status (mapeamento requirements 3.1)
         await db.commit()
     await add_callback_event(research_id, delivered)
     return delivered

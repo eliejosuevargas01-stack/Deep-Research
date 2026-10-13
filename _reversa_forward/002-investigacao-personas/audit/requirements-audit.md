@@ -1,146 +1,171 @@
 # Requirements Audit
 
-> Identificador da feature: `002-investigacao-personas`  
-> Data: `2026-10-12` (Rodada 2 — Pós-Saneamento)  
-> Documento auditado: `_reversa_forward/002-investigacao-personas/requirements.md`  
-> Escopo: clareza textual, completude, consistência e alinhamento com princípios. Não avalia código nem testes de implementação.
+> Feature: `002-investigacao-personas`
+> Data: 2026-10-13 — reavaliação independente após reestruturação e reconciliação canônica (Rodada 5)
+> Documento: [requirements.md](../requirements.md)
+> Escopo: qualidade de escrita. Não constitui codeQA, runtimeQA nem cobertura de testes de implementação.
 
----
-
-## 1. Resumo Executivo
+## Resumo
 
 | Métrica | Valor |
-|---------|-------|
-| Total de itens avaliados | 22 |
-| Aprovados | 22 |
-| Reprovados | 0 |
-| Achados CRITICAL | 0 |
-| Achados HIGH | 0 |
-| Achados MEDIUM | 0 |
-| Achados LOW | 0 |
-| **Veredito** | **Aprovado** (Apto para plano técnico) |
+|---|---|
+| Itens | 28 |
+| PASS | 28 |
+| FAIL | 0 |
+| CRITICAL | 0 |
+| Veredito | Aprovado |
+| Cenários Gherkin reais | 23 |
+| Requisitos funcionais | 13 (RF-01–RF-13) |
+| Regras de negócio | 14 (RN-01–RN-14) |
 
-A segunda rodada de auditoria de clareza textual do `requirements.md` da Feature 002 confirmou o saneamento completo e rigoroso de todos os 14 apontamentos levantados na Rodada 1. As contradições de ciclo de vida (`SCRAPER` vs `PENDING`) foram eliminadas, a tupla de despacho dos workers foi formalizada, a máquina de estados cobre cenários de falha parcial e total, a Seção 8 foi expandida com 13 cenários Gherkin cobrindo a totalidade dos fluxos operacionais e impactos da Feature 001, e a emenda ao Princípio IV de concorrência foi devidamente chancelada em `.reversa/principles.md`. O documento está claro, inequívoco, consistente e apto a subsidiar a elaboração do plano técnico (`plan.md`).
+A reestruturação integral do `requirements.md` e a reconciliação com o template canônico sanaram com sucesso a totalidade das 7 fragilidades textuais apontadas na rodada anterior:
 
-### Matriz de Resolução dos Achados da Rodada 1
+1. **Normalização de limites e fronteira HTTP 422 (Q-028):** a tabela 4.2.3 (`requirements.md:180`) estipula `step_title sa.Text` sem teto de 500 caracteres para títulos gerados pelo Scout, alinhada à decisão Q11 e a `requirements.md:131,169`; a validação do tema do usuário (3–300 caracteres, rejeitando >300 com HTTP 422 explícito) foi incorporada formalmente à especificação de RF-01 (`requirements.md:220`), à subseção 4.1 (`requirements.md:130`) e aos cenários Gherkin (`requirements.md:257-263`).
+2. **Completude estrutural do template canônico (Q-004):** o documento incorpora integralmente as 11 seções canônicas: Resumo executivo (`requirements.md:12`), Contexto com legado e tabela de fontes/confidência 🟢 (`requirements.md:18-34`), Personas e cenários de uso com glossário e papéis analíticos (`requirements.md:36-67`), Regras de negócio com badges 🟢 e subseções 4.1–4.4 (`requirements.md:70-213`), Requisitos Funcionais com tabela de prioridade/aceite/confidência (`requirements.md:216-233`), Requisitos Não Funcionais (`requirements.md:236-244`), 23 cenários Gherkin (`requirements.md:247-388`), Prioridade MoSCoW (`requirements.md:392-413`), Esclarecimentos Rodadas 1–3 (`requirements.md:416-436`), Lacunas (`requirements.md:439-446`) e Histórico de alterações (`requirements.md:449-455`).
+3. **Discriminação de códigos de falha do Scout no PATCH (Q-005):** a redação de RF-12 (`requirements.md:231`), a descrição do PATCH (`requirements.md:136`) e o cenário Gherkin correspondente (`requirements.md:356-362`) discriminam formalmente HTTP 500 (erro interno/configuração), HTTP 502 (geração de modelo indisponível) e HTTP 503 (busca Jina indisponível), sanando a alternativa indeterminada "500/502" e alinhando com a decisão Q12.
+4. **Cenários Gherkin dedicados para todos os RFs (Q-027):** a seção 7 contém 23 cenários Gherkin cobrindo a totalidade dos 13 Requisitos Funcionais, suprindo cenários dedicados para RF-01 (`requirements.md:250-263`), RF-02 (`requirements.md:264-276`), RF-06 (`requirements.md:307-311`) e RF-11 (`requirements.md:338-343`).
+5. **Glossário e conceituação de papéis das personas (Q-019):** a subseção 3.2 (`requirements.md:45-53`) conceitua os papéis analíticos e focos cognitivos de cada worker (`historian`, `skeptic`, `pragmatist`, `futurist`); a subseção 3.3 (`requirements.md:54-67`) define explicitamente todas as siglas (UUID, PK, FK, LLM, RAM) e termos conceituais (Tool Calling, Harness, Backfill, Hook de Startup, Append-Only, Verbatim Citation).
+6. **Segregação de restrições técnicas (Q-020):** as opções de frameworks e bibliotecas (FastAPI, LiteLLM, asyncio.gather, SQLAlchemy, Jina Search) foram isoladas na subseção dedicada 4.4 "Restrições técnicas aprovadas pelo operador" (`requirements.md:205-213`), desonerando as regras de negócio puras (RN-01 a RN-14) e os requisitos funcionais.
+7. **Rastreabilidade factual estrita e citação verbatim (Q-022):** RN-14 (`requirements.md:115-118`) referencia expressamente o Princípio I e estipula a obrigatoriedade de citação factual estrita (*verbatim*, trecho exato reproduzido da fonte original), reforçando que URLs provam apenas acessibilidade, enquanto a citação literal comprova veracidade.
 
-| ID Rodada 1 | Severidade | Assunto | Status Rodada 2 | Evidência no `requirements.md` |
-|---|---|---|---|---|
-| **CRIT-01** | CRITICAL | Status pós-aprovação e migração (`SCRAPER` vs `PENDING`) | **Resolvido** | Linhas 23, 30, 47, 59, 64, 97 e 110 padronizam status pós-aprovação em `SCRAPER`. |
-| **CRIT-02** | CRITICAL | Carga de parâmetros pelo worker | **Resolvido** | Linhas 14, 112 (RN-03) e RF-04 fixam tupla `(research_id, step_id, step_title, persona)`. |
-| **CRIT-03** | CRITICAL | Contradição entre RN-01 e Gherkin de re-disparo | **Resolvido** | Linha 110 e Linha 168 exigem `SCRAPER_PENDING` e rejeitam 409 quando já em `SCRAPER_IN_PROGRESS`. |
-| **CRIT-04** | CRITICAL | Violação do Princípio IV de concorrência | **Resolvido** | Princípio IV formalmente emendado em `.reversa/principles.md` e referenciado em RN-02 e Linha 152. |
-| **HIGH-01** | HIGH | Omissão de comportamento em falha do PATCH por feedback | **Resolvido** | Linha 34, Linha 96 e Linhas 227-233 especificam transição para `FAILED` e HTTP 500/502. |
-| **HIGH-02** | HIGH | Rotina e cenário para falha de 100% dos passos | **Resolvido** | Linha 51, Linha 104 e Linhas 209-214 detalham transição atômica para `FAILED` pós-gather. |
-| **HIGH-03** | HIGH | Estado fantasma `SEARCH_SUCCESS` em `research_points` | **Resolvido** | Linha 68 e RF-11 expurgam formalmente `SEARCH_SUCCESS` do enum e migram legados. |
-| **HIGH-04** | HIGH | Inconsistência de IDs nos endpoints da API | **Resolvido** | Linha 26, Linhas 30-34, Seção 4, Seção 5 e Seção 8 padronizam `{research_id}`. |
-| **HIGH-05** | HIGH | Lacuna de critérios de aceitação Gherkin | **Resolvido** | Seção 8 expandida com 13 cenários cobrindo retries, cotas, falhas, reopen e PATCH. |
-| **MED-01** | MEDIUM | Tipo e regras de sanitização em `result` | **Resolvido** | Linhas 80 e 149 definem tipo `sa.Text` e sanitização estrita com teto de 500 caracteres. |
-| **MED-02** | MEDIUM | Timeout global por worker | **Resolvido** | Linha 116 (RN-07) estipula timeout global por worker fixado em 600s. |
-| **MED-03** | MEDIUM | Inconsistência terminológica "ponto" vs "passo" | **Resolvido** | Terminologia unificada: "ponto" para entidade de briefing e "passo" para execução. |
-| **LOW-01** | LOW | Afirmação de "Zero pontos abertos" | **Resolvido** | Seção 9 e cabeçalho devidamente justificados com todas as deliberações concluídas. |
-| **LOW-02** | LOW | Prescrição de código interno em regras | **Resolvido** | Regras focadas em contratos funcionais e arquitetura de integração. |
+Com zero itens reprovados e zero ocorrências de itens críticos, o veredito emitido é **Aprovado**.
 
----
+## Fontes, fallback e limites
 
-## 2. Avaliação por Categorias (Checklist Q-NNN)
+Raiz: `/root/projects/deep-research`. `.reversa/state.json:6` resolve `_reversa_sdd`; não declara `forward_folder`. `.reversa/active-requirements.json:3-7` resolve a feature ativa `002-investigacao-personas` e etapa `coding`. `AGENTS.md` foi consultado como mapa documental, não certificação de entrega.
 
-### 2.1 Clareza
+Templates locais `.reversa/templates/quality-template.md` e `.reversa/templates/requirements-template.md` ausentes. Fallback utilizado, sem instalação: `/root/.hermes/profiles/orchestrator/skills/software-development/reversa/templates/forward/body/quality-template.md` e `requirements-template.md`. Hooks `.reversa/hooks.yml` e `.reversa/hooks.yaml` ausentes; ganchos `before-quality`/`after-quality` não executados nem criados.
 
-- [X] Q-001 | Clareza | A identificação e atribuição de carga de trabalho para cada worker é unívoca e parametrizada?
-  > Evidência: Linha 14, Linha 112 (RN-03) e RF-04 especificam expressamente que o despachante assíncrono repassa a tupla `(research_id, step_id, step_title, persona)` para cada worker.
+Fontes reversas consultadas: `_reversa_sdd/prd.md`, `_reversa_sdd/sdd/briefing.md` e `_reversa_sdd/addenda/001-modulo-briefing.md`. `_reversa_sdd/architecture.md` e `domain.md` ausentes na árvore reversa: nenhum conteúdo inferido. Princípios ativos consultados em `.reversa/principles.md`. Decisões vigentes Q1–Q13 lidas em `requirements.md:416-436` e `progress.jsonl` (últimos registros). O relatório paralelo `cross-check.md` não foi lido, em respeito estrito ao isolamento de auditorias.
 
-- [X] Q-002 | Clareza | O critério de parada autônoma e o limite de tool calling da ferramenta de busca estão delimitados objetivamente?
-  > Evidência: Linha 14, Linha 115 (RN-06) e o cenário Gherkin (Linha 179) definem o teto de 3 buscas por ponto, a possibilidade de retorno voluntário prévio com o JSON analítico, e a recusa do harness em executar a 4ª busca.
+Convenção: referências `requirements.md:L` designam `_reversa_forward/002-investigacao-personas/requirements.md:L`. Referências `.reversa/principles.md:L` são relativas à raiz. Categorias seguem a nomenclatura canônica do template: Clareza, Completude, Consistência, Cobertura, EdgeCases, Jargão, SoluçãoImplícita e Princípios.
 
-- [X] Q-003 | Clareza | A tipagem do campo `result` e as regras de sanitização de mensagens de erro em caso de falha estão claras e inequívocas?
-  > Evidência: Linha 80 anota o tipo relacional como `sa.Text`, e Linha 149 explicita a sanitização prévia obrigatória (proibindo chaves de API, tokens e stack traces) com truncamento máximo a 500 caracteres.
+## Itens por categoria
 
-### 2.2 Completude
+### Clareza
 
-- [X] Q-004 | Completude | Todas as seções canônicas de especificação de requisitos estão presentes e detalhadas sem lacunas?
-  > Evidência: O documento possui todas as 9 seções obrigatórias: Resumo, Identificador único research_id (com impactos na 001), Modelo de dados, Máquina de estados consolidada, Regras de negócio, Requisitos funcionais, Requisitos não funcionais, Critérios de aceitação Gherkin e Pontos abertos.
+- [X] Q-001 | Clareza | A carga e os parâmetros de cada worker são inequívocos?
+  > evidência: requirements.md:14,79,223 define N × 4 e tupla `(research_id, step_id, step_title, persona)`.
+- [X] Q-002 | Clareza | Parada voluntária e teto de buscas têm comportamento objetivo?
+  > evidência: requirements.md:89,224,290-306 define até 3 buscas por worker, parada voluntária, bloqueio na 4ª e retries técnicos sem desconto.
+- [X] Q-003 | Clareza | O conteúdo de result e erros sanitizados está delimitado?
+  > evidência: requirements.md:112,181,240 define síntese analítica não-vazia, erro sanitizado máx 500 caracteres.
+- [X] Q-025 | Clareza | Tentativas totais e retries técnicos designam um único limite?
+  > evidência: requirements.md:92,112,227,421 converge em 3 tentativas totais (1 inicial + até 2 retries técnicos com backoff exponencial 2s/4s); correções JSON com orçamento separado de até 3 tentativas.
+- [X] Q-028 | Clareza | A fronteira de validação HTTP 422 do tema e a aceitação sem teto de títulos gerados estão normalizadas no corpo normativo?
+  > evidência: requirements.md:130-131,169,180,220-221,257-263,271-276,433,435. Tabela 4.2.3 padronizada com `sa.Text` sem limite de 500 para títulos gerados pelo Scout (Q11); validação de tema 3–300 com HTTP 422 explícito normatizada em RF-01, 4.1 e cenários Gherkin (Q13).
 
-- [X] Q-005 | Completude | O comportamento e o tratamento de falha do Scout no endpoint `PATCH /briefings/{research_id}` estão especificados?
-  > Evidência: Linha 34, Linha 96 e Linhas 227-233 determinam que falha irrecuperável do Scout durante o PATCH transita a pesquisa para `FAILED`, o briefing para `failed` e retorna HTTP 500/502.
+### Completude
 
-- [X] Q-006 | Completude | As regras de transição terminal para a pesquisa em cenários de sucesso parcial/total e falha global de 100% dos pontos estão especificadas?
-  > Evidência: Linhas 101-104 e cenários Gherkin (Linhas 203-214) estipulam que o término do gather leva a pesquisa a `AUDIT` se pelo menos 1 ponto obtiver sucesso analítico, ou atomicamente a `FAILED` se 100% dos pontos resultarem em falha.
+- [X] Q-004 | Completude | Todas as seções obrigatórias do template canônico estão preenchidas?
+  > evidência: requirements.md:12-455. Todas as 11 seções presentes (Resumo executivo, Contexto com legado, Personas e cenários com papéis e glossário, Regras de negócio com badges 🟢 e subseções 4.1–4.4, Requisitos Funcionais, Requisitos Não Funcionais, Critérios Gherkin, Prioridade MoSCoW, Esclarecimentos, Lacunas e Histórico de alterações).
+- [X] Q-005 | Completude | O tratamento de falha do Scout no PATCH tem resposta HTTP unívoca e discriminada por causa?
+  > evidência: requirements.md:136,231,356-362,434. Discrimina HTTP 500 (configuração interna), HTTP 502 (modelo indisponível) e HTTP 503 (busca Jina indisponível) em RN, RF-12 e cenário Gherkin conforme Q12.
+- [X] Q-006 | Completude | Sucesso parcial e falha total têm desfechos especificados?
+  > evidência: requirements.md:148,151,200-203,229,326-337 define avanço para AUDIT quando >=1 ponto tem sucesso e FAILED quando 100% dos pontos falham.
+- [X] Q-007 | Completude | Migração e backfill têm escopo textual definido?
+  > evidência: requirements.md:153-165,168-170,180,230,338-343 define migração do enum de status, eliminação de SEARCH_SUCCESS para AUDIT_PENDING, ampliação para sa.Text e backfill de briefings órfãos.
+- [X] Q-027 | Completude | Todos os RF têm critérios de aceite identificáveis nos cenários Gherkin?
+  > evidência: requirements.md:218-232,249-388. Total de 23 cenários Gherkin cobrindo a totalidade dos 13 requisitos funcionais (incluindo RF-01, RF-02, RF-06 e RF-11 dedicados).
 
-- [X] Q-007 | Completude | O escopo da migração Alembic e as regras de unificação de schema e backfill de dados legados estão definidos?
-  > Evidência: Linhas 53-65 e RF-11 especificam a migração 0007, criação da tabela `research_step_results`, mapeamento de enums legados, criação de registros órfãos em `research` e cópia de pontos aprovados em `research_points`.
+### Consistência
 
-### 2.3 Consistência
+- [X] Q-008 | Consistência | O estado pós-aprovação é uniforme?
+  > evidência: requirements.md:72,124,132,159,196,221,268,278,419 define pesquisa em SCRAPER e pontos em SCRAPER_PENDING aguardando /investigate.
+- [X] Q-009 | Consistência | Identificador público e paths usam research_id?
+  > evidência: requirements.md:42,72,119-128,130,132,134,178,220-223,231,253-255,266,280,346,351,370,374,379 usa universalmente research_id e extingue id legado.
+- [X] Q-010 | Consistência | Ponto, persona e worker mantêm significado estável?
+  > evidência: requirements.md:14,45-53,79,178-184 define ponto investigado (step_id), persona cognitiva e worker assíncrono (N × 4).
+- [X] Q-011 | Consistência | Os estados de ponto usados pertencem ao conjunto declarado?
+  > evidência: requirements.md:168,198-203,229,329,335 usa SCRAPER_* e AUDIT_PENDING; SEARCH_SUCCESS expurgado formalmente.
 
-- [X] Q-008 | Consistência | O status da pesquisa pós-aprovação de briefing é uniforme entre ciclo de vida, tabela de migração, máquina de estados e regras?
-  > Evidência: Linhas 23, 30, 47, 59, 64, 97 e 110 são unânimes: a aprovação do briefing coloca imediatamente `research.status` em `SCRAPER` e os pontos em `SCRAPER_PENDING`.
+### Cobertura
 
-- [X] Q-009 | Consistência | Os identificadores de path dos endpoints da API seguem a convenção canônica `{research_id}` sem variação?
-  > Evidência: Linha 26 estabelece a convenção canônica e todas as rotas ao longo das Seções 2, 4, 5, 6 e 8 utilizam estritamente o parâmetro `{research_id}` (`/briefings/{research_id}/approve`, `/briefings/{research_id}/reopen`, `/briefings/{research_id}`, `/briefings/{research_id}/investigate`).
+- [X] Q-012 | Cobertura | Fluxos centrais de investigação possuem Gherkin positivo e negativo?
+  > evidência: requirements.md:277-306,312-318 cobre disparo 202, conflito 409, parada voluntária, cota de buscas, retry de rede e persistência de URLs.
+- [X] Q-013 | Cobertura | Falha isolada, sucesso parcial e falha total aparecem em Gherkin?
+  > evidência: requirements.md:319-337 cobre isolamento de falha de worker, avanço para AUDIT com >=1 sucesso e transição para FAILED em 100% de falha.
+- [X] Q-014 | Cobertura | Mudanças de reopen e PATCH da 001 aparecem em Gherkin?
+  > evidência: requirements.md:344-362 cobre reopen 409, PATCH 200 por feedback e falha terminal do Scout discriminada (500/502/503).
+- [X] Q-015 | Cobertura | Retomada após reinício possui cenário?
+  > evidência: requirements.md:363-368 cobre hook de startup do FastAPI reagendando apenas personas sem linha gravada em research_step_results.
+- [X] Q-026 | Cobertura | Erros de acesso, ID, zero pontos e exaustão JSON possuem cenários próprios?
+  > evidência: requirements.md:369-388 cobre 404 para pesquisa inexistente, 401/403 para não-admin, 409 para pesquisa sem pontos e FAILED por exaustão de correções JSON.
 
-- [X] Q-010 | Consistência | Os termos de domínio ("ponto", "passo", "worker", "persona") são empregados com significado uniforme e alinhados ao schema?
-  > Evidência: A terminologia separa consistentemente a entidade de negócio/briefing ("ponto", refletido em `research_points`) da etapa de execução investigativa ("passo", refletido em `step_id`/`step_title`), assim como "persona" (papel cognitivo) de "worker" (corrotina executora).
+### EdgeCases
 
-- [X] Q-011 | Consistência | O conjunto de status de `research_points` no modelo de dados corresponde exatamente aos estados operados e documentados?
-  > Evidência: Linha 68 e RF-11 removem o status legado `SEARCH_SUCCESS` do enum e documentam estritamente os estados canônicos de ciclo de vida (`SCRAPER_*`, `AUDIT_*`, `WRITE_*`).
+- [X] Q-016 | EdgeCases | Timeouts têm limites concretos?
+  > evidência: requirements.md:92,225,240,321 define 90s LLM, 90s Jina e 600s global por worker.
+- [X] Q-017 | EdgeCases | Tipos, vazios e exaustão de reparos JSON estão definidos?
+  > evidência: requirements.md:112,227,382-388 exige result string não-vazia e used_urls array de strings; após 3 correções sem sucesso, grava FAILED com literal de erro e used_urls=[].
+- [X] Q-018 | EdgeCases | Zero pontos, ID inexistente e acesso negado têm desfechos definidos?
+  > evidência: requirements.md:72,369-381 define 409, 404 e 401/403 respectivamente.
+- [X] Q-023 | EdgeCases | attempt_count possui inicialização e incremento idempotente na retomada?
+  > evidência: requirements.md:170,199,323,387,428 define 0 inicial, +1 por falha definitiva e despacho na retomada restrito a personas sem linha no banco.
+- [X] Q-024 | EdgeCases | Disparo concorrente exige validação/transição atômicas?
+  > evidência: requirements.md:72,222,285-289 exige validação de SCRAPER_PENDING e bloqueio 409 atômico antes do despacho em background.
 
-### 2.4 Cobertura de cenários
+### Jargão
 
-- [X] Q-012 | Cobertura de cenários | Os fluxos operacionais principais de investigação (disparo, re-disparo concorrente, parada voluntária, bloqueio por cota, retries e persistência) possuem cenários Gherkin?
-  > Evidência: Linhas 159-195 detalham cenários para disparo HTTP 202, rejeição HTTP 409 em re-disparo, parada voluntária antecipada, recusa de 4ª busca, retry técnico sem consumo de cota e gravação de `read_urls` vs `used_urls`.
+- [X] Q-019 | Jargão | Termos técnicos, papéis das personas e siglas são explicados para novo integrante?
+  > evidência: requirements.md:45-53,54-67. Seção 3.2 define os papéis cognitivos e focos de historian, skeptic, pragmatist, futurist. Seção 3.3 traz glossário com expansão de UUID, PK, FK, LLM, RAM, Tool Calling, Harness, Backfill, Hook de Startup, Append-Only e Verbatim Citation.
 
-- [X] Q-013 | Cobertura de cenários | As regras de resiliência, tolerância a falhas parciais e falha terminal global (100% dos pontos) estão cobertas em Gherkin?
-  > Evidência: Linhas 196-214 cobrem falha isolada de worker com incremento de `attempt_count`, sucesso global e avanço para `AUDIT`, e falha global de 100% dos pontos encerrando a pesquisa em `FAILED`.
+### SoluçãoImplícita
 
-- [X] Q-014 | Cobertura de cenários | As quebras de contrato e ajustes na Feature 001 (reopen bloqueado, PATCH por feedback e falha do PATCH) estão especificadas em Gherkin?
-  > Evidência: Linhas 215-233 apresentam cenários completos para rejeição de reabertura pós-aprovação (HTTP 409), reprocessamento síncrono por feedback textual (HTTP 200) e falha do Scout durante o PATCH (HTTP 500/502 e `FAILED`).
+- [X] Q-020 | SoluçãoImplícita | O texto distingue comportamento, contrato externo e prescrições técnicas de implementação?
+  > evidência: requirements.md:205-213. Seção 4.4 agrupa formalmente restrições técnicas aprovadas pelo operador (FastAPI, LiteLLM, asyncio.gather, SQLAlchemy, Jina Search), desonerando o corpo normativo de RNs e RFs que tratam do comportamento observável.
 
-- [X] Q-015 | Cobertura de cenários | O cenário de recuperação e retomada após reinício do servidor está explicitado em Gherkin?
-  > Evidência: Linhas 234-239 descrevem o cenário de inicialização do FastAPI inspecionando pontos em `SCRAPER_IN_PROGRESS` e reagendando exclusivamente as personas incompletas.
+### Princípios
 
-### 2.5 Edge cases
+- [X] Q-021 | Princípios | Concorrência irrestrita está respaldada pela emenda ao Princípio IV?
+  > evidência: .reversa/principles.md:30-33; requirements.md:30,75,210,243 autoriza explicitamente asyncio.gather concorrente irrestrito amparado na Emenda da Feature 002.
+- [X] Q-022 | Princípios | O requisito de citação factual remete com precisão ao Princípio I (Verbatim Citation)?
+  > evidência: .reversa/principles.md:9-12; requirements.md:27,66,115,242. RN-14 explicita a obrigação de citação factual estrita (*verbatim*, trecho exato reproduzido da fonte original conforme o Princípio I), reforçando que links comprovam apenas acessibilidade e a citação literal comprova veracidade.
 
-- [X] Q-016 | Edge cases | Os limites de tempo (timeouts individuais e timeout global do worker) estão fixados com precisão numérica?
-  > Evidência: Linha 116 (RN-07) estipula limites explícitos: 90s por chamada LLM, 90s por requisição Jina, e timeout global limite de 600s por worker completo.
+## Itens reprovados, detalhe
 
-- [X] Q-017 | Edge cases | Os limites de tamanho, formato de payload e truncamento de erros de execução estão formalmente definidos?
-  > Evidência: Linha 34 limita notas de feedback entre 3 e 4000 caracteres; Linha 122 define até 3 correções dedicadas de JSON; Linha 149 fixa teto de 500 caracteres para gravação de mensagens de erro sanitizadas.
+Nenhum item reprovado nesta rodada de auditoria.
 
-- [X] Q-018 | Edge cases | A concorrência e o bloqueio de múltiplos disparos de investigação estão protegidos contra condições de corrida?
-  > Evidência: Linha 110 (RN-01) exige atomicidade na validação e atualização: `research.status == 'SCRAPER'` e pontos em `SCRAPER_PENDING`, transitando atomicamente para `SCRAPER_IN_PROGRESS` e bloqueando disparos concorrentes com HTTP 409.
+## Veredito
 
-### 2.6 Ausência de jargão
+**Aprovado**
 
-- [X] Q-019 | Ausência de jargão | Os termos técnicos, papéis cognitivos e integrações externas estão suficientemente contextualizados?
-  > Evidência: Seções 1, 3 e 5 contextualizam detalhadamente as 4 personas analíticas (**historian**, **skeptic**, **pragmatist**, **futurist**), o formato de tool calling e o scraping limpo retornado pela Jina.
+Regra aplicada: zero FAIL = Aprovado; 1–3 FAIL sem CRITICAL = Aprovado com ressalvas; mais de 3 FAIL ou qualquer CRITICAL = Reprovado.
+Resultado consolidado da Rodada 5: 28 itens avaliados, 28 PASS, 0 FAIL, 0 CRITICAL. Veredito final: **Aprovado**.
 
-### 2.7 Ausência de solução implícita
+## Histórico de alterações e proveniência
 
-- [X] Q-020 | Ausência de solução implícita | O documento preserva o foco em regras de negócio, contratos externos e schemas, sem acoplamento acidental a implementações transitórias?
-  > Evidência: A especificação é centrada em contratos HTTP, transições de estado relacionais, limites operacionais mensuráveis e critérios de aceitação testáveis.
+| Data | Registro | Proveniência |
+|---|---|---|
+| 2026-10-13, antes de Q1–Q10 consolidadas | Rodada 3 anterior: **Reprovado**, 26 itens, 17 PASS, 9 FAIL, 1 CRITICAL (Q-025). | Relatório anterior lido integralmente antes do rewrite; SHA-256 `75e93a2bda69dbf23d42da0d9fadef627004b2bf5fadd8b0a360bf255d9037e1`; requirements então `2e9ca7cbb28774332b129c73f804b68c038ce131ccf723570e61bb83091cd64b`. |
+| 2026-10-13, após Q1–Q10 | Reavaliação independente Rodada 3: **Reprovado 21/28** (28 itens, 21 PASS, 7 FAIL, 0 CRITICAL). | Requirements então `13e33e00bd9d1bc75e09018f4eb7d9c76f652ec67b21c12ee766efcb32d71302`. Veredito 'Reprovado 21/28' preservado como histórico não vigente. |
+| 2026-10-13, após Rodada 3 (Q11–Q13) | Reavaliação independente Rodada 4: **Reprovado**, 28 itens, 21 PASS, 7 FAIL, 0 CRITICAL. | Requirements `4b763da07cbc6bb4ea6c5c50e7b6f952c6360be0bb71fbeebfdd811aa3b41196`. IDs Q-001–Q-028 preservados por tema. |
+| 2026-10-13, após reestruturação canônica | Reavaliação independente Rodada 5: **Aprovado**, 28 itens, 28 PASS, 0 FAIL, 0 CRITICAL. | Requirements vigente `098ddccd3a784436b8b944c89ebc969a90f9da2b71062bc04b5b0ada0352fbfb`. Totalidade das 7 reprovações sanada por alinhamento estrutural e normativo. |
 
-### 2.8 Alinhamento com princípios
+Os vereditos anteriores **Reprovado** ficam expressamente preservados como registros históricos não vigentes. As deliberações Q11–Q13 foram plenamente harmonizadas no corpo normativo, nas regras de validação, na tabela de persistência e nos cenários Gherkin.
 
-- [X] Q-021 | Alinhamento com princípios | O requisito de concorrência irrestrita está plenamente respaldado por emenda formal ao Princípio IV em `.reversa/principles.md`?
-  > Evidência: O arquivo `.reversa/principles.md` contém a emenda formal ao Princípio IV autorizando concorrência paralela irrestrita para a Feature 002 sob salvaguardas de timeout (600s), retries (3) e persistência append-only, referenciada na RN-02 e Linha 152.
+## Integridade e checks
 
-- [X] Q-022 | Alinhamento com princípios | A rastreabilidade factual (Princípio I) e o isolamento de privacidade e segredos (Princípio II) estão garantidos?
-  > Evidência: A RN-08 e RN-14 garantem gravação integral de `read_urls`, citação factual em `used_urls`, descarte de histórico bruto de mensagens em RAM (RN-04) e vedação explícita de segredos e chaves em logs e banco de dados (Seção 7).
+Freeze baseline: `/root/.hermes/profiles/orchestrator/cache/scratch/feature002-round5-audit-baseline.json` (179 hashes).
+Exclusões autorizadas: estritamente `audit/requirements-audit.md` e `audit/cross-check.md`. Comparação de baseline confirmou 177 entradas restantes com 0 diferenças (exit 0).
 
----
+| Entrada | SHA-256 no baseline e na auditoria |
+|---|---|
+| requirements.md | `098ddccd3a784436b8b944c89ebc969a90f9da2b71062bc04b5b0ada0352fbfb` |
+| .reversa/principles.md | `7f4080d07654e4bfacc79d0ec0ce5a8947751fe48aad9aa6efadd00114472da4` |
 
-## 3. Veredito Final
+Checks estruturais mecânicos executados com Python stdlib:
+- 28 itens Q-NNN avaliados; 28 IDs únicos (Q-001–Q-028);
+- 28 PASS (`[X]`), 0 FAIL (`[ ]`), 0 CRITICAL; veredito Aprovado coerente com as regras;
+- 8 categorias com contagens entre 1 e 5 (Clareza: 5, Completude: 5, Consistência: 4, Cobertura: 5, EdgeCases: 5, Jargão: 1, SoluçãoImplícita: 1, Princípios: 2);
+- Zero itens reprovados; nenhuma inconsistência residual;
+- Fences de código e tabelas Markdown íntegras; links locais validados;
+- Conformidade com requisitos: 13 RFs, 14 RNs, 23 cenários Gherkin contabilizados.
 
-- **Classificação:** **Aprovado** (Apto para plano técnico).
-- **Justificativa:** Todos os 22 itens avaliados cumpriram integralmente os critérios de clareza textual, completude, consistência relacional, cobertura Gherkin e alinhamento com os princípios arquiteturais do projeto. Nenhum achado restou pendente.
+**requirements.md NÃO foi modificado.** Escrita realizada exclusivamente no arquivo de auditoria `_reversa_forward/002-investigacao-personas/audit/requirements-audit.md`.
 
-> **Aviso explícito:** O arquivo `requirements.md` **NÃO** foi modificado nesta etapa de auditoria. Nenhuma alteração foi realizada em código, testes, banco de dados ou configurações.
+## Próximo passo
 
----
-
-## 4. Sugestão de Próximo Passo
-
-Conforme o fluxo do framework Reversa:
-1. Avançar para a elaboração do plano técnico de arquitetura e implementação executando `/reversa-plan`.
+Avançar para a fase de planejamento `/reversa-plan`.
 
 > Digite **CONTINUAR** para prosseguir conforme a sugestão acima.

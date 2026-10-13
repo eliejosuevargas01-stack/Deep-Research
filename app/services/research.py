@@ -122,9 +122,9 @@ async def run_research(research_id: uuid.UUID) -> None:
     try:
         async with AsyncSessionLocal() as db:
             research = await db.get(Research, research_id)
-            if not research or research.status not in {"approved", "in_progress", "interrupted"}:
+            if not research or research.status not in {"SCRAPER", "approved", "in_progress", "interrupted"}:
                 return
-            research.status = "in_progress"
+            research.status = "SCRAPER"
             await db.commit()
             points = list((await db.scalars(select(ResearchPoint).where(ResearchPoint.research_id == research_id).order_by(ResearchPoint.position))).all())
         await add_event(research_id, "system", "research_started", "Approved research work started", {"points": len(points)})
@@ -141,7 +141,7 @@ async def run_research(research_id: uuid.UUID) -> None:
         async with AsyncSessionLocal() as db:
             research = await db.get(Research, research_id)
             if research:
-                research.status = "failed"
+                research.status = "FAILED"
                 research.error = safe_msg
                 # Do not mark approved points as failed, keep their evidence
                 await db.commit()

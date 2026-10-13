@@ -5,13 +5,20 @@ contra `AsyncSession` (D1/D2/D3 de `audit/t011-integration-decomposition.md`).
 """
 
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.briefing.domain import Briefing, BriefingPoint, BriefingStatus
-from app.models.domain_models import BriefingRecord, BriefingVersion, now
+from app.models.domain_models import (
+    BriefingRecord,
+    BriefingVersion,
+    Research,
+    ResearchPoint,
+    ResearchStatus,
+    now,
+)
 
 
 class BriefingVersionConflictError(Exception):
@@ -62,7 +69,10 @@ def briefing_to_version_dict(briefing: Briefing) -> dict:
 
 
 async def create_generating_briefing(db: AsyncSession, briefing: Briefing) -> Briefing:
-    """Tx1: insere `BriefingRecord` inicial e commit imediato (D1/D3)."""
+    """Tx1: garante linha em `research` (research_id) antes do `BriefingRecord` e commita (D1/D3)."""
+    research = await db.get(Research, briefing.id)
+    if research is None:
+        db.add(Research(id=briefing.id, theme=briefing.theme, briefing_draft={}, status=ResearchStatus.BRIEFING))
     db.add(briefing_to_record(briefing))
     await db.commit()
     return briefing
@@ -112,5 +122,27 @@ async def save_briefing_transition(
             f"conflito de versão: id={new_briefing.id} expected={previous_briefing.version}"
         )
     db.add(BriefingVersion(**briefing_to_version_dict(new_briefing)))
+    if new_briefing.status == BriefingStatus.APPROVED:
+        await db.execute(
+            update(Research)
+            .where(Research.id == new_briefing.id)
+            .values(status=ResearchStatus.SCRAPER, updated_at=now())
+        )
+        existing = await db.scalar(
+            select(ResearchPoint.id).where(ResearchPoint.research_id == new_briefing.id).limit(1)
+        )
+        if existing is None:
+            for idx, point in enumerate(new_briefing.points):
+                db.add(
+                    ResearchPoint(
+                        id=uuid4(),
+                        research_id=new_briefing.id,
+                        title=point.title,
+                        description=point.description,
+                        position=idx + 1,
+                        status="SCRAPER_PENDING",
+                        attempt_count=0,
+                    )
+                )
     await db.commit()
     return new_briefing

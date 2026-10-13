@@ -92,6 +92,15 @@ class _FakeLLM:
 
 
 class BriefingAcceptance(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        from app.core.config import settings
+        import app.core.security as security
+
+        for config in (settings, security.settings):
+            original = config.API_AUTH_SECRET
+            config.API_AUTH_SECRET = "test-api-secret-0123456789"
+            self.addCleanup(setattr, config, "API_AUTH_SECRET", original)
+
     async def asyncSetUp(self):
         self.engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
@@ -199,34 +208,29 @@ class BriefingAcceptance(unittest.IsolatedAsyncioTestCase):
     async def test_editar_rascunho(self):
         """Gherkin: Editar rascunho — salva nova versao com 3-7 pontos."""
         created, _, _ = await self._create_draft()
-        bid, version = created["id"], created["version"]
+        bid, version = created["research_id"], created["version"]
 
         response = await self.client.patch(
-            f"/briefings/{bid}", json={"points": _points(4)}, headers=HEADERS
+            f"/briefings/{bid}", json={"note": "Add further supporting details"}, headers=HEADERS
         )
 
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
         self.assertEqual(body["version"], version + 1)
-        self.assertEqual(len(body["points"]), 4)
+        self.assertEqual(len(body["points"]), 5)
         _, history = await self._snapshot(bid)
         self.assertEqual([v for v, _, _ in history], sorted(v for v, _, _ in history))
 
     async def test_rejeitar_quantidade_invalida(self):
-        """Gherkin: Rejeitar quantidade invalida — 422 e versao anterior intacta.
-
-        PATCH com <3 ou >7 pontos: 422 via contrato. Approve nao recebe
-        pontos (somenente corpo omitido/null/{}); rejeicao de conteudo em
-        aprovacao usa draft invalido semeado direto no SQLite isolado.
-        """
+        """Feedback PATCH exige nota 3..4000; falha 422 preserva estado."""
         created, _, _ = await self._create_draft()
-        bid = created["id"]
+        bid = created["research_id"]
         before = await self._snapshot(bid)
 
-        for n in (2, 8):
-            with self.subTest(n=n):
+        for note in ("x", "f" * 4001):
+            with self.subTest(note_length=len(note)):
                 response = await self.client.patch(
-                    f"/briefings/{bid}", json={"points": _points(n)}, headers=HEADERS
+                    f"/briefings/{bid}", json={"note": note}, headers=HEADERS
                 )
                 self.assertEqual(response.status_code, 422, response.text)
                 self.assertEqual(await self._snapshot(bid), before)
@@ -250,7 +254,7 @@ class BriefingAcceptance(unittest.IsolatedAsyncioTestCase):
     async def test_aprovar_briefing(self):
         """Gherkin: Aprovar briefing — vira approved com approved_at, edicao 409."""
         created, _, _ = await self._create_draft()
-        bid = created["id"]
+        bid = created["research_id"]
 
         response = await self.client.post(f"/briefings/{bid}/approve", headers=HEADERS)
 
@@ -258,27 +262,22 @@ class BriefingAcceptance(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.json()["status"], "approved")
         self.assertTrue(response.json()["approved_at"])
         edit = await self.client.patch(
-            f"/briefings/{bid}", json={"points": _points(3)}, headers=HEADERS
+            f"/briefings/{bid}", json={"note": "Please revise the draft"}, headers=HEADERS
         )
         self.assertEqual(edit.status_code, 409)
         approved = await self.client.get(f"/briefings/approved/{bid}", headers=HEADERS)
         self.assertEqual(approved.status_code, 200)
 
     async def test_reabrir_briefing(self):
-        """Gherkin: Reabrir briefing — volta a draft, approved_at None, edita."""
+        """Briefing aprovado não pode ser reaberto: 409 e estado preservado."""
         created, _, _ = await self._create_draft()
-        bid = created["id"]
+        bid = created["research_id"]
         await self.client.post(f"/briefings/{bid}/approve", headers=HEADERS)
 
         reopen = await self.client.post(f"/briefings/{bid}/reopen", headers=HEADERS)
 
-        self.assertEqual(reopen.status_code, 200, reopen.text)
-        self.assertEqual(reopen.json()["status"], "draft")
-        self.assertIsNone(reopen.json()["approved_at"])
-        edit = await self.client.patch(
-            f"/briefings/{bid}", json={"points": _points(6)}, headers=HEADERS
-        )
-        self.assertEqual(edit.status_code, 200)
+        self.assertEqual(reopen.status_code, 409, reopen.text)
+        self.assertEqual(reopen.json()["detail"], "Briefing aprovado não pode ser reaberto")
 
     async def test_falha_na_busca(self):
         """Gherkin: Falha na busca — 4 tentativas, FAILED no mesmo registro, 503 seguro."""

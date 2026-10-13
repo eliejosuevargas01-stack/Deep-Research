@@ -30,7 +30,7 @@ def fresh_approved(count: int = 3) -> Any:
 
 
 class BriefingLifecycleTests(unittest.TestCase):
-    def test_full_cycle_create_complete_edit_approve_reopen_and_read(self):
+    def test_full_cycle_create_complete_edit_approve_and_read(self):
         created = require_op("new_briefing")("Climate research")
         draft = require_op("complete_briefing")(created, points(3))
         self.assertEqual(draft.status, domain.BriefingStatus.DRAFT)
@@ -40,14 +40,11 @@ class BriefingLifecycleTests(unittest.TestCase):
         self.assertEqual(approved.approved_at, APPROVED_AT)
         with self.assertRaises(domain.InvalidTransition):
             require_op("edit_briefing")(approved, points(3))
-        reopened = require_op("reopen_briefing")(approved)
-        self.assertEqual(reopened.status, domain.BriefingStatus.DRAFT)
-        self.assertIsNone(reopened.approved_at)
-        reedited = require_op("edit_briefing")(reopened, points(5, "reopened"))
-        self.assertEqual(len(reedited.points), 5)
-        reread = require_op("read_approved")(require_op("approve_briefing")(reedited, APPROVED_AT))
-        self.assertEqual(len(reread.points), 5)
-        for snapshot in (created, draft, edited, approved, reopened, reedited):
+        with self.assertRaises(domain.InvalidTransition):
+            require_op("reopen_briefing")(approved)
+        reread = require_op("read_approved")(approved)
+        self.assertEqual(len(reread.points), 4)
+        for snapshot in (created, draft, edited, approved):
             self.assertEqual(snapshot.id, created.id)
 
     def test_generation_accepts_counts_three_to_seven(self):
@@ -176,17 +173,17 @@ class BriefingLifecycleTests(unittest.TestCase):
         with self.assertRaises(domain.InvalidTransition):
             require_op("read_approved")(failed)
 
-    def test_edit_and_approve_only_from_draft_reopen_only_from_approved(self):
+    def test_edit_and_approve_only_from_draft_and_approved_cannot_reopen(self):
         draft = fresh_draft(3)
         approved = require_op("approve_briefing")(draft, APPROVED_AT)
         with self.assertRaises(domain.InvalidTransition):
             require_op("edit_briefing")(approved, points(3))
         with self.assertRaises(domain.InvalidTransition):
             require_op("approve_briefing")(approved, APPROVED_AT)
+        with self.assertRaisesRegex(domain.InvalidTransition, "^Briefing aprovado não pode ser reaberto$"):
+            require_op("reopen_briefing")(approved)
         with self.assertRaises(domain.InvalidTransition):
             require_op("reopen_briefing")(draft)
-        with self.assertRaises(domain.InvalidTransition):
-            require_op("reopen_briefing")(require_op("new_briefing")("Climate research"))
         self.assertEqual(approved.status, domain.BriefingStatus.APPROVED)
         self.assertEqual(draft.version, 2)
 

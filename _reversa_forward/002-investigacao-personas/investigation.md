@@ -1,4 +1,6 @@
-> **Nota de Contexto Histórico (Reversa SDD):** Este documento registra o levantamento exploratório inicial pré-plano de LiteLLM e Jina. Todas as 6 perguntas e lacunas levantadas foram integralmente respondidas e deliberadas pelo operador nas sessões de 2026-10-12, estando consolidadas de forma canônica e normativa em `requirements.md` e `roadmap.md`.
+> **Nota de Contexto Histórico (Reversa SDD):** Este documento registra o levantamento exploratório inicial pré-plano de LiteLLM e Jina. Todas as 6 perguntas e lacunas levantadas foram integralmente respondidas e deliberadas pelo operador nas sessões de 2026-10-12, estando consolidadas de forma canônica e normativa em `requirements.md` e `roadmap.md`. **Este arquivo não é normativo**; em caso de conflito, prevalecem `requirements.md` e os artefatos de plano.
+
+> **Fallback de template:** `.reversa/templates/` e `.reversa/hooks.yml` estão ausentes no repositório. O template canônico usado como referência de estrutura foi `/root/.hermes/profiles/orchestrator/skills/software-development/reversa/templates/forward/body/roadmap-template.md`, apenas lido — nada foi copiado ou instalado na infraestrutura do projeto.
 
 ---
 
@@ -24,7 +26,13 @@
 - Jina Reader: https://jina.ai/reader/ — distingue `s.jina.ai` (busca/SERP) de `r.jina.ai` (leitura de URL); descreve `X-Engine: direct` como modo de fetch HTTP direto, rápido, contrastado com engine browser default. Página cita Search como top cinco resultados com URLs/conteúdo em fluxo compatível com Reader; não estabelece formato de proxy customizado.
 - Jina API docs: https://docs.jina.ai/api/ — descreve Search em `https://s.jina.ai/`, método POST e Bearer; lista `Accept: application/json`. `X-Engine` documentado como seleção de engine de fetch, em contexto de Reader. Não encontrei confirmação documental que `X-Engine: direct` seja aplicável à busca Search ou que `GET /?q=...` seja o contrato de Search recomendado.
 
-## Lacunas materiais: perguntas bloqueantes ao operador
+## Deliberações posteriores (normativas em requirements.md)
+
+As questões exploratórias abaixo foram resolvidas; não reapresentá-las como bloqueios. Q1: aprovação/revisão não agenda `schedule(run_research)`, disparo exclusivo em `/briefings/{research_id}/investigate`. Q2: nove falhas de baseline `8bfd529` e uma falha sensível a ordem/DNS permanecem gates obrigatórios antes do aceite. Q3: três tentativas totais por chamada externa (inicial + dois retries, 2s/4s). Q4/Q6: `step_title` `String(500)`, entrada acima de 500 rejeitada HTTP 422. Q5/Q10: admin 401/403, inexistente 404, estados sem pontos/execução/finalização 409. Q7: resposta inicial mais até três correções JSON; exaustão produz `FAILED`, `result="Invalid JSON response after 3 corrections"`, `used_urls=[]`. Q8: `attempt_count` inicia em 0, incremento atômico por falha definitiva; retomada apenas personas sem linha. Q9: prompts/CoT somente RAM; `result` análise final ou erro sanitizado.
+
+`read_urls` registra URLs retornadas pela Jina; não prova leitura íntegra ou correspondência verbatim. Limites documentados: timeout 90s por I/O e 600s por worker. Este resumo descreve o requisito futuro, não atesta execução/aceite do código. Escopo de features 003/004 (auditoria e redação), incluindo frontend, não faz parte desta feature.
+
+## Lacunas materiais: perguntas exploratórias resolvidas pelo operador (histórico, não bloqueios)
 
 1. **Vínculo de identidade:** `briefing_id` é ID de `BriefingRecord`, enquanto `research_id` é outra entidade. Como briefing aprovado vira ou aponta para `Research`, e qual identidade/cópia aprovada alimenta cada `ResearchPoint`? O código atual não mostra essa relação.
 2. **Limite efetivo de concorrência:** o requisito pede fan-out sem semáforo, mas helper LLM atual tem semáforo 4. A execução nova deve evitar `complete()` ou remover/alterar esse limite? O limite declarado é apenas por chamada LLM ou há limite operacional externo que deve ser respeitado? Não presumir capacidade de provedor para 28 requests simultâneos.

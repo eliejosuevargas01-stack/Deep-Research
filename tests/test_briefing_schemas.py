@@ -209,10 +209,12 @@ class BriefingResponseSchemaTests(unittest.TestCase):
         )
         self.assertEqual(resp.model_dump(mode="json"), {
             "id": "00000000-0000-0000-0000-000000000001",
+            "research_id": "00000000-0000-0000-0000-000000000001",
             "theme": "tema", "status": "draft",
             "points": self.valid_points(3), "version": 2, "error": None,
             "approved_at": "2026-01-01T12:00:00Z",
         })
+        self.assertEqual(resp.id, resp.research_id)
 
     def test_briefing_version_response_json_dump_exact_fields_defaults_and_schema(self):
         from datetime import timezone

@@ -59,6 +59,15 @@ class FakeLLM:
 
 
 class BriefingAPI(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        from app.core.config import settings
+        import app.core.security as security
+
+        for config in (settings, security.settings):
+            original = config.API_AUTH_SECRET
+            config.API_AUTH_SECRET = "test-api-secret-0123456789"
+            self.addCleanup(setattr, config, "API_AUTH_SECRET", original)
+
     async def asyncSetUp(self):
         self.engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
@@ -144,11 +153,11 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         bid = await self._seed()
         cookies, csrf = await self._cookie_auth()
         self.client.cookies.set("dr_session", cookies["dr_session"])
-        denied = await self.client.patch(f"/briefings/{bid}", json={"points": POINTS})
+        denied = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"})
         self.assertEqual(denied.status_code, 403)
-        denied = await self.client.patch(f"/briefings/{bid}", json={"points": POINTS}, headers={"X-CSRF-Token": "bad"})
+        denied = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"}, headers={"X-CSRF-Token": "bad"})
         self.assertEqual(denied.status_code, 403)
-        good = await self.client.patch(f"/briefings/{bid}", json={"points": POINTS}, headers={"X-CSRF-Token": csrf})
+        good = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"}, headers={"X-CSRF-Token": csrf})
         self.assertEqual(good.status_code, 200)
         self.client.cookies.clear()
         bearer = await self.client.get(f"/briefings/{bid}", headers={"Authorization": "Bearer test-api-secret-0123456789"})
@@ -161,20 +170,19 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         current = await self.client.get(f"/briefings/{bid}", headers=headers)
         self.assertEqual(current.json()["status"], "draft")
         before = await self._snapshot(bid)
-        invalid = await self.client.patch(f"/briefings/{bid}", json={"points": POINTS[:2]}, headers=headers)
+        invalid = await self.client.patch(f"/briefings/{bid}", json={"note": "x"}, headers=headers)
         self.assertEqual(invalid.status_code, 422)
         self.assertEqual(await self._snapshot(bid), before)
-        edited = await self.client.patch(f"/briefings/{bid}", json={"points": POINTS + [{"title": "P3", "description": "Description 3"}]}, headers=headers)
+        edited = await self.client.patch(f"/briefings/{bid}", json={"note": "Please add another supporting perspective"}, headers=headers)
         self.assertEqual((edited.status_code, edited.json()["version"]), (200, 3))
         response = await self.client.post(f"/briefings/{bid}/approve", headers=headers)
         self.assertEqual(response.status_code, 200, response.text)
         self.assertTrue(response.json()["approved_at"])
-        reopen = await self.client.post(f"/briefings/{bid}/reopen", json=None, headers=headers)
-        self.assertEqual(reopen.status_code, 200)
-        self.assertIsNone(reopen.json()["approved_at"])
-        response = await self.client.post(f"/briefings/{bid}/approve", json={}, headers=headers)
-        self.assertEqual(response.status_code, 200)
         before = await self._snapshot(bid)
+        reopen = await self.client.post(f"/briefings/{bid}/reopen", json=None, headers=headers)
+        self.assertEqual(reopen.status_code, 409, reopen.text)
+        self.assertEqual(reopen.json()["detail"], "Briefing aprovado não pode ser reaberto")
+        self.assertEqual(await self._snapshot(bid), before)
         for body in ([], "bad", 3, True, {"extra": "bad"}):
             response = await self.client.post(f"/briefings/{bid}/reopen", json=body, headers=headers)
             self.assertEqual(response.status_code, 422)
@@ -182,15 +190,15 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         approved = await self.client.get(f"/briefings/approved/{bid}", headers=headers)
         self.assertEqual(approved.status_code, 200)
         self.assertEqual(set(approved.json()), {"id", "theme", "points", "approved_at"})
-        self.assertEqual(self.llm.calls, 0)
-        edit = await self.client.patch(f"/briefings/{bid}", json={"points": POINTS}, headers=headers)
+        self.assertEqual(self.llm.calls, 1)
+        edit = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"}, headers=headers)
         self.assertEqual(edit.status_code, 409)
         history = await self.client.get(f"/briefings/{bid}/versions", headers=headers)
         versions = [x["version"] for x in history.json()]
         self.assertEqual(versions, sorted(versions))
         self.assertNotIn("briefing_id", history.json()[0])
         self.assertTrue(all("created_at" in x for x in history.json()))
-        self.assertEqual(self.serp.calls, 0)
+        self.assertEqual(self.serp.calls, 1)
         # Current generating v1 has no history snapshot yet.
         async with self.sessions() as db:
             generating = new_briefing("Another valid briefing theme")
@@ -205,7 +213,7 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
             (self.client.get, f"/briefings/{missing}", {}),
             (self.client.get, f"/briefings/{missing}/versions", {}),
             (self.client.get, f"/briefings/approved/{missing}", {}),
-            (self.client.patch, f"/briefings/{missing}", {"json": {"points": POINTS}}),
+            (self.client.patch, f"/briefings/{missing}", {"json": {"note": "Valid feedback"}}),
             (self.client.post, f"/briefings/{missing}/approve", {}),
             (self.client.post, f"/briefings/{missing}/reopen", {}),
         ):
@@ -314,10 +322,10 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         headers = {"Authorization": "Bearer test-api-secret-0123456789"}
         bid = await self._seed()
         before = await self._snapshot(bid)
-        with patch("app.briefing.router.save_briefing_transition", side_effect=BriefingVersionConflictError("cas")):
-            response = await self.client.patch(f"/briefings/{bid}", json={"points": POINTS}, headers=headers)
+        with patch("app.briefing.storage.save_briefing_transition", side_effect=BriefingVersionConflictError("cas")):
+            response = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"}, headers=headers)
         self.assertEqual(response.status_code, 409, response.text)
-        self.assertEqual(response.json()["detail"], "Conflito de versão do briefing")
+        self.assertEqual(response.json()["detail"], "Estado ou versão de briefing incompatível")
         self.assertEqual(await self._snapshot(bid), before)
 
     async def test_request_scoped_clients_use_fixed_runtime_contract(self):

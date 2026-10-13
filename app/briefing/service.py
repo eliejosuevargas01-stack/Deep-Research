@@ -3,10 +3,20 @@
 import asyncio
 import json
 import math
+from dataclasses import replace
 
-from app.briefing.domain import InvalidContent, complete_briefing, fail_briefing, new_briefing
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.briefing.domain import (
+    Briefing,
+    InvalidContent,
+    complete_briefing,
+    fail_briefing,
+    new_briefing,
+)
 from app.briefing.prompt_loader import PromptUnavailable, load_briefing_prompt
-from app.briefing.serp_client import SerpSearchError
+from app.briefing.serp_client import JinaSerpClient, SerpSearchError
 
 
 _PROMPT_ERROR = "Prompt de briefing indisponível"
@@ -99,6 +109,125 @@ async def generate_briefing(
         except (json.JSONDecodeError, InvalidContent):
             continue
     return fail_briefing(briefing, _GENERATION_ERROR)
+
+
+_REVISION_PROMPT_NOTE_MAX = 4000
+
+
+class BriefingRevisionError(Exception):
+    """Falha do Scout na revisão por feedback (mensagem fixa e segura)."""
+
+    def __init__(self, error: str = _GENERATION_ERROR):
+        super().__init__(error)
+        self.error = error
+
+
+def _revision_error_message(exc: BaseException) -> str:
+    if isinstance(exc, PromptUnavailable):
+        return _PROMPT_ERROR
+    if isinstance(exc, SerpSearchError):
+        return _SERP_ERROR
+    return _GENERATION_ERROR
+
+
+async def _mark_failed(db: AsyncSession, briefing: Briefing, error: str) -> None:
+    """Sinaliza briefing e pesquisa como FAILED, com versão incrementada."""
+    from app.briefing.domain import BriefingStatus
+    from app.briefing.storage import BriefingVersionConflictError, save_briefing_transition
+    from app.models.domain_models import Research, ResearchStatus, now
+
+    failed = replace(briefing, status=BriefingStatus.FAILED,
+                     points=(), error=error, version=briefing.version + 1)
+    try:
+        await save_briefing_transition(db, briefing, failed)
+    except BriefingVersionConflictError:
+        await db.rollback()
+    await db.execute(
+        update(Research)
+        .where(Research.id == briefing.id)
+        .values(status=ResearchStatus.FAILED, error=error, updated_at=now())
+    )
+    await db.commit()
+
+
+async def revise_briefing_with_feedback(
+    db: AsyncSession,
+    briefing: Briefing,
+    note: str,
+    serp_client: JinaSerpClient,
+    llm_complete,
+    llm_attempts: int = 4,
+    llm_timeout_s: float = 30.0,
+) -> Briefing:
+    """Reexecuta o Scout combinando tema, rascunho atual e nota de feedback (T016).
+
+    I/O externo fora da transação; persistência atômica em Tx única com CAS
+    por versão. Em falha: briefing marcado FAILED (versão incrementada) e
+    erro levantado para a rota mapear a matriz de status HTTP.
+    """
+    from app.briefing.domain import BriefingStatus, edit_briefing
+    from app.briefing.storage import (
+        BriefingVersionConflictError,
+        save_briefing_transition,
+    )
+    from app.models.domain_models import Research, ResearchStatus, now
+
+    normalized_note = note.strip()
+    if len(normalized_note) < 3:
+        raise InvalidContent("Feedback deve conter pelo menos 3 caracteres")
+    previous_points = [
+        {"title": p.title, "description": p.description} for p in briefing.points
+    ]
+    try:
+        system = load_briefing_prompt()
+        if not isinstance(system, str) or not system.strip():
+            raise PromptUnavailable(_PROMPT_ERROR)
+    except PromptUnavailable:
+        await _mark_failed(db, briefing, _PROMPT_ERROR)
+        raise BriefingRevisionError(_PROMPT_ERROR) from None
+    try:
+        serp_results = await serp_client.search(briefing.theme)
+    except SerpSearchError:
+        await _mark_failed(db, briefing, _SERP_ERROR)
+        raise BriefingRevisionError(_SERP_ERROR) from None
+    user = json.dumps(
+        {
+            "tema": briefing.theme,
+            "resultados_serp": serp_results,
+            "rascunho_atual": previous_points,
+            "feedback": normalized_note[:_REVISION_PROMPT_NOTE_MAX],
+            "formato_saida": _OUTPUT_FORMAT,
+        },
+        ensure_ascii=False,
+    )
+    for _ in range(llm_attempts):
+        deadline = asyncio.timeout(llm_timeout_s)
+        try:
+            async with deadline:
+                raw = await llm_complete(system, user)
+        except asyncio.CancelledError:
+            raise
+        except LLMAttemptError:
+            continue
+        except TimeoutError:
+            if deadline.expired():
+                continue
+            raise
+        try:
+            points = _parse_points(raw)
+            revised = edit_briefing(briefing, points)
+            persisted = await save_briefing_transition(db, briefing, revised)
+            await db.execute(
+                update(Research)
+                .where(Research.id == briefing.id)
+                .values(status=ResearchStatus.PENDING_APPROVAL, updated_at=now())
+            )
+            await db.commit()
+            return persisted
+        except (json.JSONDecodeError, InvalidContent):
+            continue
+    await _mark_failed(db, briefing, _GENERATION_ERROR)
+    raise BriefingRevisionError(_GENERATION_ERROR)
 
 
 async def orchestrate_persisted_briefing(

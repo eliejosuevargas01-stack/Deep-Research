@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import Principal, require_admin
 from app.db.database import AsyncSessionLocal, get_db
-from app.models import AuditTrail, Event, Report, Research, ResearchPoint
+from app.models import AuditTrail, Event, Report, Research, ResearchPoint, ResearchStatus
 from app.schemas import BriefingApproval, BriefingEdit, ResearchCreate
 from app.services.llm import ProviderConfigurationError
 from app.services.research import add_event, point_dependencies, run_research, sanitize_error, scout
@@ -31,20 +31,20 @@ def schedule(research_id: uuid.UUID) -> None:
 async def run_scout(research_id: uuid.UUID) -> None:
     async with AsyncSessionLocal() as db:
         research = await db.get(Research, research_id)
-        if not research or research.status != "scouting":
+        if not research or research.status not in (ResearchStatus.BRIEFING, ResearchStatus.BRIEFING.value):
             return
         try:
             points = await scout(research.theme, db)
             point_dependencies(points)
             research.briefing_draft = {"points": points, "source": "live_search_and_llm"}
-            research.status = "pending_approval"
+            research.status = ResearchStatus.PENDING_APPROVAL.value
             await db.commit()
         except Exception as exc:
             await db.rollback()
             safe_error = sanitize_error(exc, "scout execution")
             r = await db.get(Research, research_id)
             if r:
-                r.status = "failed"
+                r.status = ResearchStatus.FAILED.value
                 r.error = safe_error
                 await db.commit()
             try:
@@ -68,7 +68,7 @@ def schedule_scout(research_id: uuid.UUID) -> None:
 async def run_revision(research_id: uuid.UUID) -> None:
     async with AsyncSessionLocal() as sdb:
         r = await sdb.get(Research, research_id)
-        if not r or r.status != "revising":
+        if not r or r.status not in (ResearchStatus.BRIEFING, ResearchStatus.BRIEFING.value):
             return
         draft = dict(r.briefing_draft or {})
         note = str(draft.get("edit_note") or "").strip()
@@ -85,11 +85,11 @@ async def run_revision(research_id: uuid.UUID) -> None:
                 update(Research)
                 .where(
                     Research.id == research_id,
-                    Research.status == "revising",
+                    Research.status.in_([ResearchStatus.BRIEFING, ResearchStatus.BRIEFING.value]),
                     Research.approved_at.is_(None),
                 )
                 .values(
-                    status="approved",
+                    status=ResearchStatus.SCRAPER.value,
                     approved_at=datetime.now(timezone.utc),
                     briefing_draft={"points": points, "source": "revised_after_edit", "edit_note": note},
                 )
@@ -116,8 +116,8 @@ async def run_revision(research_id: uuid.UUID) -> None:
             await sdb.rollback()
             safe_error = sanitize_error(exc, "briefing revision")
             err_res = await sdb.get(Research, research_id)
-            if err_res and err_res.status == "revising":
-                err_res.status = "failed"
+            if err_res and err_res.status in (ResearchStatus.BRIEFING, ResearchStatus.BRIEFING.value):
+                err_res.status = ResearchStatus.FAILED.value
                 err_res.error = safe_error
                 await sdb.commit()
             try:
@@ -155,7 +155,7 @@ async def create_research(payload: ResearchCreate, principal: Principal = Depend
         else:
             callback = None
 
-    research = Research(theme=payload.theme.strip(), callback_url=callback, status="scouting", briefing_draft={})
+    research = Research(theme=payload.theme.strip(), callback_url=callback, status=ResearchStatus.BRIEFING.value, briefing_draft={})
     db.add(research)
     await db.commit()
     await db.refresh(research)
@@ -164,7 +164,7 @@ async def create_research(payload: ResearchCreate, principal: Principal = Depend
         await add_event(research.id, "scout", "scout_started", "Scout started live preliminary research")
     except Exception:
         pass
-    return {"research_id": research.id, "status": "scouting", "briefing_url": f"/api/research/{research.id}", "stream_url": f"/api/research/{research.id}/events"}
+    return {"research_id": research.id, "status": "briefing", "briefing_url": f"/api/research/{research.id}", "stream_url": f"/api/research/{research.id}/events"}
 
 
 @router.get("/research")
@@ -203,9 +203,9 @@ async def research_status(research_id: uuid.UUID, _: Principal = Depends(require
             )
             if latest_ev:
                 callback_status = "delivered" if latest_ev.event_type == "callback_delivered" else "failed"
-            elif research.status == "completed_but_callback_failed":
+            elif research.status in (ResearchStatus.DONE, ResearchStatus.DONE.value):
                 callback_status = "failed"
-            elif research.status == "failed":
+            elif research.status in (ResearchStatus.FAILED, ResearchStatus.FAILED.value):
                 callback_status = "failed"
             else:
                 callback_status = "pending"
@@ -218,7 +218,7 @@ async def research_status(research_id: uuid.UUID, _: Principal = Depends(require
         "callback_status": callback_status,
         "briefing_draft": research.briefing_draft,
         "error": research.error,
-        "briefing_edit_available": research.status == "pending_approval",
+        "briefing_edit_available": research.status in (ResearchStatus.PENDING_APPROVAL, ResearchStatus.PENDING_APPROVAL.value),
         "points": [{"id": p.id, "title": p.title, "status": p.status, "attempt_count": p.attempt_count, "audit": p.audit} for p in points],
         "created_at": research.created_at,
         "updated_at": research.updated_at,
@@ -239,7 +239,7 @@ async def edit_briefing(research_id: uuid.UUID, payload: BriefingEdit, _: Princi
     research = await db.get(Research, research_id)
     if not research:
         raise HTTPException(404, "Research not found")
-    if research.status != "pending_approval" or research.approved_at is not None:
+    if research.status not in (ResearchStatus.PENDING_APPROVAL, ResearchStatus.PENDING_APPROVAL.value) or research.approved_at is not None:
         raise HTTPException(409, "Briefing is no longer editable")
 
     draft = dict(research.briefing_draft or {})
@@ -253,11 +253,11 @@ async def edit_briefing(research_id: uuid.UUID, payload: BriefingEdit, _: Princi
             update(Research)
             .where(
                 Research.id == research_id,
-                Research.status == "pending_approval",
+                Research.status.in_([ResearchStatus.PENDING_APPROVAL, ResearchStatus.PENDING_APPROVAL.value]),
                 Research.approved_at.is_(None),
             )
             .values(
-                status="revising",
+                status=ResearchStatus.BRIEFING.value,
                 briefing_draft=draft,
             )
         )
@@ -270,7 +270,7 @@ async def edit_briefing(research_id: uuid.UUID, payload: BriefingEdit, _: Princi
     except Exception:
         await db.rollback()
         exists = await db.get(Research, research_id)
-        if exists and (exists.status != "pending_approval" or exists.approved_at is not None):
+        if exists and (exists.status not in (ResearchStatus.PENDING_APPROVAL, ResearchStatus.PENDING_APPROVAL.value) or exists.approved_at is not None):
             raise HTTPException(409, "Briefing is no longer editable")
         raise
 
@@ -281,7 +281,7 @@ async def edit_briefing(research_id: uuid.UUID, payload: BriefingEdit, _: Princi
     except Exception:
         pass
 
-    return {"research_id": research_id, "status": "revising"}
+    return {"research_id": research_id, "status": ResearchStatus.BRIEFING.value}
 
 
 @router.post("/research/{research_id}/briefing/approve")
@@ -293,8 +293,8 @@ async def approve(research_id: uuid.UUID, payload: BriefingApproval, _: Principa
     draft = {"points": [point.model_dump() for point in payload.approved_points], "source": "operator_approved"}
     try:
         result = await db.execute(
-            update(Research).where(Research.id == research_id, Research.status == "pending_approval", Research.approved_at.is_(None))
-            .values(status="approved", approved_at=datetime.now(timezone.utc), briefing_draft=draft)
+            update(Research).where(Research.id == research_id, Research.status.in_([ResearchStatus.PENDING_APPROVAL, ResearchStatus.PENDING_APPROVAL.value]), Research.approved_at.is_(None))
+            .values(status=ResearchStatus.SCRAPER.value, approved_at=datetime.now(timezone.utc), briefing_draft=draft)
         )
         if result.rowcount != 1:
             await db.rollback()
@@ -308,7 +308,7 @@ async def approve(research_id: uuid.UUID, payload: BriefingApproval, _: Principa
     except Exception:
         await db.rollback()
         exists = await db.get(Research, research_id)
-        if exists and (exists.status != "pending_approval" or exists.approved_at is not None):
+        if exists and (exists.status not in (ResearchStatus.PENDING_APPROVAL, ResearchStatus.PENDING_APPROVAL.value) or exists.approved_at is not None):
             raise HTTPException(409, "Briefing already approved or no longer approvable")
         raise
     schedule(research_id)
@@ -316,7 +316,7 @@ async def approve(research_id: uuid.UUID, payload: BriefingApproval, _: Principa
         await add_event(research_id, "system", "briefing_approved", "Briefing approved exactly once", {"points": len(payload.approved_points)})
     except Exception:
         pass
-    return {"research_id": research_id, "status": "approved"}
+    return {"research_id": research_id, "status": ResearchStatus.SCRAPER.value}
 
 
 @router.get("/research/{research_id}/events")
@@ -336,8 +336,8 @@ async def events(research_id: uuid.UUID, request: Request, last_event_id: int | 
                 cursor = row.id
                 data = json.dumps({"id": row.id, "persona": row.persona, "type": row.event_type, "summary": row.summary, "metrics": row.metrics, "created_at": row.created_at.isoformat()})
                 yield f"id: {row.id}\nevent: progress\ndata: {data}\n\n"
-            if research and research.status in {"completed", "completed_but_callback_failed", "blocked", "failed"} and not rows:
-                if research.callback_url and research.status in {"completed", "blocked"}:
+            if research and research.status in {ResearchStatus.DONE.value, ResearchStatus.FAILED.value} and not rows:
+                if research.callback_url and research.status == ResearchStatus.DONE.value:
                     async with AsyncSessionLocal() as sdb:
                         has_cb = await sdb.scalar(
                             select(Event.id)
@@ -391,9 +391,9 @@ async def resume(
     research = await db.get(Research, research_id)
     if not research:
         raise HTTPException(404, "Research not found")
-    if research.status in {"completed", "completed_but_callback_failed"}:
+    if research.status in {ResearchStatus.DONE, ResearchStatus.DONE.value}:
         raise HTTPException(409, "Research already completed")
-    if research.status in {"in_progress", "scouting"}:
+    if research.status in {ResearchStatus.SCRAPER, ResearchStatus.SCRAPER.value, ResearchStatus.BRIEFING, ResearchStatus.BRIEFING.value}:
         raise HTTPException(409, f"Research is already {research.status}")
 
     points = list(
@@ -405,7 +405,7 @@ async def resume(
     )
 
     if not points:
-        research.status = "scouting"
+        research.status = ResearchStatus.BRIEFING.value
         research.error = None
         await db.commit()
         schedule_scout(research_id)
@@ -413,9 +413,9 @@ async def resume(
             await add_event(research_id, "system", "research_resumed", "Research scout resumed by operator")
         except Exception:
             pass
-        return {"research_id": research_id, "status": "scouting"}
+        return {"research_id": research_id, "status": ResearchStatus.BRIEFING.value}
 
-    research.status = "in_progress"
+    research.status = ResearchStatus.SCRAPER.value
     research.error = None
     await db.commit()
     schedule(research_id)
@@ -423,5 +423,5 @@ async def resume(
         await add_event(research_id, "system", "research_resumed", "Research execution resumed by operator", {"points": len(points)})
     except Exception:
         pass
-    return {"research_id": research_id, "status": "in_progress"}
+    return {"research_id": research_id, "status": ResearchStatus.SCRAPER.value}
 

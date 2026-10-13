@@ -8,6 +8,8 @@
 from datetime import datetime
 from uuid import UUID
 
+from typing import Any
+
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.briefing.domain import (
@@ -57,6 +59,14 @@ class BriefingEditPointsRequest(BaseModel):
         return validate_points(v)
 
 
+class BriefingFeedbackRequest(BaseModel):
+    """Feedback textual do usuário para revisão do rascunho (T016)."""
+
+    model_config = {"extra": "forbid"}
+
+    note: str = Field(..., min_length=3, max_length=4000, description="Feedback textual do usuário para guiar a revisão do briefing")
+
+
 class BriefingApproveRequest(BaseModel):
     """Sem corpo: aprova rascunho atual (3-7 pontos válidos exigidos)."""
 
@@ -72,7 +82,8 @@ class BriefingReopenRequest(BaseModel):
 class BriefingResponse(BaseModel):
     model_config = {"extra": "forbid"}
 
-    id: UUID
+    id: UUID | None = Field(default=None)
+    research_id: UUID | None = Field(default=None)
     theme: str
     status: BriefingStatus
     points: list[BriefingPoint] = Field(default_factory=list)
@@ -80,8 +91,24 @@ class BriefingResponse(BaseModel):
     error: str | None = None
     approved_at: datetime | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _sync_ids_before(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            res_id = data.get("research_id")
+            b_id = data.get("id")
+            if res_id is not None and b_id is None:
+                data = {**data, "id": res_id}
+            elif b_id is not None and res_id is None:
+                data = {**data, "research_id": b_id}
+        return data
+
     @model_validator(mode="after")
-    def _points_when_content_required(self) -> "BriefingResponse":
+    def _sync_ids_after(self) -> "BriefingResponse":
+        if self.research_id is not None and self.id is None:
+            self.id = self.research_id
+        elif self.id is not None and self.research_id is None:
+            self.research_id = self.id
         if self.status in (BriefingStatus.DRAFT, BriefingStatus.APPROVED):
             self.points = validate_points(self.points)
         return self

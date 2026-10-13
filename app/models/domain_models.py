@@ -16,16 +16,14 @@ class Base(DeclarativeBase):
 
 
 class ResearchStatus(str, enum.Enum):
-    SCOUTING = "scouting"
-    PENDING_APPROVAL = "pending_approval"
-    REVISING = "revising"
-    APPROVED = "approved"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    COMPLETED_BUT_CALLBACK_FAILED = "completed_but_callback_failed"
-    BLOCKED = "blocked"
-    FAILED = "failed"
-    INTERRUPTED = "interrupted"
+    PENDING = "PENDING"
+    BRIEFING = "BRIEFING"
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    SCRAPER = "SCRAPER"
+    AUDIT = "AUDIT"
+    WRITE = "WRITE"
+    DONE = "DONE"
+    FAILED = "FAILED"
 
 
 class Research(Base):
@@ -33,13 +31,14 @@ class Research(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     theme: Mapped[str] = mapped_column(String(500))
     callback_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-    status: Mapped[str] = mapped_column(String(32), default=ResearchStatus.SCOUTING.value, index=True)
+    status: Mapped[str] = mapped_column(String(32), default=ResearchStatus.BRIEFING.value, index=True)
     briefing_draft: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
     points: Mapped[list["ResearchPoint"]] = relationship(back_populates="research", cascade="all, delete-orphan")
+    step_results: Mapped[list["ResearchStepResult"]] = relationship(back_populates="research", cascade="all, delete-orphan")
 
 
 class ResearchPoint(Base):
@@ -51,10 +50,27 @@ class ResearchPoint(Base):
     description: Mapped[str] = mapped_column(Text)
     dependencies: Mapped[list[str]] = mapped_column(JSON, default=list)
     is_parallelizable: Mapped[bool] = mapped_column(Boolean, default=True)
-    status: Mapped[str] = mapped_column(String(32), default="pending")
-    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(32), default="SCRAPER_PENDING")
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     audit: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     research: Mapped[Research] = relationship(back_populates="points")
+    step_results: Mapped[list["ResearchStepResult"]] = relationship(back_populates="point", cascade="all, delete-orphan")
+
+
+class ResearchStepResult(Base):
+    __tablename__ = "research_step_results"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    research_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("research.id", ondelete="CASCADE"), index=True)
+    step_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("research_points.id", ondelete="CASCADE"), index=True)
+    step_title: Mapped[str] = mapped_column(String(500))
+    result: Mapped[str] = mapped_column(Text)
+    used_urls: Mapped[list[str]] = mapped_column(JSON, default=list)
+    read_urls: Mapped[list[str]] = mapped_column(JSON, default=list)
+    worker: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(32), default="AUDIT_PENDING")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    research: Mapped[Research] = relationship(back_populates="step_results")
+    point: Mapped[ResearchPoint] = relationship(back_populates="step_results")
 
 
 class Evidence(Base):

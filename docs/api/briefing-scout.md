@@ -133,9 +133,12 @@ stateDiagram-v2
     generating --> draft: conclusão OK (geração de pontos)
     generating --> failed: erro (prompt/SERP/LLM/config)
     draft --> approved: POST /approve
-    approved --> draft: POST /reopen
     failed --> [*]: terminal
-    approved --> [*]: terminal (até reabrir)
+    approved --> [*]: terminal
+
+    note right of approved
+      POST /reopen proibido (409)
+    end note
 
     note right of draft
       PATCH /briefings/{id}
@@ -150,13 +153,13 @@ stateDiagram-v2
 | `generating` | `draft` | geração concluída | 3–7 pontos válidos |
 | `generating` | `failed` | erro interno/SERP/LLM | mensagem de erro fixa |
 | `draft` | `approved` | `POST /approve` | — |
-| `approved` | `draft` | `POST /reopen` | — |
+| `approved` | `approved` | `POST /reopen` | **409**, sem mutação |
 | `failed` | (qualquer) | — | **terminal**, requer nova criação |
 
 **Controle de versão:**
 
 - Versão inicia em `v1` (status `generating`).
-- Cada transição atômica **incrementa a versão** monotonicamente: `complete_briefing`, `edit_briefing`, `approve_briefing`, `reopen_briefing`, `fail_briefing`.
+- Cada transição atômica **incrementa a versão** monotonicamente: `complete_briefing`, `edit_briefing`, `approve_briefing`, `fail_briefing`. **`reopen_briefing` é proibido para briefings aprovados (409, sem mutação).**
 - Histórico append-only em `briefing_versions`, ordenado por `version ASC`.
 - `GET /briefings/{id}/versions` retorna **v2 em diante** (transições pós-criação).
 
@@ -247,29 +250,29 @@ Retorna o estado corrente do briefing.
 
 ---
 
-### `PATCH /briefings/{id}` — Editar pontos
+### `PATCH /briefings/{research_id}` — Revisar briefing via Scout
 
-Edita os pontos do briefing em status `draft`. Versão incrementa +1.
+Dispara revisão do briefing em status `draft` via Scout. O agente Scout reavalia os pontos com base no feedback e retorna novo rascunho com versão incrementada.
 
 | Parâmetro | Tipo | Local | Obrigatório | Descrição |
 |---|---|---|---|---|
-| `id` | `uuid` | path | Sim | UUID do briefing |
+| `research_id` | `uuid` | path | Sim | UUID da pesquisa (compatível com `id` do briefing) |
 
 | Campo | Tipo | Obrigatório | Default | Descrição |
 |---|---|---|---|---|
-| `points` | `array[object]` | Sim | — | Lista de **3–7 pontos**. Cada ponto: `title` (`string`, não vazio), `description` (`string`, não vazio). |
+| `note` | `string` | Sim | — | Texto de feedback para o Scout. **3–4000 caracteres** após trim. |
 
 **Resposta — `200 OK`:**
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "research_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "theme": "impacto da IA na medicina",
   "status": "draft",
   "points": [
     {
-      "title": "Ponto revisado",
-      "description": "Descrição atualizada"
+      "title": "Diagnóstico assistido por IA revisado",
+      "description": "Modelos de imagem médica para detecção precoce com feedback incorporado."
     }
   ],
   "version": 3,
@@ -277,6 +280,9 @@ Edita os pontos do briefing em status `draft`. Versão incrementa +1.
   "approved_at": null
 }
 ```
+
+> [!NOTE]
+> O campo primário de retorno é `research_id` (compatível com `id` legado). A revisão é processada pelo Scout (role `scout`) usando o mesmo pipeline de geração inicial, porém condicionado ao feedback.
 
 ---
 
@@ -315,32 +321,30 @@ O corpo da requisição é **aceito vazio** (`{}`, `null` ou corpo vazio). A val
 
 ---
 
-### `POST /briefings/{id}/reopen` — Reabrir briefing aprovado
+### `POST /briefings/{research_id}/reopen` — Reabrir briefing aprovado
 
-Reabre um briefing aprovado de volta para `draft`. Limpa `approved_at`, versão +1.
+Reabertura de briefing aprovado **proibida**: em briefing com status `approved`, o endpoint retorna **`409 Conflict`** sem alterar `status`, `version` ou `approved_at`.
 
 | Parâmetro | Tipo | Local | Obrigatório | Descrição |
 |---|---|---|---|---|
-| `id` | `uuid` | path | Sim | UUID do briefing |
+| `research_id` | `uuid` | path | Sim | UUID da pesquisa (compatível com `id` do briefing) |
 
-Corpo: aceito vazio (`{}`, `null` ou vazio).
+Corpo: aceito vazio (`{}`, `null` ou vazio), conforme contrato.
 
-**Resposta — `200 OK`:**
+**Resposta — `409 Conflict` (briefing em status `approved`):**
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "theme": "impacto da IA na medicina",
-  "status": "draft",
-  "points": [
-    {
-      "title": "Diagnóstico assistido por IA",
-      "description": "Modelos de imagem médica para detecção precoce de patologias."
-    }
-  ],
-  "version": 4,
-  "error": null,
-  "approved_at": null
+  "detail": "Briefing aprovado não pode ser reaberto"
+}
+```
+
+> [!IMPORTANT]
+> Em briefing **não aprovado** (ex.: `draft`), a operação também retorna **`409 Conflict`**, pois a reabertura apenas é inválida a partir de um briefing aprovado.
+
+```json
+{
+  "detail": "Briefing não aprovado. Apenas briefings aprovados podem ser reabertos."
 }
 ```
 
@@ -429,7 +433,7 @@ Lista o histórico append-only de versões do briefing, ordenado por `version AS
 | `GET` | `/briefings/{id}` | `200` | Snapshot corrente |
 | `PATCH` | `/briefings/{id}` | `200` | Editar pontos (draft) |
 | `POST` | `/briefings/{id}/approve` | `200` | Aprovar (draft) |
-| `POST` | `/briefings/{id}/reopen` | `200` | Reabrir (approved → draft) |
+| `POST` | `/briefings/{id}/reopen` | `409` | Reabertura de aprovado proibida; sem mutação |
 | `GET` | `/briefings/approved/{id}` | `200` | Consumir aprovado |
 | `GET` | `/briefings/{id}/versions` | `200` | Histórico de versões |
 
@@ -451,7 +455,7 @@ Lista o histórico append-only de versões do briefing, ordenado por `version AS
 | `404` | Briefing não encontrado | Não | `{"detail": "Briefing não encontrado"}` |
 | `409` | Conflito de versão CAS (edição concorrente) | Sim — reler versão corrente e reenviar (≤4 tentativas) | `{"detail": "Conflito de versão do briefing"}` |
 | `409` | Briefing não aprovado em `GET /approved/{id}` | Não (aguarde aprovação) | `{"detail": "Briefing não está aprovado"}` |
-| `409` | Transição inválida (ex: editar approved) | Não (reabrir primeiro) | `{"detail": "Briefing não pode ser editado neste estado"}` |
+| `409` | Transição inválida (ex: editar approved) | Não | `{"detail": "Briefing não pode ser editado neste estado"}` |
 | `422` | Theme < 3 ou > 300 chars | Não (corrigir tema) | `{"detail": "Conteúdo de briefing inválido"}` |
 | `422` | Pontos fora de 3–7; título/description vazios | Não (corrigir payload) | `{"detail": "Pontos de briefing inválidos"}` |
 | `422` | Body inválido em approve/reopen | Não | `{"detail": "Corpo inválido"}` |
