@@ -55,7 +55,7 @@ router = APIRouter(tags=["briefings"])
 
 def _response(briefing) -> BriefingResponse:
     return BriefingResponse(
-        id=briefing.id,
+        research_id=briefing.id,
         theme=briefing.theme,
         status=briefing.status,
         points=[BriefingPoint(title=p.title, description=p.description) for p in briefing.points],
@@ -212,7 +212,7 @@ async def get_approved_briefing(
     except InvalidTransition:
         raise _http_error(409, "Briefing não está aprovado") from None
     return ApprovedBriefingResponse(
-        id=approved.id,
+        research_id=approved.id,
         theme=approved.theme,
         points=[BriefingPoint(title=p.title, description=p.description) for p in approved.points],
         approved_at=approved.approved_at,

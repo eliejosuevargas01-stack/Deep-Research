@@ -40,7 +40,7 @@ class BriefingPoint(BaseModel):
 class BriefingCreateRequest(BaseModel):
     model_config = {"extra": "forbid"}
 
-    theme: str = Field(min_length=THEME_MIN, max_length=THEME_MAX)
+    theme: str
 
     @field_validator("theme", mode="before")
     @classmethod
@@ -82,8 +82,7 @@ class BriefingReopenRequest(BaseModel):
 class BriefingResponse(BaseModel):
     model_config = {"extra": "forbid"}
 
-    id: UUID | None = Field(default=None)
-    research_id: UUID | None = Field(default=None)
+    research_id: UUID
     theme: str
     status: BriefingStatus
     points: list[BriefingPoint] = Field(default_factory=list)
@@ -95,20 +94,12 @@ class BriefingResponse(BaseModel):
     @classmethod
     def _sync_ids_before(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            res_id = data.get("research_id")
-            b_id = data.get("id")
-            if res_id is not None and b_id is None:
-                data = {**data, "id": res_id}
-            elif b_id is not None and res_id is None:
-                data = {**data, "research_id": b_id}
+            if "research_id" not in data and "id" in data:
+                data = {**data, "research_id": data["id"]}
         return data
 
     @model_validator(mode="after")
     def _sync_ids_after(self) -> "BriefingResponse":
-        if self.research_id is not None and self.id is None:
-            self.id = self.research_id
-        elif self.id is not None and self.research_id is None:
-            self.research_id = self.id
         if self.status in (BriefingStatus.DRAFT, BriefingStatus.APPROVED):
             self.points = validate_points(self.points)
         return self
@@ -138,7 +129,7 @@ class ApprovedBriefingResponse(BaseModel):
 
     model_config = {"extra": "forbid"}
 
-    id: UUID
+    research_id: UUID
     theme: str
     points: list[BriefingPoint] = Field(min_length=POINTS_MIN, max_length=POINTS_MAX)
     approved_at: datetime | None = None
