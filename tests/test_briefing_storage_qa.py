@@ -17,7 +17,7 @@ from app.briefing.storage import (
     BriefingVersionConflictError, create_generating_briefing, get_briefing,
     get_briefing_versions, points_to_json, save_briefing_transition,
 )
-from app.models.domain_models import Base, BriefingRecord, BriefingVersion
+from app.models.domain_models import Base, BriefingRecord, BriefingVersion, Research
 
 
 def points(label):
@@ -37,8 +37,7 @@ class TestBriefingStorageQA(unittest.IsolatedAsyncioTestCase):
         self.addAsyncCleanup(self.engine.dispose)
         self.Session = async_sessionmaker(self.engine, expire_on_commit=False)
         async with self.engine.begin() as connection:
-            await connection.run_sync(lambda conn: Base.metadata.create_all(
-                conn, tables=[BriefingRecord.__table__, BriefingVersion.__table__]))
+            await connection.run_sync(Base.metadata.create_all)
 
     async def persist(self, previous, current):
         async with self.Session() as db:
@@ -66,11 +65,11 @@ class TestBriefingStorageQA(unittest.IsolatedAsyncioTestCase):
         edited = edit_briefing(draft, edited_points)
         # SQLite preserves wall time, not timezone; PostgreSQL is outside this QA.
         approved = approve_briefing(edited, datetime(2026, 10, 11, 12, 30, 45))
-        reopened = reopen_briefing(approved)
-        after_reopen = edit_briefing(reopened, points("reaberto"))
+        with self.assertRaisesRegex(InvalidTransition, "^Briefing aprovado não pode ser reaberto$"):
+            reopen_briefing(approved)
         previous = draft
         _, old_history = await self.read(draft.id)
-        for current in (edited, approved, reopened, after_reopen):
+        for current in (edited, approved):
             await self.persist(previous, current)
             saved, history = await self.read(draft.id)
             self.assertEqual(saved, current)
@@ -90,11 +89,10 @@ class TestBriefingStorageQA(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(old_history[0]["points_json"], points("original"))
         self.assertEqual(old_history[1]["points_json"], edited_points)
         self.assertEqual(old_history[2]["approved_at"], approved.approved_at)
-        self.assertIsNone(old_history[3]["approved_at"])
-        self.assertIsNone(saved.approved_at)
+        self.assertEqual(saved.approved_at, approved.approved_at)
         with self.assertRaises(InvalidTransition):
             edit_briefing(approved, points("proibido"))
-        self.assertEqual(await self.read(draft.id), (after_reopen, old_history))
+        self.assertEqual(await self.read(draft.id), (approved, old_history))
 
     async def test_stale_cas_keeps_exact_winner_and_history(self):
         draft = await self.seed()

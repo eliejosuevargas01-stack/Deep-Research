@@ -66,7 +66,7 @@ def transition(status: BriefingStatus | str, target: BriefingStatus | str) -> Br
     allowed = {
         BriefingStatus.GENERATING: {BriefingStatus.DRAFT, BriefingStatus.FAILED},
         BriefingStatus.DRAFT: {BriefingStatus.APPROVED},
-        BriefingStatus.APPROVED: {BriefingStatus.DRAFT},
+        BriefingStatus.APPROVED: set(),
         BriefingStatus.FAILED: set(),
     }
     if next_status not in allowed[current]:
@@ -156,10 +156,9 @@ def approve_briefing(briefing: Briefing, approved_at: datetime) -> Briefing:
 
 
 def reopen_briefing(briefing: Briefing) -> Briefing:
-    if briefing.status != BriefingStatus.APPROVED:
-        raise InvalidTransition("Reabertura permitida somente a partir de aprovado")
-    return replace(briefing, status=transition(briefing.status, BriefingStatus.DRAFT),
-                   approved_at=None, version=briefing.version + 1)
+    if briefing.status == BriefingStatus.APPROVED:
+        raise InvalidTransition("Briefing aprovado não pode ser reaberto")
+    raise InvalidTransition("Reabertura permitida somente a partir de aprovado")
 
 
 def read_approved(briefing: Briefing) -> Briefing:

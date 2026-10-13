@@ -60,7 +60,7 @@ class BriefingDomainTests(unittest.TestCase):
 
     def test_all_sixteen_transitions_enum_and_string(self):
         allowed = {("generating", "draft"), ("generating", "failed"),
-                   ("draft", "approved"), ("approved", "draft")}
+                   ("draft", "approved")}
         for source in BriefingStatus:
             for target in BriefingStatus:
                 for current, next_status in ((source, target), (source.value, target.value)):
@@ -85,13 +85,13 @@ class BriefingDomainTests(unittest.TestCase):
                     with self.assertRaises(InvalidTransition):
                         assert_can_edit(status)
 
-    def test_reopen_and_repeat_edit_without_research_guard_or_limit(self):
-        status = BriefingStatus.APPROVED
-        for _ in range(20):
-            status = transition(status, BriefingStatus.DRAFT)
-            for _ in range(20):
-                self.assertIsNone(assert_can_edit(status))
-            status = transition(status, BriefingStatus.APPROVED)
+    def test_approved_cannot_reopen(self):
+        with self.assertRaises(InvalidTransition):
+            transition(BriefingStatus.APPROVED, BriefingStatus.DRAFT)
+        from app.briefing.domain import Briefing, reopen_briefing
+        approved = Briefing(id=__import__("uuid").uuid4(), theme="Climate research", status=BriefingStatus.APPROVED)
+        with self.assertRaisesRegex(InvalidTransition, "^Briefing aprovado não pode ser reaberto$"):
+            reopen_briefing(approved)
 
 
 if __name__ == "__main__":

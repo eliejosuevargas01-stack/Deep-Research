@@ -69,7 +69,7 @@ async def _write_report(research: Research, points: list[ResearchPoint]) -> None
         report = Report(research_id=research.id, content_markdown=text, citation_metrics={"evidence_records": len(evidence), "source_urls_cited": cited}, audit_findings={"points": audits})
         db.add(report)
         stored = await db.get(Research, research.id)
-        stored.status = "completed" if all(point.status == "approved" for point in points) else "blocked"
+        stored.status = "DONE" if all(point.status == "approved" for point in points) else "FAILED"
         await db.commit()
     from app.services.research import add_event
     await add_event(research.id, "writer", "synthesis_completed", "Evidence-grounded report persisted", {"evidence_records": len(evidence), "citations": cited})

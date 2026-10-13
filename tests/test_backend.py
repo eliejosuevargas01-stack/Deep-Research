@@ -104,11 +104,11 @@ def test_create_scout_approval_once_and_traceability(client, monkeypatch):
     import time
     status = client.get(f"/api/research/{rid}").json()
     for _ in range(60):
-        if status["status"] != "scouting":
+        if status["status"] != "BRIEFING":
             break
         time.sleep(0.05)
         status = client.get(f"/api/research/{rid}").json()
-    assert status["status"] == "pending_approval"
+    assert status["status"] == "PENDING_APPROVAL"
     assert len(status["briefing_draft"]["points"]) == 5
 
     async def fake_run(research_id):
@@ -182,7 +182,7 @@ def test_audit_trail_model_and_callback_failure_status():
     from app.models import AuditTrail
     from app.models.domain_models import ResearchStatus
     assert AuditTrail.__tablename__ == "audit_trails"
-    assert ResearchStatus.COMPLETED_BUT_CALLBACK_FAILED.value == "completed_but_callback_failed"
+    assert ResearchStatus.DONE.value == "DONE"
 
 
 def test_search_falls_back_after_empty_serpapi_and_apify(monkeypatch):
@@ -215,7 +215,7 @@ def test_failed_callback_preserves_report_and_records_status(client):
 
     async def exercise():
         async with AsyncSessionLocal() as db:
-            item = Research(theme="Callback isolation", callback_url="http://127.0.0.1/blocked", status="completed", briefing_draft={})
+            item = Research(theme="Callback isolation", callback_url="http://127.0.0.1/blocked", status="DONE", briefing_draft={})
             db.add(item)
             await db.flush()
             rid = item.id
@@ -227,7 +227,7 @@ def test_failed_callback_preserves_report_and_records_status(client):
             report = await db.scalar(select(Report).where(Report.research_id == rid))
             trail = await db.scalar(select(AuditTrail).where(AuditTrail.research_id == rid, AuditTrail.stage == "callback"))
             assert research is not None and report is not None and trail is not None
-            assert research.status == "completed_but_callback_failed"
+            assert research.status == "DONE"
             assert report.content_markdown == "Verified report"
             assert trail.details == {"delivered": False}
 
@@ -310,19 +310,19 @@ def test_full_pipeline_with_controlled_sources_and_models(client, monkeypatch):
     status = client.get(f"/api/research/{rid}").json()
     for _ in range(100):
         status = client.get(f"/api/research/{rid}").json()
-        if status["status"] == "pending_approval":
+        if status["status"] == "PENDING_APPROVAL":
             break
         time.sleep(0.05)
-    assert status["status"] == "pending_approval", status
+    assert status["status"] == "PENDING_APPROVAL", status
     response = client.post(f"/api/research/{rid}/briefing/approve",
                            json={"approved_points": status["briefing_draft"]["points"]}, headers=headers)
     assert response.status_code == 200, response.text
     for _ in range(200):
         status = client.get(f"/api/research/{rid}").json()
-        if status["status"] in {"completed", "blocked", "failed"}:
+        if status["status"] in {"DONE", "FAILED"}:
             break
         time.sleep(0.05)
-    assert status["status"] == "completed", status
+    assert status["status"] == "DONE", status
     assert len(status["points"]) == 5
     assert all(point["attempt_count"] == 1 and point["status"] == "approved" for point in status["points"])
     report = client.get(f"/api/reports/{rid}")
@@ -689,7 +689,7 @@ def test_research_controlled_failure_sanitizes_secrets(monkeypatch):
 
     async def run():
         async with AsyncSessionLocal() as db:
-            r = Research(id=rid, theme="Secret Leaks Test", status="approved", briefing_draft={})
+            r = Research(id=rid, theme="Secret Leaks Test", status="SCRAPER", briefing_draft={})
             db.add(r)
             await db.commit()
 
@@ -704,7 +704,7 @@ def test_research_controlled_failure_sanitizes_secrets(monkeypatch):
         async with AsyncSessionLocal() as db:
             updated = await db.get(Research, rid)
             assert updated is not None
-            assert updated.status == "failed"
+            assert updated.status == "FAILED"
             assert updated.error is not None
             # Ensure error does NOT contain secret
             assert "secret_token_abcdef1234567890" not in updated.error
@@ -1031,7 +1031,7 @@ def test_scout_controlled_failure_sanitizes_secrets_and_suppresses_traceback(mon
 
     async def run():
         async with AsyncSessionLocal() as db:
-            r = Research(id=rid, theme="Scout Secret Leak Test", status="scouting", briefing_draft={})
+            r = Research(id=rid, theme="Scout Secret Leak Test", status="BRIEFING", briefing_draft={})
             db.add(r)
             await db.commit()
 
@@ -1040,7 +1040,7 @@ def test_scout_controlled_failure_sanitizes_secrets_and_suppresses_traceback(mon
         async with AsyncSessionLocal() as db:
             updated = await db.get(Research, rid)
             assert updated is not None
-            assert updated.status == "failed"
+            assert updated.status == "FAILED"
             assert updated.error is not None
             # Zero secret leakage in research.error
             assert secret not in updated.error
@@ -1087,13 +1087,13 @@ def test_briefing_edit_cas_intermediate_state_and_one_time_execution(client, mon
         return None
     monkeypatch.setattr("app.routers.research.run_research", fake_run_research)
 
-    # 1. Seed research in pending_approval
+    # 1. Seed research in PENDING_APPROVAL
     async def seed():
         async with AsyncSessionLocal() as db:
             r = Research(
                 id=rid,
                 theme="Quantum Computing",
-                status="pending_approval",
+                status="PENDING_APPROVAL",
                 briefing_draft={"points": points_initial, "source": "live_search_and_llm"},
             )
             db.add(r)
@@ -1109,7 +1109,7 @@ def test_briefing_edit_cas_intermediate_state_and_one_time_execution(client, mon
     )
     assert res.status_code == 200
     data = res.json()
-    assert data["status"] == "revising"
+    assert data["status"] == "BRIEFING"
     assert data["research_id"] == str(rid)
 
     # 3. Immediate sequential replay must be rejected with 409
@@ -1120,7 +1120,7 @@ def test_briefing_edit_cas_intermediate_state_and_one_time_execution(client, mon
     )
     assert res_replay.status_code == 409
 
-    # Approve while revising must also fail with 409
+    # Approve while BRIEFING must also fail with 409
     res_approve = client.post(
         f"/api/research/{rid}/briefing/approve",
         json={"approved_points": points_initial},
@@ -1131,12 +1131,12 @@ def test_briefing_edit_cas_intermediate_state_and_one_time_execution(client, mon
     # 4. Wait for background task rerun() to finish
     status = client.get(f"/api/research/{rid}").json()
     for _ in range(60):
-        if status["status"] == "approved":
+        if status["status"] == "SCRAPER":
             break
         time.sleep(0.05)
         status = client.get(f"/api/research/{rid}").json()
 
-    assert status["status"] == "approved"
+    assert status["status"] == "SCRAPER"
     assert status["briefing_edit_available"] is False
     assert status["briefing_draft"]["source"] == "revised_after_edit"
     assert status["briefing_draft"]["edit_note"] == "Focus on energy efficiency"
@@ -1185,7 +1185,7 @@ def test_briefing_edit_concurrent_requests_race_condition(monkeypatch):
             r = Research(
                 id=rid,
                 theme="Concurrency Test",
-                status="pending_approval",
+                status="PENDING_APPROVAL",
                 briefing_draft={"points": points_initial, "source": "live_search_and_llm"},
             )
             db.add(r)
@@ -1245,7 +1245,7 @@ def test_briefing_edit_and_approve_race_condition(monkeypatch):
             r = Research(
                 id=rid,
                 theme="Edit vs Approve Race",
-                status="pending_approval",
+                status="PENDING_APPROVAL",
                 briefing_draft={"points": points_initial, "source": "live_search_and_llm"},
             )
             db.add(r)
@@ -1321,10 +1321,10 @@ def test_briefing_edit_negative_and_validation_cases(monkeypatch):
             )
             assert res422_dep.status_code == 422
 
-            # 4. 409 when status is not pending_approval (e.g., scouting, failed, completed, in_progress)
+            # 4. 409 when status is not PENDING_APPROVAL (e.g., BRIEFING, failed, completed, SCRAPER)
             async with AsyncSessionLocal() as db:
                 rids = {}
-                for bad_status, approved in [("scouting", False), ("failed", False), ("completed", True), ("in_progress", True)]:
+                for bad_status, approved in [("BRIEFING", False), ("failed", False), ("completed", True), ("SCRAPER", True)]:
                     rid = uuid.uuid4()
                     r = Research(
                         id=rid,
@@ -1357,18 +1357,18 @@ def test_research_status_contract_callback_configured_and_status(client):
     async def seed():
         async with AsyncSessionLocal() as db:
             # 1. Research without callback
-            r_no_cb = Research(theme="No CB", callback_url=None, status="completed", briefing_draft={})
+            r_no_cb = Research(theme="No CB", callback_url=None, status="DONE", briefing_draft={})
             db.add(r_no_cb)
             # 2. Research with callback, pending
-            r_pending = Research(theme="Pending CB", callback_url=secret_callback, status="in_progress", briefing_draft={})
+            r_pending = Research(theme="Pending CB", callback_url=secret_callback, status="SCRAPER", briefing_draft={})
             db.add(r_pending)
             # 3. Research with callback, delivered
-            r_deliv = Research(theme="Delivered CB", callback_url=secret_callback, status="completed", briefing_draft={})
+            r_deliv = Research(theme="Delivered CB", callback_url=secret_callback, status="DONE", briefing_draft={})
             db.add(r_deliv)
             await db.flush()
             db.add(AuditTrail(research_id=r_deliv.id, stage="callback", details={"delivered": True}))
             # 4. Research with callback, failed
-            r_fail = Research(theme="Failed CB", callback_url=secret_callback, status="completed_but_callback_failed", briefing_draft={})
+            r_fail = Research(theme="Failed CB", callback_url=secret_callback, status="DONE", briefing_draft={})
             db.add(r_fail)
             await db.flush()
             db.add(AuditTrail(research_id=r_fail.id, stage="callback", details={"delivered": False}))
@@ -1420,7 +1420,7 @@ def test_retry_callback_returns_success_and_delivered(client, monkeypatch):
 
     async def seed():
         async with AsyncSessionLocal() as db:
-            r = Research(theme="Retry Test", callback_url="https://example.com/hook", status="completed_but_callback_failed", briefing_draft={})
+            r = Research(theme="Retry Test", callback_url="https://example.com/hook", status="DONE", briefing_draft={})
             db.add(r)
             await db.flush()
             rep = Report(research_id=r.id, content_markdown="# Done", citation_metrics={}, audit_findings={})
@@ -1507,7 +1507,7 @@ def test_put_settings_removal_with_null_and_empty_string_and_omit(client):
     assert res5.json()["openai_base_url"] is None
 
 
-def test_scout_and_revising_not_orphaned_on_event_failure(monkeypatch):
+def test_scout_and_BRIEFING_not_orphaned_on_event_failure(monkeypatch):
     import asyncio
     import uuid
     from app.routers.research import run_scout
@@ -1517,7 +1517,7 @@ def test_scout_and_revising_not_orphaned_on_event_failure(monkeypatch):
 
     async def run():
         async with AsyncSessionLocal() as db:
-            r = Research(id=rid, theme="Event Failure Test", status="scouting", briefing_draft={})
+            r = Research(id=rid, theme="Event Failure Test", status="BRIEFING", briefing_draft={})
             db.add(r)
             await db.commit()
 
@@ -1532,19 +1532,19 @@ def test_scout_and_revising_not_orphaned_on_event_failure(monkeypatch):
         monkeypatch.setattr("app.routers.research.scout", fake_scout)
         monkeypatch.setattr("app.routers.research.add_event", failing_add_event)
 
-        # run_scout must transition to pending_approval and NOT mark failed
+        # run_scout must transition to PENDING_APPROVAL and NOT mark failed
         await run_scout(rid)
 
         async with AsyncSessionLocal() as db:
             updated = await db.get(Research, rid)
             assert updated is not None
-            assert updated.status == "pending_approval"
+            assert updated.status == "PENDING_APPROVAL"
             assert len(updated.briefing_draft["points"]) == 5
 
     asyncio.run(run())
 
 
-def test_revising_recovery_on_startup_lifespan(monkeypatch):
+def test_BRIEFING_recovery_on_startup_lifespan(monkeypatch):
     import asyncio
     import uuid
     from app.main import app, lifespan
@@ -1596,13 +1596,13 @@ def test_revising_recovery_on_startup_lifespan(monkeypatch):
         async with AsyncSessionLocal() as db:
             await db.execute(
                 update(Research)
-                .where(Research.id != rid, Research.status.in_(["scouting", "revising", "approved", "in_progress"]))
-                .values(status="completed")
+                .where(Research.id != rid, Research.status.in_(["BRIEFING", "BRIEFING", "approved", "SCRAPER"]))
+                .values(status="DONE")
             )
             r = Research(
                 id=rid,
                 theme="AI Safety",
-                status="revising",
+                status="BRIEFING",
                 briefing_draft={
                     "points": base_points,
                     "edit_note": "Reflect zero trust architecture",
@@ -1618,7 +1618,7 @@ def test_revising_recovery_on_startup_lifespan(monkeypatch):
             for _ in range(100):
                 async with AsyncSessionLocal() as db:
                     check_r = await db.get(Research, rid)
-                    if check_r and check_r.status == "revising":
+                    if check_r and check_r.status == "BRIEFING":
                         break
                 await asyncio.sleep(0.05)
 
@@ -1635,7 +1635,7 @@ def test_revising_recovery_on_startup_lifespan(monkeypatch):
         async with AsyncSessionLocal() as db:
             recovered = await db.get(Research, rid)
             assert recovered is not None
-            assert recovered.status == "approved"
+            assert recovered.status == "SCRAPER"
             assert recovered.approved_at is not None
             assert recovered.briefing_draft["source"] == "revised_after_edit"
             assert recovered.briefing_draft["edit_note"] == "Reflect zero trust architecture"
@@ -1655,7 +1655,7 @@ def test_revising_recovery_on_startup_lifespan(monkeypatch):
     asyncio.run(run())
 
 
-def test_revising_prevents_duplicate_research_points_and_idempotency(monkeypatch):
+def test_BRIEFING_prevents_duplicate_research_points_and_idempotency(monkeypatch):
     import asyncio
     import uuid
     from app.models import Research, ResearchPoint
@@ -1681,12 +1681,12 @@ def test_revising_prevents_duplicate_research_points_and_idempotency(monkeypatch
     monkeypatch.setattr("app.routers.research.schedule", lambda r_id: scheduled_research.append(r_id))
 
     async def run():
-        # Seed research in 'revising' with 2 stale ResearchPoints from a prior aborted attempt
+        # Seed research in 'BRIEFING' with 2 stale ResearchPoints from a prior aborted attempt
         async with AsyncSessionLocal() as db:
             r = Research(
                 id=rid,
                 theme="Deduplication Test",
-                status="revising",
+                status="BRIEFING",
                 briefing_draft={"points": base_points, "edit_note": "Clean up"},
             )
             db.add(r)
@@ -1706,7 +1706,7 @@ def test_revising_prevents_duplicate_research_points_and_idempotency(monkeypatch
 
             rec = await db.get(Research, rid)
             assert rec is not None
-            assert rec.status == "approved"
+            assert rec.status == "SCRAPER"
 
         # Re-running run_revision on now-approved record should be a no-op (CAS protects)
         await run_revision(rid)
@@ -1720,7 +1720,7 @@ def test_revising_prevents_duplicate_research_points_and_idempotency(monkeypatch
     asyncio.run(run())
 
 
-def test_edit_briefing_and_revising_resilient_to_add_event_failure(monkeypatch):
+def test_edit_briefing_and_BRIEFING_resilient_to_add_event_failure(monkeypatch):
     import asyncio
     import uuid
     import httpx
@@ -1758,7 +1758,7 @@ def test_edit_briefing_and_revising_resilient_to_add_event_failure(monkeypatch):
             r = Research(
                 id=rid,
                 theme="Resilience Test",
-                status="pending_approval",
+                status="PENDING_APPROVAL",
                 briefing_draft={"points": points, "source": "scout"},
             )
             db.add(r)
@@ -1772,13 +1772,13 @@ def test_edit_briefing_and_revising_resilient_to_add_event_failure(monkeypatch):
                 headers=headers,
             )
             assert res.status_code == 200
-            assert res.json()["status"] == "revising"
+            assert res.json()["status"] == "BRIEFING"
 
         # Wait for background revision to finish
         for _ in range(60):
             async with AsyncSessionLocal() as db:
                 st = await db.get(Research, rid)
-                if st and st.status == "approved":
+                if st and st.status == "SCRAPER":
                     break
             await asyncio.sleep(0.05)
 
@@ -1791,7 +1791,7 @@ def test_edit_briefing_and_revising_resilient_to_add_event_failure(monkeypatch):
         async with AsyncSessionLocal() as db:
             final_r = await db.get(Research, rid)
             assert final_r is not None
-            assert final_r.status == "approved"
+            assert final_r.status == "SCRAPER"
             pts = list((await db.scalars(select(ResearchPoint).where(ResearchPoint.research_id == rid))).all())
             assert len(pts) == 5
 
@@ -1801,7 +1801,7 @@ def test_edit_briefing_and_revising_resilient_to_add_event_failure(monkeypatch):
             r2 = Research(
                 id=rid2,
                 theme="Revision Event Failure",
-                status="revising",
+                status="BRIEFING",
                 briefing_draft={"points": points, "edit_note": "Direct run note"},
             )
             db.add(r2)
@@ -1811,7 +1811,7 @@ def test_edit_briefing_and_revising_resilient_to_add_event_failure(monkeypatch):
         async with AsyncSessionLocal() as db:
             rec = await db.get(Research, rid2)
             assert rec is not None
-            assert rec.status == "approved"
+            assert rec.status == "SCRAPER"
             pts2 = list((await db.scalars(select(ResearchPoint).where(ResearchPoint.research_id == rid2))).all())
             assert len(pts2) == 5
 
@@ -1936,7 +1936,7 @@ def test_a03_creation_payload_strict_and_backend_callback(client, monkeypatch):
         async with AsyncSessionLocal() as db:
             rec = await db.get(Research, rid)
             if rec:
-                rec.status = "completed"
+                rec.status = "DONE"
                 await db.commit()
     client.portal.call(_cleanup_completed)
 
@@ -2072,7 +2072,7 @@ def test_ma_reports_endpoint_resolves_both_ids(client, monkeypatch):
     import asyncio
     async def setup_report():
         async with AsyncSessionLocal() as db:
-            r = Research(id=rid, theme="Resolution Test", status="completed", callback_url=None)
+            r = Research(id=rid, theme="Resolution Test", status="DONE", callback_url=None)
             db.add(r)
             rep = Report(
                 id=rep_id,
@@ -2187,16 +2187,16 @@ def test_resume_research_endpoint(client, monkeypatch):
             # 1. Non-existent -> 404
             pass
             # 2. Completed -> 409
-            r_comp = Research(theme="Completed research", status="completed", briefing_draft={})
+            r_comp = Research(theme="Completed research", status="DONE", briefing_draft={})
             db.add(r_comp)
-            # 3. Failed without points -> resumes to scouting
+            # 3. Failed without points -> resumes to BRIEFING
             r_scout_fail = Research(theme="Failed scout research", status="failed", briefing_draft={})
             db.add(r_scout_fail)
-            # 4. Failed with points -> resumes to in_progress
+            # 4. Failed with points -> resumes to SCRAPER
             r_pts_fail = Research(theme="Failed with points", status="failed", briefing_draft={})
             db.add(r_pts_fail)
             await db.flush()
-            db.add(ResearchPoint(research_id=r_pts_fail.id, position=0, title="P0", description="D0", dependencies=[], is_parallelizable=True, status="approved"))
+            db.add(ResearchPoint(research_id=r_pts_fail.id, position=0, title="P0", description="D0", dependencies=[], is_parallelizable=True, status="SCRAPER"))
             await db.commit()
             return str(r_comp.id), str(r_scout_fail.id), str(r_pts_fail.id)
 
@@ -2213,16 +2213,16 @@ def test_resume_research_endpoint(client, monkeypatch):
     resp = client.post(f"/api/research/{comp_id}/resume", headers=headers)
     assert resp.status_code == 409
 
-    # Failed without points -> scouting
+    # Failed without points -> BRIEFING
     resp = client.post(f"/api/research/{scout_fail_id}/resume", headers=headers)
     assert resp.status_code == 200
-    assert resp.json()["status"] == "scouting"
+    assert resp.json()["status"] == "BRIEFING"
     assert len(scout_scheduled) == 1
 
-    # Failed with points -> in_progress
+    # Failed with points -> SCRAPER
     resp = client.post(f"/api/research/{pts_fail_id}/resume", headers=headers)
     assert resp.status_code == 200
-    assert resp.json()["status"] == "in_progress"
+    assert resp.json()["status"] == "SCRAPER"
     assert len(research_scheduled) == 1
 
 

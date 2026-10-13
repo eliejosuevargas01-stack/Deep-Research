@@ -64,12 +64,12 @@ def test_criteria_full_flow(client, monkeypatch):
         # Wait for scout
         status = client.get(f"/api/research/{rid}", headers=headers).json()
         for _ in range(60):
-            if status["status"] == "pending_approval":
+            if status["status"] == "PENDING_APPROVAL":
                 break
             time.sleep(0.05)
             status = client.get(f"/api/research/{rid}", headers=headers).json()
 
-        assert status["status"] == "pending_approval"
+        assert status["status"] == "PENDING_APPROVAL"
         points = status["briefing_draft"]["points"]
         assert len(points) == 5
 
@@ -80,7 +80,7 @@ def test_criteria_full_flow(client, monkeypatch):
             headers=headers,
         )
         assert approve_res.status_code == 200
-        assert approve_res.json()["status"] == "approved"
+        assert approve_res.json()["status"] == "SCRAPER"
 
     finally:
         rr.scout = original_scout

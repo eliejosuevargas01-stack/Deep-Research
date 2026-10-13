@@ -40,15 +40,15 @@ class BriefingLifecycleQATests(unittest.TestCase):
                 history.append(approved)
                 saved.append(asdict(approved))
                 read = d.read_approved(approved)
-                reopened = d.reopen_briefing(approved)
-                history.extend((read, reopened))
-                self.assertEqual([s.version for s in history], [1, 2, 3, 4, 4, 5])
+                with self.assertRaisesRegex(d.InvalidTransition, "^Briefing aprovado não pode ser reaberto$"):
+                    d.reopen_briefing(approved)
+                history.append(read)
+                self.assertEqual([s.version for s in history], [1, 2, 3, 4, 4])
                 expected_points = tuple(dict(p) for p in raw)
                 for snapshot, state, version, stamp in (
                     (edited, d.BriefingStatus.DRAFT, 3, None),
                     (approved, d.BriefingStatus.APPROVED, 4, STAMP),
                     (read, d.BriefingStatus.APPROVED, 4, STAMP),
-                    (reopened, d.BriefingStatus.DRAFT, 5, None),
                 ):
                     self.assertEqual(asdict(snapshot), dict(
                         id=created.id, theme="Tema QA", status=state,

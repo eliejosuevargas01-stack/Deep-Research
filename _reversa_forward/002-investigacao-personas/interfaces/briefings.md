@@ -1,25 +1,43 @@
-# Interface: Briefings API (Atualizada para Feature 002)
+# Interface: Briefings API — delta da Feature 002
 
-> Contrato HTTP atualizado do módulo de Briefing para alinhamento com `research_id`.
+> Contrato pretendido após a Feature 002; não atesta entrega do código parcial.
+> Fontes: [requirements](../requirements.md), §2.1, RF-01/RF-02/RF-12 e esclarecimentos Q1/Q11/Q12/Q13 (superando Q4/Q6); [adendo 001](../../../_reversa_sdd/addenda/001-modulo-briefing.md).
 
----
+## Autenticação e limites
 
-## 1. Alterações Contratuais
+Todos os endpoints exigem administrador por `require_admin`, definido em `app/core/security.py`. Mecanismos existentes: Bearer ou `X-API-Key` com o segredo administrativo configurado; ou cookie `dr_session`, acompanhado de `x-csrf-token` nas mutações. Não combinar mecanismos: o guard atual retorna HTTP 400 para credenciais ambíguas ou cabeçalho `X-Tenant-ID`.
 
-### 1.1 Campo de Identificador (`id` -> `research_id`)
+- Tema: 3–300 caracteres, conforme contrato da 001 mantido; entradas com mais de 300 caracteres são rejeitadas com HTTP 422 e mensagem explícita sobre o limite de 300 (Q13).
+- Rascunho válido/aprovado: 3–7 pontos; título e descrição não vazios.
+- Título de ponto: títulos e descrições não vazios gerados pelo Scout NÃO possuem teto de 500 caracteres (Q11; regra Q6 revogada). PATCH não aceita lista manual de pontos.
+- Feedback: somente `{"note": "texto"}`, 3–4000 caracteres.
+- Identificador público canônico: `research_id`. Não emitir `id` como alias público; `briefings.id` e `research.id` permanecem o mesmo UUID no banco.
 
-Todos os endpoints que retornam o objeto de briefing passam a emitir o campo `research_id` em vez de `id`:
+## Requisições e respostas
+
+| Método e caminho | Request | Sucesso e response | Erros específicos |
+|---|---|---|---|
+| `POST /briefings` | `{"theme": "tema de pesquisa"}` | 201; objeto de briefing em `draft`, com o `research_id` criado antes da geração | 422 entrada/conteúdo inválido; 409 conflito de estado/versão; mapeamento existente da criação: 500 configuração/prompt e 503 busca/geração indisponível |
+| `GET /briefings/{research_id}` | UUID no path, sem body | 200; objeto atual de briefing | 404 inexistente |
+| `PATCH /briefings/{research_id}` | `{"note": "Aprofundar riscos regulatórios"}` | 200 síncrono; novo rascunho/versionamento | 404 inexistente; 409 não `draft` ou conflito de versão; 422 conteúdo inválido; falha do Scout: 500 (configuração), 502 (modelo indisponível) ou 503 (busca Jina indisponível) conforme Q12 |
+| `POST /briefings/{research_id}/approve` | Sem body; guard existente também aceita `{}` e JSON `null` | 200; objeto de briefing em `approved` | 404 inexistente; 409 estado/versão inválido, inclusive nova aprovação; 422 conteúdo inválido |
+| `POST /briefings/{research_id}/reopen` | Sem body; guard existente também aceita `{}` e JSON `null` | Nenhum sucesso pós-aprovação no contrato da 002 | 404 inexistente; 409 para `approved` ou transição inválida; 422 body inválido |
+| `GET /briefings/approved/{research_id}` | UUID no path, sem body | 200; `research_id`, `theme`, `points`, `approved_at` | 404 inexistente; 409 não aprovado |
+| `GET /briefings/{research_id}/versions` | UUID no path, sem body | 200; lista de snapshots com `version`, `status`, `points`, `error`, `approved_at`, `created_at` | 404 inexistente |
+
+HTTP 401 indica credencial ausente/inválida; HTTP 403 é produzido pelo guard existente quando CSRF de sessão é inválido. UUID malformado e schemas inválidos recebem HTTP 422. Erros usam `{"detail": "mensagem segura"}` ou a estrutura de validação do FastAPI para 422; não incluir secrets, prompts ou CoT.
+
+### Objeto de briefing — exemplo sintético
 
 ```json
 {
   "research_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "theme": "Impacto da IA Generativa na Medicina Diagnóstica",
+  "theme": "Impactos da IA na medicina",
   "status": "draft",
   "points": [
-    {
-      "title": "Precisão em Imagens",
-      "description": "Investigar acurácia em imagens..."
-    }
+    {"title": "Precisão", "description": "Avaliar precisão diagnóstica"},
+    {"title": "Riscos", "description": "Examinar riscos clínicos"},
+    {"title": "Regulação", "description": "Investigar regras aplicáveis"}
   ],
   "version": 1,
   "error": null,
@@ -27,30 +45,17 @@ Todos os endpoints que retornam o objeto de briefing passam a emitir o campo `re
 }
 ```
 
-*Endpoints impactados*:
-- `POST /briefings` (status 201)
-- `GET /briefings/{research_id}` (status 200)
-- `PATCH /briefings/{research_id}` (status 200)
-- `POST /briefings/{research_id}/approve` (status 200)
-- `GET /briefings/approved/{research_id}` (status 200)
+`draft` é estado do briefing; `PENDING_APPROVAL` é estado da pesquisa. Não substituir um pelo outro.
 
-### 1.2 Transição de Aprovação (`POST /briefings/{research_id}/approve`)
+## Efeitos e idempotência
 
-Além de marcar o briefing como `approved`:
-1. Cria os registros em `research_points` para cada ponto aprovado com `status = 'SCRAPER_PENDING'`.
-2. Atualiza `research.status` para `'SCRAPER'`.
+1. Criar briefing registra primeiro `research`; pontos ainda não existem em `research_points` durante geração/revisão.
+2. PATCH usa tema original, rascunho anterior e feedback no Scout; pesquisa fica `BRIEFING` e conclui em `PENDING_APPROVAL`. Falha terminal deixa pesquisa `FAILED`, briefing `failed`; recuperação exige novo briefing, conforme §2.1.
+3. Aprovação persiste pontos em `SCRAPER_PENDING`, `attempt_count=0`, e pesquisa em `SCRAPER`. Não agenda `schedule(run_research)`, inclusive aprovação/revisão legada. Investigação exige o endpoint dedicado.
+4. GETs não alteram estado. POST de criação não possui chave de deduplicação documentada; não prometer reenvio seguro. PATCH produz nova versão quando aceito; CAS/conflicto 409 não equivale a idempotência de request. Aprovação repetida e reopen aprovado recebem 409, sem duplicar pontos.
 
-### 1.3 Bloqueio de Reabertura (`POST /briefings/{research_id}/reopen`)
+## Timeouts e fronteira existente
 
-Conforme deliberação do operador:
-- Briefing aprovado **não pode voltar para rascunho**.
-- Chamadas para `POST /briefings/{research_id}/reopen` em briefing com status `approved` retornam HTTP 409 Conflict (`"Briefing aprovado não pode ser reaberto"`).
+POST de criação e PATCH são síncronos. Não há deadline HTTP total aprovado: não inventar SLA ou timeout global do Scout. Na geração existente da 001, `_resolve_briefing_timeout()` lê `SEARCH_TIMEOUT_SECONDS` (default atual 30s) por tentativa. Os limites 90s por chamada Jina/LLM e 600s por worker pertencem à investigação da 002, não devem ser aplicados automaticamente ao Scout da 001.
 
-### 1.4 Edição por Feedback (`PATCH /briefings/{research_id}`)
-
-Substitui o PATCH antigo por lista de pontos (que deixa de existir).
-
-- **Corpo**: `{"note": "texto livre do usuário"}`, mínimo 3 e máximo 4000 caracteres (mesmo formato do `BriefingApproval` legado e do frontend).
-- **Comportamento**: o Scout roda a busca Jina de novo combinando o tema com o feedback e gera um novo rascunho (nova versão em `briefing_versions`). Pesquisa permanece em/volta para `BRIEFING` durante a geração e termina em `PENDING_APPROVAL`.
-- **Resposta**: síncrona, HTTP 200 com o novo rascunho (mesmo schema do `POST /briefings`, com `research_id`).
-- **Erros**: 409 se o briefing não está em `draft`; falha do Scout segue o tratamento do `POST /briefings`.
+Divergências conhecidas do código parcial: `BriefingResponse` ainda possui alias `id`, `ApprovedBriefingResponse` ainda usa `id`. Títulos gerados pelo Scout sem teto (Q11) requerem ampliação de schema/colunas para `sa.Text`. No PATCH, a distinção canônica de 500 (configuração), 502 (geração LLM) e 503 (busca Jina) alinha formalmente o contrato pretendido (Q12) ao router atual.

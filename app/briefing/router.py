@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.briefing.domain import (
+    BriefingStatus,
     InvalidContent,
     InvalidTransition,
     approve_briefing,
@@ -24,14 +25,19 @@ from app.briefing.schemas import (
     ApprovedBriefingResponse,
     BriefingApproveRequest,
     BriefingCreateRequest,
-    BriefingEditPointsRequest,
+    BriefingFeedbackRequest,
     BriefingPoint,
     BriefingReopenRequest,
     BriefingResponse,
     BriefingVersionResponse,
 )
 from app.briefing.serp_client import JinaSerpClient, SerpSearchError
-from app.briefing.service import LLMAttemptError, orchestrate_persisted_briefing
+from app.briefing.service import (
+    BriefingRevisionError,
+    LLMAttemptError,
+    orchestrate_persisted_briefing,
+    revise_briefing_with_feedback,
+)
 from app.briefing.storage import (
     BriefingVersionConflictError,
     get_briefing,
@@ -193,14 +199,14 @@ async def create_briefing(
     return _response(result)
 
 
-@router.get("/briefings/approved/{briefing_id}", response_model=ApprovedBriefingResponse)
+@router.get("/briefings/approved/{research_id}", response_model=ApprovedBriefingResponse)
 async def get_approved_briefing(
-    briefing_id: UUID,
+    research_id: UUID,
     db: AsyncSession = Depends(get_db),
     principal: Principal = Depends(require_admin),
 ):
     await _release_auth_transaction(db)
-    briefing = await _load(db, briefing_id)
+    briefing = await _load(db, research_id)
     try:
         approved = read_approved(briefing)
     except InvalidTransition:
@@ -213,47 +219,83 @@ async def get_approved_briefing(
     )
 
 
-@router.get("/briefings/{briefing_id}", response_model=BriefingResponse)
+@router.get("/briefings/{research_id}", response_model=BriefingResponse)
 async def get_current_briefing(
-    briefing_id: UUID,
+    research_id: UUID,
     db: AsyncSession = Depends(get_db),
     principal: Principal = Depends(require_admin),
 ):
     await _release_auth_transaction(db)
-    return _response(await _load(db, briefing_id))
+    return _response(await _load(db, research_id))
 
 
-@router.patch("/briefings/{briefing_id}", response_model=BriefingResponse)
+@router.patch("/briefings/{research_id}", response_model=BriefingResponse)
 async def patch_briefing(
-    briefing_id: UUID,
-    payload: BriefingEditPointsRequest,
+    research_id: UUID,
+    payload: BriefingFeedbackRequest,
     db: AsyncSession = Depends(get_db),
     principal: Principal = Depends(require_admin),
 ):
     await _release_auth_transaction(db)
-    briefing = await _load(db, briefing_id)
+    briefing = await _load(db, research_id)
+    if briefing.status != BriefingStatus.DRAFT:
+        raise _http_error(409, "Apenas briefings em rascunho podem ser revisados")
     try:
-        changed = edit_briefing(
+        timeout = _resolve_briefing_timeout()
+    except ValueError:
+        raise _http_error(500, "Erro interno ao revisar briefing") from None
+    api_key = await _runtime_jina_key()
+    try:
+        serp_client = _build_serp_client(api_key, timeout=timeout)
+    except ValueError:
+        raise _http_error(500, "Erro interno ao revisar briefing") from None
+    llm_complete = _build_llm_complete(timeout=timeout)
+    try:
+        revised = await revise_briefing_with_feedback(
+            db,
             briefing,
-            [{"title": p.title, "description": p.description} for p in payload.points],
+            payload.note,
+            serp_client=serp_client,
+            llm_complete=llm_complete,
+            llm_timeout_s=timeout,
         )
-    except InvalidContent:
-        raise _http_error(422, "Pontos de briefing inválidos") from None
-    except InvalidTransition:
-        raise _http_error(409, "Briefing não pode ser editado neste estado") from None
-    return _response(await _change(db, briefing, changed))
+    except BriefingRevisionError as exc:
+        if exc.args and exc.args[0] == "Prompt de briefing indisponível":
+            raise _http_error(500, "Prompt de briefing indisponível") from None
+        if exc.args and exc.args[0] == "Busca SERP indisponível":
+            raise _http_error(503, "Busca SERP indisponível") from None
+        raise _http_error(502, "Geração de briefing indisponível") from None
+    except (InvalidContent,):
+        raise _http_error(422, "Conteúdo de briefing inválido") from None
+    except (InvalidTransition, BriefingVersionConflictError):
+        raise _http_error(409, "Estado ou versão de briefing incompatível") from None
+    except ProviderConfigurationError:
+        raise _http_error(500, "Erro interno ao revisar briefing") from None
+    except (litellm_exceptions.AuthenticationError, litellm_exceptions.PermissionDeniedError):
+        raise _http_error(500, "Erro interno ao revisar briefing") from None
+    except litellm_exceptions.APIError as exc:
+        code = getattr(exc, "status_code", None)
+        if isinstance(code, int) and not isinstance(code, bool) and code in (401, 403):
+            raise _http_error(500, "Erro interno ao revisar briefing") from None
+        raise
+    except httpx.HTTPStatusError as exc:
+        code = exc.response.status_code
+        if isinstance(code, int) and not isinstance(code, bool) and code in (401, 403):
+            raise _http_error(500, "Erro interno ao revisar briefing") from None
+        raise
+    return _response(revised)
 
 
-@router.post("/briefings/{briefing_id}/approve", response_model=BriefingResponse)
+@router.post("/briefings/{research_id}/approve", response_model=BriefingResponse)
 async def approve_briefing_route(
-    briefing_id: UUID,
+    research_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
     principal: Principal = Depends(require_admin),
 ):
     _parse_empty_body(await request.body(), BriefingApproveRequest)
     await _release_auth_transaction(db)
-    briefing = await _load(db, briefing_id)
+    briefing = await _load(db, research_id)
     try:
         changed = approve_briefing(briefing, datetime.now(timezone.utc))
     except InvalidContent:
@@ -263,16 +305,18 @@ async def approve_briefing_route(
     return _response(await _change(db, briefing, changed))
 
 
-@router.post("/briefings/{briefing_id}/reopen", response_model=BriefingResponse)
+@router.post("/briefings/{research_id}/reopen", response_model=BriefingResponse)
 async def reopen_briefing_route(
-    briefing_id: UUID,
+    research_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
     principal: Principal = Depends(require_admin),
 ):
     _parse_empty_body(await request.body(), BriefingReopenRequest)
     await _release_auth_transaction(db)
-    briefing = await _load(db, briefing_id)
+    briefing = await _load(db, research_id)
+    if briefing.status == BriefingStatus.APPROVED:
+        raise _http_error(409, "Briefing aprovado não pode ser reaberto")
     try:
         changed = reopen_briefing(briefing)
     except InvalidTransition:
@@ -280,15 +324,15 @@ async def reopen_briefing_route(
     return _response(await _change(db, briefing, changed))
 
 
-@router.get("/briefings/{briefing_id}/versions", response_model=list[BriefingVersionResponse])
+@router.get("/briefings/{research_id}/versions", response_model=list[BriefingVersionResponse])
 async def list_briefing_versions(
-    briefing_id: UUID,
+    research_id: UUID,
     db: AsyncSession = Depends(get_db),
     principal: Principal = Depends(require_admin),
 ):
     await _release_auth_transaction(db)
-    await _load(db, briefing_id)
-    versions = await get_briefing_versions(db, briefing_id)
+    await _load(db, research_id)
+    versions = await get_briefing_versions(db, research_id)
     return [
         BriefingVersionResponse(
             version=item.version,

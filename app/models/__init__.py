@@ -11,6 +11,7 @@ from .domain_models import (
     Research,
     ResearchPoint,
     ResearchStatus,
+    ResearchStepResult,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "Research",
     "ResearchPoint",
     "ResearchStatus",
+    "ResearchStepResult",
 ]
