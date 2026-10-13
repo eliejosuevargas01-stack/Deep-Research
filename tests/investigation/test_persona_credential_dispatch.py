@@ -74,7 +74,12 @@ async def test_persona_credential_dispatch(
             raise LLMCallError(
                 3, f"missing credential; api_key={OPENAI_KEY}; Bearer {BEARER_TOKEN}"
             )
-        return make_litellm_final_response(f"Resultado de {model}", [])
+        # Simulate CoT leakage in raw content to prove it's stripped by JSON extraction
+        raw_response_content = (
+            "Pensamento: Vou usar a ferramenta Jina... não, melhor entregar direto.\n"
+            f"```json\n{{\"result\": \"Resultado de {model}\", \"used_urls\": []}}\n```"
+        )
+        return make_litellm_final_response(raw_response_content, [], is_raw=True)
 
     monkeypatch.setattr("app.investigation.worker.call_llm_with_retries", fake_llm)
     try:
@@ -139,5 +144,9 @@ async def test_persona_credential_dispatch(
             for secret in (OPENAI_KEY, ANTHROPIC_KEY, BEARER_TOKEN):
                 assert secret not in row.result
                 assert secret not in str(returned)
+
+            # Assert isolation of prompt and CoT strings from final result
+            assert "Instruções Operacionais Obrigatórias" not in row.result
+            assert "Pensamento: Vou usar a ferramenta Jina" not in row.result
     finally:
         await engine.dispose()
