@@ -72,6 +72,8 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError):
         if isinstance(err, dict):
             clean_err = dict(err)
             clean_err.pop("input", None)
+            if "msg" in clean_err and clean_err["msg"].startswith("Value error, "):
+                clean_err["msg"] = clean_err["msg"].replace("Value error, ", "", 1)
             clean_errors.append(clean_err)
         else:
             clean_errors.append(err)
