@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.database import AsyncSessionLocal
-from app.models import AuditTrail, Event, Evidence, Report, Research, ResearchPoint
+from app.models import AuditTrail, Event, Evidence, Report, Research, ResearchPoint, ResearchStatus
 from app.services.llm import apply_output_guardrail, parse_json
 from app.services.search import search_read
 from app.services.pipeline.constants import PERSONAS
@@ -122,9 +122,9 @@ async def run_research(research_id: uuid.UUID) -> None:
     try:
         async with AsyncSessionLocal() as db:
             research = await db.get(Research, research_id)
-            if not research or research.status not in {"SCRAPER", "approved", "in_progress", "interrupted"}:
+            if not research or research.status not in {ResearchStatus.SCRAPER.value}:
                 return
-            research.status = "SCRAPER"
+            research.status = ResearchStatus.SCRAPER.value
             await db.commit()
             points = list((await db.scalars(select(ResearchPoint).where(ResearchPoint.research_id == research_id).order_by(ResearchPoint.position))).all())
         await add_event(research_id, "system", "research_started", "Approved research work started", {"points": len(points)})
@@ -141,7 +141,7 @@ async def run_research(research_id: uuid.UUID) -> None:
         async with AsyncSessionLocal() as db:
             research = await db.get(Research, research_id)
             if research:
-                research.status = "FAILED"
+                research.status = ResearchStatus.FAILED.value
                 research.error = safe_msg
                 # Do not mark approved points as failed, keep their evidence
                 await db.commit()
