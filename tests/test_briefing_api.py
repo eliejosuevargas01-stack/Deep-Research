@@ -137,7 +137,7 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         body = response.json()
         self.assertEqual((body["status"], body["version"], len(body["points"])), ("draft", 2, 3))
         self.assertEqual((self.serp.calls, self.llm.calls), (1, 1))
-        current, history = await self._snapshot(body["id"])
+        current, history = await self._snapshot(body["research_id"])
         self.assertEqual([v for v, _, _ in history], [2])
 
     async def test_create_invalid_rejected_before_generation(self):
@@ -189,7 +189,7 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await self._snapshot(bid), before)
         approved = await self.client.get(f"/briefings/approved/{bid}", headers=headers)
         self.assertEqual(approved.status_code, 200)
-        self.assertEqual(set(approved.json()), {"id", "theme", "points", "approved_at"})
+        self.assertEqual(set(approved.json()), {"research_id", "theme", "points", "approved_at"})
         self.assertEqual(self.llm.calls, 1)
         edit = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"}, headers=headers)
         self.assertEqual(edit.status_code, 409)

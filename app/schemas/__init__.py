@@ -22,9 +22,9 @@ class ResearchCreate(BaseModel):
             raise ValueError("Tema deve ser uma string")
         stripped = v.strip()
         if len(stripped) < 3:
-            raise ValueError("Tema deve conter no mínimo 3 caracteres válidos")
-        if len(stripped) > 500:
-            raise ValueError("Tema não pode exceder 500 caracteres")
+            raise ValueError("Tema deve conter entre 3 e 300 caracteres")
+        if len(stripped) > 300:
+            raise ValueError("Tema deve conter entre 3 e 300 caracteres")
         return stripped
 
 
