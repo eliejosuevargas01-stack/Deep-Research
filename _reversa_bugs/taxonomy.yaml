@@ -4,15 +4,31 @@ area:
   - settings
   - scout
   - report
+  - security
+  - infra
 module:
   - research-orchestrator
   - llm-client
   - audit-stage
   - settings-router
   - research-ui
+  - briefing-router
+  - briefing-storage
+  - briefing-service
+  - investigation-router
+  - investigation-service
+  - investigation-worker
+  - investigation-tools
+  - writer-stage
+  - outbound-ssrf
+  - auth-cors
+  - env-bootstrap
 feature:
   - deep-research-execution
   - llm-gateway-fallback
   - report-rendering
   - scout-discovery
-# Adicionar termos novos com proposta registrada em Agent Notes do bug
+  - modulo-briefing
+  - investigacao-personas
+  - settings-management
+  - ssrf-protection
