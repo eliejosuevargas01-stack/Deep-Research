@@ -34,7 +34,12 @@ import app.services.pipeline.writer as writer_stage
 from app.services.research import run_research
 
 
-@pytest.mark.asyncio
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.mark.anyio
 async def test_full_pipeline_e2e_integration(client, monkeypatch):
     # 0. Bypass base_url validation for testing
     monkeypatch.setattr(
@@ -83,25 +88,25 @@ async def test_full_pipeline_e2e_integration(client, monkeypatch):
     assert create_res.status_code == 201
     rid = uuid.UUID(create_res.json()["research_id"])
 
-    # 5. Wait for Scout background task (status == pending_approval)
+    # 5. Wait for Scout background task (status == PENDING_APPROVAL)
     status_data = client.get(f"/api/research/{rid}", headers=headers).json()
     for _ in range(50):
-        if status_data["status"] == "pending_approval":
+        if status_data["status"] == "PENDING_APPROVAL":
             break
         await asyncio.sleep(0.05)
         status_data = client.get(f"/api/research/{rid}", headers=headers).json()
-    assert status_data["status"] == "pending_approval"
+    assert status_data["status"] == "PENDING_APPROVAL"
     briefing_pts = status_data["briefing_draft"]["points"]
     assert len(briefing_pts) == 5
 
-    # 6. Approve Briefing
+    # 6. Approve Briefing (T023: status transitions to SCRAPER)
     approve_res = client.post(
         f"/api/research/{rid}/briefing/approve",
         json={"approved_points": briefing_pts},
         headers=headers,
     )
     assert approve_res.status_code == 200
-    assert approve_res.json()["status"] == "approved"
+    assert approve_res.json()["status"] == "SCRAPER"
 
     # 7. Pipeline Mocks
     # Verbatim source text so auditor citation check passes
@@ -181,14 +186,16 @@ async def test_full_pipeline_e2e_integration(client, monkeypatch):
     monkeypatch.setattr(audit_stage, "complete", fake_complete)
     monkeypatch.setattr(writer_stage, "complete", fake_complete)
     monkeypatch.setattr("app.services.webhook.dispatch_callback", fake_dispatch_callback)
+    monkeypatch.setattr("app.routers.research.dispatch_callback", fake_dispatch_callback)
     monkeypatch.setattr("app.services.research.sanitize_error", lambda exc, ctx: f"{type(exc).__name__}: {exc}")
 
-    # 8. Execute pipeline (already scheduled by approve endpoint)
-    # Wait for background run_research to complete
+    # 8. Execute pipeline (T017: approval no longer schedules automatically; trigger explicitly via TestClient portal)
+    client.portal.call(run_research, rid)
+    # Wait for run_research to complete
     for _ in range(200):
         async with AsyncSessionLocal() as db:
             res = await db.get(Research, rid)
-            if res and res.status in {"completed", "completed_but_callback_failed", "blocked", "failed"}:
+            if res and res.status in {"DONE", "FAILED"}:
                 break
         await asyncio.sleep(0.1)
 
@@ -198,7 +205,7 @@ async def test_full_pipeline_e2e_integration(client, monkeypatch):
     async with AsyncSessionLocal() as db:
         res = await db.get(Research, rid)
         assert res is not None
-        assert res.status == "completed", f"Expected completed, got {res.status}. Error: {res.error}"
+        assert res.status == "DONE", f"Expected DONE, got {res.status}. Error: {res.error}"
 
         rep = await db.scalar(select(Report).where(Report.research_id == rid))
         assert rep is not None

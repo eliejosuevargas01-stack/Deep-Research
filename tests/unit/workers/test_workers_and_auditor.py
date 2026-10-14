@@ -8,6 +8,11 @@ from app.services.search import Source
 
 
 @pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture
 def mock_session():
     return AsyncMock()
 
@@ -19,7 +24,7 @@ def mock_settings():
     return s
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_scout_worker(mock_session, mock_settings, monkeypatch):
     worker = ScoutWorker(session=mock_session, settings=mock_settings)
     fake_sources = [Source(url="https://example.com/1", title="Ex 1", excerpt="Some sample text")]
@@ -32,7 +37,7 @@ async def test_scout_worker(mock_session, mock_settings, monkeypatch):
     assert result.metrics["sources_found"] == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_persona_workers(mock_session, mock_settings, monkeypatch):
     point = MagicMock(id="p-123", title="Topic A")
     fake_sources = [Source(url="https://example.com/2", title="Ex 2", excerpt="Analysis here")]
@@ -46,7 +51,7 @@ async def test_persona_workers(mock_session, mock_settings, monkeypatch):
         assert result.persona == worker.persona_name()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_writer_agent(mock_session, mock_settings):
     writer = WriterAgent(session=mock_session, settings=mock_settings)
     context = {"theme": "Quantum Computing", "points": [{"title": "Qubits", "summary": "Superposition principles"}]}
