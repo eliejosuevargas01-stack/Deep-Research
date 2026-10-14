@@ -1674,7 +1674,8 @@ def test_BRIEFING_recovery_on_startup_lifespan(monkeypatch):
         assert len(matching_scouts) == 1
         assert matching_scouts[0]["theme"] == "AI Safety"
         assert len(matching_scouts[0]["base_points"]) == 5
-        assert rid in scheduled_research
+        # T017 (Q1/D-12): run_revision nao agenda mais run_research automaticamente.
+        assert rid not in scheduled_research
 
     asyncio.run(run())
 

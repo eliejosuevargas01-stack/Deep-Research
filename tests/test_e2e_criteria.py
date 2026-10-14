@@ -6,6 +6,13 @@ import app.routers.research as rr
 
 def test_criteria_full_flow(client, monkeypatch):
     monkeypatch.setattr("app.services.settings.validate_base_url", lambda url: url)
+    monkeypatch.setattr("app.services.llm.validate_base_url", lambda url: url)
+
+    async def fake_list_models(provider, api_key=None, base_url=None):
+        return ["openai/gpt-4o-mini", "openai/gpt-4o"]
+
+    monkeypatch.setattr("app.routers.settings.list_provider_models", fake_list_models)
+    monkeypatch.setattr("app.services.llm.list_provider_models", fake_list_models)
     # 1. Login (A4)
     csrf = login(client)
     headers = {"X-CSRF-Token": csrf}
