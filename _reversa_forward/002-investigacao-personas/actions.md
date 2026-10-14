@@ -1,7 +1,7 @@
 # Actions: Investigação Paralela por Personas (Workers)
 
 > Identificador: `002-investigacao-personas`
-> Data: `2026-10-13` (revisão reconciliada pós-esclarecimentos Q1–Q10)
+> Data: `2026-10-14` (revisão com decisões Q14–Q16: aprovação implícita e revisão com 2ª SERP Jina)
 > Roadmap: `_reversa_forward/002-investigacao-personas/roadmap.md`
 > Escopo: Backend exclusivo (adaptação do frontend web deliberada para feature/sprint posterior)
 
@@ -9,8 +9,8 @@
 
 | Métrica | Valor |
 |---------|-------|
-| Total de ações | 35 |
-| Paralelizáveis (`[//]`) | 4 |
+| Total de ações | 40 |
+| Paralelizáveis (`[//]`) | 5 |
 | Maior cadeia de dependência | 12 ações (11 arestas): T001, T002, T014, T015, T016, T023, T028, T035, T019, T021, T025, T030 |
 
 ---
@@ -105,6 +105,20 @@ Auditorias de planejamento anteriores existem; nova revisão documental aguarda 
 
 ---
 
+## Sprint C8 — Ajuste de Fluxo: Aprovação Implícita e Revisão com 2ª SERP Jina
+
+<!-- Adequação de fluxo pós-decisões Q14–Q16 (D-21 a D-24): extinção de /approve, aprovação implícita no /investigate, revisão única no PATCH com 2ª busca SERP Jina formulada pela IA, auto-investigate em background e bloqueio de 2ª revisão com 409 -->
+
+| ID   | Descrição                                                                                                                                                                                                                                                                                        | Dependências                 | Paralelismo | Arquivo alvo                                                                                                      | Confidência | Status |
+|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------|-------------|--------|
+| T036 | Extinguir rota POST /briefings/{research_id}/approve em app/briefing/router.py e expurgar referências em schemas/services                                                                                                                                                                        | T015, T027                   | -           | `app/briefing/router.py`, `app/briefing/schemas.py`, `app/briefing/service.py`                                    | 🟢           | `[ ]`  |
+| T037 | Implementar aprovação implícita e disparo em POST /briefings/{research_id}/investigate sobre draft (status SCRAPER, criação atômica de research_points em SCRAPER_IN_PROGRESS, sem 409 por status draft) em app/investigation/router.py e service.py                                             | T013, T022                   | `[//]`      | `app/investigation/router.py`, `app/investigation/service.py`                                                     | 🟢           | `[ ]`  |
+| T038 | Implementar revisão única com nova consulta SERP Jina formulada pela IA (tema + feedback), preservação de pontos não afetados, geração revisada e início automático da investigação em background em app/briefing/service.py e router.py                                                         | T036, T037                   | -           | `app/briefing/service.py`, `app/briefing/router.py`                                                               | 🟢           | `[ ]`  |
+| T039 | Bloquear segunda revisão por feedback com HTTP 409 Conflict em app/briefing/router.py e service.py                                                                                                                                                                                               | T038                         | -           | `app/briefing/router.py`, `app/briefing/service.py`                                                               | 🟢           | `[ ]`  |
+| T040 | Adaptar e estender suíte de testes (unitários, integração e briefing) para o novo contrato: investigate direto sobre draft responde 202, ausência de /approve (404/405), revisão única com 2ª busca Jina + auto-investigate (200), bloqueio de 2ª revisão (409) e falhas terminais (500/502/503) | T019, T036, T037, T038, T039 | -           | `tests/test_briefing_api.py`, `tests/test_briefing_lifecycle.py`, `tests/investigation/test_investigation_e2e.py` | 🟢           | `[ ]`  |
+
+---
+
 ## Notas de execução
 
 - Nenhuma alteração amplia escopo para a Feature 003 (Auditoria) ou Feature 004 (Redação/Relatório final).
@@ -162,8 +176,11 @@ Comandos de aceite previstos, NÃO executados nesta rodada: `python3 -B -m pytes
 | Q12 | D-20 | T016, T019, T027 |
 | Q7/Q8/Q9 | D-15/D-16/D-17 | T031, T032, T033 |
 | RN-10 | D-18 | T004, T026 |
+| Q14/Q15 | D-23 | T038 |
+| Q16 | D-24 | T039 |
+| Q14–Q16 | D-20/D-21/D-22/D-23/D-24 | T036, T037, T038, T039, T040 |
 
-Os 23 cenários Gherkin são atendidos pelas decisões/ações acima: disparo/conflito/404/admin/zero pontos (T013/T022); criação prévia/tema (T014/T027); aprovação/títulos longos (T014/T027); parada/teto/retry/URLs/proxy (T006–T010); falha individual/global e sucesso parcial (T011/T012/T020/T031/T032); migração/backfill (T001/T024); reopen (T015); PATCH/sua falha discriminada 500/502/503 (T016/T027); retomada (T018/T022/T032); JSON esgotado (T031). Os cenários não provam execução por si só.
+Os 23 cenários Gherkin e as deliberações Q14–Q16 são atendidos pelas decisões/ações acima: disparo/conflito/404/admin/zero pontos (T013/T022/T037); criação prévia/tema (T014/T027); aprovação implícita e extinção de /approve (T036/T037); títulos longos (T014/T027); parada/teto/retry/URLs/proxy (T006–T010); falha individual/global e sucesso parcial (T011/T012/T020/T031/T032); migração/backfill (T001/T024); reopen (T015); PATCH com nova busca SERP Jina e auto-investigate (T038); bloqueio 409 de 2ª revisão (T039); falhas terminais 500/502/503 (T016/T027/T038/T039); retomada (T018/T022/T032); JSON esgotado (T031); suíte adaptada (T040). Os cenários não provam execução por si só.
 
 ## Sprints futuras de coding
 
@@ -176,8 +193,9 @@ Os 23 cenários Gherkin são atendidos pelas decisões/ações acima: disparo/co
 | C5 | Regressões de fronteira/LLM | T028, T034 |
 | C6 | Runner async e isolamento E2E | T029, T035 |
 | C7 | Consolidação e documentação | T019, T025, T030 |
+| C8 | Ajuste de fluxo: aprovação implícita e revisão com 2ª SERP Jina | T036, T037, T038, T039, T040 |
 
-`[//]` significa independência por fase, não execução simultânea entre fases dependentes. Mesmo sem marcador, arquivos que aparecem em duas sprints têm proprietário sequencial. Não executar auditoria/QA sobre diff enquanto alguém o altera. Preservar T001–T026 e seus históricos; T014 reaberta porque alias público `id` ainda existe no código, não por execução de testes nesta rodada. T027–T035 iniciam abertos. Sem fechamento em massa.
+`[//]` significa independência por fase, não execução simultânea entre fases dependentes. Mesmo sem marcador, arquivos que aparecem em duas sprints têm proprietário sequencial. Não executar auditoria/QA sobre diff enquanto alguém o altera. Preservar T001–T026 e seus históricos; T014 reaberta porque alias público `id` ainda existe no código, não por execução de testes nesta rodada. T027–T035 iniciam abertos. T036–T040 iniciam abertos (`[ ]`) para o novo fluxo de aprovação implícita e revisão única. Sem fechamento em massa.
 
 ## Histórico de alterações
 
@@ -187,3 +205,4 @@ Os 23 cenários Gherkin são atendidos pelas decisões/ações acima: disparo/co
 | 2026-10-12 | Revisão pós-auditoria: correção da cadeia crítica para 9 passos, inclusão de schemas/storage de briefing, isolamento de arquivos alvos e detalhamento dos 184 testes | reversa |
 
 | 2026-10-13 | Reconciliados Q1–Q10, inventário20, escopo e gates; T027–T035 novos; T014 reaberta por alias id; preservado restante do trabalho entregue | Orchestrator — fallback documental autorizado |
+| 2026-10-14 | Decompostas decisões Q14–Q16 (D-21 a D-24) na Sprint C8: T036–T040 cobrindo extinção de /approve, aprovação implícita no investigate, revisão única no PATCH com 2ª SERP Jina, bloqueio 409 e suíte de testes adaptada; T001–T035 preservadas | reversa-to-do |

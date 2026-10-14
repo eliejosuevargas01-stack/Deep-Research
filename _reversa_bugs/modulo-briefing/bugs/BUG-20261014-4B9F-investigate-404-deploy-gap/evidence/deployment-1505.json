@@ -1,0 +1,79 @@
+{
+  "bug_id": "BUG-20261014-4B9F",
+  "deployment_verification": {
+    "deployment_id": 1505,
+    "deployment_uuid": "f3aa6d4d-c314-4e4a-bba3-ddf8c09d3ee2",
+    "application_id": 47,
+    "application_uuid": "j0kvxhooxnusvlyoascewxvw",
+    "git_commit": "5839936a54d028c6af04a61c1d1d6b5ba778327c",
+    "status": "finished",
+    "created_at": "2026-10-14 01:56:46",
+    "updated_at": "2026-10-14 02:02:32",
+    "previous_deployment_id": 1498,
+    "previous_commit": "2e8809aa4b8b6889bc9a467aecac876435c64586"
+  },
+  "containers": {
+    "backend": {
+      "name": "backend-j0kvxhooxnusvlyoascewxvw-20261014T015659",
+      "image": "j0kvxhooxnusvlyoascewxvw_backend:5839936a54d028c6af04a61c1d1d6b5ba778327c",
+      "image_id": "sha256:1c2328081259a0b49b1f17aee9ddf49be819445d333886922b5532e965672861",
+      "status": "running",
+      "health": "healthy"
+    },
+    "frontend": {
+      "name": "frontend-j0kvxhooxnusvlyoascewxvw-20261014T015659",
+      "image": "j0kvxhooxnusvlyoascewxvw_frontend:5839936a54d028c6af04a61c1d1d6b5ba778327c",
+      "image_id": "sha256:97845616b92cfd6cf6e42f351f976b87f29241863f84e3316260248c4b706e5a",
+      "status": "running",
+      "ports": "127.0.0.1:3000->80/tcp"
+    },
+    "db": {
+      "name": "db-j0kvxhooxnusvlyoascewxvw-20261014T015659",
+      "image": "postgres:16-alpine",
+      "image_id": "sha256:81bd698b4594e751a3269e4dcd3e03a4a0ec0daf7b72e7aa1abd43cce9887542",
+      "status": "running",
+      "health": "healthy"
+    }
+  },
+  "alembic": {
+    "current_revision": "0007",
+    "migration_name": "0007_investigation_step_results_and_status",
+    "new_tables": [
+      "research_step_results"
+    ],
+    "total_tables": 12
+  },
+  "routing_and_openapi": {
+    "route": "/briefings/{research_id}/investigate",
+    "method": "POST",
+    "present_in_openapi": true,
+    "unauthenticated_direct_status": 401,
+    "unauthenticated_public_domain_status": 401,
+    "unauthenticated_detail": "Authentication required",
+    "invalid_method_status": 405,
+    "pre_deploy_status": 404
+  },
+  "domain_and_tls": {
+    "domain": "https://research.dominuslabs.online",
+    "health_endpoint": "https://research.dominuslabs.online/health",
+    "http_status": 200,
+    "tls_valid": true,
+    "tls_issuer": "Let's Encrypt",
+    "health_payload": {
+      "status": "healthy",
+      "database": "connected",
+      "version": "1.0.0"
+    }
+  },
+  "persistence_and_wiring": {
+    "volume_name": "j0kvxhooxnusvlyoascewxvw_research-db",
+    "volume_created_at": "2026-10-01T23:16:32Z",
+    "database_name": "deep_research_db",
+    "records_preserved": {
+      "research": 52,
+      "briefings": 11,
+      "reports": 7
+    },
+    "wiring_verification": "confirmed"
+  }
+}

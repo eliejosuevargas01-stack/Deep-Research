@@ -4,8 +4,8 @@ id: BUG-20261014-4B9F
 display_number: 3
 context: modulo-briefing
 title: "POST /briefings/{research_id}/investigate retorna 404 em produção devido à ausência de deploy da Feature 002"
-status: open
-phase: triaging
+status: resolved
+phase: fixed
 severity: high
 priority: P1
 security_suspected: false
@@ -94,3 +94,16 @@ Adicionalmente, na versão em execução em produção, `BriefingRecord` é isol
 
 1. Executar trigger de redeploy no Coolify para a aplicação `deep-researchmain-b7f1fpvfc8lyepurn1kgza5y` a partir do commit `origin/main` (`9c1cef1`).
 2. Garantir execução automática de `alembic upgrade head` no entrypoint do contêiner para criar a tabela `research_step_results` e atualizar os tipos de status.
+
+## Resolution
+
+- **Root Cause (Confirmed):** O serviço em produção estava rodando a imagem `j0kvxhooxnusvlyoascewxvw_backend:2e8809aabf0ff57ae8c17b8f9e610d7a044f54e4` construída no deploy 1498 em 12/10/2026, anterior à Feature 002.
+- **Fix Applied:** Deploy ID 1505 disparado e finalizado com sucesso no Coolify em 2026-10-14 02:02:32 UTC com o commit `5839936a54d028c6af04a61c1d1d6b5ba778327c`. Migração Alembic `0007_investigation_step_results_and_status` aplicada automaticamente no startup.
+- **Testes Comprovados em Produção:**
+  1. Criação de Briefing (`POST /briefings`): HTTP 201 Created (ID `b93701ae-ff8c-44d7-8a30-f523c86dcd53`), 5 pontos gerados ao vivo.
+  2. Aprovação (`POST /briefings/{id}/approve`): HTTP 200 OK (status `approved`, versão 3).
+  3. Iniciar Investigação (`POST /briefings/{id}/investigate`): HTTP 202 Accepted.
+  4. Fan-out paralelo: 20 tarefas disparadas (5 pontos x 4 personas), persistidas na tabela `research_step_results` (13 AUDIT_PENDING, 7 FAILED com erro sanitizado de 503 upstream).
+  5. Transição de Estado: Pesquisa avançou para status `AUDIT` e todos os 5 pontos em `AUDIT_PENDING`.
+  6. Idempotência / Conflito: Segunda chamada a `/investigate` rejeitada com HTTP 409 Conflict.
+- **Spec Verdict:** `spec-correta` (o código em produção agora implementa perfeitamente as especificações da Feature 002).
