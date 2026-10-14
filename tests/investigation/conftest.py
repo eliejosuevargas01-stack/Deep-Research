@@ -189,10 +189,13 @@ def make_litellm_tool_call_response() -> Callable[[str, str], Any]:
 
 
 @pytest.fixture
-def make_litellm_final_response() -> Callable[[str, list[str]], Any]:
+def make_litellm_final_response() -> Callable[[str, list[str], bool], Any]:
     """Gera resposta simulada do LiteLLM entregando JSON final da persona."""
-    def _factory(result_text: str, used_urls: list[str]) -> Any:
-        payload = json.dumps({"result": result_text, "used_urls": used_urls})
+    def _factory(result_text: str, used_urls: list[str], is_raw: bool = False) -> Any:
+        if is_raw:
+            payload = result_text
+        else:
+            payload = json.dumps({"result": result_text, "used_urls": used_urls})
         message = SimpleNamespace(
             role="assistant",
             content=payload,
