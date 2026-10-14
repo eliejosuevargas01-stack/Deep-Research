@@ -1,6 +1,8 @@
 # Interface: POST /briefings/{research_id}/investigate
 
-> Contrato HTTP pretendido da Feature 002; exemplos sintéticos. Inspeção estática de `app/investigation/router.py` não equivale a execução/aceite.
+> Contrato HTTP pretendido da Feature 002; exemplos sintéticos.
+> Fontes: [requirements](../requirements.md), §2.1, RF-02, RF-03, RF-04, RN-01, RN-02, RN-03, e deliberações Q1/Q5/Q10/Q11 e Q14–Q16 de 2026-10-14.
+> Atualizado em 2026-10-14: aprovação implícita e instanciação direta dos pontos no disparo sobre rascunho em `draft`, sem exigência de endpoint `/approve` e sem HTTP 409 por status `draft`.
 
 ---
 
@@ -8,24 +10,29 @@
 
 - **Método**: `POST`
 - **Caminho**: `/briefings/{research_id}/investigate`
-- **Autenticação**: administrador pela dependência real `require_admin` (`app/core/security.py`); cliente deve seguir o mecanismo configurado pelo app, sem presumir esquema Bearer.
-- **Tipo de Execução**: Assíncrona com FastAPI `BackgroundTasks`, conforme RN-01. HTTP 202 confirma a reserva, não o sucesso dos workers.
+- **Autenticação**: administrador pela dependência real `require_admin` (`app/core/security.py`); cliente deve seguir o mecanismo configurado pelo app (`Bearer`, `X-API-Key` ou sessão por cookie `dr_session` com `x-csrf-token`), sem combinar mecanismos. Ausência ou credencial inválida retorna HTTP 401/403.
+- **Tipo de Execução**: Assíncrona via FastAPI `BackgroundTasks`, conforme RN-01. Resposta HTTP 202 confirma a aprovação implícita, a instanciação atômica dos pontos em `research_points` e o enfileiramento dos workers em background.
 
 ---
 
 ## 2. Parâmetros da Requisição
 
 - **Path Parameter**:
-  - `research_id` (UUID): Identificador canônico da pesquisa (compartilhado com o briefing aprovado).
-- **Request Body**: Vazio (`{}` ou ausente); não transporta query nem lista de pontos. UUID inválido no path retorna HTTP 422.
+  - `research_id` (UUID): Identificador canônico universal da pesquisa e do briefing (RFC 4122).
+- **Request Body**: Vazio (`{}` ou ausente); não transporta queries, parâmetros nem lista de pontos. UUID malformado no path retorna HTTP 422 Unprocessable Entity.
 
 ---
 
 ## 3. Respostas
 
-### 3.1 202 Accepted (Sucesso no Disparo)
+### 3.1 202 Accepted (Sucesso no Disparo e Aprovação Implícita)
 
-Retornado quando a pesquisa existe, está aprovada e os passos são enfileirados para investigação em background.
+Retornado quando a pesquisa existe e é acionado sobre o primeiro briefing válido em status `draft` (ou pesquisa já elegível):
+- Opera a **aprovação implícita** do briefing na mesma operação (sem requerer endpoint `/approve`, extinto).
+- Valida os pontos do briefing (3 a 7 pontos não-vazios, aceitando títulos longos em `sa.Text` sem limite de 500 caracteres, conforme Q11).
+- Insere atomicamente os pontos na tabela `research_points` vinculados ao `research_id`, com status inicial `SCRAPER_IN_PROGRESS` e `attempt_count = 0`.
+- Transita a pesquisa para `research.status = 'SCRAPER'`.
+- Agenda o fan-out dos $N \times 4$ workers assíncronos em background.
 
 ```json
 {
@@ -48,9 +55,12 @@ Retornado quando `research_id` não existe na tabela `research`.
 ### 3.3 409 Conflict (Conflito de Estado / Idempotência)
 
 Retornado nas seguintes situações:
-1. O briefing associado à pesquisa ainda não foi aprovado (status diferente de `SCRAPER`).
-2. A pesquisa não possui nenhum ponto aprovado associado em `research_points` (zero pontos).
-3. Pelo menos um ponto não está em `SCRAPER_PENDING`, inclusive execução/finalização anterior; ou a reserva concorrente não altera todos os pontos esperados. O router valida estados e contagem de linhas reservadas, não consulta `research_step_results` para aceitar o disparo.
+1. **Re-disparo**: A investigação já foi iniciada anteriormente (a pesquisa já se encontra em `SCRAPER`, `AUDIT`, `WRITE`, `DONE` ou `FAILED`, ou os pontos já estão em `SCRAPER_IN_PROGRESS` ou concluídos).
+2. **Investigação já iniciada automaticamente por revisão**: O operador já executou a revisão única via `PATCH /briefings/{research_id}`, a qual aprovou e iniciou a investigação em background automaticamente.
+3. **Ausência de pontos válidos**: A pesquisa ou briefing não possui pontos válidos associados (zero pontos).
+4. **Concorrência**: Tentativa de disparo concorrente enquanto a operação de reserva e instanciação atômica está em andamento.
+
+> **Regra de Ausência de 409 por status `draft`:** O status inicial `draft` do briefing e a ausência prévia de registros em `research_points` **NÃO** motivam HTTP 409 Conflict. A chamada direta sobre o rascunho inicial válido é o fluxo canônico (Caminho A), que opera a aprovação implícita e instanciação atômica na mesma chamada.
 
 ```json
 {
@@ -60,35 +70,44 @@ Retornado nas seguintes situações:
 
 ### 3.4 401 Unauthorized / 403 Forbidden
 
-Credenciais inválidas ou ausentes.
+Credenciais administrativas ausentes, inválidas ou token CSRF inválido na autenticação por sessão.
 
 ---
 
 ## 4. Comportamento e Efeitos Colaterais
 
-1. **Validação**: Verifica se `research.status == 'SCRAPER'` e se todos os `research_points` correspondentes possuem `status == 'SCRAPER_PENDING'`.
-2. **Transição de Estado**:
-   - `research_points.status` transita imediatamente para `SCRAPER_IN_PROGRESS`; `research.status` permanece `SCRAPER`.
-   - `SCRAPER_IN_PROGRESS` é estado de ponto, não de pesquisa.
-3. **Fan-out Concorrente**:
-   - Dispara $N 	imes 4$ tarefas assíncronas em background via `asyncio.gather(..., return_exceptions=True)`.
-4. **Finalização**:
-   - Cada persona bem-sucedida grava em `research_step_results` com status `AUDIT_PENDING`.
-   - Cada persona com falha definitiva grava com status `FAILED` e incrementa atomicamente `attempt_count` do ponto.
-   - `attempt_count` nasce em 0 ao persistir pontos após aprovação.
-   - Ao concluir todas as tarefas do ponto: ponto fica `AUDIT_PENDING` (se ao menos 1 worker teve sucesso) ou `SCRAPER_FAILED` (se os 4 falharam).
-   - Ao concluir todos os pontos: `research.status` transita para `AUDIT` se algum ponto teve sucesso; `FAILED` apenas se todos os pontos forem `SCRAPER_FAILED`.
-5. **Retomada**: No startup, pesquisa permanece `SCRAPER`; só despacha personas sem linha correspondente em `research_step_results` para ponto `SCRAPER_IN_PROGRESS`.
+1. **Aprovação Implícita e Validação**:
+   - O endpoint verifica se o `research_id` existe na tabela `research`.
+   - Se a pesquisa estiver em `PENDING_APPROVAL` com o briefing em `draft`, o serviço valida se o briefing possui entre 3 e 7 pontos não-vazios. Títulos longos gerados pelo Scout são aceitos integralmente em coluna `sa.Text` (Q11).
+   - Os pontos são persistidos diretamente na tabela `research_points` vinculados ao `research_id`, com status `SCRAPER_IN_PROGRESS` e `attempt_count = 0`.
+   - A pesquisa transita atomicamente de `PENDING_APPROVAL` para `SCRAPER`.
+   - O endpoint `/approve` (`POST /briefings/{research_id}/approve`) foi extinto e não deve ser invocado em nenhum momento.
+2. **Fan-out Concorrente Irrestrito**:
+   - Para os $N$ pontos aprovados, o orquestrador assíncrono despacha exatamente $N \times 4$ tarefas assíncronas concorrentes via `asyncio.gather(..., return_exceptions=True)`, sem enfileiramento por semáforo (conforme a Emenda da Feature 002 ao Princípio IV).
+   - O despachador repassa para cada função worker a tupla explícita `(research_id, step_id, step_title, persona)`.
+3. **Execução das Personas e Persistência**:
+   - Cada worker executa loop de reflexão com LiteLLM e memória exclusivamente em RAM, utilizando até 3 buscas Jina Search por ponto (via POST `https://s.jina.ai/` ou proxy configurado, timeout 90s).
+   - Todas as URLs retornadas pela API da Jina são capturadas pelo harness e gravadas em `read_urls` (não prova leitura integral nem citação verbatim).
+   - O modelo retorna JSON estruturado `{"result": "...", "used_urls": [...]}`. Erros de formatação recebem até 3 chamadas de reparo dedicadas.
+   - Cada worker bem-sucedido persiste linha imutável em `research_step_results` com status `AUDIT_PENDING`.
+   - Cada worker com falha definitiva grava linha em `research_step_results` com status `FAILED`, erro sanitizado (máx 500 chars), e incrementa atomicamente o contador `attempt_count` do respectivo ponto.
+4. **Finalização do Ponto e da Pesquisa**:
+   - Ao concluir todos os 4 workers de um ponto: o ponto transita para `AUDIT_PENDING` (se pelo menos 1 worker concluiu com sucesso) ou para `SCRAPER_FAILED` (se todos os 4 workers falharam definitivamente).
+   - Ao concluir todos os pontos da pesquisa: `research.status` transita para `AUDIT` se pelo menos 1 ponto obteve sucesso analítico; ou para `FAILED` se 100% dos pontos da pesquisa terminaram em `SCRAPER_FAILED`.
+5. **Retomada Pós-Reinício**:
+   - Um hook no ciclo de inicialização do FastAPI inspeciona pesquisas em `SCRAPER` cujos pontos estejam em `SCRAPER_IN_PROGRESS` e reagenda em background exclusivamente as personas que ainda não possuem linha persistida em `research_step_results`.
 
-## 5. Tentativas, resultado e privacidade
+---
 
-- Cada chamada externa: até 3 tentativas totais (inicial + até 2 retries), espera 2s e 4s; timeout de 90s por chamada e 600s por worker. `Retry-After` é respeitado quando presente, sujeito ao limite total acordado.
-- Reparos de JSON: resposta inicial e até 3 correções. Após exaustão, grava `FAILED`, `result="Invalid JSON response after 3 corrections"`, `used_urls=[]`; incremento atômico de `attempt_count` por falha definitiva.
-- Prompts e CoT ficam apenas em RAM; `result` guarda análise final ou erro sanitizado, nunca segredo.
-- `read_urls` significa URLs retornadas pela Jina, não prova leitura integral ou citação verbatim.
+## 5. Tentativas, limites e privacidade
 
-## 6. Idempotência e timeout HTTP
+- **Chamadas Externas (Jina e LiteLLM)**: Até 3 tentativas totais (1 inicial + até 2 retries técnicos com backoff exponencial 2s/4s e suporte a `Retry-After`). Timeout limite por chamada individual de 90s; timeout global máximo por execução de worker de 600s.
+- **Autocorreção de JSON**: Até 3 tentativas dedicadas de reparo quando o modelo emitir payload inválido; após exaustão, grava `FAILED` com `result="Invalid JSON response after 3 corrections"` e `used_urls=[]`, incrementando `attempt_count`.
+- **Privacidade e Isolamento**: Prompts de sistema e raciocínio bruto (*chain-of-thought*) residem estritamente em memória RAM e nunca são gravados em banco, logs públicos ou payloads de resposta. A coluna `result` armazena exclusivamente a síntese analítica final ou mensagem de erro sanitizada de até 500 caracteres (Princípio II).
+- **Rastreabilidade Factual**: Prompts instruem as personas a citar trechos literais (*verbatim*) das fontes acompanhadas de URLs em `used_urls` (Princípio I). A validação profunda dessas citações cabe à Feature 003 (Auditoria).
 
-A reserva muda todos os pontos esperados de `SCRAPER_PENDING` para `SCRAPER_IN_PROGRESS` antes do commit e do agendamento. Conflito de contagem provoca rollback e HTTP 409; re-disparo não deve duplicar workers. Isso é proteção por estado/reserva, não uma chave de idempotência de cliente nem lease distribuído.
+---
 
-HTTP 202 não espera o término dos workers. Nenhum timeout total de request foi aprovado; limites 90s I/O e 600s worker referem-se à execução background. Leituras de resultados/status ficam fora deste contrato.
+## 6. Idempotência e concorrência
+
+A aprovação implícita e a instanciação dos pontos em `SCRAPER_IN_PROGRESS` ocorrem sob transação atômica no banco de dados antes da emissão da resposta HTTP 202 e do agendamento dos workers. Caso uma requisição concorrente tente acionar `/investigate` sobre a mesma pesquisa simultaneamente, a transação concorrente detecta a mudança de estado e responde HTTP 409 Conflict. Re-disparos subsequentes também são imediatamente rejeitados com HTTP 409 Conflict sem duplicar execuções de workers.

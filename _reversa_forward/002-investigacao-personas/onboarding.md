@@ -1,6 +1,7 @@
 # Onboarding: Investigação Paralela por Personas (Feature 002)
 
 > Guia executável para validação manual e automatizada da Feature 002.
+> Atualizado em 2026-10-14: extinção definitiva de `/approve`, aprovação implícita no `/investigate` direto (Caminho A) e revisão única com auto-investigate em background no `PATCH` (Caminho B).
 
 ---
 
@@ -51,39 +52,24 @@ echo "Research ID capturado: $RESEARCH_ID"
 }
 ```
 
-*Nota:* O identificador retornado é `research_id`, que já foi registrado na tabela `research` com status `PENDING_APPROVAL`.
+*Nota:* O identificador retornado é `research_id`, que já foi registrado na tabela `research` com status `PENDING_APPROVAL`. O endpoint `/approve` não existe no sistema. O operador dispõe a partir daqui de duas vias exclusivas (Caminho A ou Caminho B).
 
 ---
 
-### Passo 2: Aprovar o Briefing
+### Caminho A: Investigação Direta com Aprovação Implícita (Sem Alterações)
 
-Aprove o briefing gerado utilizando a variável `$RESEARCH_ID`:
+Se o operador julgar o briefing inicial em `draft` satisfatório, a investigação é disparada diretamente:
 
-```bash
-curl --fail-with-body -sS -X POST "http://localhost:8000/briefings/$RESEARCH_ID/approve" \
-  -H "$AUTH_HEADER"
-```
+#### Passo 2A: Disparar a Investigação Direta
 
-**Resposta esperada (HTTP 200):**
-Status do briefing passa para `approved`. No banco de dados:
-- `research.status` transita para `SCRAPER`.
-- Os pontos são instanciados em `research_points` com status `SCRAPER_PENDING` e `attempt_count = 0`.
-- A aprovação **não** agenda `schedule(run_research)` nem qualquer pipeline legado (Q1). A pesquisa aguarda disparo exclusivo por `POST /briefings/{research_id}/investigate`.
-
----
-
-### Passo 3: Disparar a Investigação Paralela
-
-A aprovação não agenda investigação automaticamente, inclusive no fluxo legado/revisão: Q1 remove `schedule(run_research)`. Disparo exclusivo pelo endpoint abaixo. Com 3–7 pontos aprovados, espera-se 12–28 workers (4 personas por ponto).
-
-Dispare os workers para investigar os pontos aprovados:
+Acione o endpoint `/investigate` sobre o briefing em `draft`:
 
 ```bash
 curl --fail-with-body -sS -X POST "http://localhost:8000/briefings/$RESEARCH_ID/investigate" \
   -H "$AUTH_HEADER"
 ```
 
-**Formato ilustrativo da resposta HTTP 202 Accepted; `$RESEARCH_ID` representa o UUID retornado, não uma string literal enviada pela API:**
+**Resposta esperada (HTTP 202 Accepted):**
 ```json
 {
   "research_id": "$RESEARCH_ID",
@@ -92,11 +78,71 @@ curl --fail-with-body -sS -X POST "http://localhost:8000/briefings/$RESEARCH_ID/
 }
 ```
 
----
+**Efeitos no banco:**
+- Opera a **aprovação implícita** do briefing na mesma operação. O status `draft` não retorna HTTP 409.
+- Os pontos são persistidos na tabela `research_points` vinculados ao `research_id` com status inicial `SCRAPER_IN_PROGRESS` e `attempt_count = 0`.
+- A pesquisa transita atomicamente para `research.status = 'SCRAPER'`.
+- N $\times$ 4 workers assíncronos (4 personas por ponto) são agendados e executados em background via FastAPI `BackgroundTasks`.
 
-### Passo 4: Verificar Idempotência (Re-disparo)
+#### Passo 3A: Verificar Idempotência e Bloqueio de Re-disparo
 
 Tente disparar a investigação novamente com o mesmo ID em `$RESEARCH_ID`:
+
+```bash
+curl -sS -i -X POST "http://localhost:8000/briefings/$RESEARCH_ID/investigate" \
+  -H "$AUTH_HEADER"
+```
+
+**Resposta esperada (HTTP 409 Conflict):**
+```json
+{
+  "detail": "Investigação já iniciada ou em andamento para esta pesquisa"
+}
+```
+
+---
+
+### Caminho B: Revisão Única por Feedback com Início Automático em Background
+
+Se o operador desejar ajustar o briefing inicial, ele envia feedback textual único via PATCH, que gera nova versão e inicia a investigação automaticamente:
+
+#### Passo 2B: Enviar Feedback Único via PATCH
+
+Envie o feedback textual no corpo da requisição (3 a 4000 caracteres):
+
+```bash
+RESPONSE_PATCH=$(curl --fail-with-body -sS -X PATCH "http://localhost:8000/briefings/$RESEARCH_ID" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json" \
+  -d '{"note": "Aprofundar riscos regulatórios e conformidade clínica"}')
+
+echo "$RESPONSE_PATCH" | python3 -m json.tool
+```
+
+**Comportamento e Resposta esperada (HTTP 200 OK síncrono):**
+- O Scout executa obrigatoriamente exatamente 1 nova consulta SERP Jina formulada pela IA a partir do tema original e do feedback.
+- A IA preserva pontos não afetados e ajusta/acrescenta foco conforme as novas evidências.
+- Uma nova versão revisada é gerada em `briefing_versions`.
+- **Início Automático:** Na mesma operação, o sistema aprova e inicia a investigação automaticamente em background: os pontos revisados são salvos em `research_points` com status `SCRAPER_IN_PROGRESS` (`attempt_count = 0`), a pesquisa passa a `SCRAPER` e os workers são despachados em background.
+- O cliente recebe a resposta síncrona HTTP 200 contendo o briefing revisado (`version: 2`), sem necessidade de chamar `/investigate` e sem confirmação intermediária.
+
+#### Passo 3B: Verificar Bloqueio de Segunda Revisão
+
+Tente enviar um segundo feedback para a mesma pesquisa:
+
+```bash
+curl -sS -i -X PATCH "http://localhost:8000/briefings/$RESEARCH_ID" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json" \
+  -d '{"note": "Tentativa de segunda revisão não permitida"}'
+```
+
+**Resposta esperada (HTTP 409 Conflict):**
+O sistema rejeita com HTTP 409 Conflict, pois a revisão por feedback é estritamente única.
+
+#### Passo 4B: Verificar Bloqueio de Chamada Redundante a `/investigate`
+
+Como a investigação já foi iniciada automaticamente pelo PATCH, qualquer chamada subsequente a `/investigate` é recusada:
 
 ```bash
 curl -sS -i -X POST "http://localhost:8000/briefings/$RESEARCH_ID/investigate" \
@@ -125,17 +171,18 @@ ORDER BY created_at ASC;
 ```
 
 **Critérios de validação:**
-1. Para 3–7 pontos, até 12–28 linhas de resultado (4 personas por ponto); falhas definitivas também geram linha.
+1. Para 3–7 pontos, são geradas 12–28 linhas de resultado (4 personas por ponto: `historian`, `skeptic`, `pragmatist`, `futurist`); falhas definitivas também geram linha com status `FAILED` e erro sanitizado (máx 500 caracteres).
 2. Cada resultado de sucesso possui `status = 'AUDIT_PENDING'`.
-3. `read_urls` contém URLs retornadas pela Jina; não prova leitura integral nem citação verbatim.
-4. `used_urls` contém as fontes que o modelo citou no resultado.
-5. Ao concluir todos os workers, `research.status` transita para `AUDIT` se algum ponto teve sucesso.
+3. `read_urls` contém todas as URLs retornadas pela Jina capturadas pelo harness.
+4. `used_urls` contém exatamente as fontes citadas pelo modelo na síntese analítica.
+5. Ao concluir todos os workers, se pelo menos 1 ponto teve sucesso, a pesquisa transita para `AUDIT`. Se todos os workers de todos os pontos falharem, cada ponto termina em `SCRAPER_FAILED` e a pesquisa termina em `FAILED`.
 
-### Falha global esperada
+---
 
-Se todos os workers de todos os pontos falharem definitivamente, cada ponto termina `SCRAPER_FAILED` e `research.status` termina `FAILED` (não `AUDIT`).
+## 3. Validação de Regras de Borda e Falhas
 
-### Validação de título e contrato de edição
-
-- **Edição por feedback (`PATCH /briefings/$RESEARCH_ID`)**: Aceita exclusivamente o corpo `{"note": "texto do feedback"}` (entre 3 e 4000 caracteres). Não existe entrada manual de pontos no PATCH.
-- **Comprimento de título e validação de tema**: Títulos de pontos gerados pelo Scout não possuem limite de 500 caracteres (Q11; regra Q6 revogada); o sistema aceita e persiste o título integral, e `research_points.title` / `research_step_results.step_title` passam a `sa.Text` na migração 007. O tema da pesquisa informado pelo operador possui limite de 3 a 300 caracteres (Q13); entradas acima de 300 caracteres são rejeitadas com HTTP 422 e mensagem explícita sobre o limite.
+- **Validação de Tema no POST (Q13)**: O tema deve ter entre 3 e 300 caracteres após strip. Submeter tema com 301 caracteres retorna HTTP 422 com mensagem explícita informando o limite de 300 antes de qualquer processamento.
+- **Títulos Longos sem Teto de 500 (Q11)**: Títulos gerados pelo Scout com mais de 500 caracteres são aceitos e gravados integralmente em coluna `sa.Text` em `research_points` e `research_step_results`.
+- **Falhas Terminais no PATCH (Q12, Q16)**: Se a busca SERP Jina ou a geração do briefing revisado falhar de forma terminal após esgotar retries: a API responde HTTP 500 (configuração LLM), HTTP 502 (geração LLM indisponível) ou HTTP 503 (busca Jina indisponível); a pesquisa transita para `FAILED`, o briefing para `failed`, nenhuma investigação é iniciada, e nova tentativa exige novo `POST /briefings`.
+- **Tentativa de Reabertura (`/reopen`)**: Chamar `POST /briefings/{research_id}/reopen` em pesquisa já aprovada ou em `SCRAPER` retorna HTTP 409 Conflict.
+- **Extinção de `/approve`**: O endpoint `POST /briefings/{research_id}/approve` não existe no sistema; qualquer chamada resulta em erro de rota inexistente (HTTP 404/405), sem nenhum impacto de negócio.
