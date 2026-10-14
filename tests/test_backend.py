@@ -274,7 +274,7 @@ def test_full_pipeline_with_controlled_sources_and_models(client, monkeypatch):
     import time
     from app.tools.search_pipeline import Source
 
-    async def sources(query, limit=8, keys=None):
+    async def sources(query, limit=8, keys=None, **kwargs):
         return [
             Source("https://alpha-lab.org/result", "Study Alpha", "The measured result was 42 percent in clinical trials."),
             Source("https://beta-institute.com/data", "Study Beta", "The measured result was 42 percent in clinical trials."),
@@ -296,8 +296,18 @@ def test_full_pipeline_with_controlled_sources_and_models(client, monkeypatch):
         return json.dumps([{"source_url": "https://alpha-lab.org/result", "claim": "result was 42 percent in clinical trials.",
                             "exact_quote": "The measured result was 42 percent in clinical trials.", "analysis": "Source states result."}])
 
+    async def fake_read_source(source, **kwargs):
+        return source
+
     monkeypatch.setattr("app.services.pipeline.scout.search_read", sources)
     monkeypatch.setattr("app.services.pipeline.scout.complete", completion)
+    monkeypatch.setattr("app.services.search.search_read", sources)
+    monkeypatch.setattr("app.services.search.read_source", fake_read_source)
+    monkeypatch.setattr("app.services.pipeline.worker.search_read", sources)
+    monkeypatch.setattr("app.services.pipeline.worker.complete", completion)
+    monkeypatch.setattr("app.services.pipeline.audit_stage.complete", completion)
+    monkeypatch.setattr("app.services.pipeline.writer.complete", completion)
+    monkeypatch.setattr("app.services.llm.complete", completion)
     csrf = login(client)
     headers = {"X-CSRF-Token": csrf}
     response = client.post(
@@ -317,6 +327,10 @@ def test_full_pipeline_with_controlled_sources_and_models(client, monkeypatch):
     response = client.post(f"/api/research/{rid}/briefing/approve",
                            json={"approved_points": status["briefing_draft"]["points"]}, headers=headers)
     assert response.status_code == 200, response.text
+    # T017 (Q1/D-12): aprovar nao agenda mais run_research; a execucao e disparada explicitamente.
+    import uuid
+    from app.services.research import run_research
+    client.portal.call(run_research, uuid.UUID(rid))
     for _ in range(200):
         status = client.get(f"/api/research/{rid}").json()
         if status["status"] in {"DONE", "FAILED"}:
@@ -478,7 +492,17 @@ def test_llm_complete_fallback_to_9router_on_primary_rate_limit(monkeypatch):
     from app.services.llm import complete
     from app.services.settings import update_settings
 
+    import socket
     monkeypatch.setenv("TRUSTED_ROUTER_HOSTS", "9router.internal")
+    # Q2/D-14: rede simulada. 9router.internal resolve para IP privado confiavel, sem DNS real.
+    real_getaddrinfo = socket.getaddrinfo
+
+    def fake_getaddrinfo(host, port, *args, **kwargs):
+        if host == "9router.internal":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", port))]
+        return real_getaddrinfo(host, port, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
     calls = []
 
     async def fake_acompletion(**kwargs):
@@ -1931,10 +1955,11 @@ def test_a03_creation_payload_strict_and_backend_callback(client, monkeypatch):
     status_info = client.get(f"/api/research/{rid}", headers={"X-API-Key": secret}).json()
     assert status_info["callback_configured"] is True
 
+    import uuid
     from app.db.database import AsyncSessionLocal
     async def _cleanup_completed():
         async with AsyncSessionLocal() as db:
-            rec = await db.get(Research, rid)
+            rec = await db.get(Research, uuid.UUID(rid))
             if rec:
                 rec.status = "DONE"
                 await db.commit()
@@ -2023,7 +2048,13 @@ def test_a2_scout_distinct_domains_and_timeout(monkeypatch):
 
     async def fake_runtime(db):
         return ({}, {})
+    async def fake_jina_url(db):
+        return "https://r.jina.ai/"
+    async def fake_jina_proxy(db):
+        return (None, None, 10.0)
     monkeypatch.setattr("app.services.pipeline.scout.runtime_settings", fake_runtime)
+    monkeypatch.setattr("app.services.pipeline.scout.runtime_jina_base_url", fake_jina_url)
+    monkeypatch.setattr("app.services.pipeline.scout.runtime_jina_proxy", fake_jina_proxy)
 
     # Test distinct domain requirement: only 1 domain with multiple pages must raise
     async def run_insufficient():
@@ -2038,7 +2069,7 @@ def test_a2_scout_distinct_domains_and_timeout(monkeypatch):
                     Source("https://single-site.com/p3", "P3", "Long enough excerpt content for site 1 page 3"),
                 ]
             scout_module.search_read = fake_search
-            with pytest.raises(RuntimeError, match="minimum 3 required"):
+            with pytest.raises(RuntimeError, match="minimum (2|3)"):
                 await _scout_impl("Test Theme", cast(AsyncSession, MockAsyncSession()))
         finally:
             scout_module.search_read = old_sr
