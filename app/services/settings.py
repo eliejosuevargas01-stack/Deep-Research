@@ -268,6 +268,9 @@ def validate_base_url(url: str | None) -> str | None:
         if not found_any_ip and not _is_private_dns_allowed(parsed.scheme, host_lower):
             raise ValueError(f"Invalid base_url: DNS resolution returned no addresses ({host_lower})")
     except socket.gaierror as e:
+        if host_lower.endswith((".internal", ".local", ".lan", ".home", ".corp")):
+            if host_lower not in trusted and not _is_private_dns_allowed(parsed.scheme, host_lower):
+                raise ValueError(f"Invalid base_url: unverified internal host blocked ({host_lower})")
         raise ValueError(f"Invalid base_url: DNS resolution failed for host '{host_lower}' ({e})") from e
     return cleaned.strip().rstrip("/")
 async def get_record(db: AsyncSession) -> AppSettings:
