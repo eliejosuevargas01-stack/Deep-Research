@@ -601,15 +601,23 @@ async def test_worker_handles_empty_search_query_without_calling_jina(
     monkeypatch,
 ):
     """
-    Valida que chamada de tool com query vazia ('q': '') não dispara busca no Jina
-    e retorna aviso explicativo no histórico de mensagens.
+    BUG-20261014-8B4C: Valida que chamada de tool com query vazia ('q': '') não dispara busca no Jina,
+    NÃO consome a cota de buscas, e retorna aviso explicativo no histórico de mensagens.
     """
     mock_adapter = AsyncMock(spec=JinaToolAdapter)
+    mock_adapter.search.side_effect = [
+        JinaSearchResult(content="Res 1", urls=["https://ex.com/1"]),
+        JinaSearchResult(content="Res 2", urls=["https://ex.com/2"]),
+        JinaSearchResult(content="Res 3", urls=["https://ex.com/3"]),
+    ]
 
     llm_mock = AsyncMock(
         side_effect=[
             make_litellm_tool_call_response("", call_id="c_empty"),
-            make_litellm_final_response("Final após query vazia", []),
+            make_litellm_tool_call_response("busca valida 1", call_id="c1"),
+            make_litellm_tool_call_response("busca valida 2", call_id="c2"),
+            make_litellm_tool_call_response("busca valida 3", call_id="c3"),
+            make_litellm_final_response("Final após query vazia", ["https://ex.com/1"]),
         ]
     )
     monkeypatch.setattr("app.investigation.worker.call_llm_with_retries", llm_mock)
@@ -623,12 +631,109 @@ async def test_worker_handles_empty_search_query_without_calling_jina(
     )
 
     assert result.success is True
-    assert mock_adapter.search.await_count == 0
+    # Todas as 3 buscas válidas foram executadas porque a query vazia não consumiu cota
+    assert mock_adapter.search.await_count == 3
 
-    # Verifica mensagem enviada na ferramenta
+    # Verifica mensagem enviada na ferramenta para a query vazia
     second_call_messages = llm_mock.await_args_list[1].kwargs["messages"]
     tool_msg = [m for m in second_call_messages if m.get("role") == "tool"][0]
     assert "Query vazia" in tool_msg["content"]
+
+
+@pytest.mark.anyio
+async def test_worker_search_ceiling_deactivates_tools_and_prevents_loop(
+    make_litellm_tool_call_response,
+    make_litellm_final_response,
+    monkeypatch,
+):
+    """
+    RN-06, BUG-20261014-8B4C: Após 3 buscas Jina, tools devem ser desativadas (tools=None).
+    Simula modelo que tenta emitir busca após atingir o teto. Prova que tools=None é enviado
+    nas chamadas subsequentes ao LiteLLM, impedindo loop e encerrando com sucesso.
+    """
+    mock_adapter = AsyncMock(spec=JinaToolAdapter)
+    mock_adapter.search.side_effect = [
+        JinaSearchResult(content="Res 1", urls=["https://ex.com/1"]),
+        JinaSearchResult(content="Res 2", urls=["https://ex.com/2"]),
+        JinaSearchResult(content="Res 3", urls=["https://ex.com/3"]),
+    ]
+
+    llm_mock = AsyncMock(
+        side_effect=[
+            make_litellm_tool_call_response("busca 1", call_id="c1"),
+            make_litellm_tool_call_response("busca 2", call_id="c2"),
+            make_litellm_tool_call_response("busca 3", call_id="c3"),
+            # Modelo insiste em 4ª busca após o teto
+            make_litellm_tool_call_response("busca 4 barrada", call_id="c4"),
+            make_litellm_final_response("Análise final pós desativação.", ["https://ex.com/1"]),
+        ]
+    )
+    monkeypatch.setattr("app.investigation.worker.call_llm_with_retries", llm_mock)
+
+    worker = PersonaWorker(jina_adapter=mock_adapter)
+    result = await worker.execute(
+        research_id=uuid4(),
+        step_id=uuid4(),
+        step_title="Regressão loop de ferramentas",
+        persona="pragmatist",
+    )
+
+    assert result.success is True
+    assert result.result == "Análise final pós desativação."
+    assert mock_adapter.search.await_count == 3
+
+    # Primeiras 3 chamadas oferecem ferramentas
+    assert llm_mock.await_args_list[0].kwargs["tools"] is not None
+    assert llm_mock.await_args_list[1].kwargs["tools"] is not None
+    assert llm_mock.await_args_list[2].kwargs["tools"] is not None
+
+    # A partir do teto (chamadas 4 e 5), tools=None
+    assert llm_mock.await_args_list[3].kwargs["tools"] is None
+    assert llm_mock.await_args_list[4].kwargs["tools"] is None
+
+
+@pytest.mark.anyio
+async def test_worker_unknown_tool_call_returns_explicit_structured_error(
+    make_litellm_final_response,
+    monkeypatch,
+):
+    """
+    BUG-20261014-8B4C: Tool call desconhecida produz retorno explícito e estruturado
+    em vez de ser descartada ou ignorada.
+    """
+    mock_adapter = AsyncMock(spec=JinaToolAdapter)
+
+    def _make_unknown_tool_call(name: str = "google_search", call_id: str = "c_unk_1"):
+        fn = SimpleNamespace(name=name, arguments=json.dumps({"query": "teste"}))
+        tc = SimpleNamespace(id=call_id, type="function", function=fn)
+        msg = SimpleNamespace(role="assistant", content=None, tool_calls=[tc])
+        return SimpleNamespace(choices=[SimpleNamespace(message=msg)])
+
+    llm_mock = AsyncMock(
+        side_effect=[
+            _make_unknown_tool_call("google_search", call_id="c_unk_1"),
+            make_litellm_final_response("Análise final após ferramenta desconhecida.", []),
+        ]
+    )
+    monkeypatch.setattr("app.investigation.worker.call_llm_with_retries", llm_mock)
+
+    worker = PersonaWorker(jina_adapter=mock_adapter)
+    result = await worker.execute(
+        research_id=uuid4(),
+        step_id=uuid4(),
+        step_title="Investigação com tool desconhecida",
+        persona="historian",
+    )
+
+    assert result.success is True
+    assert result.result == "Análise final após ferramenta desconhecida."
+    assert mock_adapter.search.await_count == 0
+
+    # Verifica se a mensagem de erro estruturada foi adicionada no histórico da chamada de tool
+    second_call_messages = llm_mock.await_args_list[1].kwargs["messages"]
+    tool_msg = [m for m in second_call_messages if m.get("role") == "tool" and m.get("tool_call_id") == "c_unk_1"][0]
+    assert tool_msg["name"] == "google_search"
+    assert "desconhecida" in tool_msg["content"].lower()
 
 
 @pytest.mark.anyio
