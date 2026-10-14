@@ -31,7 +31,7 @@
 | Integração | Consumo via API por workers paralelos |
 
 > [!TIP]
-> A geração é **assíncrona**: `POST /briefings` retorna `201` apenas após a orquestração completar (Tx1 + Tx2). Consulte `GET /briefings/{id}` para o snapshot corrente.
+> A geração é **assíncrona**: `POST /briefings` retorna `201` apenas após a orquestração completar (Tx1 + Tx2). Consulte `GET /briefings/{research_id}` para o snapshot corrente.
 
 ---
 
@@ -114,7 +114,7 @@ curl -s -X POST \
   -d '{}' | jq '.'
 ```
 
-### Passo 5 — Consumir aprovado via GET /briefings/approved/{id}
+### Passo 5 — Consumir aprovado via GET /briefings/approved/{research_id}
 
 ```bash
 curl -s \
@@ -141,7 +141,7 @@ stateDiagram-v2
     end note
 
     note right of draft
-      PATCH /briefings/{id}
+      PATCH /briefings/{research_id}
       somente em draft
     end note
 ```
@@ -161,7 +161,7 @@ stateDiagram-v2
 - Versão inicia em `v1` (status `generating`).
 - Cada transição atômica **incrementa a versão** monotonicamente: `complete_briefing`, `edit_briefing`, `approve_briefing`, `fail_briefing`. **`reopen_briefing` é proibido para briefings aprovados (409, sem mutação).**
 - Histórico append-only em `briefing_versions`, ordenado por `version ASC`.
-- `GET /briefings/{id}/versions` retorna **v2 em diante** (transições pós-criação).
+- `GET /briefings/{research_id}/versions` retorna **v2 em diante** (transições pós-criação).
 
 **Concorrência (CAS):**
 
@@ -185,7 +185,7 @@ Cria e orquestra a geração do briefing do tema informado.
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "research_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "theme": "impacto da IA na medicina",
   "status": "draft",
   "points": [
@@ -221,19 +221,19 @@ Cria e orquestra a geração do briefing do tema informado.
 
 ---
 
-### `GET /briefings/{id}` — Consultar snapshot corrente
+### `GET /briefings/{research_id}` — Consultar snapshot corrente
 
 Retorna o estado corrente do briefing.
 
 | Parâmetro | Tipo | Local | Obrigatório | Descrição |
 |---|---|---|---|---|
-| `id` | `uuid` | path | Sim | UUID do briefing |
+| `research_id` | `uuid` | path | Sim | UUID da pesquisa (identificador canônico compartilhado) |
 
 **Resposta — `200 OK`:**
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "research_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "theme": "impacto da IA na medicina",
   "status": "draft",
   "points": [
@@ -286,13 +286,13 @@ Dispara revisão do briefing em status `draft` via Scout. O agente Scout reavali
 
 ---
 
-### `POST /briefings/{id}/approve` — Aprovar briefing
+### `POST /briefings/{research_id}/approve` — Aprovar briefing
 
 Aprova o briefing em status `draft`. Define `approved_at`, versão +1.
 
 | Parâmetro | Tipo | Local | Obrigatório | Descrição |
 |---|---|---|---|---|
-| `id` | `uuid` | path | Sim | UUID do briefing |
+| `research_id` | `uuid` | path | Sim | UUID da pesquisa (identificador canônico compartilhado) |
 
 O corpo da requisição é **aceito vazio** (`{}`, `null` ou corpo vazio). A validação usa `_parse_empty_body` que aceita:
 
@@ -304,7 +304,7 @@ O corpo da requisição é **aceito vazio** (`{}`, `null` ou corpo vazio). A val
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "research_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "theme": "impacto da IA na medicina",
   "status": "approved",
   "points": [
@@ -350,19 +350,19 @@ Corpo: aceito vazio (`{}`, `null` ou vazio), conforme contrato.
 
 ---
 
-### `GET /briefings/approved/{id}` — Consumir aprovado (read-only)
+### `GET /briefings/approved/{research_id}` — Consumir aprovado (read-only)
 
 Endpoint read-only para consumo de briefing aprovado. Retorna `409` se não estiver aprovado.
 
 | Parâmetro | Tipo | Local | Obrigatório | Descrição |
 |---|---|---|---|---|
-| `id` | `uuid` | path | Sim | UUID do briefing |
+| `research_id` | `uuid` | path | Sim | UUID da pesquisa (identificador canônico compartilhado) |
 
 **Resposta — `200 OK`:**
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "research_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "theme": "impacto da IA na medicina",
   "points": [
     {
@@ -379,13 +379,13 @@ Endpoint read-only para consumo de briefing aprovado. Retorna `409` se não esti
 
 ---
 
-### `GET /briefings/{id}/versions` — Listar histórico de versões
+### `GET /briefings/{research_id}/versions` — Listar histórico de versões
 
 Lista o histórico append-only de versões do briefing, ordenado por `version ASC`.
 
 | Parâmetro | Tipo | Local | Obrigatório | Descrição |
 |---|---|---|---|---|
-| `id` | `uuid` | path | Sim | UUID do briefing |
+| `research_id` | `uuid` | path | Sim | UUID da pesquisa (identificador canônico compartilhado) |
 
 **Resposta — `200 OK`:**
 
@@ -430,12 +430,12 @@ Lista o histórico append-only de versões do briefing, ordenado por `version AS
 | Método | Rota | Status sucesso | Descrição |
 |---|---|---|---|
 | `POST` | `/briefings` | `201` | Criar e orquestrar geração |
-| `GET` | `/briefings/{id}` | `200` | Snapshot corrente |
-| `PATCH` | `/briefings/{id}` | `200` | Editar pontos (draft) |
-| `POST` | `/briefings/{id}/approve` | `200` | Aprovar (draft) |
-| `POST` | `/briefings/{id}/reopen` | `409` | Reabertura de aprovado proibida; sem mutação |
-| `GET` | `/briefings/approved/{id}` | `200` | Consumir aprovado |
-| `GET` | `/briefings/{id}/versions` | `200` | Histórico de versões |
+| `GET` | `/briefings/{research_id}` | `200` | Snapshot corrente |
+| `PATCH` | `/briefings/{research_id}` | `200` | Editar pontos (draft) |
+| `POST` | `/briefings/{research_id}/approve` | `200` | Aprovar (draft) |
+| `POST` | `/briefings/{research_id}/reopen` | `409` | Reabertura de aprovado proibida; sem mutação |
+| `GET` | `/briefings/approved/{research_id}` | `200` | Consumir aprovado |
+| `GET` | `/briefings/{research_id}/versions` | `200` | Histórico de versões |
 
 ---
 
@@ -454,7 +454,7 @@ Lista o histórico append-only de versões do briefing, ordenado por `version AS
 | `403` | CSRF token ausente ou inválido (mutations) | Não (reenviar CSRF válido) | `{"detail": "CSRF validation failed"}` |
 | `404` | Briefing não encontrado | Não | `{"detail": "Briefing não encontrado"}` |
 | `409` | Conflito de versão CAS (edição concorrente) | Sim — reler versão corrente e reenviar (≤4 tentativas) | `{"detail": "Conflito de versão do briefing"}` |
-| `409` | Briefing não aprovado em `GET /approved/{id}` | Não (aguarde aprovação) | `{"detail": "Briefing não está aprovado"}` |
+| `409` | Briefing não aprovado em `GET /briefings/approved/{research_id}` | Não (aguarde aprovação) | `{"detail": "Briefing não está aprovado"}` |
 | `409` | Transição inválida (ex: editar approved) | Não | `{"detail": "Briefing não pode ser editado neste estado"}` |
 | `422` | Theme < 3 ou > 300 chars | Não (corrigir tema) | `{"detail": "Conteúdo de briefing inválido"}` |
 | `422` | Pontos fora de 3–7; título/description vazios | Não (corrigir payload) | `{"detail": "Pontos de briefing inválidos"}` |
