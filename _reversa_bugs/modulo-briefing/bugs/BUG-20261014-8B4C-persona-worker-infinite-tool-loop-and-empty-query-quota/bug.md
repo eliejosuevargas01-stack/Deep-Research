@@ -4,8 +4,8 @@ id: BUG-20261014-8B4C
 display_number: 12
 context: modulo-briefing
 title: "PersonaWorker mantém tools ativo após teto de 3 buscas e gasta cota em query vazia"
-status: open
-phase: triaging
+status: closed
+phase: closed
 severity: medium
 priority: P2
 security_suspected: false
@@ -29,10 +29,10 @@ root_cause:
   summary: "tools são enviados incondicionalmente e search_count incrementa antes da validação."
   files: ["app/investigation/worker.py:242-296"]
 spec_verdict: null
-resolution_kind: null
-closure: {policy: local-software, satisfied: false}
-change_set: []
-regression_tests: []
+resolution_kind: code-fix
+closure: {policy: local-software, satisfied: true}
+change_set: ["app/investigation/worker.py"]
+regression_tests: ["tests/investigation/test_persona_worker.py"]
 labels: [tool-calling, infinite-loop, quota-accounting, persona-worker]
 relations: []
 express: false
