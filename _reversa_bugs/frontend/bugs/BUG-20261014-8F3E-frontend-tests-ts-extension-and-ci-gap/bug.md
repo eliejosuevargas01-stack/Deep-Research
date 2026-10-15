@@ -29,7 +29,7 @@ root_cause:
   summary: "Loader TypeScript ausente e workflow sem step frontend."
   files: ["frontend/tests/frontend.test.mjs", "frontend/package.json", ".github/workflows/ci.yml"]
 spec_verdict: null
-resolution_kind: null
+resolution_kind: code_fix
 closure: {policy: local-software, satisfied: true}
 change_set: ["frontend/package.json", ".github/workflows/ci.yml"]
 regression_tests: ["frontend/tests/frontend.test.mjs"]
