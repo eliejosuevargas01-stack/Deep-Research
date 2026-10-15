@@ -240,59 +240,69 @@ class PersonaWorker:
         search_count = 0
         corrections = 0
         while True:
+            tools = [JINA_SEARCH_TOOL] if search_count < _MAX_SEARCHES else None
             resp = await call_llm_with_retries(
                 model=model,
                 messages=messages,
-                tools=[JINA_SEARCH_TOOL],
+                tools=tools,
                 api_base=api_base,
                 api_key=api_key,
             )
             message = _get_message(resp)
             tool_calls = _get_tool_calls(message)
-            jina_calls = [tc for tc in tool_calls if _tool_call_info(tc)[1] == "jina_search"]
-            if jina_calls:
+            if tool_calls:
                 content = _message_content(message)
                 messages.append(
                     {
                         "role": "assistant",
                         "content": content or None,
-                        "tool_calls": _serialize_tool_calls(jina_calls),
+                        "tool_calls": _serialize_tool_calls(tool_calls),
                     }
                 )
-                for tc in jina_calls:
-                    tc_id, _, args_raw = _tool_call_info(tc)
-                    if search_count >= _MAX_SEARCHES:
+                for tc in tool_calls:
+                    tc_id, name, args_raw = _tool_call_info(tc)
+                    if name == "jina_search":
+                        if search_count >= _MAX_SEARCHES:
+                            messages.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": tc_id,
+                                    "name": "jina_search",
+                                    "content": _CEILING_MSG,
+                                }
+                            )
+                            continue
+                        query = _extract_query(args_raw)
+                        if not query:
+                            messages.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": tc_id,
+                                    "name": "jina_search",
+                                    "content": "Query vazia. Forneça q não-vazia ou entregue o JSON final.",
+                                }
+                            )
+                            continue
+                        search_count += 1
+                        jina_result = await self.jina_adapter.search(query)
+                        _merge_urls(read_urls, jina_result.urls)
                         messages.append(
                             {
                                 "role": "tool",
                                 "tool_call_id": tc_id,
                                 "name": "jina_search",
-                                "content": _CEILING_MSG,
+                                "content": jina_result.content,
                             }
                         )
-                        continue
-                    search_count += 1
-                    query = _extract_query(args_raw)
-                    if not query:
+                    else:
                         messages.append(
                             {
                                 "role": "tool",
                                 "tool_call_id": tc_id,
-                                "name": "jina_search",
-                                "content": "Query vazia. Forneça q não-vazia ou entregue o JSON final.",
+                                "name": name,
+                                "content": f"Ferramenta '{name}' desconhecida. Utilize apenas jina_search ou entregue o JSON final.",
                             }
                         )
-                        continue
-                    jina_result = await self.jina_adapter.search(query)
-                    _merge_urls(read_urls, jina_result.urls)
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tc_id,
-                            "name": "jina_search",
-                            "content": jina_result.content,
-                        }
-                    )
                 continue
             content = _message_content(message)
             try:

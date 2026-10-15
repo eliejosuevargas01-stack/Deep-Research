@@ -4,8 +4,8 @@ id: BUG-20261014-9D4E
 display_number: 8
 context: settings
 title: "GET /api/settings/models aborta com HTTP 500 se qualquer provedor configurado falhar na listagem de catálogo"
-status: open
-phase: triaging
+status: closed
+phase: closed
 severity: high
 priority: P1
 security_suspected: false
@@ -49,13 +49,15 @@ root_cause:
   files:
     - "app/routers/settings.py:80-99"
     - "app/services/llm.py:504-578"
-spec_verdict: null
-resolution_kind: null
+spec_verdict: compliant
+resolution_kind: code-fix
 closure:
   policy: local-software
-  satisfied: false
-change_set: []
-regression_tests: []
+  satisfied: true
+change_set:
+  - "app/routers/settings.py"
+regression_tests:
+  - "tests/test_bug_9d4e_settings_models.py"
 labels:
   - graceful-degradation
   - model-discovery
@@ -92,7 +94,7 @@ Ausência de tratamento de exceção por provedor (`try/except Exception`) no lo
 
 ## Escopo do Fix Sugerido (para `/reversa-debugger-fix`)
 
-Em `app/routers/settings.py:91-97`, envolver `await list_provider_models(p, api_key, base_url)` em `try/except Exception:` (ou quando `provider is None`, degradar para `catalog[p] = []` registrando aviso sem segredos).
+Em `app/routers/settings.py:91-97`, envolver `await list_provider_models(p, api_key, base_url)` em `try/except Exception:` quando `provider is None`, degradando para `catalog[p] = []`. Na consulta de provedor específico (`provider is not None`), erros não são capturados e preservam exceções acionáveis.
 
 ## Agent Notes
 

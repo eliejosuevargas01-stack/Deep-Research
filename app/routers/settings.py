@@ -92,7 +92,13 @@ async def get_provider_models(
         api_key = keys.get(p)
         base_url = record.openai_base_url if p == "openai" else None
         if api_key:
-            catalog[p] = await list_provider_models(p, api_key, base_url)
+            if provider is None:
+                try:
+                    catalog[p] = await list_provider_models(p, api_key, base_url)
+                except Exception:
+                    catalog[p] = []
+            else:
+                catalog[p] = await list_provider_models(p, api_key, base_url)
         else:
             catalog[p] = []
 
