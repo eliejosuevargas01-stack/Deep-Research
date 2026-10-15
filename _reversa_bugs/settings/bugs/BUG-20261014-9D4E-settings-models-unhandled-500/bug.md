@@ -4,8 +4,8 @@ id: BUG-20261014-9D4E
 display_number: 8
 context: settings
 title: "GET /api/settings/models aborta com HTTP 500 se qualquer provedor configurado falhar na listagem de catálogo"
-status: open
-phase: triaging
+status: resolved
+phase: verified
 severity: high
 priority: P1
 security_suspected: false
@@ -49,13 +49,15 @@ root_cause:
   files:
     - "app/routers/settings.py:80-99"
     - "app/services/llm.py:504-578"
-spec_verdict: null
-resolution_kind: null
+spec_verdict: compliant
+resolution_kind: fixed
 closure:
   policy: local-software
-  satisfied: false
-change_set: []
-regression_tests: []
+  satisfied: true
+change_set:
+  - "app/routers/settings.py"
+regression_tests:
+  - "tests/test_bug_9d4e_settings_models.py"
 labels:
   - graceful-degradation
   - model-discovery
