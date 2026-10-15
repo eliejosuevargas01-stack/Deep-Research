@@ -1,6 +1,24 @@
 # Deep Research
 
-Sistema autônomo e distribuído de pesquisa profunda (Deep Research) multiagente, estruturado em 4 etapas sequenciais e pipelines paralelos de alta fidelidade e checagem de fatos.
+Criei o Deep Research inicialmente no n8n. Cheguei à primeira versão funcional em 15 dias; até o 17º dia do projeto, nas minhas execuções, reduzi o tempo de pesquisa de pelo menos 20 para cerca de 4 minutos, varrendo mais de 100 sites.
+
+Depois acrescentei RAG e vetorização para o agente reaproveitar informações coletadas. Agora estou migrando a ideia para **Python e FastAPI**. Essa implementação continua em desenvolvimento; os resultados de tempo acima pertencem à versão n8n.
+
+## O que construí no n8n
+
+Organizei o sistema em planejamento, coleta, auditoria e redação, com chamadas por API e entrega do relatório por callback:
+
+- **Planejamento com quatro personas:** fatos essenciais, análise técnica, mercado/consumidor e verificação cética. Consolido as perguntas, removo duplicidades e gravo as etapas em n8n Data Tables.
+- **Coleta:** integro APIs de LLMs, SERP Google via Apify, leitura de páginas com Jina e uma alternativa de busca Jina/Bing. Também utilizo SerpApi em fluxos auxiliares do meu ecossistema.
+- **RAG:** consulto e alimento um cache vetorial no Supabase com embeddings de 768 dimensões e metadados de fontes, confiabilidade e idade da informação, para reduzir coletas repetidas.
+- **Controle de execução:** mantenho fases, tentativas e marcações de processamento em Data Tables. Um fluxo agendado identifica etapas travadas e prepara sua retomada.
+- **Entrega:** o redator consolida o relatório e o envia à URL de callback informada pelo cliente.
+
+A configuração n8n consultada pela API em 15/10/2026 contém 5 fluxos habilitados de pesquisa e recuperação, com 111 nós. O fluxo separado de limpeza de cache em 30 dias está desabilitado nessa configuração; não prometo atualização automática de todo conteúdo reutilizado.
+
+## Migração para Python/FastAPI
+
+Neste repositório, estou levando a arquitetura para código com apoio de IA e Spec-Driven Development (SDD), conectando requisitos, cenários de aceite, implementação e testes. As seções abaixo documentam o desenho da versão Python e suas interfaces; a integração completa com provedores reais segue em desenvolvimento.
 
 ---
 
@@ -129,4 +147,5 @@ Os workers utilizam uma tool unificada com subfluxo integrado:
 - Módulos pipeline: implementam a lógica padrão: scraper, searcher, extractor, verifier, synthesizer
 - Frontend (placeholder): point to your own UI or consume API/stream directly; reverse-proxy `/static` optional (StaticFiles apenas se o diretório não estiver vazio)
 
-Garantir o mais alto padrão de profundidade informacional e veracidade documental, entregando relatórios extensos, estruturados e com 100% de rastreabilidade de fontes para tomada de decisão crítica.
+Meu objetivo é entregar relatórios estruturados com fontes rastreáveis e tornar explícitas as lacunas que ainda precisam de validação.
+
