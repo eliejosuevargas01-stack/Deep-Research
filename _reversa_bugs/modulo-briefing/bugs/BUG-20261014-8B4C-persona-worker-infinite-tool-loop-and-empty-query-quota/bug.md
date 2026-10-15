@@ -4,8 +4,8 @@ id: BUG-20261014-8B4C
 display_number: 12
 context: modulo-briefing
 title: "PersonaWorker mantém tools ativo após teto de 3 buscas e gasta cota em query vazia"
-status: open
-phase: triaging
+status: closed
+phase: closed
 severity: medium
 priority: P2
 security_suspected: false
@@ -26,13 +26,13 @@ traceability:
   affected_code: ["app/investigation/worker.py:242-296"]
   tests_existing: ["tests/investigation/test_persona_worker.py"]
 root_cause:
-  summary: "tools são enviados incondicionalmente e search_count incrementa antes da validação."
+  summary: "tools são enviados incondicionalmente e search_count incrementa antes da validação. No follow-up, adicionado término determinístico pós-teto caso o modelo insista em tool_calls."
   files: ["app/investigation/worker.py:242-296"]
 spec_verdict: null
-resolution_kind: null
-closure: {policy: local-software, satisfied: false}
-change_set: []
-regression_tests: []
+resolution_kind: code-fix
+closure: {policy: local-software, satisfied: true}
+change_set: ["app/investigation/worker.py"]
+regression_tests: ["tests/investigation/test_persona_worker.py"]
 labels: [tool-calling, infinite-loop, quota-accounting, persona-worker]
 relations: []
 express: false
@@ -40,4 +40,4 @@ express: false
 # BUG-20261014-8B4C
 
 ## Escopo do Fix Sugerido (para `/reversa-debugger-fix`)
-Desativar tools ao atingir teto/correção, validar query antes de incrementar e responder a tool inválida.
+Desativar tools ao atingir teto/correção, validar query antes de incrementar, responder a tool inválida e limitar tentativas pós-teto de busca garantindo término determinístico.
