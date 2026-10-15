@@ -755,3 +755,52 @@ async def test_worker_unknown_persona_fails_gracefully():
     assert result.success is False
     assert result.error is not None
     assert "Persona desconhecida" in result.error
+
+
+@pytest.mark.anyio
+async def test_worker_post_ceiling_tool_call_insistence_terminates_deterministically(
+    make_litellm_tool_call_response,
+    monkeypatch,
+):
+    """
+    BUG-20261014-8B4C Follow-up:
+    Simula modelo não-cooperativo que insiste em emitir tool calls repetidamente
+    mesmo após atingir o teto de 3 buscas e receber o aviso _CEILING_MSG.
+    Prova que o PersonaWorker encerra de forma determinística com success=False,
+    em exatamente 5 chamadas ao LLM (3 buscas + 1 aviso pós-teto + 1 término) e
+    muito antes do timeout de 600s.
+    """
+    mock_adapter = AsyncMock(spec=JinaToolAdapter)
+    mock_adapter.search.side_effect = [
+        JinaSearchResult(content="Res 1", urls=["https://ex.com/1"]),
+        JinaSearchResult(content="Res 2", urls=["https://ex.com/2"]),
+        JinaSearchResult(content="Res 3", urls=["https://ex.com/3"]),
+    ]
+
+    # Modelo insiste em tool calls indefinidamente
+    llm_mock = AsyncMock(
+        side_effect=[
+            make_litellm_tool_call_response("busca 1", call_id="c1"),
+            make_litellm_tool_call_response("busca 2", call_id="c2"),
+            make_litellm_tool_call_response("busca 3", call_id="c3"),
+            make_litellm_tool_call_response("busca 4 barrada", call_id="c4"),
+            make_litellm_tool_call_response("busca 5 insistente", call_id="c5"),
+            make_litellm_tool_call_response("busca 6 insistente", call_id="c6"),
+        ]
+    )
+    monkeypatch.setattr("app.investigation.worker.call_llm_with_retries", llm_mock)
+
+    worker = PersonaWorker(jina_adapter=mock_adapter)
+    result = await worker.execute(
+        research_id=uuid4(),
+        step_id=uuid4(),
+        step_title="Insistência pós-teto de busca",
+        persona="pragmatist",
+    )
+
+    assert result.success is False
+    assert result.error is not None
+    assert "exceeded" in result.error.lower()
+    assert mock_adapter.search.await_count == 3
+    # Exatamente 5 chamadas ao LLM
+    assert llm_mock.await_count == 5

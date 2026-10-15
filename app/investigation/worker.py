@@ -16,6 +16,8 @@ from app.investigation.tools import JinaSearchError, JinaToolAdapter
 _MAX_SEARCHES = 3
 _MAX_JSON_CORRECTIONS = 3
 _GLOBAL_TIMEOUT_S = 600.0
+_MAX_POST_CEILING_TOOL_ATTEMPTS = 1
+_MAX_TOOL_CALL_TURNS = 10
 
 _CEILING_MSG = (
     "Teto de 3 buscas atingido. Não execute mais buscas. "
@@ -239,6 +241,8 @@ class PersonaWorker:
         ]
         search_count = 0
         corrections = 0
+        post_ceiling_tool_attempts = 0
+        total_tool_turns = 0
         while True:
             tools = [JINA_SEARCH_TOOL] if search_count < _MAX_SEARCHES else None
             resp = await call_llm_with_retries(
@@ -251,6 +255,27 @@ class PersonaWorker:
             message = _get_message(resp)
             tool_calls = _get_tool_calls(message)
             if tool_calls:
+                total_tool_turns += 1
+                if total_tool_turns > _MAX_TOOL_CALL_TURNS:
+                    err = "Maximum tool call turns exceeded"
+                    return PersonaExecutionResult(
+                        success=False,
+                        result=err,
+                        used_urls=[],
+                        read_urls=read_urls,
+                        error=err,
+                    )
+                if search_count >= _MAX_SEARCHES:
+                    post_ceiling_tool_attempts += 1
+                    if post_ceiling_tool_attempts > _MAX_POST_CEILING_TOOL_ATTEMPTS:
+                        err = "Maximum tool call attempts exceeded after search ceiling reached"
+                        return PersonaExecutionResult(
+                            success=False,
+                            result=err,
+                            used_urls=[],
+                            read_urls=read_urls,
+                            error=err,
+                        )
                 content = _message_content(message)
                 messages.append(
                     {
