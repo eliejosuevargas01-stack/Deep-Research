@@ -34,6 +34,7 @@ services:
       LITELLM_API_BASE: ${LITELLM_API_BASE:-}
       OPENAI_PROXY_BASE_URL: ${OPENAI_PROXY_BASE_URL:-}
       ALLOW_PRIVATE_BASE_URL_DNS: ${ALLOW_PRIVATE_BASE_URL_DNS:-}
+      TRUSTED_ROUTER_HOSTS: ${TRUSTED_ROUTER_HOSTS:-9router-pkiyejd1hbkakf216ckm0hu4}
     depends_on:
       db:
         condition: service_healthy

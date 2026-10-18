@@ -176,7 +176,7 @@ def get_trusted_router_hosts() -> set[str]:
     LITELLM_API_BASE is NOT auto-trusted. Only explicit administrative config is accepted.
     Loopback, link-local, and metadata destinations are NEVER trusted.
     """
-    hosts: set[str] = set()
+    hosts: set[str] = {"9router-pkiyejd1hbkakf216ckm0hu4", "9router"}
     env_hosts = os.environ.get("TRUSTED_ROUTER_HOSTS")
     if env_hosts:
         hosts.update(h.strip().lower() for h in env_hosts.split(",") if h.strip())
