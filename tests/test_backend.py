@@ -115,9 +115,10 @@ def test_create_scout_approval_once_and_traceability(client, monkeypatch):
         return None
     monkeypatch.setattr("app.routers.research.run_research", fake_run)
     points = status["briefing_draft"]["points"]
-    # D-21 / E001: rota /approve extinta, retorna 404
     approved = client.post(f"/api/research/{rid}/briefing/approve", json={"approved_points": points}, headers={"X-CSRF-Token": csrf})
-    assert approved.status_code == 404
+    assert approved.status_code == 200
+    replay = client.post(f"/api/research/{rid}/briefing/approve", json={"approved_points": points}, headers={"X-CSRF-Token": csrf})
+    assert replay.status_code == 409
 
 
 def test_ssrf_and_audit_retry_cap():
@@ -323,21 +324,9 @@ def test_full_pipeline_with_controlled_sources_and_models(client, monkeypatch):
             break
         time.sleep(0.05)
     assert status["status"] == "PENDING_APPROVAL", status
-    # D-21 / E001: rota /approve extinta, retorna 404
     response = client.post(f"/api/research/{rid}/briefing/approve",
                            json={"approved_points": status["briefing_draft"]["points"]}, headers=headers)
-    assert response.status_code == 404
-    import uuid
-    from app.models import Research, ResearchPoint, ResearchStatus
-    async def approve_research():
-        async with AsyncSessionLocal() as db:
-            r = await db.get(Research, uuid.UUID(rid))
-            if r is not None:
-                r.status = ResearchStatus.SCRAPER.value
-            for pos, pt in enumerate(status["briefing_draft"]["points"]):
-                db.add(ResearchPoint(research_id=uuid.UUID(rid), position=pos, **pt))
-            await db.commit()
-    client.portal.call(approve_research)
+    assert response.status_code == 200, response.text
     # T017 (Q1/D-12): execucao e disparada explicitamente.
     import uuid
     from app.services.research import run_research
@@ -1155,13 +1144,13 @@ def test_briefing_edit_cas_intermediate_state_and_one_time_execution(client, mon
     )
     assert res_replay.status_code == 409
 
-    # Approve while BRIEFING must also fail (404 since /approve was extinguished)
+    # Approve while BRIEFING must also fail with 409
     res_approve = client.post(
         f"/api/research/{rid}/briefing/approve",
         json={"approved_points": points_initial},
         headers=headers,
     )
-    assert res_approve.status_code == 404
+    assert res_approve.status_code == 409
 
     # 4. Wait for background task rerun() to finish
     status = client.get(f"/api/research/{rid}").json()
@@ -1301,9 +1290,10 @@ def test_briefing_edit_and_approve_race_condition(monkeypatch):
             )
             r_edit, r_appr = await asyncio.gather(t_edit, t_appr)
 
-        assert r_edit.status_code == 200
-        # D-21 / E001: rota /approve extinta, retorna 404
-        assert r_appr.status_code == 404
+        codes = [r_edit.status_code, r_appr.status_code]
+        assert 200 in codes, f"One must succeed: {codes}"
+        assert 409 in codes, f"The other must fail with 409: {codes}"
+        assert codes.count(200) == 1, f"Exactly one must succeed: {codes}"
 
     asyncio.run(run())
 

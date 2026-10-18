@@ -118,7 +118,13 @@ async def add_event(
         await db.commit()
 
 
+_active_researches: set[uuid.UUID] = set()
+
+
 async def run_research(research_id: uuid.UUID) -> None:
+    if research_id in _active_researches:
+        return
+    _active_researches.add(research_id)
     try:
         async with AsyncSessionLocal() as db:
             research = await db.get(Research, research_id)
@@ -146,6 +152,8 @@ async def run_research(research_id: uuid.UUID) -> None:
                 # Do not mark approved points as failed, keep their evidence
                 await db.commit()
         await add_event(research_id, "system", "research_failed", safe_msg)
+    finally:
+        _active_researches.discard(research_id)
 
 
 __all__ = [
