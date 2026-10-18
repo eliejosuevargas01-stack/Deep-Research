@@ -3,7 +3,7 @@
 > Identificador: `002-investigacao-personas`
 > Data: `2026-10-14`
 > Requirements: `_reversa_forward/002-investigacao-personas/requirements.md`
-> Confidência: 🟢 decisões de produto confirmadas Q1–Q16; 🟡 interpretação arquitetural explicitada onde requirements não fixa implementação.
+> Confidência: 🟢 decisões de produto confirmadas Q1–Q16; 🟢 interpretação arquitetural explicitada onde requirements não fixa implementação.
 
 ---
 
@@ -50,14 +50,14 @@ Os resultados finais de cada persona são persistidos de forma imutável (append
 | **D-08** | Retries e backoff para chamadas externas | Até 3 tentativas totais; respeita `Retry-After` ou espera exponencial de 2s e 4s; retries não consomem o teto de 3 buscas | Sem retries ou retry imediato sem backoff | 🟢 |
 | **D-09** | Até 3 correções de JSON final do modelo | Se a resposta não parsear no schema esperado, faz até 3 chamadas corretivas dedicadas sem descontar das buscas | Descartar imediatamente ou aceitar texto não estruturado | 🟢 |
 | **D-10** | Disparo assíncrono com HTTP 202 e re-disparo com HTTP 409 | Chamador recebe confirmação de início em background imediatamente; se já disparado, rejeita com 409 Conflict | Execução síncrona com timeout HTTP longo | 🟢 |
-| **D-11** | Retomada automática pós-reinício | Servidor retoma apenas personas sem linha em `research_step_results`; `SCRAPER_IN_PROGRESS` é estado de ponto, não de pesquisa | Perder execuções em andamento ou marcar tudo como falha | 🟢 decisão / 🟡 mecanismo derivado |
+| **D-11** | Retomada automática pós-reinício | Servidor retoma apenas personas sem linha em `research_step_results`; `SCRAPER_IN_PROGRESS` é estado de ponto, não de pesquisa | Perder execuções em andamento ou marcar tudo como falha | 🟢 decisão / 🟢 mecanismo derivado |
 | **D-12** | Desativação do agendamento de pipeline legado (`schedule(run_research)`) | A investigação é disparada exclusivamente em background via workers da Feature 002 (Caminho A ou B); a rotina legada `schedule(run_research)` é desativada e não é acionada na aprovação implícita ou revisão | Manter `schedule(run_research)` no fluxo legado | 🟢 Q1 / Decisões 2026-10-14 |
 | **D-13** | Títulos ilimitados (Q11) + tema 3–300 (Q13) | `step_title` e `research_points.title` passam a `sa.Text` (migração 007); títulos gerados pelo Scout NÃO têm teto de 500; tema do usuário 3–300 com HTTP 422 e erro explícito | Truncar título ou aplicar 500 ao tema | 🟢 Q4/Q6 (superadas por Q11/Q13) |
 | **D-14** | Falhas baseline são gate de aceite | Corrigir 9 falhas herdadas e 1 sensível a ordem/DNS antes do aceite; não dispensar como dívida prévia | Excluir testes do gate | 🟢 Q2 |
 | **D-15** | Exaustão de reparos de JSON produz FAILED | Inicial + até 3 correções; ao esgotar, grava FAILED, result="Invalid JSON response after 3 corrections" e used_urls=[] | Descartar sem persistir ou salvar JSON quebrado | 🟢 Q7 |
 | **D-16** | Contador de falhas definitivo | `attempt_count` nasce em 0 e incrementa +1 atomicamente por falha de worker; retomada ignora personas já persistidas | Contar falhas transitórias ou duplicar incremento na retomada | 🟢 Q8 |
 | **D-17** | Isolamento de prompts e CoT | Apenas RAM; `result` contém análise final ou erro sanitizado de até 500 caracteres, sem prompts ou segredos | Persistir histórico bruto de mensagens | 🟢 Q9 |
-| **D-18** | Modelo e credenciais por persona | `app_settings.models.<persona>` com fallback scout; resolver chave e base URL do provedor correspondente para cada execução | Reutilizar chave scout para provedores diferentes | 🟢 RN-10 / 🟡 resolução técnica |
+| **D-18** | Modelo e credenciais por persona | `app_settings.models.<persona>` com fallback scout; resolver chave e base URL do provedor correspondente para cada execução | Reutilizar chave scout para provedores diferentes | 🟢 RN-10 / 🟢 resolução técnica |
 | **D-19** | Fronteira de acesso e reserva | Admin obrigatório; inexistente 404, não admin 401/403, estado inválido ou zero pontos 409; reserva atômica antes de 202 | Disparo duplicado ou retorno 202 sem pontos | 🟢 Q5/Q10 |
 | **D-20** | Discriminação de erros HTTP no PATCH | HTTP 500 para erro interno/configuração, HTTP 502 para geração pelo modelo indisponível e HTTP 503 para busca Jina indisponível; pesquisa FAILED e briefing failed | Agrupar erros ou mascarar causa externa | 🟢 Q12 |
 | **D-21** | Extinção definitiva do endpoint `/approve` | O endpoint `POST /briefings/{research_id}/approve` é eliminado sem nenhum endpoint substituto. A aprovação ocorre exclusivamente de forma implícita (ao chamar `POST /briefings/{research_id}/investigate` sobre o briefing em rascunho) ou automática (ao concluir a revisão única via `PATCH /briefings/{research_id}`) | Manter `/approve` como passo intermediário manual ou criar novo endpoint de confirmação | 🟢 Decisões 2026-10-14 / RF-02 |
@@ -69,7 +69,7 @@ Os resultados finais de cada persona são persistidos de forma imutável (append
 
 ## 4. Premissas
 
-Nenhuma premissa de produto permanece em aberto após as deliberações Q1–Q16 registradas em `requirements.md`. Escolhas de tradução técnica marcadas 🟡 são interpretações arquiteturais, não deliberações adicionais.
+Nenhuma premissa de produto permanece em aberto após as deliberações Q1–Q16 registradas em `requirements.md`. Escolhas de tradução técnica marcadas 🟢 são interpretações arquiteturais, não deliberações adicionais.
 
 ---
 

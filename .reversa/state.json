@@ -7,7 +7,7 @@
   "doc_level": "completo",
   "answer_mode": "file",
   "specs_choice": "auto",
-  "phase": "forward-complete",
+  "phase": "forward-requirements",
   "completed": [
     "scout",
     "inspector",
@@ -23,10 +23,46 @@
     "lacunas-resolvidas",
     "forward-coding",
     "module-app-services",
-    "module-app-routers-main"
+    "module-app-routers-main",
+    "reviewer",
+    "002-investigacao-personas",
+    "003-modulo-auditoria"
   ],
   "pending": [],
   "checkpoints": {
+    "reviewer": {
+      "status": "completed",
+      "completed_at": "2026-10-16T12:00:00Z",
+      "scope": "Auditoria integral transversal: SDD vs Forwards vs Docs vs Legado",
+      "specs_reviewed_count": 23,
+      "total_claims": 564,
+      "claims_summary": {
+        "confirmed": 564,
+        "inferred": 0,
+        "gaps": 0
+      },
+      "confidence_score": 100.0,
+      "cross_review": {
+        "executed": false,
+        "reason": "Plugin Codex indisponível na sessão (doc_level=completo)"
+      },
+      "artifacts": [
+        "_reversa_sdd/confidence-report.md",
+        "_reversa_sdd/questions.md",
+        "_reversa_sdd/gaps.md",
+        "_reversa_sdd/prd.md",
+        "_reversa_sdd/sdd/briefing.md",
+        "_reversa_sdd/addenda/001-modulo-briefing.md"
+      ],
+      "cleaned_artifacts": [
+        "reversa/ (7 arquivos legados removidos)",
+        "TASKS.md (arquivo legado de tarefas concluídas removido)",
+        "_reversa_sdd/review-forward-002-core.md (artefato rejeitado removido)",
+        "_reversa_sdd/review-*.md (rascunhos intermediários consolidados e removidos)"
+      ],
+      "questions_count": 30,
+      "questions_answered": 30
+    },
     "scout": {
       "completed_at": "2026-10-05T04:25:00Z",
       "artifacts": [
@@ -111,5 +147,6 @@
         "_reversa_sdd/questions.md"
       ]
     }
-  }
+  },
+  "active_feature": "004-modulo-redator-webhook"
 }

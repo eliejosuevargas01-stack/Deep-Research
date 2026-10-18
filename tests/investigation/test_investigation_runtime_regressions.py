@@ -160,12 +160,16 @@ def test_approval_does_not_schedule_run_research(monkeypatch):
         app.dependency_overrides[get_db] = override_get_db
         app.dependency_overrides[require_admin] = override_require_admin
 
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-            resp = await client.post(
-                f"/api/research/{research_id}/briefing/approve",
-                json={"approved_points": [{"title": f"title{i}", "description": f"description{i}", "dependencies": [], "is_parallelizable": True} for i in range(5)]}
-            )
-            assert resp.status_code == 200, resp.text
+        try:
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+                resp = await client.post(
+                    f"/api/research/{research_id}/briefing/approve",
+                    json={"approved_points": [{"title": f"title{i}", "description": f"description{i}", "dependencies": [], "is_parallelizable": True} for i in range(5)]}
+                )
+                # D-21 / E001: rota /approve extinta, retorna 404
+                assert resp.status_code == 404, resp.text
+        finally:
+            app.dependency_overrides.clear()
 
         assert calls == []
 

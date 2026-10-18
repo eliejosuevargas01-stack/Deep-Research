@@ -4,7 +4,7 @@
 > Data: 2026-10-13 (revisão consolidada pós-auditoria — Rodada 3)
 > Pasta da feature: `_reversa_forward/002-investigacao-personas`
 > Pasta da extração reversa: `_reversa_sdd/`
-> Confidência: 🟢 CONFIRMADO, 🟡 INFERIDO, 🔴 LACUNA / DÚVIDA
+> Confidência: 100% 🟢 CONFIRMADO (auditado e aprovado pelo operador em 2026-10-16)
 > Fonte de verdade: decisões do operador registradas nas sessões de 2026-10-12, 2026-10-13 (Q1-Q13) e 2026-10-14 (Q14-Q16).
 
 ---
@@ -478,3 +478,14 @@ Nenhuma decisão de produto pendente neste recorte. Todos os pontos de produto f
 | 2026-10-13 | Consolidação dos esclarecimentos Q1 a Q10 (desativação de agendamento legado, falhas baseline, retries, limites e Gherkin) | reversa-clarify |
 | 2026-10-13 | Incorporação das deliberações Q11 a Q13 (títulos sem teto de 500, discriminação HTTP 500/502/503 no PATCH e tema 3–300 com HTTP 422 explícito); harmonização com template canônico | reversa-clarify |
 | 2026-10-14 | Atualização de requisitos com decisões Q14 a Q16 (aprovação implícita via /investigate, revisão única por feedback com nova busca SERP Jina, início automático em background e extinção definitiva do /approve) | reversa-clarify |
+
+
+---
+
+## Emendas
+
+### E001, 2026-10-16
+
+O que muda: Formular a query SERP da revisão por chamada rápida ao Scout combinando tema e feedback; extinguir a rota legada POST /research/{id}/briefing/approve; expurgar schemas órfãos BriefingApproveRequest e BriefingEditPointsRequest; adicionar testes de erro 500/502/503 e ancoragem de query SERP no PATCH.
+Motivo: Resolução dos findings A-C8-01 a A-C8-06 do relatório de auditoria independente e deliberações do operador em 2026-10-16.
+Arquivos previstos: app/briefing/service.py, app/routers/research.py, app/briefing/schemas.py, tests/test_briefing_api.py, tests/test_briefing_acceptance.py, _reversa_forward/002-investigacao-personas/actions.md

@@ -113,6 +113,44 @@ async def generate_briefing(
 
 _REVISION_PROMPT_NOTE_MAX = 4000
 
+_QUERY_SYSTEM = (
+    "Você formula consultas de busca web. Combine o tema original e o "
+    "feedback do usuário em uma única consulta concisa (texto puro, sem "
+    "JSON, sem aspas, até 300 caracteres). Retorne exclusivamente a consulta."
+)
+_QUERY_MAX = 300
+
+
+async def _formulate_serp_query(
+    theme: str, feedback: str, llm_complete, timeout_s: float
+) -> str:
+    """Formula a query SERP da revisão via IA (tema + feedback).
+
+    E001 (A-C8-01): a revisão nunca consulta apenas o tema puro. Falha da IA
+    ou saída não-textual recai no fallback seguro combinado, truncado ao
+    limite do contrato SERP (3..300) para nunca vazar ``InvalidContent``.
+    """
+    fallback = f"{theme} {feedback}".strip()[:_QUERY_MAX]
+    try:
+        async with asyncio.timeout(timeout_s):
+            raw = await llm_complete(
+                _QUERY_SYSTEM,
+                json.dumps({"tema": theme, "feedback": feedback}, ensure_ascii=False),
+            )
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        return fallback
+    if not isinstance(raw, str):
+        return fallback
+    query = raw.strip().strip('"').strip("'").strip()
+    if not query or query.startswith(("```", "[", "{")):
+        return fallback
+    query = query[:_QUERY_MAX]
+    if len(query.strip()) < 3 or query.strip() == theme.strip():
+        return fallback
+    return query
+
 
 class BriefingRevisionError(Exception):
     """Falha do Scout na revisão por feedback (mensagem fixa e segura)."""
@@ -185,8 +223,11 @@ async def revise_briefing_with_feedback(
     except PromptUnavailable:
         await _mark_failed(db, briefing, _PROMPT_ERROR)
         raise BriefingRevisionError(_PROMPT_ERROR) from None
+    search_query = await _formulate_serp_query(
+        briefing.theme, normalized_note, llm_complete, llm_timeout_s
+    )
     try:
-        serp_results = await serp_client.search(briefing.theme)
+        serp_results = await serp_client.search(search_query)
     except SerpSearchError:
         await _mark_failed(db, briefing, _SERP_ERROR)
         raise BriefingRevisionError(_SERP_ERROR) from None
@@ -220,7 +261,7 @@ async def revise_briefing_with_feedback(
             await db.execute(
                 update(Research)
                 .where(Research.id == briefing.id)
-                .values(status=ResearchStatus.PENDING_APPROVAL, updated_at=now())
+                .values(status=ResearchStatus.SCRAPER, updated_at=now())
             )
             await db.commit()
             return persisted

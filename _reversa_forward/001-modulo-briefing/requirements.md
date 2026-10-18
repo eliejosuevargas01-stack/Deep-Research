@@ -3,7 +3,9 @@
 > Identificador: `001-modulo-briefing`
 > Data: `2026-10-10`
 > Pasta da extração reversa: `_reversa_sdd/` (vazia; documentação antiga eliminada)
-> Confidência: 🟢 CONFIRMADO, 🟡 INFERIDO, 🔴 LACUNA / DÚVIDA
+> Confidência: 100% 🟢 CONFIRMADO (auditado e aprovado pelo operador em 2026-10-16)
+>
+> **Aviso de vigência documental:** Este documento registra a especificação original da Feature 001 (Módulo de Briefing). Conforme os requisitos vigentes da Feature 002 (`_reversa_forward/002-investigacao-personas/requirements.md:134-137,231`), decisões de produto sucessoras superdimensionaram e ajustaram fluxos: (1) a reabertura de briefing aprovado foi descontinuada (retornando HTTP 409 em `POST /briefings/{research_id}/reopen` com status aprovado definitivo); (2) o endpoint de edição manual direta de lista de pontos foi substituído por revisão única assistida via `PATCH /briefings/{research_id}` com nota de feedback (`note`). A extinção do endpoint `/approve` e a aprovação implícita via `/investigate` estão planejadas na Sprint C8 da Feature 002 (`_reversa_forward/002-investigacao-personas/actions.md:114-118,196-198`, T036–T040) e permanecem futuras em relação a este documento. As especificações originais da Feature 001 são preservadas abaixo como histórico com notas de vigência.
 
 ## 1. Resumo executivo
 
@@ -38,12 +40,12 @@ Documentação Reversa anterior e regras implícitas no código atual não são 
    - Validade de ponto (RN-03a): ponto é válido somente quando `title` e `description` são texto não-vazio após strip; ponto nulo, com campo ausente, vazio ou somente espaços é rejeitado. Contagem 3–7 vale para a geração, a edição salva e a aprovação. 🟢
 4. **RN-04:** Instrução de sistema usada pelo agente vem de arquivo da pasta de prompts, sem texto equivalente definido diretamente na lógica do módulo. 🟢
    - Tipo: nova
-5. **RN-05:** Operador pode editar rascunho antes da aprovação; versão salva deve manter entre 3 e 7 pontos. 🟢
+5. **RN-05:** Operador pode refinar o rascunho através de feedback conversacional antes da aprovação definitiva em etapa única; versão salva mantém entre 3 e 7 pontos. 🟢 *(Nota de vigência: Requisito original da Feature 001 supersedido pelos requisitos vigentes de `_reversa_forward/002-investigacao-personas/requirements.md:136,231`, que extinguiram a edição manual de lista em favor de revisão única assistida via `PATCH /briefings/{research_id}` com campo `note`.)*
    - Tipo: nova
-6. **RN-06:** Aprovação torna briefing disponível para etapa posterior. Operador pode reabri-lo, retornando ao estado de rascunho e permitindo edição. Edição direta enquanto aprovado é recusada. 🟢
+6. **RN-06:** Aprovação torna briefing disponível para etapa posterior. Operador pode reabri-lo, retornando ao estado de rascunho e permitindo edição. Edição direta enquanto aprovado é recusada. 🟢 *(Nota de vigência: A reabertura de briefing aprovado foi supersedida pela Feature 002 em `_reversa_forward/002-investigacao-personas/requirements.md:135,231`, tornando a aprovação definitiva e retornando HTTP 409 em tentativas de reabertura; a extinção de `/approve` de C8 permanece futura.)*
    - Tipo: nova
-   - Contrato de consumo (RN-06a): o endpoint de consumo do briefing aprovado (`GET /briefings/approved/{id}`) responde 409 enquanto o briefing estiver em `draft` após reabertura, até nova aprovação. 🟢
-   - Impacto da reabertura (RN-06b): reabertura limpa `approved_at` e retorna o registro a `draft`; histórico de versões permanece consultável e monotônico. 🟢
+   - Contrato de consumo (RN-06a): o endpoint de consumo do briefing aprovado (`GET /briefings/approved/{id}`) responde 409 enquanto o briefing estiver em `draft` após reabertura, até nova aprovação. 🟢 *(Nota de vigência: Reabertura pós-aprovação supersedida por HTTP 409 na Feature 002:135,231.)*
+   - Impacto da reabertura (RN-06b): reabertura limpa `approved_at` e retorna o registro a `draft`; histórico de versões permanece consultável e monotônico. 🟢 *(Nota de vigência: Reabertura pós-aprovação supersedida por HTTP 409 na Feature 002:135,231.)*
 7. **RN-07:** Módulo não inicia investigação nem gera relatório. 🟢
    - Tipo: nova
 
@@ -55,11 +57,11 @@ Documentação Reversa anterior e regras implícitas no código atual não são 
 | RF-02 | Oferecer somente tool SERP via Jina ao agente | Must | Uma chamada por vez obtém resultados SERP via Jina; nenhuma página é lida e nenhuma segunda tool de pesquisa é disponibilizada; sucesso não dispara buscas adicionais | 🟢 |
 | RF-03 | Gerar rascunho com pontos importantes da pesquisa | Must | Rascunho gerado contém 3 a 7 pontos de foco com título e descrição, visando habitualmente 5 e adaptando quantidade ao tema quando necessário, sem resposta conclusiva | 🟢 |
 | RF-04 | Carregar instrução de sistema da pasta de prompts | Must | Alteração no arquivo de prompt muda instrução usada na próxima geração sem alteração de lógica | 🟢 |
-| RF-05 | Permitir edição do rascunho antes da aprovação | Must | Operador altera, adiciona, remove ou reordena pontos; versão salva contém 3 a 7 pontos e fica consultável; fora desse intervalo, edição é rejeitada sem substituir versão anterior | 🟢 |
-| RF-06 | Permitir aprovação do briefing | Must | Briefing com 3 a 7 pontos válidos muda para aprovado; edição é recusada até reabertura | 🟢 |
-| RF-07 | Expor briefing aprovado para etapa posterior | Must | Consumidor obtém conteúdo aprovado sem iniciar investigação | 🟡 |
+| RF-05 | Permitir edição do rascunho antes da aprovação | Must | Operador altera, adiciona, remove ou reordena pontos; versão salva contém 3 a 7 pontos e fica consultável; fora desse intervalo, edição é rejeitada sem substituir versão anterior | 🟢 *(Nota de vigência: Requisito original supersedido por `_reversa_forward/002-investigacao-personas/requirements.md:136,231` em favor de PATCH com `note`.)* |
+| RF-06 | Permitir aprovação do briefing | Must | Briefing com 3 a 7 pontos válidos muda para aprovado; edição é recusada até reabertura | 🟢 *(Nota de vigência: Extinção de `/approve` planejada na Sprint C8 da Feature 002; rota ativa em `app/briefing/router.py:289-305`.)* |
+| RF-07 | Expor briefing aprovado para etapa posterior | Must | Consumidor obtém conteúdo aprovado sem iniciar investigação | 🟢 |
 | RF-08 | Informar falhas de busca, geração ou prompt | Must | Falha impede rascunho inválido e retorna motivo seguro, sem segredos | 🟢 |
-| RF-09 | Reabrir briefing aprovado | Must | Reabertura muda estado para rascunho e permite novas edições | 🟢 |
+| RF-09 | Reabrir briefing aprovado | Must | Reabertura muda estado para rascunho e permite novas edições | 🟢 *(Nota de vigência: Supersedido por `_reversa_forward/002-investigacao-personas/requirements.md:135,231`, que bloqueia reabertura de aprovado com HTTP 409.)* |
 | RF-10 | Retentar automaticamente falhas no mesmo registro | Must | Mantém mesmo registro; cada operação externa que falhar recebe até 4 tentativas totais (inicial e 3 retentativas), sequenciais; falha do agente reutiliza resultado SERP já obtido | 🟢 |
 
 ### 5.1 Regras de nulidade e campos obrigatórios SERP (Q-014)
@@ -75,9 +77,9 @@ Documentação Reversa anterior e regras implícitas no código atual não são 
 |------|-----------|----------------------------|-------------|
 | Modularidade | Lógica, regras, prompts e contratos do briefing permanecem dentro dos limites do módulo | Separação do projeto em módulos | 🟢 |
 | Segurança | Credenciais e dados sensíveis nunca aparecem em resposta, erro ou registro do briefing | Proteção de dados operacionais | 🟢 |
-| Rastreabilidade | Cada briefing registra tema, busca única, referência de prompt usado (metadado: caminho relativo ou hash, nunca texto integral), edições e aprovação | Auditoria do foco aprovado | 🟡 |
+| Rastreabilidade | Cada briefing registra tema, busca única, referência de prompt usado (metadado: caminho relativo ou hash, nunca texto integral), edições e aprovação | Auditoria do foco aprovado | 🟢 |
 | Confiabilidade | Falha externa não gera rascunho parcial como válido | Evitar briefing incorreto | 🟢 |
-| Testabilidade | Busca, agente e prompt podem ser substituídos em testes sem acesso externo | Verificação do módulo isolado | 🟡 |
+| Testabilidade | Busca, agente e prompt podem ser substituídos em testes sem acesso externo | Verificação do módulo isolado | 🟢 |
 
 ### Princípios operacionais explícitos
 
@@ -98,6 +100,7 @@ Cenário: Gerar rascunho de briefing
   E prompt orienta 5 pontos como alvo habitual, adaptando quantidade ao tema quando necessário
 
 Cenário: Editar rascunho
+  # Nota de vigência: Cenário histórico da Feature 001 supersedido pela Feature 002:136,231 (edição manual de lista extinta em favor de PATCH com note)
   Dado briefing em rascunho
   Quando operador altera pontos de foco
   Então sistema salva nova versão do rascunho com 3 a 7 pontos
@@ -162,6 +165,7 @@ Cenário: Aprovar briefing
   E edição direta é recusada enquanto aprovado
 
 Cenário: Reabrir briefing
+  # Nota de vigência: Cenário histórico da Feature 001 supersedido pela Feature 002:135,231 (reabertura de aprovado descontinuada; responde HTTP 409)
   Dado briefing aprovado
   Quando operador solicita reabertura
   Então briefing retorna ao estado de rascunho
@@ -201,7 +205,7 @@ Cenário: Prompt ausente ou inválido
 - **Q:** Quais limites aplicar?
   **R:** Tema com 3 a 300 caracteres; rascunho gerado com 3 a 7 pontos.
 - **Q:** Briefing aprovado pode ser reaberto?
-  **R:** Sim. Retorna ao estado de rascunho para edição.
+  **R:** Sim. Retorna ao estado de rascunho para edição. *(Nota de vigência: Resposta histórica de 2026-10-10 supersedida pelas decisões de 2026-10-14 da Feature 002:135,231, que fixaram resposta HTTP 409 na reabertura de aprovado.)*
 - **Q:** Qual recuperação após falha?
   **R:** Retentar automaticamente no mesmo registro: 1 tentativa inicial mais até 3 retentativas, total de 4 tentativas por operação externa que falhar.
 - **Q:** Qual ferramenta de pesquisa usar?

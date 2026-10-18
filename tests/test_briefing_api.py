@@ -2,7 +2,7 @@
 import json
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 os.environ.update({
     "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
@@ -37,24 +37,32 @@ SECRET_CANARY = "provider-secret-canary"
 class FakeSerp:
     def __init__(self, error=None):
         self.calls = 0
+        self.queries = []
         self.error = error
 
     async def search(self, theme):
         self.calls += 1
+        self.queries.append(theme)
         if self.error:
             raise self.error
         return [{"title": "result", "url": "https://example.test", "description": "evidence"}]
 
 
 class FakeLLM:
-    def __init__(self, error=None):
+    def __init__(self, error=None, responses=None):
         self.calls = 0
         self.error = error
+        self._responses = list(responses or [])
 
     async def __call__(self, system, user):
         self.calls += 1
         if self.error:
             raise self.error
+        if self._responses:
+            item = self._responses.pop(0)
+            if isinstance(item, BaseException):
+                raise item
+            return item
         return json.dumps(POINTS)
 
 
@@ -88,6 +96,16 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         self.key_patch.start()
         self.factory_patch = patch("app.briefing.router.AsyncSessionLocal", self.sessions)
         self.factory_patch.start()
+        self.inv_factory_patch = patch("app.investigation.router.AsyncSessionLocal", self.sessions)
+        self.inv_factory_patch.start()
+        # T040: neutraliza a execução real dos workers em background; o
+        # despacho continua observável via await_count do mock.
+        self.inv_mock = AsyncMock()
+        self.inv_run_patch = patch(
+            "app.investigation.service.InvestigationService.run_investigation",
+            new=self.inv_mock,
+        )
+        self.inv_run_patch.start()
         self.llm_builder = patch("app.briefing.router._build_llm_complete", return_value=self.llm)
         self.llm_builder.start()
 
@@ -95,6 +113,8 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         self.serp_builder.stop()
         self.key_patch.stop()
         self.factory_patch.stop()
+        self.inv_factory_patch.stop()
+        self.inv_run_patch.stop()
         self.llm_builder.stop()
         app.dependency_overrides.clear()
         await self.client.aclose()
@@ -123,6 +143,20 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
     async def _count(self):
         async with self.sessions() as db:
             return await db.scalar(select(func.count()).select_from(BriefingRecord))
+
+    async def _research_snapshot(self, briefing_id):
+        """T040: estado de research + research_points após aprovação implícita."""
+        from uuid import UUID
+
+        from app.models.domain_models import Research, ResearchPoint
+
+        async with self.sessions() as db:
+            research = await db.get(Research, UUID(briefing_id))
+            rows = await db.execute(
+                select(ResearchPoint).where(ResearchPoint.research_id == UUID(briefing_id))
+            )
+            points = list(rows.scalars().all())
+            return research, points
 
     async def _cookie_auth(self):
         token, csrf, record = new_session_values()
@@ -165,6 +199,8 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((bearer.status_code, api_key.status_code), (200, 200))
 
     async def test_read_edit_approve_reopen_approved_and_versions(self):
+        # T036-T040 (Sprint C8): /approve extinto; PATCH revisa e aprova
+        # automaticamente com auto-investigate; 2ª revisão bloqueada com 409.
         bid = await self._seed()
         headers = {"Authorization": "Bearer test-api-secret-0123456789"}
         current = await self.client.get(f"/briefings/{bid}", headers=headers)
@@ -174,10 +210,18 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(invalid.status_code, 422)
         self.assertEqual(await self._snapshot(bid), before)
         edited = await self.client.patch(f"/briefings/{bid}", json={"note": "Please add another supporting perspective"}, headers=headers)
-        self.assertEqual((edited.status_code, edited.json()["version"]), (200, 3))
-        response = await self.client.post(f"/briefings/{bid}/approve", headers=headers)
-        self.assertEqual(response.status_code, 200, response.text)
-        self.assertTrue(response.json()["approved_at"])
+        self.assertEqual(edited.status_code, 200, edited.text)
+        self.assertEqual(edited.json()["status"], "approved")
+        self.assertTrue(edited.json()["approved_at"])
+        self.assertEqual(edited.json()["version"], 4)
+        self.assertEqual(self.inv_mock.await_count, 1)
+        research, points = await self._research_snapshot(bid)
+        self.assertIn(research.status, ("SCRAPER",))
+        self.assertEqual(len(points), 3)
+        self.assertTrue(all(p.status == "SCRAPER_IN_PROGRESS" for p in points))
+        # T036: rota /approve extinta retorna 404.
+        gone = await self.client.post(f"/briefings/{bid}/approve", headers=headers)
+        self.assertEqual(gone.status_code, 404, gone.text)
         before = await self._snapshot(bid)
         reopen = await self.client.post(f"/briefings/{bid}/reopen", json=None, headers=headers)
         self.assertEqual(reopen.status_code, 409, reopen.text)
@@ -190,9 +234,16 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         approved = await self.client.get(f"/briefings/approved/{bid}", headers=headers)
         self.assertEqual(approved.status_code, 200)
         self.assertEqual(set(approved.json()), {"research_id", "theme", "points", "approved_at"})
-        self.assertEqual(self.llm.calls, 1)
+        # E001: PATCH executa 1 chamada IA extra para formular a query SERP
+        # (tema+feedback) antes da geração revisada.
+        self.assertEqual(self.llm.calls, 2)
+        # T039: segunda revisão por feedback bloqueada com 409.
         edit = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"}, headers=headers)
         self.assertEqual(edit.status_code, 409)
+        self.assertEqual(self.inv_mock.await_count, 1)
+        # Investigação já iniciada pelo PATCH: re-disparo via /investigate dá 409.
+        conflict = await self.client.post(f"/briefings/{bid}/investigate", headers=headers)
+        self.assertEqual(conflict.status_code, 409)
         history = await self.client.get(f"/briefings/{bid}/versions", headers=headers)
         versions = [x["version"] for x in history.json()]
         self.assertEqual(versions, sorted(versions))
@@ -306,7 +357,6 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
         bid = await self._seed()
         before = await self._snapshot(bid)
         for path, bodies in (
-            (f"/briefings/{bid}/approve", [[], "bad", 3, True, {"extra": "bad"}]),
             (f"/briefings/{bid}/reopen", [[], "bad", 3, True, {"extra": "bad"}]),
         ):
             for body in bodies:
@@ -314,9 +364,116 @@ class BriefingAPI(unittest.IsolatedAsyncioTestCase):
                     response = await self.client.post(path, json=body, headers=headers)
                     self.assertEqual(response.status_code, 422, response.text)
                     self.assertEqual(await self._snapshot(bid), before)
+        # T036: /approve extinta — qualquer corpo retorna 404 sem mutar estado.
+        for body in ([], "bad", 3, True, {"extra": "bad"}):
+            with self.subTest(path="approve", body=body):
+                response = await self.client.post(f"/briefings/{bid}/approve", json=body, headers=headers)
+                self.assertEqual(response.status_code, 404, response.text)
+                self.assertEqual(await self._snapshot(bid), before)
         response = await self.client.post(f"/briefings/{bid}/approve", content=b"not-json", headers=headers)
-        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(response.status_code, 404, response.text)
         self.assertEqual(await self._snapshot(bid), before)
+        self.assertEqual(self.inv_mock.await_count, 0)
+
+    async def test_approve_extinct_and_investigate_implicit_approval(self):
+        """T036/T037/T040: /approve retorna 404; /investigate sobre draft
+        aprova implicitamente (202), persiste pontos SCRAPER_IN_PROGRESS e
+        pesquisa SCRAPER; re-disparo retorna 409."""
+        headers = {"Authorization": "Bearer test-api-secret-0123456789"}
+        bid = await self._seed()
+        gone = await self.client.post(f"/briefings/{bid}/approve", headers=headers)
+        self.assertEqual(gone.status_code, 404, gone.text)
+        started = await self.client.post(f"/briefings/{bid}/investigate", headers=headers)
+        self.assertEqual(started.status_code, 202, started.text)
+        body = started.json()
+        self.assertEqual(body["research_id"], bid)
+        self.assertEqual(body["status"], "SCRAPER")
+        self.assertEqual(body["message"], "Investigação iniciada em background")
+        self.assertEqual(self.inv_mock.await_count, 1)
+        research, points = await self._research_snapshot(bid)
+        self.assertIn(research.status, ("SCRAPER",))
+        self.assertEqual(len(points), 3)
+        self.assertTrue(all(p.status == "SCRAPER_IN_PROGRESS" for p in points))
+        self.assertTrue(all(p.attempt_count == 0 for p in points))
+        current = await self.client.get(f"/briefings/{bid}", headers=headers)
+        self.assertEqual(current.json()["status"], "approved")
+        approved = await self.client.get(f"/briefings/approved/{bid}", headers=headers)
+        self.assertEqual(approved.status_code, 200)
+        again = await self.client.post(f"/briefings/{bid}/investigate", headers=headers)
+        self.assertEqual(again.status_code, 409, again.text)
+        self.assertEqual(self.inv_mock.await_count, 1)
+        edit = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"}, headers=headers)
+        self.assertEqual(edit.status_code, 409)
+
+    async def test_patch_revision_serp_uses_ai_formulated_query(self):
+        """E001 (A-C8-01): SERP do PATCH recebe a query formulada pela IA a
+        partir de tema+feedback — exatamente 1 busca, nunca o tema puro."""
+        headers = {"Authorization": "Bearer test-api-secret-0123456789"}
+        bid = await self._seed()
+        note = "Please add another supporting perspective"
+        self.llm._responses = ["refined theme with extra perspective", json.dumps(POINTS)]
+        edited = await self.client.patch(f"/briefings/{bid}", json={"note": note}, headers=headers)
+        self.assertEqual(edited.status_code, 200, edited.text)
+        self.assertEqual(self.serp.calls, 1)
+        self.assertEqual(self.serp.queries, ["refined theme with extra perspective"])
+
+    async def test_patch_revision_serp_falls_back_to_combined_theme_feedback(self):
+        """E001 (A-C8-01): saída IA não-textual (JSON) recai no fallback
+        combinado f"{theme} {feedback}", nunca no tema puro."""
+        headers = {"Authorization": "Bearer test-api-secret-0123456789"}
+        bid = await self._seed()
+        note = "Please add another supporting perspective"
+        edited = await self.client.patch(f"/briefings/{bid}", json={"note": note}, headers=headers)
+        self.assertEqual(edited.status_code, 200, edited.text)
+        self.assertEqual(self.serp.calls, 1)
+        self.assertEqual(self.serp.queries, [f"A valid briefing theme {note}"])
+        self.assertNotEqual(self.serp.queries[0], "A valid briefing theme")
+
+    async def test_patch_revision_errors_map_to_500_502_503(self):
+        """E001 (A-C8-04): falhas terminais do PATCH — 500 prompt/config,
+        502 LLM, 503 SERP — com FAILED persistido e sem auto-investigate."""
+        from app.briefing.prompt_loader import PromptUnavailable
+        from app.briefing.serp_client import SerpSearchError
+        from app.briefing.service import LLMAttemptError
+        headers = {"Authorization": "Bearer test-api-secret-0123456789"}
+
+        bid = await self._seed()
+        self.serp.error = SerpSearchError(4)
+        try:
+            response = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"}, headers=headers)
+        finally:
+            self.serp.error = None
+        self.assertEqual(response.status_code, 503, response.text)
+        self.assertEqual(response.json()["detail"], "Busca SERP indisponível")
+        current, _ = await self._snapshot(bid)
+        self.assertEqual(current.status.value, "failed")
+        research, _ = await self._research_snapshot(bid)
+        self.assertIn(research.status, ("FAILED",))
+        self.assertEqual(self.inv_mock.await_count, 0)
+
+        bid = await self._seed()
+        self.llm.error = LLMAttemptError()
+        try:
+            response = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"}, headers=headers)
+        finally:
+            self.llm.error = None
+        self.assertEqual(response.status_code, 502, response.text)
+        self.assertEqual(response.json()["detail"], "Geração de briefing indisponível")
+        current, _ = await self._snapshot(bid)
+        self.assertEqual(current.status.value, "failed")
+        self.assertEqual(self.inv_mock.await_count, 0)
+
+        bid = await self._seed()
+        serp_before, llm_before = self.serp.calls, self.llm.calls
+        with patch("app.briefing.service.load_briefing_prompt", side_effect=PromptUnavailable(SECRET_CANARY)):
+            response = await self.client.patch(f"/briefings/{bid}", json={"note": "Please clarify supporting evidence"}, headers=headers)
+        self.assertEqual(response.status_code, 500, response.text)
+        self.assertEqual(response.json()["detail"], "Prompt de briefing indisponível")
+        self.assertNotIn(SECRET_CANARY, response.text)
+        self.assertEqual((self.serp.calls, self.llm.calls), (serp_before, llm_before))
+        current, _ = await self._snapshot(bid)
+        self.assertEqual(current.status.value, "failed")
+        self.assertEqual(self.inv_mock.await_count, 0)
 
     async def test_cas_conflict_maps_409_and_preserves_history(self):
         headers = {"Authorization": "Bearer test-api-secret-0123456789"}

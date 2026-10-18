@@ -48,29 +48,12 @@ class BriefingCreateRequest(BaseModel):
         return validate_theme(v)  # type: ignore[arg-type]
 
 
-class BriefingEditPointsRequest(BaseModel):
-    model_config = {"extra": "forbid"}
-
-    points: list[BriefingPoint] = Field(min_length=POINTS_MIN, max_length=POINTS_MAX)
-
-    @field_validator("points", mode="after")
-    @classmethod
-    def _points(cls, v: list[BriefingPoint]) -> list[BriefingPoint]:
-        return validate_points(v)
-
-
 class BriefingFeedbackRequest(BaseModel):
     """Feedback textual do usuário para revisão do rascunho (T016)."""
 
     model_config = {"extra": "forbid"}
 
     note: str = Field(..., min_length=3, max_length=4000, description="Feedback textual do usuário para guiar a revisão do briefing")
-
-
-class BriefingApproveRequest(BaseModel):
-    """Sem corpo: aprova rascunho atual (3-7 pontos válidos exigidos)."""
-
-    model_config = {"extra": "forbid"}
 
 
 class BriefingReopenRequest(BaseModel):

@@ -5,9 +5,10 @@ from uuid import UUID
 
 import httpx
 import litellm.exceptions as litellm_exceptions
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from sqlalchemy import update as _sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.briefing.domain import (
@@ -23,7 +24,6 @@ from app.briefing.llm_binding import make_scout_complete
 from app.briefing.prompt_loader import PromptUnavailable, load_briefing_prompt
 from app.briefing.schemas import (
     ApprovedBriefingResponse,
-    BriefingApproveRequest,
     BriefingCreateRequest,
     BriefingFeedbackRequest,
     BriefingPoint,
@@ -233,6 +233,7 @@ async def get_current_briefing(
 async def patch_briefing(
     research_id: UUID,
     payload: BriefingFeedbackRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     principal: Principal = Depends(require_admin),
 ):
@@ -240,6 +241,11 @@ async def patch_briefing(
     briefing = await _load(db, research_id)
     if briefing.status != BriefingStatus.DRAFT:
         raise _http_error(409, "Apenas briefings em rascunho podem ser revisados")
+    # T039: revisão única — segunda revisão por feedback é bloqueada com 409.
+    # O rascunho inicial é sempre a versão 2 (v1 generating -> v2 draft);
+    # qualquer versão acima indica revisão já concluída.
+    if briefing.version > 2:
+        raise _http_error(409, "Briefing já revisado; segunda revisão não permitida")
     try:
         timeout = _resolve_briefing_timeout()
     except ValueError:
@@ -283,26 +289,30 @@ async def patch_briefing(
         if isinstance(code, int) and not isinstance(code, bool) and code in (401, 403):
             raise _http_error(500, "Erro interno ao revisar briefing") from None
         raise
-    return _response(revised)
-
-
-@router.post("/briefings/{research_id}/approve", response_model=BriefingResponse)
-async def approve_briefing_route(
-    research_id: UUID,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    principal: Principal = Depends(require_admin),
-):
-    _parse_empty_body(await request.body(), BriefingApproveRequest)
-    await _release_auth_transaction(db)
-    briefing = await _load(db, research_id)
+    # T038: aprovação automática pós-revisão + início da investigação em
+    # background na mesma operação (sem segunda chamada a /investigate).
     try:
-        changed = approve_briefing(briefing, datetime.now(timezone.utc))
-    except InvalidContent:
-        raise _http_error(422, "Conteúdo de briefing inválido") from None
-    except InvalidTransition:
+        approved_changed = approve_briefing(revised, datetime.now(timezone.utc))
+    except (InvalidContent, InvalidTransition):
         raise _http_error(409, "Briefing não pode ser aprovado neste estado") from None
-    return _response(await _change(db, briefing, changed))
+    approved = await _change(db, revised, approved_changed)
+    from app.models.domain_models import ResearchPoint
+
+    await db.execute(
+        _sa_update(ResearchPoint)
+        .where(
+            ResearchPoint.research_id == research_id,
+            ResearchPoint.status == "SCRAPER_PENDING",
+        )
+        .values(status="SCRAPER_IN_PROGRESS")
+    )
+    await db.commit()
+    from app.investigation.service import InvestigationService
+
+    background_tasks.add_task(
+        InvestigationService(AsyncSessionLocal).run_investigation, research_id
+    )
+    return _response(approved)
 
 
 @router.post("/briefings/{research_id}/reopen", response_model=BriefingResponse)

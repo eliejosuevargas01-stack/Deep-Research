@@ -6,6 +6,7 @@ import asyncio
 import json
 import re
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 from uuid import UUID
 
 from app.investigation.llm_binding import LLMCallError, call_llm_with_retries
@@ -28,6 +29,37 @@ _CORRECTION_MSG = (
     'sem texto adicional nem markdown, no formato {"result": "...", "used_urls": [...]}. '
     "Corrija e reenvie apenas o JSON."
 )
+
+_MISSING_RESEARCH_HEADER = (
+    "DIRETRIZES CONCRETAS DE RE-PESQUISA aplicadas pelo Agente Auditor "
+    "(auditoria anterior reprovou o ponto). Atenda OBRIGATORIAMENTE a cada "
+    "diretriz abaixo com fontes inéditas, citações verbatim e URLs:"
+)
+_EXCLUDED_URLS_HEADER = (
+    "FILTRO ANTI-DUPLICAÇÃO (RN-303): as URLs listadas abaixo já foram lidas e "
+    "coletadas em tentativas anteriores deste ponto. Não releia, não reutilize "
+    "e não apresente nenhuma delas como fonte inédita; descubra fontes "
+    "complementares inéditas:"
+)
+_MAX_EXCLUDED_LISTED = 300
+
+
+def _url_key(url: str) -> str:
+    """Chave estável de comparação de URLs (scheme/www/trailing-slash neutros)."""
+
+    raw = str(url or "").strip()
+    try:
+        parsed = urlparse(raw)
+    except ValueError:
+        return raw.rstrip("/")
+    if parsed.scheme:
+        netloc = parsed.netloc.lower()
+        if netloc.startswith("www."):
+            netloc = netloc[len("www.") :]
+        path = parsed.path.rstrip("/")
+        return f"{netloc}{path}"
+    return raw.rstrip("/")
+
 
 
 @dataclass
@@ -150,6 +182,44 @@ def _merge_urls(dst: list[str], src: list[str]) -> None:
             dst.append(u)
 
 
+def _excluded_url_keys(excluded_urls: set[str] | list[str] | None) -> frozenset[str]:
+    """Normaliza a lista de exclusão em chaves estáveis de comparação."""
+
+    keys: set[str] = set()
+    for url in excluded_urls or []:
+        if isinstance(url, str) and url.strip():
+            keys.add(_url_key(url))
+    return frozenset(keys)
+
+
+def _filter_search_result(result: object, excluded_keys: frozenset[str]):
+    """Descarta do resultado Jina sinais de páginas já lidas (D-302, T047).
+
+    Remove URLs excluídas da lista de resultados e qualquer bloco de
+    conteúdo cujo texto anuncie uma página excluída, evitando que a
+    persona re-leia/re-aprove material de tentativas anteriores.
+    """
+
+    from app.investigation.tools import JinaSearchResult
+
+    if not excluded_keys or not isinstance(result, JinaSearchResult):
+        return result
+    kept_urls = [u for u in result.urls if _url_key(u) not in excluded_keys]
+    kept_blocks: list[str] = []
+    for block in result.content.split("\n\n"):
+        if not block.strip():
+            continue
+        block_keys = {
+            _url_key(u) for u in re.findall(r"https?://[^\s)\"']+", block)
+        }
+        if block_keys & excluded_keys:
+            continue
+        kept_blocks.append(block)
+    filtered = JinaSearchResult(content="\n\n".join(kept_blocks), urls=kept_urls)
+    return filtered
+
+
+
 def _message_content(message: object) -> str:
     if message is None:
         return ""
@@ -202,11 +272,21 @@ class PersonaWorker:
         step_title: str,
         persona: str,
         research_theme: str | None = None,
+        missing_research: list[str] | None = None,
+        excluded_urls: set[str] | list[str] | None = None,
     ) -> PersonaExecutionResult:
         read_urls: list[str] = []
+        user_prompt = self._build_user_prompt(step_title, missing_research, excluded_urls)
         try:
             async with asyncio.timeout(_GLOBAL_TIMEOUT_S):
-                return await self._run(step_title, persona, research_theme, read_urls)
+                return await self._run(
+                    step_title,
+                    persona,
+                    research_theme,
+                    read_urls,
+                    user_prompt,
+                    excluded_urls=excluded_urls,
+                )
         except (TimeoutError, asyncio.TimeoutError) as exc:
             msg = _sanitize_error(exc if str(exc) else "Worker timeout after 600s")
             return PersonaExecutionResult(
@@ -223,12 +303,47 @@ class PersonaWorker:
                 success=False, result=msg, used_urls=[], read_urls=read_urls, error=msg
             )
 
+    @staticmethod
+    def _build_user_prompt(
+        step_title: str,
+        missing_research: list[str] | None = None,
+        excluded_urls: set[str] | list[str] | None = None,
+    ) -> str:
+        """Mensagem do usuário com diretrizes do Auditor e filtro anti-duplicação.
+
+        ``missing_research`` (RN-303) injeta no início do contexto as
+        diretrizes concretas de re-pesquisa formuladas pelo Auditor.
+        ``excluded_urls`` (D-302) lista as URLs já lidas em tentativas
+        anteriores, proibindo nova releitura.
+        """
+
+        prompt = f"Investigue o ponto: {step_title}"
+        directives = [
+            str(m).strip() for m in (missing_research or []) if str(m or "").strip()
+        ]
+        if directives:
+            bullets = "\n".join(f"- {d}" for d in directives)
+            prompt = (
+                f"{_MISSING_RESEARCH_HEADER}\n{bullets}\n\n{prompt}"
+            )
+        excluded = [
+            str(u).strip()
+            for u in list(excluded_urls or [])[:_MAX_EXCLUDED_LISTED]
+            if isinstance(u, str) and u.strip()
+        ]
+        if excluded:
+            bullets = "\n".join(f"- {u}" for u in excluded)
+            prompt = f"{prompt}\n\n{_EXCLUDED_URLS_HEADER}\n{bullets}"
+        return prompt
+
     async def _run(
         self,
         step_title: str,
         persona: str,
         research_theme: str | None,
         read_urls: list[str],
+        user_prompt: str | None = None,
+        excluded_urls: set[str] | list[str] | None = None,
     ) -> PersonaExecutionResult:
         model = get_model_for_persona(persona, self.app_settings_models)
         credentials = (self.app_settings_models or {}).get("_credentials_by_persona", {}).get(persona, {})
@@ -237,7 +352,7 @@ class PersonaWorker:
         system_prompt = build_persona_system_prompt(persona, step_title, research_theme)
         messages: list[dict] = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Investigue o ponto: {step_title}"},
+            {"role": "user", "content": user_prompt or f"Investigue o ponto: {step_title}"},
         ]
         search_count = 0
         corrections = 0
@@ -310,6 +425,10 @@ class PersonaWorker:
                             continue
                         search_count += 1
                         jina_result = await self.jina_adapter.search(query)
+                        # D-302/T047: descarta páginas cuja URL já foi lida em
+                        # tentativas anteriores deste ponto (filtro anti-duplicação).
+                        excluded_keys = _excluded_url_keys(excluded_urls)
+                        jina_result = _filter_search_result(jina_result, excluded_keys)
                         _merge_urls(read_urls, jina_result.urls)
                         messages.append(
                             {
@@ -332,10 +451,16 @@ class PersonaWorker:
             content = _message_content(message)
             try:
                 parsed = _parse_and_validate(content)
+                excluded_keys = _excluded_url_keys(excluded_urls)
+                clean_used = [
+                    u
+                    for u in (parsed.used_urls or [])
+                    if isinstance(u, str) and u and _url_key(u) not in excluded_keys
+                ]
                 return PersonaExecutionResult(
                     success=True,
                     result=parsed.result,
-                    used_urls=list(parsed.used_urls or []),
+                    used_urls=list(clean_used),
                     read_urls=read_urls,
                     error=None,
                 )

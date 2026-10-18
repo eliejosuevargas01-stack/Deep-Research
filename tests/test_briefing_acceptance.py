@@ -75,12 +75,13 @@ def _fake_session_factory():
 class _FakeLLM:
     """LLM injetado: conta chamadas, captura args, falha sob demanda."""
 
-    def __init__(self, points=5, error=None):
+    def __init__(self, points=5, error=None, responses=None):
         self.calls = 0
         self.systems = []
         self.users = []
         self.payload = json.dumps(_points(points))
         self.error = error
+        self._responses = list(responses or [])
 
     async def __call__(self, system, user):
         self.calls += 1
@@ -88,6 +89,11 @@ class _FakeLLM:
         self.users.append(user)
         if self.error:
             raise self.error
+        if self._responses:
+            item = self._responses.pop(0)
+            if isinstance(item, BaseException):
+                raise item
+            return item
         return self.payload
 
 
@@ -117,6 +123,16 @@ class BriefingAcceptance(unittest.IsolatedAsyncioTestCase):
         )
         self.factory_patch = patch("app.briefing.router.AsyncSessionLocal", self.sessions)
         self.factory_patch.start()
+        self.inv_factory_patch = patch("app.investigation.router.AsyncSessionLocal", self.sessions)
+        self.inv_factory_patch.start()
+        # T040: neutraliza a execução real dos workers em background; o
+        # despacho continua observável via await_count do mock.
+        self.inv_mock = AsyncMock()
+        self.inv_run_patch = patch(
+            "app.investigation.service.InvestigationService.run_investigation",
+            new=self.inv_mock,
+        )
+        self.inv_run_patch.start()
         self.key_patch = patch(
             "app.briefing.router._runtime_jina_key", return_value="test-key"
         )
@@ -127,6 +143,8 @@ class BriefingAcceptance(unittest.IsolatedAsyncioTestCase):
         for client in self._http_clients:
             await client.aclose()
         self.factory_patch.stop()
+        self.inv_factory_patch.stop()
+        self.inv_run_patch.stop()
         self.key_patch.stop()
         app.dependency_overrides.clear()
         await self.client.aclose()
@@ -175,6 +193,21 @@ class BriefingAcceptance(unittest.IsolatedAsyncioTestCase):
             history = await get_briefing_versions(db, UUID(briefing_id))
             return current, [(x.version, x.status, x.points_json) for x in history]
 
+    async def _research_snapshot(self, briefing_id):
+        """T040: estado de research + research_points após aprovação implícita."""
+        from uuid import UUID
+
+        from sqlalchemy import select
+
+        from app.models.domain_models import Research, ResearchPoint
+
+        async with self.sessions() as db:
+            research = await db.get(Research, UUID(briefing_id))
+            rows = await db.execute(
+                select(ResearchPoint).where(ResearchPoint.research_id == UUID(briefing_id))
+            )
+            return research, list(rows.scalars().all())
+
     async def _create_draft(self, serp=None, llm=None):
         serp = serp or self._serp_client()
         llm = llm if llm is not None else _FakeLLM()
@@ -206,7 +239,8 @@ class BriefingAcceptance(unittest.IsolatedAsyncioTestCase):
         self.assertIn(THEME, llm.users[0])
 
     async def test_editar_rascunho(self):
-        """Gherkin: Editar rascunho — salva nova versao com 3-7 pontos."""
+        """Gherkin: Editar rascunho — revisão única com auto-aprovação e
+        auto-investigate (T038): salva nova versão, aprova e despacha."""
         created, _, _ = await self._create_draft()
         bid, version = created["research_id"], created["version"]
 
@@ -216,10 +250,114 @@ class BriefingAcceptance(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
-        self.assertEqual(body["version"], version + 1)
+        self.assertEqual(body["version"], version + 2)
+        self.assertEqual(body["status"], "approved")
+        self.assertTrue(body["approved_at"])
         self.assertEqual(len(body["points"]), 5)
+        self.assertEqual(self.inv_mock.await_count, 1)
+        research, points = await self._research_snapshot(bid)
+        self.assertIn(research.status, ("SCRAPER",))
+        self.assertTrue(all(p.status == "SCRAPER_IN_PROGRESS" for p in points))
         _, history = await self._snapshot(bid)
         self.assertEqual([v for v, _, _ in history], sorted(v for v, _, _ in history))
+        # T039: segunda revisão bloqueada com 409.
+        second = await self.client.patch(
+            f"/briefings/{bid}", json={"note": "Add even more details"}, headers=HEADERS
+        )
+        self.assertEqual(second.status_code, 409)
+
+    async def test_patch_serp_query_combines_theme_and_feedback(self):
+        """E001 (A-C8-01): PATCH executa exatamente 1 busca SERP real com a
+        query combinada tema+feedback (fallback), nunca o tema puro."""
+        note = "Add further supporting details"
+        created, serp, _ = await self._create_draft()
+        bid = created["research_id"]
+        del serp.http_calls[:]
+
+        response = await self.client.patch(
+            f"/briefings/{bid}", json={"note": note}, headers=HEADERS
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(serp.http_calls), 1)
+        sent = json.loads(serp.http_calls[0].content.decode("utf-8"))
+        self.assertEqual(sent["q"], f"{THEME} {note}")
+        self.assertNotEqual(sent["q"], THEME)
+
+    async def test_patch_serp_query_uses_ai_formulation_when_textual(self):
+        """E001 (A-C8-01): formulação IA textual é usada como query SERP."""
+        note = "Add further supporting details"
+        created, _, _ = await self._create_draft()
+        bid = created["research_id"]
+        serp = self._serp_client()
+        llm = _FakeLLM(responses=["refined acceptance query", json.dumps(_points(5))])
+        self._patch_builders(serp, llm)
+
+        response = await self.client.patch(
+            f"/briefings/{bid}", json={"note": note}, headers=HEADERS
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(serp.http_calls), 1)
+        sent = json.loads(serp.http_calls[0].content.decode("utf-8"))
+        self.assertEqual(sent["q"], "refined acceptance query")
+
+    async def test_patch_feedback_terminal_errors(self):
+        """E001 (A-C8-04/Q12): PATCH 500 prompt, 502 LLM, 503 SERP; FAILED
+        persistido no mesmo registro, sem segredos, sem auto-investigate."""
+        # 503: SERP sempre 500 no MockTransport (4 tentativas HTTP).
+        created, _, _ = await self._create_draft()
+        bid = created["research_id"]
+        err_serp = self._serp_client(status=500)
+        self._patch_builders(err_serp, _FakeLLM())
+        response = await self.client.patch(
+            f"/briefings/{bid}", json={"note": "Valid feedback note"}, headers=HEADERS
+        )
+        self.assertEqual(response.status_code, 503, response.text)
+        self.assertEqual(response.json()["detail"], "Busca SERP indisponível")
+        self.assertEqual(len(err_serp.http_calls), 4)
+        current, _ = await self._snapshot(bid)
+        self.assertEqual(current.status.value, "failed")
+        self.assertEqual(self.inv_mock.await_count, 0)
+
+        # 502: LLM sempre falha (1 formulação com fallback + 4 tentativas).
+        created, _, _ = await self._create_draft()
+        bid = created["research_id"]
+        ok_serp = self._serp_client()
+        bad_llm = _FakeLLM(error=LLMAttemptError())
+        self._patch_builders(ok_serp, bad_llm)
+        response = await self.client.patch(
+            f"/briefings/{bid}", json={"note": "Valid feedback note"}, headers=HEADERS
+        )
+        self.assertEqual(response.status_code, 502, response.text)
+        self.assertEqual(response.json()["detail"], "Geração de briefing indisponível")
+        self.assertEqual(len(ok_serp.http_calls), 1)
+        self.assertEqual(bad_llm.calls, 5)
+        current, _ = await self._snapshot(bid)
+        self.assertEqual(current.status.value, "failed")
+        self.assertEqual(self.inv_mock.await_count, 0)
+
+        # 500: prompt indisponível — sem I/O externo.
+        created, _, _ = await self._create_draft()
+        bid = created["research_id"]
+        quiet_serp = self._serp_client()
+        quiet_llm = _FakeLLM()
+        self._patch_builders(quiet_serp, quiet_llm)
+        with patch(
+            "app.briefing.service.load_briefing_prompt",
+            side_effect=PromptUnavailable(f"missing {SECRET_CANARY}"),
+        ):
+            response = await self.client.patch(
+                f"/briefings/{bid}", json={"note": "Valid feedback note"}, headers=HEADERS
+            )
+        self.assertEqual(response.status_code, 500, response.text)
+        self.assertEqual(response.json()["detail"], "Prompt de briefing indisponível")
+        self.assertNotIn(SECRET_CANARY, response.text)
+        self.assertEqual(len(quiet_serp.http_calls), 0)
+        self.assertEqual(quiet_llm.calls, 0)
+        current, _ = await self._snapshot(bid)
+        self.assertEqual(current.status.value, "failed")
+        self.assertEqual(self.inv_mock.await_count, 0)
 
     async def test_rejeitar_quantidade_invalida(self):
         """Feedback PATCH exige nota 3..4000; falha 422 preserva estado."""
@@ -245,34 +383,46 @@ class BriefingAcceptance(unittest.IsolatedAsyncioTestCase):
                 select(BriefingRecord).order_by(BriefingRecord.created_at.desc())
             )).first().id
         invalid_before = await self._snapshot(str(invalid_id))
+        # T036: /approve extinta retorna 404 preservando estado.
         response = await self.client.post(
             f"/briefings/{invalid_id}/approve", headers=HEADERS
         )
-        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(response.status_code, 404, response.text)
         self.assertEqual(await self._snapshot(str(invalid_id)), invalid_before)
 
     async def test_aprovar_briefing(self):
-        """Gherkin: Aprovar briefing — vira approved com approved_at, edicao 409."""
+        """Gherkin (Sprint C8): /approve extinta (404); aprovação ocorre
+        implicitamente via /investigate sobre draft (202 + SCRAPER)."""
         created, _, _ = await self._create_draft()
         bid = created["research_id"]
 
-        response = await self.client.post(f"/briefings/{bid}/approve", headers=HEADERS)
+        gone = await self.client.post(f"/briefings/{bid}/approve", headers=HEADERS)
+        self.assertEqual(gone.status_code, 404, gone.text)
 
-        self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json()["status"], "approved")
-        self.assertTrue(response.json()["approved_at"])
+        started = await self.client.post(f"/briefings/{bid}/investigate", headers=HEADERS)
+        self.assertEqual(started.status_code, 202, started.text)
+        self.assertEqual(started.json()["status"], "SCRAPER")
+        self.assertEqual(self.inv_mock.await_count, 1)
+        research, points = await self._research_snapshot(bid)
+        self.assertIn(research.status, ("SCRAPER",))
+        self.assertTrue(all(p.status == "SCRAPER_IN_PROGRESS" for p in points))
+        current = await self.client.get(f"/briefings/{bid}", headers=HEADERS)
+        self.assertEqual(current.json()["status"], "approved")
         edit = await self.client.patch(
             f"/briefings/{bid}", json={"note": "Please revise the draft"}, headers=HEADERS
         )
         self.assertEqual(edit.status_code, 409)
         approved = await self.client.get(f"/briefings/approved/{bid}", headers=HEADERS)
         self.assertEqual(approved.status_code, 200)
+        again = await self.client.post(f"/briefings/{bid}/investigate", headers=HEADERS)
+        self.assertEqual(again.status_code, 409)
 
     async def test_reabrir_briefing(self):
-        """Briefing aprovado não pode ser reaberto: 409 e estado preservado."""
+        """Briefing aprovado (via /investigate) não pode ser reaberto: 409."""
         created, _, _ = await self._create_draft()
         bid = created["research_id"]
-        await self.client.post(f"/briefings/{bid}/approve", headers=HEADERS)
+        started = await self.client.post(f"/briefings/{bid}/investigate", headers=HEADERS)
+        self.assertEqual(started.status_code, 202, started.text)
 
         reopen = await self.client.post(f"/briefings/{bid}/reopen", headers=HEADERS)
 

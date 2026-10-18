@@ -1,0 +1,49 @@
+Você é o worker leaf de implementação executando /reversa-coding T041 a T049 no repositório /root/projects/deep-research.
+
+MISSÃO:
+Implementar o Módulo de Auditoria Factual e Julgamento de Evidências (Feature 003) cobrindo as Sprints C9, C10 e C11.
+
+DIRETRIZES TÉCNICAS E ARQUIVOS:
+
+1. `app/audit/__init__.py` e `app/audit/domain.py`:
+   - Definir os 12 critérios canônicos (q1 a q12).
+   - Implementar cálculo de score S in [0, 12].
+   - Regra de aprovação: score >= 10 e len(contradictions) == 0.
+   - Máquina de estados:
+     * Aprovado: transita para "AUDIT_APPROVED".
+     * Reprovado com attempt < 4: transita para "SCRAPER_RETRY", exige missing_research concreto preenchido.
+     * Reprovado na 4ª tentativa (attempt >= 4): transita para "AUDIT_CAVEAT" (com limitações registradas, sem travar a pesquisa nem torná-la BLOCKED).
+   - Sanitização de segredos em dicionários de auditoria usando `apply_output_guardrail` de `app.services.llm`.
+
+2. `app/audit/schemas.py`:
+   - Schemas Pydantic: `AuditChecklist` (q1..q12 bool), `AuditVerdictResponse`, `AuditRunResponse`.
+
+3. `app/audit/service.py`:
+   - Classe `AuditService`:
+     * Agrega os resultados das 4 personas para um ponto lendo `research_step_results`.
+     * Invoca LiteLLM para o papel "auditor" usando o modelo configurado em settings (`gemini/gemini-3.8-flash` ou override de settings).
+     * Resiliência de infraestrutura: até 4 tentativas consecutivas (1 inicial + 3 retries) com backoff exponencial (1s, 2s, 4s) para erros 500/502/503/timeout da LLM. Se persistir a falha, registra no banco como "AUDIT_INCONCLUSIVE" sem queimar o `attempt_count` do ponto.
+     * Persistência: salva em `audit_trails` com detalhes completos e atualiza `research_points.status` e `research_points.audit`.
+     * Quando todos os pontos de uma pesquisa atingirem `AUDIT_APPROVED` ou `AUDIT_CAVEAT`, transitar `research.status` para `WRITE` (`ResearchStatus.WRITE.value`).
+
+4. `app/audit/router.py` e `app/main.py`:
+   - Endpoints sob prefixo `/api/audit`:
+     * `POST /api/audit/{research_id}/run`
+     * `POST /api/audit/{research_id}/points/{point_id}/run`
+     * Protegidos por autenticação de admin (Bearer / cookie / API key).
+   - Registrar o router em `app/main.py`.
+
+5. `app/investigation/worker.py` e `app/investigation/service.py`:
+   - Atualizar `PersonaWorker`:
+     * Aceitar `missing_research: list[str] | None` e injetar no prompt de re-execução.
+     * Aceitar `excluded_urls: list[str] | set[str] | None`: filtro anti-duplicação que impede a re-leitura das mesmas URLs já pesquisadas na tentativa anterior.
+   - Atualizar `InvestigationService`:
+     * Ao finalizar os 4 workers de um ponto, disparar imediatamente a auditoria daquele ponto.
+     * Se o veredito for `SCRAPER_RETRY`: incrementar `point.attempt_count`, re-disparar os workers daquele ponto com `missing_research` e `excluded_urls = read_urls_do_ponto`.
+     * Se for `AUDIT_APPROVED` ou `AUDIT_CAVEAT`: verificar se todos os pontos da pesquisa concluíram. Se todos concluíram, transitar `research.status = ResearchStatus.WRITE.value`.
+
+6. Checklist e testes:
+   - Manter compatibilidade com testes existentes.
+   - Execute os testes e verifique que não quebrou nenhuma suíte:
+     `pytest tests/test_briefing_*.py tests/investigation/ -q`
+   - Atualize os checkboxes de T041 a T049 para [X] em `_reversa_forward/003-modulo-auditoria/actions.md`.
