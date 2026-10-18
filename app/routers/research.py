@@ -23,7 +23,7 @@ _running: set[asyncio.Task] = set()
 
 
 def schedule(research_id: uuid.UUID) -> None:
-    task = asyncio.create_task(run_research(research_id))
+    task = asyncio.create_task(run_research(research_id), name=f"research_{research_id}")
     _running.add(task)
     task.add_done_callback(_running.discard)
 
@@ -295,7 +295,7 @@ async def approve(research_id: uuid.UUID, payload: BriefingApproval, _: Principa
             update(Research).where(Research.id == research_id, Research.status.in_([ResearchStatus.PENDING_APPROVAL, ResearchStatus.PENDING_APPROVAL.value]), Research.approved_at.is_(None))
             .values(status=ResearchStatus.SCRAPER.value, approved_at=datetime.now(timezone.utc), briefing_draft=draft)
         )
-        if result.rowcount != 1:
+        if getattr(result, "rowcount", -1) != 1:
             await db.rollback()
             exists = await db.get(Research, research_id)
             raise HTTPException(404 if not exists else 409, "Research not found" if not exists else "Briefing already approved or no longer approvable")
@@ -310,6 +310,7 @@ async def approve(research_id: uuid.UUID, payload: BriefingApproval, _: Principa
         if exists and (exists.status not in (ResearchStatus.PENDING_APPROVAL, ResearchStatus.PENDING_APPROVAL.value) or exists.approved_at is not None):
             raise HTTPException(409, "Briefing already approved or no longer approvable")
         raise
+    schedule(research_id)
     try:
         await add_event(research_id, "system", "briefing_approved", "Briefing approved exactly once", {"points": len(payload.approved_points)})
     except Exception:
@@ -391,7 +392,9 @@ async def resume(
         raise HTTPException(404, "Research not found")
     if research.status in {ResearchStatus.DONE, ResearchStatus.DONE.value}:
         raise HTTPException(409, "Research already completed")
-    if research.status in {ResearchStatus.SCRAPER, ResearchStatus.SCRAPER.value, ResearchStatus.BRIEFING, ResearchStatus.BRIEFING.value}:
+    if any(getattr(t, "get_name", lambda: "")() == f"research_{research_id}" for t in _running):
+        raise HTTPException(409, "Research task is currently actively executing")
+    if research.status in {ResearchStatus.BRIEFING, ResearchStatus.BRIEFING.value} and not research.approved_at:
         raise HTTPException(409, f"Research is already {research.status}")
 
     points = list(

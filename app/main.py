@@ -15,6 +15,7 @@ from app.routers.research import router as research_router, schedule, schedule_r
 from app.routers.settings import router as settings_router
 from app.briefing.router import router as briefing_router
 from app.investigation.router import router as investigation_router
+from app.audit.router import router as audit_router
 
 _investigation_running: set[asyncio.Task] = set()
 
@@ -25,9 +26,13 @@ async def lifespan(_: FastAPI):
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
     async with AsyncSessionLocal() as db:
-        scouting = list((await db.scalars(select(Research.id).where(Research.status.in_(["scouting", ResearchStatus.BRIEFING, ResearchStatus.BRIEFING.value])))).all())
-        revising = list((await db.scalars(select(Research.id).where(Research.status == "revising"))).all())
-        active = list((await db.scalars(select(Research.id).where(Research.status.in_(["approved", "in_progress"])))).all())
+        scouting = list((await db.scalars(select(Research.id).where(Research.status.in_([ResearchStatus.BRIEFING, ResearchStatus.BRIEFING.value])))).all())
+        # E001 (A-C8-06): literais legados "scouting", "revising", "approved" e
+        # "in_progress" removidos — nunca casam com o enum unificado
+        # (consultas mortas que sempre retornavam vazio). Sem estado de revisão
+        # pendente separado: a retomada de revisões usa run_revision sob demanda.
+        revising: list = []
+        active: list = []
         # RN-11: resume investigations interrupted by restart (points stuck in SCRAPER_IN_PROGRESS)
         interrupted = list((await db.scalars(
             select(Research.id).where(
@@ -92,6 +97,7 @@ app.include_router(settings_router)
 app.include_router(research_router)
 app.include_router(briefing_router)
 app.include_router(investigation_router)
+app.include_router(audit_router)
 
 
 @app.get("/health")

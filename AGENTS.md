@@ -24,21 +24,21 @@
 ### 🔬 Especificações Reversa (SDD) — `_reversa_sdd/`
 | Arquivo | Descrição | Gerado Por | Consumido Por |
 |---------|-----------|------------|---------------|
-| `architecture.md` | Topologia, componentes, fluxo de vida da pesquisa | `/reversa` (Archaeologist + Architect) | Forward Planner, Coding Agent, DevOps |
-| `domain.md` | Modelo de domínio + 8 entidades + restrições | `/reversa` (Archaeologist + Data Master) | Backend Workers, Auditor, DB Migrations |
-| `code-analysis.md` | Estrutura de módulos, padrões, débito técnico | `/reversa` (Inspector) | Refactor Agent, Quality Agent |
-| `discovery_report.md` | Mapeamento quantitativo de arquivos/LOC | Scout (esta sessão) | Forward Planner |
+| `prd.md` | PRD canônico do módulo de briefing (backend) | `/reversa-spec-sdd` | Reviewer, Coding Agent, Forward Planner |
+| `sdd/briefing.md` | Spec auditável do módulo de briefing backend | `/reversa-spec-sdd` | Reviewer, Coding Agent, DevOps |
+| `addenda/001-modulo-briefing.md` | Adendo de convergência da Feature 001 | `/reversa-sync` | Reviewer, Forward Planner |
+| `confidence-report.md` | Relatório global de confiança (100% 🟢 CONFIRMADO) | `/reversa-reviewer` | Orchestrator, QA Specialist, Stakeholders |
+| `questions.md` | Questões críticas e alinhamentos para validação humana | `/reversa-reviewer` | Usuário / Stakeholders |
+| `gaps.md` | Inventário de lacunas categorizadas por severidade | `/reversa-reviewer` | Orchestrator, Forward Planner |
+| `traceability/bugs.md` | Matriz de rastreabilidade de correções de bugs | `/reversa-debugger` | Orchestrator, QA Specialist |
 
 ---
 
 ### ⚙️ Ciclo Forward — `_reversa_forward/`
-| Arquivo | Descrição | Fase | Status |
-|---------|-----------|------|--------|
-| `requirements.md` | Requisitos modularização backend (REQ-01 a REQ-07) | Requirements | ✅ Aprovado |
-| `requirements-audit.md` | Quality Audit de clareza/completude | Quality | ✅ Aprovado |
-| `roadmap.md` | 4 fases, 5 semanas, riscos priorizados | Planning | ✅ Pronto |
-| `actions.md` | 13 tarefas atômicas T001–T013 com checkboxes | Actions | 🔄 Próximo |
-| `quality.md` | *(a gerar)* Critérios de qualidade por agente | Quality | ⏳ Pendente |
+| Feature | Descrição | Status | Artefatos Principais |
+|---------|-----------|--------|----------------------|
+| `001-modulo-briefing/` | Módulo de Briefing (Backend) — geração, validação e persistência | ✅ Concluído (T001–T028 + E001) | `requirements.md`, `roadmap.md`, `actions.md`, `legacy-impact.md`, `regression-watch.md` |
+| `002-investigacao-personas/` | Investigação Paralela por 4 Personas (Workers LiteLLM + Jina Search) | 🔄 Em andamento (C1–C7 [X], C8 [ ]) | `requirements.md`, `roadmap.md`, `actions.md`, `interfaces/`, `legacy-impact.md` |
 
 ---
 

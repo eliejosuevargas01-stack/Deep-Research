@@ -99,14 +99,21 @@ async def test_full_pipeline_e2e_integration(client, monkeypatch):
     briefing_pts = status_data["briefing_draft"]["points"]
     assert len(briefing_pts) == 5
 
-    # 6. Approve Briefing (T023: status transitions to SCRAPER)
+    # 6. Extinção do /approve (D-21) e transição para SCRAPER
     approve_res = client.post(
         f"/api/research/{rid}/briefing/approve",
         json={"approved_points": briefing_pts},
         headers=headers,
     )
-    assert approve_res.status_code == 200
-    assert approve_res.json()["status"] == "SCRAPER"
+    assert approve_res.status_code == 404
+    async with AsyncSessionLocal() as sdb:
+        from app.models import Research, ResearchPoint, ResearchStatus
+        r_rec = await sdb.get(Research, uuid.UUID(rid))
+        if r_rec is not None:
+            r_rec.status = ResearchStatus.SCRAPER.value
+        for pos, pt in enumerate(briefing_pts):
+            sdb.add(ResearchPoint(research_id=uuid.UUID(rid), position=pos, **pt))
+        await sdb.commit()
 
     # 7. Pipeline Mocks
     # Verbatim source text so auditor citation check passes

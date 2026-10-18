@@ -80,14 +80,13 @@ def test_criteria_full_flow(client, monkeypatch):
         points = status["briefing_draft"]["points"]
         assert len(points) == 5
 
-        # 6. Approve Briefing (A3, A4)
+        # 6. Extinção do /approve (D-21) e Início via /investigate (D-22)
         approve_res = client.post(
             f"/api/research/{rid}/briefing/approve",
             json={"approved_points": points},
             headers=headers,
         )
-        assert approve_res.status_code == 200
-        assert approve_res.json()["status"] == "SCRAPER"
+        assert approve_res.status_code == 404
 
     finally:
         rr.scout = original_scout

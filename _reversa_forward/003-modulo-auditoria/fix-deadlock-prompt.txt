@@ -1,0 +1,22 @@
+Você é o worker leaf de correção técnica no repositório /root/projects/deep-research.
+
+PROBLEMA IDENTIFICADO:
+Deadlock no SQLite causado por sessões aninhadas em `app/audit/service.py`:
+1. `audit_point` abre `async with self._session_factory() as session:`, e dentro do bloco `except Exception as exc:` chama `await self._record_inconclusive(...)`.
+2. `_record_inconclusive` abre OUTRA sessão `async with self._session_factory() as session:` com a sessão anterior ainda aberta e bloqueando o SQLite.
+3. Além disso, a chamada de rede à LLM (`_call_auditor_llm`) não deve ser feita segurando uma transação de banco aberta.
+
+CORREÇÃO EM `app/audit/service.py`:
+1. Separe a leitura de dados do banco da chamada LLM e da persistência:
+   - Bloco 1 (leitura): abra `session`, leia `point`, `evidence`, `point_title`, `point_description` e as credenciais/settings. Feche a sessão.
+   - Bloco 2 (rede/LLM): execute `_call_auditor_llm` (sem transação aberta no banco).
+   - Bloco 3 (gravação): se a LLM falhar, chame `_record_inconclusive`. `_record_inconclusive` abre sua própria sessão para salvar em `AuditTrail` e atualizar o ponto para `AUDIT_INCONCLUSIVE` (ou se `auditor` não estiver configurado nas credenciais, o ponto deve ser marcado como `AUDIT_PENDING` para aguardar a etapa de auditoria).
+   - Se a LLM for bem-sucedida: faça o parse do JSON, avalie com `evaluate_audit_verdict`, abra uma sessão limpa para persistir em `AuditTrail` e atualizar `point.status` e `point.audit`.
+
+CORREÇÃO EM `app/investigation/service.py`:
+1. Antes de chamar `audit_service.audit_point`, certifique-se de que cada worker marca o ponto como `AUDIT_PENDING` após a conclusão das 4 personas.
+2. Se `audit_point` retornar `AUDIT_INCONCLUSIVE` ou se o auditor não estiver configurado, o ponto permanece em `AUDIT_PENDING` e a pesquisa vai para `AUDIT`.
+3. Garanta que não existam transações concorrentes disputando a mesma conexão SQLite.
+
+Aplique as correções estritamente nos arquivos permitidos: `app/audit/service.py` e `app/investigation/service.py`.
+NÃO execute comandos python/pytest no container.

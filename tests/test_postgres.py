@@ -98,10 +98,9 @@ def test_postgres_research_lifecycle(monkeypatch, isolated_research):
         assert draft["status"] == "pending_approval", draft
         points = draft["briefing_draft"]["points"]
         assert len(points) == 5
+        # D-21 / E001: rota /approve extinta, retorna 404
         approved = client.post(f"/api/research/{rid}/briefing/approve", json={"approved_points": points}, headers=csrf)
-        assert approved.status_code == 200, approved.text
-        repeat = client.post(f"/api/research/{rid}/briefing/approve", json={"approved_points": points}, headers=csrf)
-        assert repeat.status_code == 409
+        assert approved.status_code == 404, approved.text
         result = {}
         for _ in range(200):
             result = client.get(f"/api/research/{rid}").json()

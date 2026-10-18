@@ -1,0 +1,36 @@
+Você é o worker leaf de implementação executando /reversa-coding T043 T044 da Sprint C10 no repositório /root/projects/deep-research.
+
+ATENÇÃO: NÃO execute comandos python ou pytest dentro deste container. Apenas crie e edite os arquivos solicitados.
+
+TAREFAS (Sprint C10: T043 e T044):
+1. Crie `app/audit/service.py`:
+   - Classe `AuditService`:
+     * Construtor recebe `session_factory` (default `AsyncSessionLocal` de `app.db.database`).
+     * Método `async def get_point_evidence(self, session: AsyncSession, point_id: UUID) -> list[dict]`:
+       Consulta `ResearchStepResult` filtrando por `step_id == point_id`.
+       Retorna lista com dicts contendo `persona`, `result`, `used_urls`, `read_urls`, `status`.
+     * Método `async def audit_point(self, research_id: UUID, point_id: UUID, attempt_count: int | None = None) -> AuditVerdict`:
+       1. Carrega `ResearchPoint` do banco. Se `attempt_count` for None, usa `point.attempt_count`.
+       2. Carrega as evidências das 4 personas via `get_point_evidence`.
+       3. Carrega `runtime_settings(session)` de `app.services.settings` para obter a API key, base URL e modelo da role "auditor" (default `gemini/gemini-3.8-flash`).
+       4. Monta o prompt do auditor contendo o título, descrição do ponto e os 4 relatórios das personas.
+          Instrui o modelo a responder estritamente um JSON com:
+          `{"checklist": {"q1": true, ... "q12": true}, "findings": [...], "contradictions": [...], "uncertainties": [...], "missing_research": [...], "outline": [...]}`
+       5. Executa a chamada à LLM (usando `complete` de `app.services.llm` ou `litellm.acompletion`).
+          Implementa até 4 tentativas consecutivas (1 inicial + 3 retries com backoff de 1s, 2s, 4s) contra falhas de rede, timeouts ou erros HTTP 500/502/503.
+       6. Se todas as 4 tentativas de infraestrutura falharem:
+          Registra em `AuditTrail` com `stage="point_audit"`, status "AUDIT_INCONCLUSIVE", sem queimar `point.attempt_count`, e retorna um `AuditVerdict` com status="AUDIT_INCONCLUSIVE".
+       7. Se a LLM responder com sucesso:
+          Faz parse do JSON (tolerante a blocos markdown ```json ... ``` via `parse_json` de `app.services.llm`).
+          Chama `evaluate_audit_verdict(checklist, findings, contradictions, uncertainties, missing_research, outline, attempt_count)` de `app.audit.domain`.
+          Sanitiza os dados com `sanitize_audit_dict(..., sensitive_keys)`.
+          Persiste um novo registro em `AuditTrail` com `research_id`, `point_id`, `stage="point_audit"`, `attempt=attempt_count`, `details=sanitized_dict`.
+          Atualiza o `ResearchPoint`: `point.status = verdict.status`, `point.audit = sanitized_dict`.
+          Emite o evento via `add_event` de `app.services.research` com `persona="auditor"`, `event_type="verdict_rendered"`.
+          Retorna o `verdict`.
+     * Método `async def check_all_points_completed(self, session: AsyncSession, research_id: UUID) -> bool`:
+       Verifica se todos os pontos da pesquisa possuem status em ("AUDIT_APPROVED", "AUDIT_CAVEAT").
+       Se todos estiverem concluídos: atualiza `research.status = ResearchStatus.WRITE.value` e comita.
+
+2. Atualize `app/audit/__init__.py` exportando `AuditService`.
+3. Marque [X] em T043 e T044 em `_reversa_forward/003-modulo-auditoria/actions.md` e adicione as entradas correspondentes em `_reversa_forward/003-modulo-auditoria/progress.jsonl`.

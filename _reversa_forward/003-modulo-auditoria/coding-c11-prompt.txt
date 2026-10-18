@@ -1,0 +1,45 @@
+Você é o worker leaf de implementação executando /reversa-coding T045 a T049 da Sprint C11 no repositório /root/projects/deep-research.
+
+ATENÇÃO: NÃO execute comandos python ou pytest dentro deste container. Apenas crie e edite os arquivos solicitados.
+
+TAREFAS (Sprint C11: T045, T046, T047, T048, T049):
+
+1. `app/audit/router.py`:
+   - Criar router FastAPI: `router = APIRouter(prefix="/api/audit", tags=["audit"])`.
+   - Dependência de autenticação: `principal: Principal = Depends(require_admin)` de `app.core.security`.
+   - Endpoints:
+     * `POST /api/audit/{research_id}/run`:
+       Carrega a pesquisa. Se não existir, 404.
+       Instancia `AuditService(AsyncSessionLocal)` e dispara a auditoria de todos os pontos pendentes da pesquisa.
+       Retorna `AuditRunResponse` (status="AUDIT" ou "WRITE", points_audited=quantidade).
+     * `POST /api/audit/{research_id}/points/{point_id}/run`:
+       Carrega a pesquisa e o ponto. Se não existirem, 404.
+       Instancia `AuditService(AsyncSessionLocal)` e executa `audit_point(research_id, point_id)`.
+       Retorna `AuditVerdictResponse`.
+   - Em caso de conflito ou estado inválido, retornar HTTP 409 apropriado.
+
+2. `app/main.py`:
+   - Importar `router as audit_router` de `app.audit.router` e registrar com `app.include_router(audit_router)`.
+
+3. `app/investigation/worker.py`:
+   - Em `PersonaWorker.execute`:
+     * Adicionar parâmetros opcionais: `missing_research: list[str] | None = None` e `excluded_urls: set[str] | list[str] | None = None`.
+     * Se `missing_research` for fornecido: injetar no início da mensagem do usuário as diretrizes concretas de re-pesquisa do Auditor.
+     * Se `excluded_urls` for fornecido: ao receber resultados do Jina Search ou processar URLs, filtrar/descartar qualquer URL que já pertença a `excluded_urls` para não reler páginas repetidas.
+
+4. `app/investigation/service.py`:
+   - Modificar o fluxo de investigação para implementar o ciclo reativo de auditoria e retry por ponto (RN-301, RN-303, RN-305, D-301, D-302, D-305):
+     * Executar os workers agrupados por ponto (`step_id`).
+     * Assim que as 4 personas de um ponto finalizarem a coleta:
+       Instancia `AuditService(self.session_factory)` e chama `await audit_service.audit_point(research_id, step_id)`.
+     * Se o veredito for `SCRAPER_RETRY` e `point.attempt_count < 4`:
+       1. Incrementa `point.attempt_count += 1`.
+       2. Agrega todas as `read_urls` já coletadas nas tentativas anteriores daquele ponto para formar `excluded_urls`.
+       3. Re-executa as 4 personas para aquele ponto passando `missing_research=verdict.missing_research` e `excluded_urls=excluded_urls`.
+       4. Ao finalizar a nova coleta, audita o ponto novamente.
+     * Se o veredito for `AUDIT_APPROVED` ou `AUDIT_CAVEAT`:
+       1. O ponto é finalizado no estado correspondente.
+     * Ao término de todos os pontos:
+       Verifica se 100% dos pontos da pesquisa atingiram estado conclusivo (`AUDIT_APPROVED` ou `AUDIT_CAVEAT`). Se sim, transita `research.status = ResearchStatus.WRITE.value`.
+
+5. Atualize os arquivos `actions.md` (marcando [X] de T045 a T049) e adicione as entradas em `progress.jsonl`.
