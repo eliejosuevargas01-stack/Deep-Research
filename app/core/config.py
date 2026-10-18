@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     FUTURIST_MODEL: Optional[str] = None
     AUDITOR_MODEL: Optional[str] = None
     WRITER_MODEL: Optional[str] = None
+    TRUSTED_ROUTER_HOSTS: Optional[str] = None
 
     @property
     def production(self) -> bool:
