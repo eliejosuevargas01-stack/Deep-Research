@@ -8,6 +8,12 @@ connect_args = {"timeout": 60} if settings.DATABASE_URL.startswith("sqlite") els
 engine_kwargs = {"pool_pre_ping": True, "connect_args": connect_args}
 if settings.DATABASE_URL.startswith("sqlite"):
     engine_kwargs["poolclass"] = NullPool
+else:
+    engine_kwargs["pool_size"] = 25
+    engine_kwargs["max_overflow"] = 25
+    engine_kwargs["pool_timeout"] = 20
+    engine_kwargs["pool_recycle"] = 1800
+    engine_kwargs["pool_use_lifo"] = True
 engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 
 if settings.DATABASE_URL.startswith("sqlite"):
