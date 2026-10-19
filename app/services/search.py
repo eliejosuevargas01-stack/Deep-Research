@@ -233,7 +233,9 @@ async def search(
         if keys.get("jina"):
             headers["Authorization"] = f"Bearer {keys['jina']}"
         status, text = await _get(f"{jina_base}/{quote(query, safe='')}", headers)
-        if status < 300:
+        if status in {401, 402, 403} and keys.get("jina"):
+            pass
+        elif status < 300:
             found, seen = [], set()
             for title, url in re.findall(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", text):
                 if url not in seen and _safe(url):
@@ -296,6 +298,9 @@ async def read_source(
         if jina_api_key:
             headers["Authorization"] = f"Bearer {jina_api_key}"
         status, text = await _get(jina_url, headers)
+        if status in {401, 402, 403} and jina_api_key:
+            headers.pop("Authorization", None)
+            status, text = await _get(jina_url, headers)
         if status == 200 and text and len(text.strip()) > 50:
             clean = re.sub(r"\s+", " ", text).strip()
             return Source(source.url, source.title, clean[:MAX_SOURCE_CHARS])
@@ -338,13 +343,16 @@ async def search_read(
     )
     pages = await asyncio.gather(
         *(
-            read_source(
-                item,
-                jina_base_url=jina_base_url,
-                jina_api_key=keys.get("jina"),
-                jina_proxy_url=jina_proxy_url,
-                jina_proxy_auth=jina_proxy_auth,
-                jina_proxy_timeout=jina_proxy_timeout,
+            asyncio.wait_for(
+                read_source(
+                    item,
+                    jina_base_url=jina_base_url,
+                    jina_api_key=keys.get("jina"),
+                    jina_proxy_url=jina_proxy_url,
+                    jina_proxy_auth=jina_proxy_auth,
+                    jina_proxy_timeout=jina_proxy_timeout,
+                ),
+                timeout=20.0,
             )
             for item in results
         ),

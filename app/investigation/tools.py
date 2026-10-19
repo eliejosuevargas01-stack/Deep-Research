@@ -174,6 +174,13 @@ class JinaToolAdapter:
             try:
                 if response.status_code == 429 or 500 <= response.status_code <= 599:
                     raise _AttemptFailed(_retry_after_s(response.headers))
+                if response.status_code in {401, 402, 403}:
+                    from app.services.search import _duckduckgo_search
+                    ddg_results = await _duckduckgo_search(query, 5)
+                    if ddg_results:
+                        urls = [s.url for s in ddg_results]
+                        content = "\n\n".join(f"{s.title}\n{s.url}\n{s.excerpt}" for s in ddg_results)
+                        return JinaSearchResult(content=content, urls=urls)
                 if not 200 <= response.status_code < 300:
                     raise JinaSearchError(1)
                 try:

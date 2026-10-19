@@ -203,6 +203,9 @@ async def read_source(source: Source) -> Source | None:
     try:
         jina_url = f"https://r.jina.ai/{source.url}"
         status, text = await _get(jina_url, {"User-Agent": "Mozilla/5.0", "Accept": "text/plain"})
+        if status in {401, 402, 403}:
+            # Retry unauthenticated
+            status, text = await _get(jina_url, {"User-Agent": "Mozilla/5.0", "Accept": "text/plain"})
         if status == 200 and text and len(text.strip()) > 50:
             clean = re.sub(r"\s+", " ", text).strip()
             return Source(source.url, source.title, clean[:MAX_SOURCE_CHARS])
