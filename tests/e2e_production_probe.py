@@ -111,7 +111,7 @@ def main():
     # 7. Acompanhamento dos Workers e Auditoria até o Relatório Final
     print("Aguardando execução dos Workers de investigação, Auditoria e Redator...")
     done = False
-    for attempt in range(90):
+    for attempt in range(150):
         time.sleep(3)
         req = urllib.request.Request(f"{BASE_URL}/api/research/{research_id}")
         with opener.open(req) as resp:
