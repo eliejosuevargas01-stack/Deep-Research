@@ -1,5 +1,6 @@
 import asyncio
 import html
+from html.parser import HTMLParser
 import json
 import re
 import urllib.parse
@@ -19,6 +20,36 @@ class Source:
 
 class SearchProviderError(RuntimeError):
     pass
+
+
+class _SafeHTMLTextExtractor(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.parts: list[str] = []
+        self._skip = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() in {"script", "style", "noscript", "svg", "head"}:
+            self._skip += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() in {"script", "style", "noscript", "svg", "head"} and self._skip > 0:
+            self._skip -= 1
+
+    def handle_data(self, data: str) -> None:
+        if self._skip == 0:
+            clean = data.strip()
+            if clean:
+                self.parts.append(clean)
+
+
+def _safe_html_to_text(body: str, max_chars: int = 30000) -> str:
+    try:
+        extractor = _SafeHTMLTextExtractor()
+        extractor.feed(body[:200000])
+        return " ".join(extractor.parts)[:max_chars]
+    except Exception:
+        return " ".join(body[:200000].split())[:max_chars]
 
 
 async def _get(endpoint: str, headers: dict[str, str] | None = None, timeout_seconds: int | None = None) -> tuple[int, str]:
@@ -302,7 +333,7 @@ async def read_source(
             headers.pop("Authorization", None)
             status, text = await _get(jina_url, headers)
         if status == 200 and text and len(text.strip()) > 50:
-            clean = re.sub(r"\s+", " ", text).strip()
+            clean = " ".join(text[:MAX_SOURCE_CHARS * 2].split())
             return Source(source.url, source.title, clean[:MAX_SOURCE_CHARS])
     except Exception:
         pass
@@ -311,11 +342,9 @@ async def read_source(
     try:
         status, body = await _get(source.url, {"User-Agent": "DeepResearchBot/1.0", "Accept": "text/html,text/plain"})
         if status < 300 and body:
-            body = re.sub(r"(?is)<(script|style|noscript).*?>.*?</\\1>", " ", body)
-            text = html.unescape(re.sub(r"(?s)<[^>]+>", " ", body))
-            text = re.sub(r"\s+", " ", text).strip()
-            if text:
-                return Source(source.url, source.title, text[:MAX_SOURCE_CHARS])
+            clean = _safe_html_to_text(body, MAX_SOURCE_CHARS)
+            if clean:
+                return Source(source.url, source.title, clean)
     except Exception:
         pass
 
