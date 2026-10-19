@@ -95,6 +95,11 @@ class JinaSerpClient:
                 raise _AttemptFailed from exc
             try:
                 if not 200 <= response.status_code < 300:
+                    if response.status_code in {401, 402, 403}:
+                        from app.services.search import _duckduckgo_search
+                        ddg_results = await _duckduckgo_search(query, 5)
+                        if ddg_results:
+                            return [{"title": s.title, "url": s.url, "description": s.excerpt or s.title} for s in ddg_results]
                     raise _AttemptFailed
                 try:
                     body = response.json()
