@@ -26,7 +26,8 @@
     "module-app-routers-main",
     "reviewer",
     "002-investigacao-personas",
-    "003-modulo-auditoria"
+    "003-modulo-auditoria",
+    "004-modulo-redator-webhook"
   ],
   "pending": [],
   "checkpoints": {
