@@ -1,16 +1,18 @@
 {
   "schema-version": 1,
-  "feature-dir": "_reversa_forward/002-investigacao-personas",
-  "feature-id": "002",
-  "short-name": "investigacao-personas",
-  "started-at": "2026-10-12T21:45:00Z",
-  "current-stage": "coding",
+  "feature-dir": "_reversa_forward/004-modulo-redator-webhook",
+  "feature-id": "004",
+  "short-name": "modulo-redator-webhook",
+  "started-at": "2026-10-18T18:00:00Z",
+  "current-stage": "sync",
   "stages-completed": [
     "requirements",
     "plan",
     "to-do",
+    "coding",
     "audit",
-    "quality"
+    "quality",
+    "sync"
   ],
   "paused-features": []
 }
