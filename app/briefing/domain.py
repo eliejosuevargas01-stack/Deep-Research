@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 THEME_MIN = 3
 THEME_MAX = 300
-POINTS_MIN = 3
+POINTS_MIN = 1
 POINTS_MAX = 7
 
 

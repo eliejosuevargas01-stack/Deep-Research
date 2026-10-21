@@ -36,13 +36,13 @@ class BriefingPoint(BaseModel):
 
 
 class BriefingApproval(BaseModel):
-    approved_points: list[BriefingPoint] = Field(min_length=5, max_length=5)
+    approved_points: list[BriefingPoint] = Field(min_length=1, max_length=20)
 
     @field_validator("approved_points")
     @classmethod
     def validate_five_points_and_prior_deps(cls, points: list[BriefingPoint]) -> list[BriefingPoint]:
-        if len(points) != 5:
-            raise ValueError("Briefing approval requires exactly 5 points")
+        if len(points) < 1 or len(points) > 20:
+            raise ValueError("Briefing approval requires between 1 and 20 points")
         titles = [p.title.strip() for p in points]
         if len(set(titles)) != len(titles):
             raise ValueError("Research point titles must be unique")
