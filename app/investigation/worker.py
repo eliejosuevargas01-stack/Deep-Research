@@ -358,6 +358,8 @@ class PersonaWorker:
         corrections = 0
         post_ceiling_tool_attempts = 0
         total_tool_turns = 0
+        executed_queries: set[str] = set()
+        delivered_contents: list[str] = []
         while True:
             tools = [JINA_SEARCH_TOOL] if search_count < _MAX_SEARCHES else None
             resp = await call_llm_with_retries(
@@ -402,6 +404,28 @@ class PersonaWorker:
                 for tc in tool_calls:
                     tc_id, name, args_raw = _tool_call_info(tc)
                     if name == "jina_search":
+                        query = _extract_query(args_raw)
+                        norm_q = query.strip()
+                        if not norm_q:
+                            messages.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": tc_id,
+                                    "name": "jina_search",
+                                    "content": "Query vazia. Forneça q não-vazia ou entregue o JSON final.",
+                                }
+                            )
+                            continue
+                        if norm_q in executed_queries:
+                            messages.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": tc_id,
+                                    "name": "jina_search",
+                                    "content": "Query duplicada. Forneça uma query inédita ou entregue o JSON final.",
+                                }
+                            )
+                            continue
                         if search_count >= _MAX_SEARCHES:
                             messages.append(
                                 {
@@ -412,30 +436,22 @@ class PersonaWorker:
                                 }
                             )
                             continue
-                        query = _extract_query(args_raw)
-                        if not query:
-                            messages.append(
-                                {
-                                    "role": "tool",
-                                    "tool_call_id": tc_id,
-                                    "name": "jina_search",
-                                    "content": "Query vazia. Forneça q não-vazia ou entregue o JSON final.",
-                                }
-                            )
-                            continue
+                        executed_queries.add(norm_q)
                         search_count += 1
                         jina_result = await self.jina_adapter.search(query)
                         # D-302/T047: descarta páginas cuja URL já foi lida em
                         # tentativas anteriores deste ponto (filtro anti-duplicação).
                         excluded_keys = _excluded_url_keys(excluded_urls)
                         jina_result = _filter_search_result(jina_result, excluded_keys)
-                        _merge_urls(read_urls, jina_result.urls)
+                        content_str = getattr(jina_result, "content", "")
+                        delivered_contents.append(str(content_str))
+                        _merge_urls(read_urls, getattr(jina_result, "urls", []))
                         messages.append(
                             {
                                 "role": "tool",
                                 "tool_call_id": tc_id,
                                 "name": "jina_search",
-                                "content": jina_result.content,
+                                "content": content_str,
                             }
                         )
                     else:
@@ -449,13 +465,35 @@ class PersonaWorker:
                         )
                 continue
             content = _message_content(message)
+            if search_count == 0:
+                err = "Primeira busca é obrigatória antes da síntese final."
+                return PersonaExecutionResult(
+                    success=False,
+                    result=err,
+                    used_urls=[],
+                    read_urls=read_urls,
+                    error=err,
+                )
             try:
                 parsed = _parse_and_validate(content)
+                full_delivered = "\n\n".join(delivered_contents)
+                if parsed.citations:
+                    for cit in parsed.citations:
+                        exact_quote = cit.exact_quote.strip() if hasattr(cit, "exact_quote") else ""
+                        if not exact_quote or exact_quote not in full_delivered:
+                            err = f"Citação exata não encontrada no corpo lido: {exact_quote[:60]}"
+                            return PersonaExecutionResult(
+                                success=False,
+                                result=err,
+                                used_urls=[],
+                                read_urls=read_urls,
+                                error=err,
+                            )
                 excluded_keys = _excluded_url_keys(excluded_urls)
                 clean_used = [
                     u
                     for u in (parsed.used_urls or [])
-                    if isinstance(u, str) and u and _url_key(u) not in excluded_keys
+                    if isinstance(u, str) and u and u in read_urls and _url_key(u) not in excluded_keys
                 ]
                 return PersonaExecutionResult(
                     success=True,

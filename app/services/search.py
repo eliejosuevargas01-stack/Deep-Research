@@ -44,12 +44,14 @@ class _SafeHTMLTextExtractor(HTMLParser):
 
 
 def _safe_html_to_text(body: str, max_chars: int = 30000) -> str:
+    limit = max(max_chars, 200000)
+    chunk = body[:limit]
     try:
         extractor = _SafeHTMLTextExtractor()
-        extractor.feed(body[:200000])
+        extractor.feed(chunk)
         return " ".join(extractor.parts)[:max_chars]
     except Exception:
-        return " ".join(body[:200000].split())[:max_chars]
+        return " ".join(chunk.split())[:max_chars]
 
 
 async def _get(endpoint: str, headers: dict[str, str] | None = None, timeout_seconds: int | None = None) -> tuple[int, str]:

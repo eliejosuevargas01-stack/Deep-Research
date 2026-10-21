@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -53,12 +53,23 @@ class ResearchPoint(Base):
     status: Mapped[str] = mapped_column(String(32), default="SCRAPER_PENDING")
     attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     audit: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    investigation_round: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     research: Mapped[Research] = relationship(back_populates="points")
     step_results: Mapped[list["ResearchStepResult"]] = relationship(back_populates="point", cascade="all, delete-orphan")
 
 
 class ResearchStepResult(Base):
     __tablename__ = "research_step_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "research_id",
+            "step_id",
+            "round",
+            "worker",
+            name="uq_research_step_results_round_worker",
+        ),
+    )
+
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     research_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("research.id", ondelete="CASCADE"), index=True)
     step_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("research_points.id", ondelete="CASCADE"), index=True)
@@ -68,9 +79,33 @@ class ResearchStepResult(Base):
     read_urls: Mapped[list[str]] = mapped_column(JSON, default=list)
     worker: Mapped[str] = mapped_column(String(32))
     status: Mapped[str] = mapped_column(String(32), default="AUDIT_PENDING")
+    round: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     research: Mapped[Research] = relationship(back_populates="step_results")
     point: Mapped[ResearchPoint] = relationship(back_populates="step_results")
+
+
+class InvestigationMerge(Base):
+    __tablename__ = "investigation_merges"
+    __table_args__ = (
+        UniqueConstraint(
+            "research_id",
+            "step_id",
+            "round",
+            name="uq_investigation_merges_research_step_round",
+        ),
+        CheckConstraint("round > 0", name="chk_investigation_merges_round_positive"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    research_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("research.id", ondelete="CASCADE"), index=True)
+    step_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("research_points.id", ondelete="CASCADE"), index=True)
+    round: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+    research: Mapped[Research] = relationship()
+    point: Mapped[ResearchPoint] = relationship()
 
 
 class Evidence(Base):

@@ -63,20 +63,12 @@ async def db_session(
 
 @pytest.fixture
 def sample_jina_items() -> list[dict[str, Any]]:
-    """Itens simulados com title, url, description, content."""
+    """Dez páginas sintéticas locais; não são contrato observado do provedor."""
     return [
-        {
-            "title": "Primeiro Resultado de Teste",
-            "url": "https://example.com/artigo-1",
-            "description": "Descrição do primeiro artigo relevante.",
-            "content": "Conteúdo integral do primeiro artigo retornado pela Jina.",
-        },
-        {
-            "title": "Segundo Resultado de Teste",
-            "url": "https://example.com/artigo-2",
-            "description": "Descrição analítica do segundo artigo.",
-            "content": "Conteúdo factual com evidências do segundo artigo retornado.",
-        },
+        {"title": f"Página sintética {i}", "url": f"https://example.com/artigo-{i}",
+         "description": f"DESCRIPTION_ONLY_{i}",
+         "content": f"BEGIN_BODY_{i} " + (f"conteúdo útil {i} " * 9000) + f" END_BODY_{i}"}
+        for i in range(10)
     ]
 
 

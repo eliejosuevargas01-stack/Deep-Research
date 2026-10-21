@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fix Plan — Writer Guardrail Bugs</title>
+<style>
+  :root { --bg: #0a0a12; --card: #13131d; --border: #2a2a3a; --text: #e0e0e8; --muted: #8a8a9a; --accent: #5d9dff; --red: #ff6b6b; --yellow: #f5c542; --green: #51cf66; --code-bg: #1a1a26; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.5; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; }
+  .header { border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 32px; }
+  .header h1 { font-size: 20px; font-weight: 600; }
+  .header .subtitle { color: var(--muted); margin-top: 6px; font-size: 12px; }
+  .bug-meta { display: flex; gap: 24px; margin: 20px 0 0; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+  .meta-item .value { color: var(--text); }
+  .section { margin-bottom: 40px; }
+  .section h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .section h3 { font-size: 13px; font-weight: 600; margin: 20px 0 10px; color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-bottom: 12px; }
+  .card .card-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--yellow); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  .badge-1 { background: rgba(93,157,255,0.15); color: var(--accent); border: 1px solid var(--accent); }
+  .badge-2 { background: rgba(245,197,66,0.15); color: var(--yellow); border: 1px solid var(--yellow); }
+  .badge-high { background: rgba(255,107,107,0.15); color: var(--red); border: 1px solid var(--red); }
+  .table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .table th, .table td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; }
+  .table th { background: var(--card); color: var(--muted); font-weight: 600; }
+  .table td .mono { color: var(--accent); }
+  .code-block { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 12px; margin: 10px 0; overflow-x: auto; font-size: 11px; }
+  .code-block .line-num { color: var(--muted); display: inline-block; width: 30px; user-select: none; }
+  .code-line { white-space: pre; }
+  .code-line .c { color: var(--muted); }
+  .code-line .k { color: #c77dff; }
+  .code-line .s { color: #a3e0a3; }
+  .code-line .f { color: #ffd479; }
+  .risk-box { background: rgba(245,197,66,0.08); border: 1px solid var(--yellow); border-radius: 6px; padding: 16px; }
+  .risk-box .risk-title { color: var(--yellow); font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+  .link-list { list-style: none; }
+  .link-list li { margin-bottom: 6px; }
+  .link-list a { color: var(--accent); text-decoration: none; }
+  .link-list a:hover { text-decoration: underline; }
+  .outdent { text-indent: -20px; padding-left: 20px; }
+  .mini-graph { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 20px; }
+  .mini-graph .node { border: 1px solid var(--border); border-radius: 4px; padding: 10px; background: rgba(93,157,255,0.08); border-color: var(--accent); }
+  .mini-graph .node.center { background: rgba(255,107,107,0.1); border-color: var(--red); }
+  .mini-graph .node.related { background: rgba(81,207,102,0.08); border-color: var(--green); }
+  .arrow { color: var(--muted); text-align: center; font-size: 12px; margin: 6px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Fix Plan: Writer Guardrail Bugs</h1>
+    <div class="subtitle">SPRINT FIX-WRITER-PLAN · Contexto: investigacao-redator · Produção local-software</div>
+    <div class="bug-meta">
+      <div class="meta-item"><span class="badge badge-1">BUG-20261019-1</span> <span class="value">Guardrail false positive — negrito como lista</span></div>
+      <div class="meta-item"><span class="badge badge-2">BUG-20261019-2</span> <span class="value">Rejeição incondicional de gap report</span></div>
+    </div>
+  </div>
+
+  <!-- BUG 1 -->
+  <div class="section">
+    <h2><span class="badge badge-1">BUG-20261019-1</span> Guardrail false positive: negrito confundido com lista factual</h2>
+
+    <h3>Causa raiz</h3>
+    <div class="card">
+      <div class="card-title">writer.py:60 — Heurística sintática</div>
+      <code-block class="code-block">
+<span class="line-num">60</span><span class="code-line"><span class="k">line.startswith</span>((<span class="s">"-"</span>, <span class="s">"*"|"|"</span>))</span>
+      </code-block>
+      <p>Uma linha iniciada com <code>**Proposta didática:**</code> começa com <code>*</code> (asterisk markdown para negrito). A heurística não faz classificação semântica entre fato e proposta didática.</p>
+      <p><strong>Estado epistemológico:</strong> <code>confirmed</code> — reproduzido isoladamente com assert (starts_with_asterisk=True, has_substance=True, is_factual_candidate=True, rejected=True).</p>
+    </div>
+
+    <h3>Defeito</h3>
+    <div class="card">
+      <p><strong>Local onde APARECE:</strong> <code>app/services/pipeline/writer.py:56-68</code></p>
+      <p><strong>Local onde NASCEU:</strong> Design da heurística de validação — usa prefixos de Markdown para detectar listas/tabelas, sem distinguir negrito.</p>
+    </div>
+
+    <h3>Estratégia mínima</h3>
+    <div class="card">
+      <ol class="outdent">
+        <li>Detectar negrito markdown: linha que começa com <code>*</code> mas cujo segundo caractere também é <code>*</code> (<code>**texto**</code>) — não é lista.</li>
+        <li>Detectar lista real: <code>*- </code> ou <code>1. </code> ou <code>- </code> seguido de conteúdo.</li>
+        <li>Mantida exigência de citação para listas/tabelas/prosa factuais.</li>
+        <li>Não criar bypass genérico: negrito factual sem fonte continua negativo.</li>
+      </ol>
+    </div>
+
+    <h3>Change Set proposto</h3>
+    <table class="table">
+      <thead><tr><th>CHG</th><th>Tipo</th><th>Artefato</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td>CHG-01</td><td>code</td><td class="mono">app/services/pipeline/writer.py:56-68</td><td>Distingue negrito de lista real na heurística de citação</td></tr>
+        <tr><td>CHG-02</td><td>test</td><td class="mono">_reversa_bugs/investigacao-redator/bugs/BUG-20261019-1/fix/test_guardrail_false_positive.py</td><td>Teste reprodução + regressão BUG-1</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Diff proposto — CHG-01 (writer.py)</h3>
+    <div class="code-block">
+<span class="line-num">// Antes (linha 59-62):</span>
+<span class="code-line">            is_factual_candidate = (</span>
+<span class="code-line">                <span class="f">line.startswith</span>((<span class="s">"-", "*", "|"</span>))</span>
+<span class="code-line">                or <span class="k">bool</span>(re.search(<span class="s">r"[.!?]\s*$"</span>, line))</span>
+<span class="code-line">            )</span>
+
+<span class="line-num">// Depois — CHG-01:</span>
+<span class="code-line">            is_factual_candidate = (</span>
+<span class="code-line">                <span class="f">_is_factual_list_or_table</span>(line)</span>
+<span class="code-line">                or <span class="k">bool</span>(re.search(<span class="s">r"[.!?]\s*$"</span>, line))</span>
+<span class="code-line">            )</span>
+
+<span class="line-num">// Nova função (após linha 77):</span>
+<span class="code-line"><span class="k">def</span> <span class="f">_is_factual_list_or_table</span>(line: str) -> <span class="s">"bool"</span>:</span>
+<span class="code-line">    <span class="c">"""Detecta lista/tabela factual real, não negrito markdown."""</span></span>
+<span class="code-line">    stripped = line.lstrip(<span class="s">" "</span>)</span>
+<span class="code-line">    <span class="c"># Negrito markdown **texto** ou __texto__ — não é lista</span></span>
+<span class="code-line">    <span class="k">if</span> stripped.startswith(<span class="s">"**"</span>) or stripped.startswith(<span class="s">"__"</span>):</span>
+<span class="code-line">        <span class="k">return False</span></span>
+<span class="code-line">    <span class="c"># Lista com marcador: - * | seguido de conteúdo real (não asterisco de negrito)</span></span>
+<span class="code-line">    <span class="k">if</span> stripped.startswith(<span class="s">"- "</span>) or stripped.startswith(<span class="s">"* "</span>) or stripped.startswith(<span class="s">"|"</span>"):</span>
+<span class="code-line">        <span class="k">return True</span></span>
+<span class="code-line">    <span class="c"># Lista numerada: 1. 2) etc.</span></span>
+<span class="code-line">    <span class="k">if</span> re.match(<span class="s">r"^\d+[.) ]"</span>, stripped):</span>
+<span class="code-line">        <span class="k">return True</span></span>
+<span class="code-line">    <span class="k">return False</span></span>
+    </div>
+  </div>
+
+  <!-- BUG 2 -->
+  <div class="section">
+    <h2><span class="badge badge-2">BUG-20261019-2</span> Rejeição incondicional de gap report sem evidência/link</h2>
+
+    <h3>Causa raiz</h3>
+    <div class="card">
+      <div class="card-title">writer.py:38-48 — Evidence gating rígido</div>
+      <code-block class="code-block">
+<span class="line-num">38</span><span class="code-line">if not text.strip() or not evidence:</span>
+<span class="line-num">39</span><span class="code-line">    raise RuntimeError("Writer cannot produce a report without evidence")</span>
+<span class="line-num">41</span><span class="code-line">if cited == 0:</span>
+<span class="line-num">42</span><span class="code-line">    raise RuntimeError("Writer produced report without source citations")</span>
+<span class="line-num">45</span><span class="code-line">if not linked_urls or not linked_urls.issubset(known_urls):</span>
+<span class="line-num">46</span><span class="code-line">    raise RuntimeError("Writer used uncollected citation URLs")</span>
+      </code-block>
+      <p>Rejeita <strong>qualquer</strong> saída sem evidence/links, mesmo que seja um relatório de lacuna válido (<code>## Visão geral\nNenhuma evidência disponível...</code>).</p>
+      <p><strong>Estado epistemológico:</strong> <code>supported</code> — leitura direta do código + clareamento do usuário no diagnóstico.</p>
+    </div>
+
+    <h3>Defeito</h3>
+    <p><strong>Onde APARECE:</strong> <code>writer.py:38-48</code>. <strong>Onde NASCEU:</strong> Design original exigiu citação global incondicional.</p>
+
+    <h3>Estratégia mínima</h3>
+    <div class="card">
+      <ol class="outdent">
+        <li>Separar dois casos: <strong>relatório de gap</strong> (sem evidence) vs <strong>relatório com evidence</strong>.</li>
+        <li>Se <code>not evidence</code> e texto é um gap report válido (tem conteúdo, passa <code>validate_report_quality</code>): persistir com flag <code>report_type: gap</code>.</li>
+        <li>Se <code>evidence</code> existe mas texto não tem links: sinalizar like <code>citation_metrics.gap_report = true</code>, não rejeitar.</li>
+        <li>Mantida validação de URLs não coletadas (linhas 45-48) apenas quando houver links.</li>
+        <li>Não inventar evidence/fatos.</li>
+      </ol>
+    </div>
+
+    <h3>Change Set proposto</h3>
+    <table class="table">
+      <thead><tr><th>CHG</th><th>Tipo</th><th>Artefato</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td>CHG-03</td><td>code</td><td class="mono">app/services/pipeline/writer.py:38-48</td><td>Permite gap report sem evidence, sinaliza incompletude</td></tr>
+        <tr><td>CHG-04</td><td>test</td><td class="mono">_reversa_bugs/investigacao-redator/bugs/BUG-20261019-2/fix/test_gap_report.py</td><td>Teste reprodução + regressão BUG-2</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Risco -->
+  <div class="section">
+    <h2>Avaliação de risco</h2>
+    <div class="risk-box">
+      <div class="risk-title">change_risk: BAIXA-MÉDIA</div>
+      <ul class="link-list">
+        <li><strong>Blast radius:</strong> Apenas <code>_write_report</code> (writer stage). Não toca API, DB schema, ou roteador.</li>
+        <li><strong>Contrato externo:</strong> Persistência de <code>Report</code> ganha novo campo opcional <code>report_type</code>. Migration backward-compatible (nullable).</li>
+        <li><strong>Dados:</strong> Nenhum dado histórico corrompido. Report existente não afetado.</li>
+        <li><strong>Reversibilidade:</strong> Sim — rollback do diff reverte comportamento.</li>
+        <li><strong>Novo risco:</strong> Gap report não rejeitado pode expor conteúdo vazio. Mitigado por <code>validate_report_quality</code> (mínimo 200 palavras) e sinalização <code>report_type: gap</code>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Tests -->
+  <div class="section">
+    <h2>Testes planejados</h2>
+    <div class="card">
+      <div class="card-title">BUG-20261019-1 — Reprodução + Regressão</div>
+      <ul class="link-list">
+        <li><strong>test_guardrail_false_positive.py:</strong> (<a href="../../bugs/BUG-20261019-1-writer-false-positive-citation/fix/test_guardrail_false_positive.py">arquivo</a>)
+          <ul>
+            <li><code>test_negrito_proposta_didatica_not_rejected:</code> simula <code>**Proposta didática:** desenhe dois cartões</code> — deve passar.</li>
+            <li><code>test_lista_factual_sem_citacao_rejeitada:</code> simula <code>- Fato sem fonte</code> — deve levantar RuntimeError.</li>
+            <li><code>test_tabela_factual_sem_citacao_rejeitada:</code> tabela markdown sem link — deve levantar RuntimeError.</li>
+            <li><code>test_prosa_factaul_sem_citacao_rejeitada:</code> frase terminada em ponto sem link — deve levantar RuntimeError.</li>
+            <li><code>test_tabela_auditoria_sem_citacao_aceita:</code> <code>| ponto | status |</code> — deve passar (existing behavior).</li>
+          </ul>
+        </li>
+        <li><strong>Cápsula de reprodução isolada:</strong> <a href="../../bugs/BUG-20261019-1-writer-false-positive-citation/evidence/reproduction.md">reproduction.md</a></li>
+        <li><strong>Diff proposto:</strong> <a href="../../bugs/BUG-20261019-1-writer-false-positive-citation/fix/CHG-01.diff">CHG-01.diff</a></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">BUG-20261019-2 — Reprodução + Regressão</div>
+      <ul class="link-list">
+        <li><strong>test_gap_report.py:</strong> (<a href="../../bugs/BUG-20261019-2-writer-rejects-gap-report/fix/test_gap_report.py">arquivo</a>)
+          <ul>
+            <li><code>test_gap_report_sem_evidence_persiste:</code> texto sem evidence + conteúdo → report_type=gap, não RuntimeError.</li>
+            <li><code>test_gap_report_sem_evidence_rejeitado_por_stub:</code> texto muito curto → validate_report_quality falha.</li>
+            <li><code>test_report_com_evidence_sem_links_sinalizado:</code> evidence existe, texto sem links → gap flag, não RuntimeError.</li>
+            <li><code>test_unlinked_urls_still_rejected:</code> URLs no texto não presentes em evidence → RuntimeError mantido.</li>
+          </ul>
+        </li>
+        <li><strong>Cápsula de reprodução isolada:</strong> <a href="../../bugs/BUG-20261019-2-writer-rejects-gap-report/evidence/reproduction.md">reproduction.md</a></li>
+        <li><strong>Diff proposto:</strong> <a href="../../bugs/BUG-20261019-2-writer-rejects-gap-report/fix/CHG-03.diff">CHG-03.diff</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Graph -->
+  <div class="section">
+    <h2>Mini-grafo do bug</h2>
+    <div class="mini-graph">
+      <div class="node" style="margin-bottom: 16px;">
+        <strong>BUG-20261019-1</strong><br>false positive: negrito como lista<br><span style="color: var(--muted); font-size: 10px;">affected: writer.py:56-68</span><br><span style="color: var(--muted); font-size: 10px;">root: heuristic design</span>
+      </div>
+      <div class="arrow">── related-to (confirmed) ──</div>
+      <div class="node center" style="margin-bottom: 16px; background: rgba(255,107,107,0.15); border-color: var(--red);">
+        <strong>BUG fdd70d5c</strong><br>diagnóstico pai<br><span style="color: var(--muted); font-size: 10px;">intake/diagnostico-fdd70d5c.md</span>
+      </div>
+      <div class="arrow">── related-to (confirmed) ──</div>
+      <div class="node" style="margin-bottom: 16px;">
+        <strong>BUG-20261019-2</strong><br>rejeição gap report<br><span style="color: var(--muted); font-size: 10px;">affected: writer.py:38-48</span><br><span style="color: var(--muted); font-size: 10px;">root: evidence gating rígido</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Relation matrix -->
+  <div class="section">
+    <h2>Matriz de relações</h2>
+    <table class="table">
+      <thead><tr><th>Origem</th><th>Tipo</th><th>Destino</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td><a href="../../../bug.md">BUG-20261019-1</a></td><td>related-to</td><td><a href="../BUG-20261019-2/BUG-20261019-2/bug.md">BUG-20261019-2</a></td><td>confirmed</td></tr>
+        <tr><td><a href="../BUG-20261019-2/BUG-20261019-2/bug.md">BUG-20261019-2</a></td><td>related-to</td><td><a href="BUG-20261019-1/bug.md">BUG-20261019-1</a></td><td>confirmed</td></tr>
+        <tr><td><a href="bug.md">BUG-20261019-1</a></td><td>related-to</td><td><a href="../../intake/diagnostico-fdd70d5c.md">diagnostico-fdd70d5c</a></td><td>confirmed</td></tr>
+        <tr><td><a href="../BUG-20261019-2/bug.md">BUG-20261019-2</a></td><td>related-to</td><td><a href="bug.md">BUG-20261019-1</a></td><td>confirmed</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Agent notes -->
+  <div class="section">
+    <h2>Agent Notes &amp; Restrições</h2>
+    <ul class="link-list">
+      <li>Corrigir heurística sem abrir bypass genérico por prefixos: negrito factual sem fonte continua negativo; listas/tabelas factuais sem fonte negativas.</li>
+      <li>Casos de lacunas reais não devem exigir fonte; links fornecidos devem sempre pertencer às evidências.</li>
+      <li>Quarta reprovação encerra busca; falta de conteúdo deve gerar lacuna sem inventar evidência/link.</li>
+      <li>Não transformar aprovação auditor em requisito para Writer.</li>
+      <li>Comparar RF401/402 requirements feature004; se adendo necessário, propor somente (spec requer gate).</li>
+      <li>Ponderar limite mínimo de palavras no caso de lacunas; não alterar contrato extra sem autorização.</li>
+      <li>Git sujo prévio em app/routers/research.py, frontend/src/{api.ts,main.tsx,research-utils.ts}, _reversa_refactor/ — preservar.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

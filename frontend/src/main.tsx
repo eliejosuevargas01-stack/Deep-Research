@@ -61,6 +61,7 @@ export { api }
 import {
   canMovePoint,
   canTransitionStatus,
+  normalizeStatus,
   ingestEvent,
   getModelOptions,
   parseReportData,

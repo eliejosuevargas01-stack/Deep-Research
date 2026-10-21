@@ -50,7 +50,7 @@ def point_dependencies(points) -> dict[int, set[int]]:
         raise ValueError("Research point titles must be unique")
     graph: dict[int, set[int]] = {}
     for index, point in enumerate(points):
-        refs = point.dependencies if hasattr(point, "dependencies") else point.get("dependencies", [])
+        refs = (point.dependencies if hasattr(point, "dependencies") else point.get("dependencies", [])) or []
         deps: set[int] = set()
         for ref in refs:
             ref_str = str(ref).strip()
@@ -134,14 +134,9 @@ async def run_research(research_id: uuid.UUID) -> None:
             await db.commit()
             points = list((await db.scalars(select(ResearchPoint).where(ResearchPoint.research_id == research_id).order_by(ResearchPoint.position))).all())
         await add_event(research_id, "system", "research_started", "Approved research work started", {"points": len(points)})
-        for batch in ready_point_batches(points):
-            await asyncio.gather(*(_run_point(research_id, points[index]) for index in batch))
-        async with AsyncSessionLocal() as db:
-            points = list((await db.scalars(select(ResearchPoint).where(ResearchPoint.research_id == research_id).order_by(ResearchPoint.position))).all())
-        await _write_report(research, points)
-        if research.callback_url:
-            from app.services.webhook import dispatch_callback
-            await dispatch_callback(research_id)
+        from app.investigation.service import InvestigationService
+        inv_service = InvestigationService(AsyncSessionLocal)
+        await inv_service.run_investigation(research_id)
     except Exception as exc:
         safe_msg = sanitize_error(exc, "research execution")
         async with AsyncSessionLocal() as db:

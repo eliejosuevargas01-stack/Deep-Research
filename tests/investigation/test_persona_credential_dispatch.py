@@ -9,6 +9,7 @@ from sqlalchemy.pool import NullPool
 
 from app.investigation.llm_binding import LLMCallError
 from app.investigation.service import InvestigationService
+from app.investigation.tools import JinaSearchResult
 from app.models.domain_models import (
     AppSettings,
     Base,
@@ -34,13 +35,16 @@ PERSONAS = ("historian", "skeptic", "pragmatist", "futurist")
 
 class FakeJina:
     async def search(self, query):
-        raise AssertionError("Resposta final não deve solicitar busca Jina")
+        return JinaSearchResult(
+            content="Texto factual com 100 caracteres de conteudo relevante para teste de despacho.",
+            urls=["https://example.com/item"],
+        )
 
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("case", ["per_provider", "scout_fallback", "missing_credential"])
 async def test_persona_credential_dispatch(
-    case, tmp_path, monkeypatch, make_litellm_final_response,
+    case, tmp_path, monkeypatch, make_litellm_final_response, make_litellm_tool_call_response,
 ):
     models = dict(MODELS)
     keys = {"openai": OPENAI_KEY, "anthropic": ANTHROPIC_KEY}
@@ -69,17 +73,19 @@ async def test_persona_credential_dispatch(
     calls = []
 
     async def fake_llm(*, model, messages, tools, api_key, api_base):
-        calls.append((model, api_key, api_base))
         if case == "missing_credential" and model.startswith("anthropic/"):
+            calls.append((model, api_key, api_base))
             raise LLMCallError(
                 3, f"missing credential; api_key={OPENAI_KEY}; Bearer {BEARER_TOKEN}"
             )
-        # Simulate CoT leakage in raw content to prove it's stripped by JSON extraction
-        raw_response_content = (
-            "Pensamento: Vou usar a ferramenta Jina... não, melhor entregar direto.\n"
-            f"```json\n{{\"result\": \"Resultado de {model}\", \"used_urls\": []}}\n```"
-        )
-        return make_litellm_final_response(raw_response_content, [], is_raw=True)
+        if messages and messages[-1].get("role") == "tool":
+            raw_response_content = (
+                "Pensamento: Vou usar a ferramenta Jina... não, melhor entregar direto.\n"
+                f"```json\n{{\"result\": \"Resultado de {model}\", \"used_urls\": [\"https://example.com/item\"], \"citations\": []}}\n```"
+            )
+            return make_litellm_final_response(raw_response_content, ["https://example.com/item"], is_raw=True)
+        calls.append((model, api_key, api_base))
+        return make_litellm_tool_call_response("termo de busca")
 
     monkeypatch.setattr("app.investigation.worker.call_llm_with_retries", fake_llm)
     try:
@@ -130,8 +136,6 @@ async def test_persona_credential_dispatch(
         assert {row.worker for row in rows} == set(PERSONAS)
         for row in rows:
             assert row.step_id == step_id
-            assert row.used_urls == []
-            assert row.read_urls == []
             model = expected_models[row.worker]
             if case == "missing_credential" and model.startswith("anthropic/"):
                 assert row.status == "FAILED"
@@ -141,6 +145,8 @@ async def test_persona_credential_dispatch(
             else:
                 assert row.status == "AUDIT_PENDING"
                 assert row.result == f"Resultado de {model}"
+                assert row.used_urls == ["https://example.com/item"]
+                assert row.read_urls == ["https://example.com/item"]
             for secret in (OPENAI_KEY, ANTHROPIC_KEY, BEARER_TOKEN):
                 assert secret not in row.result
                 assert secret not in str(returned)

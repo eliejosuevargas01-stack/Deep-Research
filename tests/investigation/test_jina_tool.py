@@ -15,16 +15,17 @@ from app.investigation.tools import (
     JinaSearchError,
     JinaSearchResult,
     JinaToolAdapter,
+    _parse_body,
 )
 
 
 @pytest.mark.anyio
 async def test_jina_search_success_direct_contract_and_payload(
-    make_jina_mock_transport,
+    make_jina_mock_transport, sample_jina_items,
 ):
     """
     RN-05, RF-06: Sucesso na busca direta.
-    Valida POST https://s.jina.ai/, payload {"q": query}, headers exigidos,
+    Valida POST https://s.jina.ai/, payload {"q": query, "num": 10}, headers exigidos,
     retorno de JinaSearchResult com content preenchido e URLs capturadas.
     """
     transport, recorded = make_jina_mock_transport()
@@ -42,24 +43,20 @@ async def test_jina_search_success_direct_contract_and_payload(
         assert req.method == "POST"
 
         sent_payload = json.loads(req.content.decode("utf-8"))
-        assert sent_payload == {"q": query}
+        assert sent_payload == {"q": query, "num": 10}
 
         assert req.headers.get("Accept") == "application/json"
         assert req.headers.get("X-Engine") == "direct"
         assert req.headers.get("Authorization") == "Bearer jina-secret-api-key-123"
         assert req.headers.get("Content-Type") == "application/json"
 
-        # Conteúdo montado a partir de title, description, content
-        assert "Primeiro Resultado de Teste" in result.content
-        assert "Segundo Resultado de Teste" in result.content
-        assert "Conteúdo integral do primeiro artigo" in result.content
-        assert "Conteúdo factual com evidências" in result.content
+        assert result.urls == [item["url"] for item in sample_jina_items]
+        for item in sample_jina_items:
+            assert item["content"] in result.content
+            assert item["title"] in result.content
+            assert item["url"] in result.content
+        assert query in result.content
 
-        # URLs extraídas
-        assert result.urls == [
-            "https://example.com/artigo-1",
-            "https://example.com/artigo-2",
-        ]
 
 
 @pytest.mark.anyio
@@ -90,7 +87,7 @@ async def test_jina_search_with_proxy_configuration(make_jina_mock_transport):
         assert req.method == "POST"
 
         sent_payload = json.loads(req.content.decode("utf-8"))
-        assert sent_payload == {"q": query}
+        assert sent_payload == {"q": query, "num": 10}
 
         assert req.headers.get("Authorization") == f"Bearer {proxy_key}"
         assert req.headers.get("Accept") == "application/json"
@@ -154,7 +151,7 @@ async def test_jina_search_timeout_parameter_and_enforcement(
 
 @pytest.mark.anyio
 async def test_jina_search_retries_transient_failure_then_success(
-    make_jina_mock_transport, monkeypatch
+    make_jina_mock_transport, monkeypatch, sample_jina_items
 ):
     """
     RN-07, RF-08: Simula 2 falhas transitórias (429 e erro de conexão) e sucesso na 3ª tentativa.
@@ -177,7 +174,7 @@ async def test_jina_search_retries_transient_failure_then_success(
                             "description": "Sucesso",
                             "content": "Conteúdo final disponível.",
                         }
-                    ]
+                    ] + sample_jina_items[1:]
                 },
             ),
         ]
@@ -190,7 +187,7 @@ async def test_jina_search_retries_transient_failure_then_success(
         assert len(recorded) == 3
         assert isinstance(result, JinaSearchResult)
         assert "Recuperado com sucesso na 3a tentativa" in result.content
-        assert result.urls == ["https://example.com/recuperado"]
+        assert result.urls == ["https://example.com/recuperado"] + [item["url"] for item in sample_jina_items[1:]]
 
         # Delays default: 2.0s na primeira falha, 4.0s na segunda falha
         assert sleep_mock.await_count == 2
@@ -200,7 +197,7 @@ async def test_jina_search_retries_transient_failure_then_success(
 
 @pytest.mark.anyio
 async def test_jina_search_retry_after_header_respected(
-    make_jina_mock_transport, monkeypatch
+    make_jina_mock_transport, monkeypatch, sample_jina_items
 ):
     """
     RN-07, RF-08: Simula resposta 429 com cabeçalho 'Retry-After: 1'.
@@ -222,7 +219,7 @@ async def test_jina_search_retry_after_header_respected(
                             "description": "Desc",
                             "content": "Conteúdo após esperar 1s.",
                         }
-                    ]
+                    ] + sample_jina_items[1:]
                 },
             ),
         ]
@@ -295,60 +292,15 @@ async def test_jina_search_exhaustion_raises_jina_search_error_no_secret_leak(
 
 
 @pytest.mark.anyio
-async def test_jina_search_recursive_url_extraction_and_deduplication(
-    make_jina_mock_transport,
-):
-    """
-    RN-08, RF-07: Extração recursiva de URLs nos campos data, url, link, href
-    com deduplicação integral preservando ordem.
-    """
-    payload_complexo = {
-        "code": 200,
-        "status": 20000,
-        "data": [
-            {
-                "title": "Documento Principal",
-                "url": "https://example.com/artigo-principal",
-                "description": "Resumo do documento",
-                "content": "Texto com link",
-                "metadata": {
-                    "source": {
-                        "link": "https://example.com/fonte-secundaria",
-                        "href": "https://example.com/artigo-principal",  # duplicata
-                    },
-                    "referencias": [
-                        {"url": "https://example.com/referencia-1"},
-                        "https://example.com/artigo-direto-em-string",
-                        "https://example.com/fonte-secundaria",  # duplicata
-                        "ftp://protocolo-invalido.com",
-                        "string-que-nao-e-url",
-                        None,
-                        123,
-                    ],
-                },
-            }
-        ],
-        "links_adicionais": {
-            "link": "https://example.com/rodape"
-        },
-    }
-
-    transport, _ = make_jina_mock_transport(default_payload=payload_complexo)
-    async with httpx.AsyncClient(transport=transport) as client:
-        adapter = JinaToolAdapter(api_key="jina-key-test", http_client=client)
-        result = await adapter.search("extração de fontes")
-
-        expected_urls = [
-            "https://example.com/artigo-principal",
-            "https://example.com/fonte-secundaria",
-            "https://example.com/referencia-1",
-            "https://example.com/artigo-direto-em-string",
-            "https://example.com/rodape",
-        ]
-
-        assert result.urls == expected_urls
-        # Deduplicação verificada
-        assert len(result.urls) == len(set(result.urls))
+async def test_jina_search_recursive_url_extraction_and_deduplication(make_jina_mock_transport, sample_jina_items):
+    """Referência recursiva não equivale a corpo lido; deduplicação preservada."""
+    sample_jina_items[0]["metadata"] = {"link": "https://example.com/not-read", "href": sample_jina_items[0]["url"]}
+    transport, recorded = make_jina_mock_transport(default_payload={"data": sample_jina_items})
+    async with httpx.AsyncClient(transport=transport, trust_env=False) as client:
+        result = await JinaToolAdapter(api_key="synthetic-key", http_client=client).search("fontes")
+    assert len(recorded) == 1
+    assert result.urls == [item["url"] for item in sample_jina_items]
+    assert len(result.urls) == len(set(result.urls))
 
 
 @pytest.mark.anyio
@@ -416,7 +368,7 @@ async def test_jina_search_non_retryable_client_error(make_jina_mock_transport):
 
 @pytest.mark.anyio
 async def test_jina_search_malformed_json_retries_then_succeeds(
-    make_jina_mock_transport, monkeypatch
+    make_jina_mock_transport, monkeypatch, sample_jina_items
 ):
     """
     Corpo com JSON inválido dispara _AttemptFailed e tenta novamente.
@@ -436,7 +388,7 @@ async def test_jina_search_malformed_json_retries_then_succeeds(
                             "url": "https://example.com/ok",
                             "content": "Texto válido.",
                         }
-                    ]
+                    ] + sample_jina_items[1:]
                 },
             ),
         ]
@@ -531,3 +483,118 @@ def test_conftest_litellm_mock_fixtures(
         "https://example.com/fonte-2",
     ]
 
+
+
+@pytest.mark.anyio
+async def test_jina_ten_complete_bodies_keep_attribution(make_jina_mock_transport, sample_jina_items):
+    """RF-501: dez corpos integrais, associados a título/URL/query; API real existente."""
+    transport, recorded = make_jina_mock_transport()
+    query = "consulta sintética com atribuição"
+    async with httpx.AsyncClient(transport=transport, trust_env=False) as client:
+        result = await JinaToolAdapter(api_key="synthetic-key", http_client=client).search(query)
+    assert len(recorded) == 1
+    assert result.urls == [item["url"] for item in sample_jina_items]
+    assert len(sample_jina_items) == 10
+    positions = []
+    for i, item in enumerate(sample_jina_items):
+        assert item["content"].index(f"END_BODY_{i}") > 100000
+        assert item["content"] in result.content
+        positions.append(result.content.index(item["content"]))
+    for i, item in enumerate(sample_jina_items):
+        start = 0 if i == 0 else positions[i - 1] + len(sample_jina_items[i - 1]["content"])
+        end = len(result.content) if i == 9 else positions[i + 1]
+        section = result.content[start:end]
+        assert item["title"] in section
+        assert item["url"] in section
+    assert query in result.content
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("shape", ["nested", "malformed"])
+async def test_jina_html_cleaning_preserves_useful_body(shape, make_jina_mock_transport, sample_jina_items):
+    useful_bodies = [item["content"] for item in sample_jina_items]
+    for item in sample_jina_items:
+        opening = "<article><div><p>" if shape == "nested" else "<article><p><b>"
+        closing = "</p></div></article>" if shape == "nested" else "</article>"
+        item["content"] = (
+            "<header><div>HEADER_NOISE</div></header><nav><a>NAV_NOISE</a></nav>"
+            "<script>SCRIPT_NOISE</script><style>STYLE_NOISE</style>"
+            '<aside class="advertisement" aria-label="advertisement">AD_NOISE</aside>'
+            + opening + item["content"] + " &amp; texto &lt;útil&gt;" + closing
+            + "<footer><span>FOOTER_NOISE</span></footer>"
+        )
+    transport, recorded = make_jina_mock_transport(default_payload={"data": sample_jina_items})
+    async with httpx.AsyncClient(transport=transport, trust_env=False) as client:
+        result = await JinaToolAdapter(api_key="synthetic-key", http_client=client).search("limpeza")
+    assert len(recorded) == 1
+    for noise in ("HEADER_NOISE", "NAV_NOISE", "SCRIPT_NOISE", "STYLE_NOISE", "AD_NOISE", "FOOTER_NOISE"):
+        assert noise not in result.content
+    for useful in useful_bodies:
+        assert useful in result.content
+    assert "& texto <útil>" in result.content
+    assert "<article>" not in result.content
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("case", ["nine", "missing-body", "inaccessible", "snippets-only"])
+async def test_jina_incomplete_collection_fails_safe(case, make_jina_mock_transport, sample_jina_items, monkeypatch):
+    monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+    if case == "nine":
+        sample_jina_items.pop()
+    elif case == "missing-body":
+        sample_jina_items[-1].pop("content")
+    elif case == "inaccessible":
+        sample_jina_items[-1]["content"] = ""
+        sample_jina_items[-1]["status"] = 403
+    else:
+        for i, item in enumerate(sample_jina_items):
+            item.pop("content")
+            item["snippet"] = f"SNIPPET_ONLY_{i}"
+    transport, recorded = make_jina_mock_transport(default_payload={"data": sample_jina_items})
+    key = "synthetic-secret-incomplete"
+    async with httpx.AsyncClient(transport=transport, trust_env=False) as client:
+        try:
+            with pytest.raises(JinaSearchError) as exc:
+                await JinaToolAdapter(api_key=key, http_client=client).search("coleta incompleta")
+        finally:
+            print(f"REQUESTS incomplete/{case}={len(recorded)}")
+            assert len(recorded) == 1
+    assert key not in "".join(traceback.format_exception(exc.value))
+    assert "example.com" not in str(exc.value)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("unsafe_url", [
+    "file:///etc/passwd", "ftp://example.com/page", "http://127.0.0.1/private",
+    "http://169.254.169.254/latest/meta-data", "http://[::1]/private",
+    "http://10.0.0.1/private", "http://localhost/private", "https://user:password@example.com/page",
+])
+async def test_jina_unsafe_source_url_fails_safe(unsafe_url, make_jina_mock_transport, sample_jina_items, monkeypatch):
+    """Rejeição local; MockTransport não prova resolução DNS/pinning de produto."""
+    monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+    sample_jina_items[-1]["url"] = unsafe_url
+    transport, recorded = make_jina_mock_transport(default_payload={"data": sample_jina_items})
+    async with httpx.AsyncClient(transport=transport, trust_env=False) as client:
+        try:
+            with pytest.raises(JinaSearchError) as exc:
+                await JinaToolAdapter(api_key="synthetic-key", http_client=client).search("segurança")
+        finally:
+            print(f"REQUESTS unsafe-source={len(recorded)}")
+            assert len(recorded) == 1
+    assert unsafe_url not in str(exc.value)
+
+
+def test_parse_body_does_not_promote_snippets_or_recursive_urls(sample_jina_items):
+    for item in sample_jina_items:
+        item.pop("content")
+        item["metadata"] = {"url": "https://example.com/not-read"}
+    with pytest.raises(JinaSearchError):
+        _parse_body({"data": sample_jina_items})
+
+
+def test_stdlib_parser_keeps_tail_beyond_input_slice():
+    from app.services.search import _safe_html_to_text
+    useful = "BEGIN_LONG " + "useful " * 31000 + " END_AFTER_200000"
+    raw = "<article>" + useful + "</article>"
+    assert useful.index("END_AFTER_200000") > 200000
+    assert useful == _safe_html_to_text(raw, max_chars=len(raw))

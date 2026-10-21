@@ -88,7 +88,10 @@ async def run_research_audit(
     service = _audit_service()
     outcomes: list[AuditPointOutcome] = []
     for point in pending_points:
-        verdict = await service.audit_point(research_id, point.id)
+        audit_kwargs: dict = {}
+        if point.investigation_round is not None:
+            audit_kwargs["round"] = point.investigation_round
+        verdict = await service.audit_point(research_id, point.id, **audit_kwargs)
         if verdict.status == SCRAPER_RETRY:
             # RN-303: reprovação incrementa attempt_count do ponto (último
             # passo do ciclo); o re-disparo das personas fica no
@@ -148,7 +151,10 @@ async def run_point_audit(
 
     service = _audit_service()
     try:
-        verdict = await service.audit_point(research_id, point_id)
+        audit_kwargs: dict = {}
+        if point.investigation_round is not None:
+            audit_kwargs["round"] = point.investigation_round
+        verdict = await service.audit_point(research_id, point_id, **audit_kwargs)
     except ValueError:
         # Corrida: ponto desapareceu entre a checagem e a execução.
         raise HTTPException(

@@ -1,4 +1,4 @@
-import { clearAllDrCache } from './research-utils.ts'
+import { clearAllDrCache, normalizeStatus } from './research-utils.ts'
 
 let csrf = ''
 
@@ -110,7 +110,22 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     const error = (await response.json().catch(() => ({}))) as { detail?: string }
     throw new ApiError(typeof error.detail === 'string' ? error.detail : 'HTTP ' + response.status, response.status)
   }
-  return response.status === 204 ? (undefined as T) : response.json()
+  if (response.status === 204) return undefined as T
+  const data = await response.json()
+  if (data && typeof data === 'object') {
+    if (Array.isArray(data)) {
+      return data.map(item => {
+        if (item && typeof item === 'object' && 'status' in item && typeof item.status === 'string') {
+          return { ...item, status: normalizeStatus(item.status) }
+        }
+        return item
+      }) as unknown as T
+    }
+    if ('status' in data && typeof data.status === 'string') {
+      return { ...data, status: normalizeStatus(data.status) } as unknown as T
+    }
+  }
+  return data as T
 }
 
 export async function logoutUser(): Promise<void> {

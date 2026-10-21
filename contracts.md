@@ -1,5 +1,8 @@
 # Deep Research Engine - Inviolable Architecture & Operational Contracts
 
+> [!IMPORTANT]
+> **Diretrizes aprovadas vigentes (2026-10-19):** Os contratos e especificações deste documento refletem as diretrizes normativas de produto registradas no adendo `_reversa_sdd/addenda/diretrizes-20261019-workers-jina-briefing.md` (DIRETRIZES APROVADAS). A implementação operacional em código fonte (`app/`) e sua verificação em ambiente de execução permanecem **não executadas/não verificadas** nesta sprint documental. Em caso de eventual divergência com diagramas ou textos legados, as diretrizes do adendo possuem precedência normativa.
+
 ## 1. Authentication & Security Boundary Contract
 
 * **Single-Admin Security Model**: The application operates under an authenticated single-administrator security model. Multi-tenant partitioning headers (such as `X-Tenant-ID`) provided by clients are strictly ignored and rejected as an identity source. Browser clients cannot assert, switch, or claim tenant identities. The server assigns and maintains a fixed tenant context (`default` or authenticated administrator) internally.
@@ -54,16 +57,16 @@
 
 ## 5. Concurrency, Durability & Restart Recovery Contract
 
-* **Concurrency Ceiling**: Total simultaneous research worker executions across all points and personas are hard-capped at **20 concurrent tasks** via an application-level `asyncio.Semaphore(20)`.
+* **Concurrency & Merge Barrier**: Research worker executions dispatch across all points and personas concurrently via `asyncio.gather`. A failure in any one worker is isolated per-persona; the orchestrator persists whatever is collected. The research point does not advance to merge and audit until all 4 personas (`historian`, `skeptic`, `pragmatist`, `futurist`) have completed and persisted **4 valid, non-empty analytical responses for the exact same point and round** in `research_step_results`, followed by the inter-persona merge phase. Total simultaneous research worker executions across all points and personas are hard-capped at **20 concurrent tasks** via an application-level `asyncio.Semaphore(20)`.
 * **Durable State Persistence**: Research status, briefing points, collected evidence, audit findings, and report drafts must be durably committed to PostgreSQL at each workflow milestone. In-memory async tasks alone are not trusted for durable execution state.
 * **Process Restart Resilience**: On application startup, a recovery sweep inspects all active research records. Any session left in an unfinished state (`scouting`, `in_progress`) is detected and transitioned to an interrupted/recoverable state or resumed via an idempotent worker routine. Restarts do not cause silent job loss.
 * **Single Live Instance in Compose**: Unless a distributed database lease or distributed worker queue is implemented, Docker Compose configurations must run a single backend replica to prevent race conditions and split-brain execution across multiple uncoordinated instances.
 * **Optimistic Locking**: Concurrent writes to `evidences` enforce optimistic concurrency control via the `version` integer column. On conflict (`StaleDataError`), the transaction rolls back and retries with jittered exponential backoff.
-* **Audit Retry Ceiling**: The Auditor quality loop enforces a maximum of **3 retry attempts** per research point.
-* **Blocker Escalation**: If a point fails audit after 3 attempts:
-  - The point status is permanently set to `BLOCKED`.
+* **Audit Retry Ceiling**: The Auditor quality loop enforces a maximum of **4 total attempts** per research point (1 initial + up to 3 retries).
+* **AUDIT_CAVEAT Escalation**: If a point fails audit after 4 total attempts:
+  - The point status is permanently set to `AUDIT_CAVEAT`.
   - The Auditor appends explicit caveat notes and unresolved discrepancy summaries to the outline.
-  - The pipeline does not crash; it advances accumulated evidence and blocker caveats to the Writer.
+  - The pipeline does not crash; it advances accumulated evidence and caveats to the Writer **only after all research points have reached a conclusive state (`AUDIT_APPROVED` or `AUDIT_CAVEAT`)**; the 4th reprovation of an isolated point does not dispatch the Writer prematurely while other points remain active in investigation or audit.
 
 ---
 
@@ -85,9 +88,8 @@
   - `POST /api/auth/logout`: Revokes session, clears cookie.
   - `GET /api/auth/me`: Returns session status and privileges.
 * **Research Routes**:
-  - `POST /api/research`: Accepts `{theme: str, callback_url: Optional[str]}` and responds with HTTP 201 and `{research_id, status, briefing_url, stream_url}`.
+  - `POST /api/research`: Accepts `{theme: str, callback_url: Optional[str]}` and responds with HTTP 201 and `{research_id, status, briefing_url, stream_url}`. Briefing generation is **synchronous in HTTP transport** — the response returns the completed briefing draft directly; no polling required. Internally uses native `async/await` — no background task, no queue. Briefing is SERP-only (no pages); 10 full pages applies to workers only.
   - `GET /api/research/{id}`: Returns full status, draft briefing, and investigation progress.
-  - `POST /api/research/{id}/briefing/approve`: Accepts `{approved_points: list}` and returns HTTP 200, unlocking parallel worker dispatch.
   - `GET /api/research/{id}/stream`: Real-time Server-Sent Events (`text/event-stream`) streaming structured lifecycle events (`event: progress`, `data: <json>`).
 * **Report & Callback Routes**:
   - `GET /api/reports/{id}`: Returns finalized Markdown report, citation metrics, and audit findings.
@@ -111,9 +113,10 @@
 
 ## 9. Operator Experience & Human-in-the-Loop Contract
 
-* **One-Time Review Gate**: The pipeline pauses execution after the Scout phase, persisting the 5-point brief in `Research.briefing_draft` with status `pending_approval`.
-* **No Automated Bypass**: Parallel worker execution cannot commence until an operator submits approval via the chat UI or `POST /api/research/{id}/briefing/approve`.
-* **Full Editability**: The operator may rephrase titles, adjust descriptions, reorder points, or toggle parallelizability during the briefing review.
+* **One-Time Review Gate**: The pipeline pauses execution after the Scout phase, persisting the 3–7 point brief in `Research.briefing_draft` with status `draft`.
+* **Implicit Approval via Investigate**: `POST /briefings/{research_id}/investigate` on a valid draft performs implicit approval and starts investigation in background (returning HTTP `202 Accepted`) — no separate `/approve` endpoint.
+* **Full Editability**: The operator may submit a single feedback note via `PATCH /briefings/{research_id}` to revise the briefing; the revised briefing is approved and investigation starts automatically in background in the same operation.
+* **Exclusive Review Paths**: The operator must choose **either** `PATCH /briefings/{research_id}` **or** `POST /briefings/{research_id}/investigate` — invoking both or re-submitting after approval returns `409 Conflict`.
 * **Authorized Local Implementation**: The user has explicitly authorized full local implementation across architecture, backend, frontend, Docker Compose, and local test validation. Local implementation steps run autonomously without artificial approval gates.
 * **Production Deployment Authorization Boundary**: External DNS configuration and public cloud deployment to `research.dominuslabs.online` require real infrastructure credentials and separate applicable authorization.
 
@@ -137,7 +140,7 @@
   - Settings encryption round-trip (AES-256-GCM) and dynamic model provider resolution.
   - Concurrency limiter ensuring active workers never exceed 20.
   - Durable state persistence and startup recovery sweep recovering interrupted jobs.
-  - Auditor retry counter incrementing to 3 and triggering `BLOCKED` status with caveats.
+  - Auditor retry counter incrementing to 3 retries (4 total attempts, including the initial execution) and triggering `AUDIT_CAVEAT` status with caveats.
   - Citation audit matching claims to extracted evidence content and flagging unverified claims.
   - Privacy streaming emitting strictly structured public events without raw CoT.
 * **End-to-End Test Gate**: Complete integration tests must exercise the full lifecycle from submission, human brief approval, concurrent workers, citation audit, and report generation in a containerized environment before release approval.
@@ -151,5 +154,5 @@
   2. Research status is updated to `completed_but_callback_failed`.
   3. The error is recorded in `audit_trails`.
   4. The operator can trigger redelivery via `POST /api/reports/{id}/retry-callback`.
-* **Worker Failure Resilience**: If an individual worker throws an unhandled exception, the worker pool traps the exception, records a failed evidence record, and allows the remaining personas for that point to complete.
+* **Worker Failure Resilience**: If an individual worker throws an unhandled exception, the worker pool traps the exception, records a failed evidence record, and allows the remaining personas for that point to complete. The point does **not** advance to merge and audit until all four personas have completed and persisted their results (4-persona barrier). If one persona suffers a fatal, unrecoverable failure (crash or terminal timeout), the point's outcome is a pending policy decision (not yet defined). **4 valid analytical results must be persisted for the same point and round before the merge and auditor are invoked; terminal failures do not count toward the 4-analysis barrier.**
 * **Preservation of Blocked Research**: Blocked research sessions are never discarded. They are preserved in PostgreSQL with full audit traces to enable operator inspection and manual debugging.

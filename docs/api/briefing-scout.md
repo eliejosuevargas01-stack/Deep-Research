@@ -1,5 +1,8 @@
 # Módulo de Briefing / Scout — Referência de API
 
+> [!IMPORTANT]
+> **Diretrizes aprovadas vigentes (2026-10-19):** Esta API reflete as diretrizes normativas do adendo `../../_reversa_sdd/addenda/diretrizes-20261019-workers-jina-briefing.md` (DIRETRIZES APROVADAS). A implementação em código (`app/`) e sua verificação operacional permanecem **não executadas/não verificadas** nesta sprint documental. Em caso de divergência com textos legados, as diretrizes do adendo possuem precedência normativa.
+
 > Documentação canônica da API de Briefings do Deep Research Engine.
 >
 > Conforme: `docs/standards/api-docs-standard.md` (v1, snake_case, RFC 9457, envelopes).
@@ -13,7 +16,7 @@
 
 **Objetivo:** dado um tema (3 a 300 caracteres), gerar um *briefing* — lista de pontos com `title` e `description` — orientando uma pesquisa futura. Não responde ao tema nem apresenta conclusão.
 
-**Papel do Scout:** atu como **explorador cognitivo**. Executa duas buscas em sequência:
+**Papel do Scout:** atua como **explorador cognitivo**. Executa duas buscas em sequência:
 
 1. **Busca SERP via Jina** (`https://s.jina.ai/`): consulta a API Jina Search e coleta resultados orgânicos para o tema informado.
 2. **LLM (role `scout`):** processa os resultados SERP com um *prompt de sistema* (`app/prompts/briefing.md`) e um *prompt de usuário* estruturado, gerando **3 a 7 pontos centrais**. O modelo padrão é `gemini/gemini-3.8-flash`, resolvido em runtime via `AppSettings` (role `scout`).
@@ -22,16 +25,15 @@
 
 | Caso | Descrição |
 |---|---|
-| Briefing inicial | Criação de briefing a partir de tema |
-| Revisão colaborativa | Edição de pontos em rascunho |
-| Aprovação formal | Aprovação do briefing como base para pesquisa |
-| Reabertura | Correção pós-aprovação, retorno a rascunho |
+| Criação de briefing | `POST /briefings` — gera briefing a partir de tema (201 síncrono) |
+| Revisão única por feedback | `PATCH /briefings/{research_id}` — revisa, aprova e inicia investigação (200 síncrono) |
+| Aprovação implícita direta | `POST /briefings/{research_id}/investigate` — aprova e inicia investigação (202 background) |
 | Consumo | Leitura do briefing aprovado por downstream |
 | Auditoria | Histórico de versões (v1, v2, …) |
 | Integração | Consumo via API por workers paralelos |
 
 > [!TIP]
-> A geração é **assíncrona**: `POST /briefings` retorna `201` apenas após a orquestração completar (Tx1 + Tx2). Consulte `GET /briefings/{research_id}` para o snapshot corrente.
+> A geração é **síncrona no transporte HTTP**: `POST /briefings` retorna `201` apenas após a orquestração completar (Tx1 + Tx2). Internamente o backend usa corrotinas `async/await` normais — sem background task desvinculada, sem fila, sem polling do cliente. Consulte `GET /briefings/{research_id}` apenas para ler o snapshot corrente, não para aguardar conclusão.
 
 ---
 
@@ -69,7 +71,7 @@ BRIEFING_ID=$(curl -s -X POST \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   https://api.deepresearchengine.com/v1/briefings \
-  -d '{"theme": "impacto da IA na medicina"} \
+  -d '{"theme": "impacto da IA na medicina"}' \
   -w '\n%{http_code}' \
   | awk 'NR==1{print;}' )
 
@@ -80,45 +82,55 @@ echo "Briefing ID: $BRIEFING_ID"
 
 ```bash
 curl -s \
-  -H "Authorization: Bearer $API_AUTH_SECRET" \
+  -H "Authorization: Bearer ***" \
   -H "Accept: application/json" \
   https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID | jq '.'
 ```
 
-Repita até `status` ser `draft` ou `failed`.
+(Opcional) `GET /briefings/{research_id}` apenas para ler o snapshot — geração já concluída no `201` do POST.
 
-### Passo 3 — Opcional: editar pontos com PATCH
+### Passo 3 — ESCOLHA UMA ÚNICA VIA (não use ambas)
+
+> [!IMPORTANT]
+> **Vias exclusivas (A ou B, nunca sequência):**
+> - **Via A:** `PATCH /briefings/{research_id}` — Revisar briefing via feedback único (só uma vez). Retorna **200 OK** síncrono com o briefing revisado final e **aprova e inicia a investigação automaticamente em background** na mesma operação (sem segunda chamada a `/investigate`).
+> - **Via B:** `POST /briefings/{research_id}/investigate` — Aprovar implicitamente e iniciar investigação (draft → SCRAPER). Retorna **202 Accepted** e dispara a investigação em background.
+
+#### Via A — Revisar briefing via feedback único (só uma vez)
 
 ```bash
 curl -s -X PATCH \
-  -H "Authorization: Bearer $API_AUTH_SECRET" \
+  -H "Authorization: Bearer ***" \
   -H "Content-Type: application/json" \
   https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID \
-  -d '{
-    "points": [
-      {"title": "Ponto revisado", "description": "Descrição atualizada"},
-      {"title": "Novo ponto", "description": "Descrição do novo ponto"},
-      {"title": "Terceiro ponto", "description": "Mais uma descrição"}
-    ]
-  }' | jq '.'
+  -d '{"note": "Aprofundar riscos regulatórios"}' | jq '.'
 ```
 
-### Passo 4 — Aprovar com POST /approve
+> [!NOTE]
+> O PATCH revisa o briefing, aprova e inicia a investigação automaticamente em background na mesma operação. A resposta HTTP 200 traz o briefing revisado. Uma segunda tentativa de PATCH retorna `409 Conflict`.
+
+#### Via B — Aprovar implicitamente e iniciar investigação
 
 ```bash
 curl -s -X POST \
-  -H "Authorization: Bearer $API_AUTH_SECRET" \
+  -H "Authorization: Bearer ***" \
   -H "X-CSRF-Token: $CSRF_TOKEN" \
   -H "Content-Type: application/json" \
-  https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID/approve \
+  https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID/investigate \
   -d '{}' | jq '.'
 ```
+
+> [!NOTE]
+> Retorna HTTP 202 Accepted com `{"research_id": "...", "status": "SCRAPER", "message": "Investigação iniciada em background"}`.
+
+> [!TIP]
+> Se o `POST /briefings` (Passo 1) já retornou `status: "failed"` no corpo da resposta 201, **não prossiga para nenhuma das vias** — a geração do briefing falhou terminalmente (prompt/SERP/LLM/config). A investigação não será iniciada.
 
 ### Passo 5 — Consumir aprovado via GET /briefings/approved/{research_id}
 
 ```bash
 curl -s \
-  -H "Authorization: Bearer $API_AUTH_SECRET" \
+  -H "Authorization: Bearer ***" \
   -H "Accept: application/json" \
   https://api.deepresearchengine.com/v1/briefings/approved/$BRIEFING_ID | jq '.'
 ```
@@ -132,7 +144,8 @@ stateDiagram-v2
     [*] --> generating: POST /briefings
     generating --> draft: conclusão OK (geração de pontos)
     generating --> failed: erro (prompt/SERP/LLM/config)
-    draft --> approved: POST /approve
+    draft --> approved: POST /investigate
+    draft --> approved: PATCH (revisão única)
     failed --> [*]: terminal
     approved --> [*]: terminal
 
@@ -142,7 +155,7 @@ stateDiagram-v2
 
     note right of draft
       PATCH /briefings/{research_id}
-      somente em draft
+      revisão única por feedback
     end note
 ```
 
@@ -152,8 +165,9 @@ stateDiagram-v2
 |---|---|---|---|
 | `generating` | `draft` | geração concluída | 3–7 pontos válidos |
 | `generating` | `failed` | erro interno/SERP/LLM | mensagem de erro fixa |
-| `draft` | `approved` | `POST /approve` | — |
-| `approved` | `approved` | `POST /reopen` | **409**, sem mutação |
+| `draft` | `approved` | `POST /briefings/{research_id}/investigate` | aprovação implícita; inicia investigação |
+| `draft` | `approved` | `PATCH /briefings/{research_id}` | revisão única por feedback; aprova e inicia investigação |
+| `approved` | `approved` | `POST /briefings/{research_id}/reopen` | **409**, sem mutação |
 | `failed` | (qualquer) | — | **terminal**, requer nova criação |
 
 **Controle de versão:**
@@ -167,7 +181,7 @@ stateDiagram-v2
 
 - `save_briefing_transition` usa `UPDATE ... WHERE id = ? AND version = old_version`.
 - Colisão (`rowcount != 1`) eleva `BriefingVersionConflictError` → **`409 Conflict`**.
-- Cliente deve reexecutar leitura → PATCH/approve com versão corrente.
+- Cliente deve reler estado/versão corrente e reconciliar; conflito não autoriza segunda revisão nem reenvios cegos.
 
 ---
 
@@ -217,7 +231,7 @@ Cria e orquestra a geração do briefing do tema informado.
 ```
 
 > [!NOTE]
-> A requisição é síncrona em termos de orquestração: `201` é retornado apenas após a geração completar (Tx1 reserva + Tx2 commit). Se falhar, o briefing fica com `status: "failed"` e `error` populado, retornado também com `201`.
+> A geração é **síncrona no transporte HTTP**: `POST /briefings` retorna `201` apenas após a conclusão da geração (Tx1 + Tx2). Internamente usa `async/await` nativo — sem background task, sem polling. Briefing é SERP-only (sem páginas); 10 páginas integrais aplica-se apenas aos workers. Se falhar, o briefing fica com `status: "failed"` e `error` populado, retornado também com `201`.
 
 ---
 
@@ -250,9 +264,12 @@ Retorna o estado corrente do briefing.
 
 ---
 
-### `PATCH /briefings/{research_id}` — Revisar briefing via Scout
+### `PATCH /briefings/{research_id}` — Revisar briefing via feedback único (só uma vez)
 
-Dispara revisão do briefing em status `draft` via Scout. O agente Scout reavalia os pontos com base no feedback e retorna novo rascunho com versão incrementada.
+Revisa o briefing em status `draft` via Scout, aprovando e iniciando a investigação automaticamente na mesma operação. O agente Scout reavalia os pontos com base no feedback (`note`), gera a nova versão, persiste em `briefing_versions`, aprova o briefing e dispara a investigação em background. Uma segunda tentativa de PATCH retorna `409 Conflict`.
+
+> [!IMPORTANT]
+> **Vias exclusivas:** `PATCH /briefings/{research_id}` e `POST /briefings/{research_id}/investigate` são caminhos **exclusivos** para avançar a partir do `draft`. O cliente deve escolher uma única via; acionar ambas sobre o mesmo draft resulta em `409 Conflict`. Em `409 Conflict`, reler o estado e a versão correntes para reconciliar. Se o briefing já estiver aprovado ou revisado, a requisição não deve ser repetida. Conflito CAS não autoriza segunda revisão nem nova tentativa de criação.
 
 | Parâmetro | Tipo | Local | Obrigatório | Descrição |
 |---|---|---|---|---|
@@ -268,7 +285,7 @@ Dispara revisão do briefing em status `draft` via Scout. O agente Scout reavali
 {
   "research_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "theme": "impacto da IA na medicina",
-  "status": "draft",
+  "status": "approved",
   "points": [
     {
       "title": "Diagnóstico assistido por IA revisado",
@@ -277,18 +294,25 @@ Dispara revisão do briefing em status `draft` via Scout. O agente Scout reavali
   ],
   "version": 3,
   "error": null,
-  "approved_at": null
+  "approved_at": "2025-01-15T10:30:00Z"
 }
 ```
 
 > [!NOTE]
-> O campo primário de retorno é `research_id` (compatível com `id` legado). A revisão é processada pelo Scout (role `scout`) usando o mesmo pipeline de geração inicial, porém condicionado ao feedback.
+> Ilustração apenas: a resposta HTTP 200 do PATCH aprova e inicia a investigação na mesma operação. Os valores de status e approved_at neste exemplo são ilustrativos da transição efetuada.
 
 ---
 
-### `POST /briefings/{research_id}/approve` — Aprovar briefing
+### `POST /briefings/{research_id}/investigate` — Aprovar briefing e iniciar investigação
 
-Aprova o briefing em status `draft`. Define `approved_at`, versão +1.
+Aprova o briefing em status `draft` implicitamente e dispara a investigação em background. A pesquisa transita para `SCRAPER` e os pontos são persistidos em `SCRAPER_IN_PROGRESS`. Define `approved_at` e incrementa a versão.
+
+> [!IMPORTANT]
+> **Vias exclusivas de revisão/aprovação:** O operador deve escolher **uma única via** para avançar do draft:
+> - `PATCH /briefings/{research_id}` (revisão única por feedback), **ou**
+> - `POST /briefings/{research_id}/investigate` (aprovação implícita direta).
+>
+> Acionar ambas em sequência sobre o mesmo draft produz `409 Conflict`. Em `409 Conflict`, reler o estado e a versão correntes e reconciliar. Se o briefing já estiver aprovado ou revisado, a requisição não deve ser repetida; conflito CAS não autoriza segunda revisão nem nova tentativa de criação automática.
 
 | Parâmetro | Tipo | Local | Obrigatório | Descrição |
 |---|---|---|---|---|
@@ -300,22 +324,13 @@ O corpo da requisição é **aceito vazio** (`{}`, `null` ou corpo vazio). A val
 - `{}` (objeto vazio)
 - `null`
 
-**Resposta — `200 OK`:**
+**Resposta — `202 Accepted`:**
 
 ```json
 {
   "research_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "theme": "impacto da IA na medicina",
-  "status": "approved",
-  "points": [
-    {
-      "title": "Diagnóstico assistido por IA",
-      "description": "Modelos de imagem médica para detecção precoce de patologias."
-    }
-  ],
-  "version": 3,
-  "error": null,
-  "approved_at": "2025-01-15T10:30:00Z"
+  "status": "SCRAPER",
+  "message": "Investigação iniciada em background"
 }
 ```
 
@@ -431,8 +446,8 @@ Lista o histórico append-only de versões do briefing, ordenado por `version AS
 |---|---|---|---|
 | `POST` | `/briefings` | `201` | Criar e orquestrar geração |
 | `GET` | `/briefings/{research_id}` | `200` | Snapshot corrente |
-| `PATCH` | `/briefings/{research_id}` | `200` | Editar pontos (draft) |
-| `POST` | `/briefings/{research_id}/approve` | `200` | Aprovar (draft) |
+| `PATCH` | `/briefings/{research_id}` | `200` | Revisar por feedback único (só uma vez) |
+| `POST` | `/briefings/{research_id}/investigate` | `202` | Aprovar implicitamente e iniciar investigação (background) |
 | `POST` | `/briefings/{research_id}/reopen` | `409` | Reabertura de aprovado proibida; sem mutação |
 | `GET` | `/briefings/approved/{research_id}` | `200` | Consumir aprovado |
 | `GET` | `/briefings/{research_id}/versions` | `200` | Histórico de versões |
@@ -453,12 +468,12 @@ Lista o histórico append-only de versões do briefing, ordenado por `version AS
 | `401` | Bearer token inválido; API key inválida; sessão expirada/inexistente; cookie ausente | Não (reenviar credencial válida) | `{"detail": "Invalid or missing Bearer token"}` |
 | `403` | CSRF token ausente ou inválido (mutations) | Não (reenviar CSRF válido) | `{"detail": "CSRF validation failed"}` |
 | `404` | Briefing não encontrado | Não | `{"detail": "Briefing não encontrado"}` |
-| `409` | Conflito de versão CAS (edição concorrente) | Sim — reler versão corrente e reenviar (≤4 tentativas) | `{"detail": "Conflito de versão do briefing"}` |
+| `409` | Conflito de versão CAS (edição concorrente) | Não — reler estado/versão corrente e reconciliar; se já aprovado/revisado, não repetir | `{"detail": "Conflito de versão do briefing"}` |
 | `409` | Briefing não aprovado em `GET /briefings/approved/{research_id}` | Não (aguarde aprovação) | `{"detail": "Briefing não está aprovado"}` |
 | `409` | Transição inválida (ex: editar approved) | Não | `{"detail": "Briefing não pode ser editado neste estado"}` |
 | `422` | Theme < 3 ou > 300 chars | Não (corrigir tema) | `{"detail": "Conteúdo de briefing inválido"}` |
 | `422` | Pontos fora de 3–7; título/description vazios | Não (corrigir payload) | `{"detail": "Pontos de briefing inválidos"}` |
-| `422` | Body inválido em approve/reopen | Não | `{"detail": "Corpo inválido"}` |
+| `422` | Body inválido em investigate/reopen | Não | `{"detail": "Corpo inválido"}` |
 | `500` | Prompt de briefing indisponível | Sim — retry exponencial (≤4 tentativas) | `{"detail": "Prompt de briefing indisponível"}` |
 | `500` | Erro interno na geração (timeout de configuração) | Sim — retry exponencial (≤4 tentativas) | `{"detail": "Erro interno ao gerar briefing"}` |
 | `500` | Erro de configuração de provedor LLM (auth) | Sim — verificar credenciais, retry (≤4 tentativas) | `{"detail": "Erro interno ao gerar briefing"}` |
@@ -466,7 +481,7 @@ Lista o histórico append-only de versões do briefing, ordenado por `version AS
 | `503` | Geração LLM indisponível (4 tentativas esgotadas) | Sim — retry exponencial (≤4 tentativas) | `{"detail": "Geração de briefing indisponível"}` |
 
 > [!TIP]
-> **Retry recomendado:** exponencial com jitter, máximo 4 tentativas. Erros `409` de CAS seguem estratégia de *read-modify-write*: reenviar `PATCH`/`approve` com versão corrente.
+> **Retry recomendado:** exponencial com jitter, máximo 4 tentativas (para 500/503). Erros `409` não são retriáveis: reler estado/versão corrente e reconciliar. Se o briefing já estiver aprovado ou revisado, não repetir a requisição.
 
 ---
 
@@ -521,7 +536,6 @@ O modelo do Scout e as chaves de provedor são resolvidos **em runtime** a cada 
 ```python
 import asyncio
 import os
-import time
 import httpx
 
 BASE = "https://api.deepresearchengine.com/v1"
@@ -534,7 +548,7 @@ H = {
 
 async def main():
     async with httpx.AsyncClient(timeout=60) as client:
-        # 1. Criar briefing
+        # 1. Criar briefing (síncrono: 201 já traz o draft completo)
         resp = await client.post(
             f"{BASE}/briefings",
             headers=H,
@@ -542,33 +556,32 @@ async def main():
         )
         assert resp.status_code == 201, resp.text
         briefing = resp.json()
-        briefing_id = briefing["id"]
+        briefing_id = briefing["research_id"]
         print(f"Briefing criado: {briefing_id} | status: {briefing['status']}")
 
-        # 2. Aguardar conclusão (poll até draft/failed)
-        for _ in range(12):
-            resp = await client.get(f"{BASE}/briefings/{briefing_id}", headers=H)
-            data = resp.json()
-            if data["status"] in ("draft", "failed"):
-                break
-            await asyncio.sleep(5)
-
-        if data["status"] == "failed":
-            print(f"Falha na geração: {data['error']}")
+        # Se falhou na geração síncrona, não avança para investigação
+        if briefing.get("status") == "failed":
+            print(f"Falha na geração do briefing: {briefing.get('error')}")
             return
 
-        print(f"Briefing em draft | versão: {data['version']}")
-        print(f"Pontos: {len(data['points'])}")
+        # 3. ESCOLHA UMA ÚNICA VIA (não use ambas)
+        #    A) Revisar via feedback único — aprova e inicia investigação automaticamente
+        # resp = await client.patch(
+        #     f"{BASE}/briefings/{briefing_id}",
+        #     headers=H,
+        #     json={"note": "Aprofundar riscos regulatórios"},
+        # )
+        # assert resp.status_code == 200, resp.text
 
-        # 3. Aprovar
+        #    B) OU aprovar implicitamente e iniciar investigação
         resp = await client.post(
-            f"{BASE}/briefings/{briefing_id}/approve",
+            f"{BASE}/briefings/{briefing_id}/investigate",
             headers=H,
             json={},
         )
-        assert resp.status_code == 200, resp.text
+        assert resp.status_code == 202, resp.text
         approved = resp.json()
-        print(f"Aprovado em: {approved['approved_at']}")
+        print(f"Investigando: {approved['status']} | {approved['message']}")
 
         # 4. Consumir aprovado
         resp = await client.get(
@@ -598,9 +611,7 @@ if __name__ == "__main__":
 
 ```text
 Briefing criado: a1b2c3d4-... | status: draft
-Briefing em draft | versão: 2
-Pontos: 5
-Aprovado em: 2025-01-15T10:30:00Z
+Investigando: SCRAPER | Investigação iniciada em background
 Consumido: impacto da IA na medicina
   • Diagnóstico assistido por IA
   • Eficiência hospitalar
