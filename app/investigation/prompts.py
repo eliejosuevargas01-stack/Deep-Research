@@ -1,8 +1,23 @@
 import json
+import os
 from pathlib import Path
 from typing import Any
 
-PERSONA_NAMES: tuple[str, ...] = ("historian", "skeptic", "pragmatist", "futurist")
+def _get_configured_persona_names() -> tuple[str, ...]:
+    env_personas = os.getenv("ACTIVE_PERSONAS")
+    if not env_personas:
+        try:
+            from app.core.config import settings
+            env_personas = settings.ACTIVE_PERSONAS
+        except Exception:
+            pass
+    if env_personas and env_personas.strip():
+        parsed = tuple(p.strip() for p in env_personas.split(",") if p.strip())
+        if parsed:
+            return parsed
+    return ("historian", "skeptic", "pragmatist", "futurist")
+
+PERSONA_NAMES: tuple[str, ...] = _get_configured_persona_names()
 
 _PERSONA_PROMPT_KEYS: dict[str, str] = {
     "historian": "historian_prompt",

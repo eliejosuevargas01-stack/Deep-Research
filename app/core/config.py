@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     AUDITOR_MODEL: Optional[str] = None
     WRITER_MODEL: Optional[str] = None
     TRUSTED_ROUTER_HOSTS: Optional[str] = None
+    ACTIVE_PERSONAS: Optional[str] = None
 
     @property
     def production(self) -> bool:
