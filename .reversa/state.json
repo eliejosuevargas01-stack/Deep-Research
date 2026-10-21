@@ -7,7 +7,7 @@
   "doc_level": "completo",
   "answer_mode": "file",
   "specs_choice": "auto",
-  "phase": "forward-requirements",
+  "phase": "forward-sync",
   "completed": [
     "scout",
     "inspector",
@@ -27,7 +27,8 @@
     "reviewer",
     "002-investigacao-personas",
     "003-modulo-auditoria",
-    "004-modulo-redator-webhook"
+    "004-modulo-redator-webhook",
+    "005-convergencia-pipeline"
   ],
   "pending": [],
   "checkpoints": {
@@ -149,5 +150,5 @@
       ]
     }
   },
-  "active_feature": "004-modulo-redator-webhook"
+  "active_feature": "005-convergencia-pipeline"
 }

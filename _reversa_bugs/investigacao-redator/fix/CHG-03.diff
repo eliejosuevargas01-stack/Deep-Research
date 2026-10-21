@@ -1,0 +1,30 @@
+Proposta — NÃO aprovada para Gate 2 ainda: required specification adendum first. RF-402 exige pelo menos uma URL; exceção zero-evidência autorizada verbalmente não consta na spec. Estratégia deliberadamente determinística por ponto: Writer não pode gerar prosa livre sobre ponto sem evidência; emitir lacuna fixa, derivada de `evidence`/`audits`. Em relatório misto, só ponto sem evidência recebe essa lacuna; pontos com evidence permanecem sob guardrails factuais e exigência URL.
+
+--- a/app/services/pipeline/writer.py
++++ b/app/services/pipeline/writer.py
+@@
+-        if not text.strip() or not evidence:
++        if not text.strip():
+             raise RuntimeError("Writer cannot produce a report without evidence")
+         validate_report_quality(text, [point.title for point in points])
++        if not evidence:
++            # Exceção proposta a RF-402: nenhuma fonte para nenhum ponto.
++            # Descartar geração livre; construir lacunas fixas por ponto e validar qualidade.
++            text = "\n\n".join(
++                f"## {point.title}\nNenhuma evidência foi coletada para este ponto; resultado indisponível."
++                for point in points
++            )
++            validate_report_quality(text, [point.title for point in points])
++            cited = 0
++            linked_urls = set()
++        else:
++            cited = sum(1 for row in evidence if row.source_url in text)
++            if cited == 0:
++                raise RuntimeError("Writer produced report without source citations")
++            linked_urls = set(re.findall(r"\]\((https?://[^\s)]+)\)", text))
++            known_urls = {row.source_url for row in evidence}
++            if not linked_urls or not linked_urls.issubset(known_urls):
++                raise RuntimeError("Writer used uncollected citation URLs")
+@@
+-        report = Report(research_id=research.id, content_markdown=text, citation_metrics={"evidence_records": len(evidence), "source_urls_cited": cited}, audit_findings={"points": audits})
++        report = Report(research_id=research.id, content_markdown=text, citation_metrics={"evidence_records": len(evidence), "source_urls_cited": cited}, audit_findings={"points": audits, "gap_report": not evidence})

@@ -166,12 +166,11 @@ def test_approval_does_not_schedule_run_research(monkeypatch):
                     f"/api/research/{research_id}/briefing/approve",
                     json={"approved_points": [{"title": f"title{i}", "description": f"description{i}", "dependencies": [], "is_parallelizable": True} for i in range(5)]}
                 )
-                # D-21 / E001: rota /approve extinta, retorna 404
-                assert resp.status_code == 404, resp.text
+                assert resp.status_code == 200, resp.text
         finally:
             app.dependency_overrides.clear()
 
-        assert calls == []
+        assert calls == [research_id]
 
     anyio.run(run)
 

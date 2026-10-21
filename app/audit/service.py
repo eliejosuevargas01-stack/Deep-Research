@@ -53,7 +53,14 @@ from app.audit.domain import (
     sanitize_audit_dict,
 )
 from app.db.database import AsyncSessionLocal
-from app.models import AuditTrail, Research, ResearchPoint, ResearchStatus, ResearchStepResult
+from app.models import (
+    AuditTrail,
+    InvestigationMerge,
+    Research,
+    ResearchPoint,
+    ResearchStatus,
+    ResearchStepResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,19 +108,20 @@ class AuditService:
 
     # ------------------------------------------------------------- leitura --
 
-    async def get_point_evidence(self, session: AsyncSession, point_id: UUID) -> list[dict]:
+    async def get_point_evidence(
+        self, session: AsyncSession, point_id: UUID, round: int | None = None
+    ) -> list[dict]:
         """Agrega os resultados das 4 personas de ``research_step_results``.
 
+        Quando ``round`` é informado, filtra estritamente pela rodada indicada.
         Retorna dicts com ``persona``, ``result``, ``used_urls``,
         ``read_urls`` e ``status`` (ordem estável por criação).
         """
-        rows = (
-            await session.scalars(
-                select(ResearchStepResult)
-                .where(ResearchStepResult.step_id == point_id)
-                .order_by(ResearchStepResult.created_at, ResearchStepResult.id)
-            )
-        ).all()
+        stmt = select(ResearchStepResult).where(ResearchStepResult.step_id == point_id)
+        if round is not None:
+            stmt = stmt.where(ResearchStepResult.round == round)
+        stmt = stmt.order_by(ResearchStepResult.created_at, ResearchStepResult.id)
+        rows = (await session.scalars(stmt)).all()
         return [
             {
                 "persona": row.worker,
@@ -131,11 +139,12 @@ class AuditService:
     def _build_auditor_prompt(
         title: str,
         description: str,
-        evidence: list[dict],
+        evidence: list[dict] | dict,
         criteria: dict[str, str],
     ) -> str:
-        """Prompt do auditor: título + descrição + 4 relatórios das personas.
+        """Prompt do auditor: título + descrição + 4 relatórios das personas / merge.
 
+        Sem cortes arbitrários de tamanho (preserva evidência integral além de 60000).
         Instrui resposta estritamente JSON com os 12 critérios canônicos
         (``q1``..``q12``) e as listas estruturadas.
         """
@@ -143,11 +152,11 @@ class AuditService:
         payload = {
             "point_title": title,
             "point_description": description,
-            "persona_reports": evidence[:8_000_000],
+            "persona_reports": evidence,
         }
         return (
             "<evidence_to_audit>\n"
-            f"{json.dumps(payload, ensure_ascii=False)[:60000]}\n"
+            f"{json.dumps(payload, ensure_ascii=False)}\n"
             "</evidence_to_audit>\n\n"
             "Responda ESTRITAMENTE um objeto JSON (sem texto fora do JSON) com:\n"
             '{"checklist": {"q1": true, "q2": true, "q3": true, "q4": true, '
@@ -408,36 +417,66 @@ class AuditService:
         research_id: UUID,
         point_id: UUID,
         attempt_count: int | None = None,
+        round: int | None = None,
     ) -> AuditVerdict:
         """Audita um ponto com veredito estruturado e persistência atômica.
 
-        Execução em 3 blocos estritamente sequenciais, SEM sessões aninhadas
-        (o SQLite bloqueia/congela quando uma segunda sessão disputa a
-        conexão enquanto a primeira está aberta):
-        1. Leitura: ``point``/attempt, ``evidence``, título/descrição e
+        Execução em 3 blocos estritamente sequenciais, SEM sessões aninhadas:
+        1. Leitura: ``point``/attempt, snapshot de merge/rodada, título/descrição e
            credenciais da role 'auditor' — a sessão é FECHADA ao fim do
            bloco, antes de qualquer rede;
         2. Rede: ``_call_auditor_llm`` roda sem transação de banco aberta;
-        3. Gravação: falha da LLM -> ``_record_inconclusive`` (abre a própria
-           sessão); sucesso -> parse + ``evaluate_audit_verdict`` + sessão
-           limpa persistindo ``AuditTrail`` + ``point.status``/``point.audit``.
+        3. Gravação: CAS atômico persistindo ``AuditTrail`` + ``point.status``/``point.audit``,
+           rejeitando vereditos obsoletos se o ponto sofreu mutação concorrente.
         """
         from app.audit.domain import AUDIT_CRITERIA
         from app.audit.prompt_loader import load_auditor_prompt
 
         attempt: int | None = None
+        target_round: int = 1
+        merge_id: UUID | None = None
+        initial_status: str | None = None
+        initial_round: int | None = None
+
         # ------- Bloco 1 (leitura): sessão fechada antes de qualquer rede ----
         async with self._session_factory() as session:
             point = await session.get(ResearchPoint, point_id)
             if point is None:
                 raise ValueError(f"Research point not found: {point_id}")
+
+            initial_status = point.status
+            initial_round = point.investigation_round
+
+            if round is not None:
+                target_round = max(1, int(round))
+            elif point.investigation_round is not None:
+                target_round = max(1, int(point.investigation_round))
+            else:
+                target_round = 1
+
             if attempt_count is not None:
                 attempt = max(1, int(attempt_count))
             else:
                 # Ciclo 1-based deste ciclo de auditoria: stored + 1, teto rn-305.
                 attempt = int(point.attempt_count or 0) + 1
             attempt = min(attempt, MAX_AUDIT_ATTEMPTS)
-            evidence = await self.get_point_evidence(session, point_id)
+
+            # Busca merge committed correspondente à rodada
+            merge = await session.scalar(
+                select(InvestigationMerge).where(
+                    InvestigationMerge.step_id == point_id,
+                    InvestigationMerge.round == target_round,
+                )
+            )
+            evidence: Any
+            if merge is not None and merge.content:
+                merge_id = merge.id
+                evidence = merge.content
+            else:
+                evidence = await self.get_point_evidence(session, point_id, round=target_round)
+                if not evidence and target_round == 1:
+                    evidence = await self.get_point_evidence(session, point_id)
+
             point_title = point.title
             point_description = point.description
             credentials = await self._resolve_auditor_credentials(session)
@@ -488,7 +527,7 @@ class AuditService:
             verdict, point_title
         )
 
-        # Sanitização + persistência atômica (T044).
+        # Sanitização + persistência atômica com CAS (T016/RN-505/RN-506).
         async with self._session_factory() as session:
             from app.services.settings import runtime_settings
 
@@ -507,6 +546,8 @@ class AuditService:
                 "missing_research": verdict.missing_research,
                 "outline": verdict.outline,
                 "attempt": attempt,
+                "round": target_round,
+                "merge_id": str(merge_id) if merge_id else None,
             }
             sanitized = sanitize_audit_dict(audit_payload, sensitive_keys)
 
@@ -514,6 +555,14 @@ class AuditService:
             if stored_point is None:
                 logger.error("Point %s vanished before verdict persistence", point_id)
                 return self._inconclusive_verdict("point disappeared before persistence")
+
+            # CAS: rejeitar veredito se o ponto foi modificado concorrentemente
+            if stored_point.status != initial_status or stored_point.investigation_round != initial_round:
+                logger.warning(
+                    "CAS check failed: point %s was concurrently modified (status: %s -> %s, round: %s -> %s). Rejecting obsolete verdict.",
+                    point_id, initial_status, stored_point.status, initial_round, stored_point.investigation_round
+                )
+                return self._inconclusive_verdict("obsolete audit verdict rejected by concurrent CAS")
 
             session.add(
                 AuditTrail(

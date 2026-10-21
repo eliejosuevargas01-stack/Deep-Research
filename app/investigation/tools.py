@@ -1,8 +1,13 @@
 """Jina Search adapter da investigação (T008, RN-05/RN-07/RN-08, RF-06/RF-07)."""
 
 import asyncio
+import html
+from html.parser import HTMLParser
 import math
 from dataclasses import dataclass, field
+from functools import lru_cache
+import ipaddress
+import socket
 from urllib.parse import urlparse
 
 import httpx
@@ -36,28 +41,87 @@ def _valid_url(value: object) -> bool:
     return parsed.scheme in ("http", "https") and bool(parsed.hostname)
 
 
-def _collect_urls(node: object, out: list[str]) -> None:
-    if isinstance(node, str):
-        text = node.strip()
-        if _valid_url(text) and text not in out:
-            out.append(text)
-        return
-    if isinstance(node, dict):
-        for key in ("url", "link", "href"):
-            value = node.get(key)
-            if isinstance(value, str) and _valid_url(value.strip()) and value.strip() not in out:
-                out.append(value.strip())
-        for value in node.values():
-            _collect_urls(value, out)
-        return
-    if isinstance(node, (list, tuple)):
-        for item in node:
-            _collect_urls(item, out)
+@lru_cache(maxsize=1024)
+def _check_host_safe(host: str, scheme: str, port: int | None) -> bool:
+    try:
+        ip = ipaddress.ip_address(host)
+        return not (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified)
+    except ValueError:
+        pass
+    if host.lower() == "localhost":
+        return False
+    try:
+        addresses = {str(item[4][0]) for item in socket.getaddrinfo(host, port or (443 if scheme == "https" else 80), type=socket.SOCK_STREAM)}
+    except Exception:
+        return False
+    if not addresses:
+        return False
+    for raw in addresses:
+        try:
+            ip = ipaddress.ip_address(raw)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+                return False
+        except ValueError:
+            return False
+    return True
 
 
-def _parse_body(body: object) -> JinaSearchResult:
-    urls: list[str] = []
-    _collect_urls(body, urls)
+def _is_safe_url(value: object) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    u = value.strip()
+    try:
+        parsed = urlparse(u)
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return False
+    if parsed.username or parsed.password:
+        return False
+    if parsed.port and parsed.port not in (80, 443):
+        return False
+    return _check_host_safe(parsed.hostname, parsed.scheme, parsed.port)
+
+
+class _JinaHTMLCleaner(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.parts: list[str] = []
+        self._skip = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag_lower = tag.lower()
+        attr_dict = dict(attrs)
+        if tag_lower in {"header", "nav", "script", "style", "footer"}:
+            self._skip += 1
+        elif tag_lower == "aside":
+            cls = (attr_dict.get("class") or "").lower()
+            aria = (attr_dict.get("aria-label") or "").lower()
+            if any(k in cls or k in aria for k in ("ad", "advertisement")):
+                self._skip += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        tag_lower = tag.lower()
+        if tag_lower in {"header", "nav", "script", "style", "footer"} and self._skip > 0:
+            self._skip -= 1
+        elif tag_lower == "aside" and self._skip > 0:
+            self._skip -= 1
+
+    def handle_data(self, data: str) -> None:
+        if self._skip == 0:
+            self.parts.append(data)
+
+
+def _clean_body_text(text: str) -> str:
+    if "<" not in text and ">" not in text and "&" not in text:
+        return text
+    parser = _JinaHTMLCleaner()
+    parser.feed(text)
+    raw = "".join(parser.parts)
+    return html.unescape(raw)
+
+
+def _parse_body(body: object, query: str = "") -> JinaSearchResult:
     items: list[object] = []
     if isinstance(body, dict):
         for key in ("data", "results", "items"):
@@ -67,15 +131,33 @@ def _parse_body(body: object) -> JinaSearchResult:
                 break
     elif isinstance(body, list):
         items = body
-    parts: list[str] = []
+
+    if not isinstance(items, list) or len(items) < 10:
+        raise JinaSearchError(1)
+
+    urls: list[str] = []
+    sections: list[str] = []
     for item in items:
         if not isinstance(item, dict):
-            continue
-        for key in ("title", "description", "content", "text", "snippet"):
-            value = item.get(key)
-            if isinstance(value, str) and value.strip():
-                parts.append(value.strip())
-    return JinaSearchResult(content="\n\n".join(parts), urls=urls)
+            raise JinaSearchError(1)
+        status = item.get("status")
+        if isinstance(status, int) and status >= 400:
+            raise JinaSearchError(1)
+        url = item.get("url") or item.get("link")
+        if not isinstance(url, str) or not _is_safe_url(url):
+            raise JinaSearchError(1)
+        raw_content = item.get("content")
+        if not isinstance(raw_content, str) or not raw_content.strip():
+            raise JinaSearchError(1)
+        if url not in urls:
+            urls.append(url)
+        clean = _clean_body_text(raw_content)
+        title = item.get("title", "")
+        sections.append(f"## {title}\nURL: {url}\n\n{clean}\n\n")
+
+    prefix = f"Consulta: {query}\n\n" if query else ""
+    full_content = prefix + "".join(sections)
+    return JinaSearchResult(content=full_content, urls=urls)
 
 
 class _AttemptFailed(Exception):
@@ -164,7 +246,7 @@ class JinaToolAdapter:
                 async with asyncio.timeout(self._timeout):
                     response = await client.post(
                         url,
-                        json={"q": query},
+                        json={"q": query, "num": 10},
                         headers=headers,
                         timeout=self._timeout,
                         follow_redirects=False,
@@ -174,20 +256,13 @@ class JinaToolAdapter:
             try:
                 if response.status_code == 429 or 500 <= response.status_code <= 599:
                     raise _AttemptFailed(_retry_after_s(response.headers))
-                if response.status_code in {401, 402, 403}:
-                    from app.services.search import _duckduckgo_search
-                    ddg_results = await _duckduckgo_search(query, 5)
-                    if ddg_results:
-                        urls = [s.url for s in ddg_results]
-                        content = "\n\n".join(f"{s.title}\n{s.url}\n{s.excerpt}" for s in ddg_results)
-                        return JinaSearchResult(content=content, urls=urls)
                 if not 200 <= response.status_code < 300:
                     raise JinaSearchError(1)
                 try:
                     body = response.json()
                 except ValueError as exc:
                     raise _AttemptFailed from exc
-                return _parse_body(body)
+                return _parse_body(body, query=query)
             finally:
                 try:
                     await response.aclose()

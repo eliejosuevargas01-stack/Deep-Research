@@ -249,7 +249,17 @@ export function parseReportData(raw: unknown): ReportData {
   }
 }
 
+export function normalizeStatus(status: string | null | undefined): string {
+  if (!status) return ''
+  const s = status.toLowerCase()
+  if (s === 'briefing') return 'scouting'
+  if (['scraper', 'investigating', 'audit', 'write'].includes(s)) return 'in_progress'
+  if (s === 'done') return 'completed'
+  return s
+}
+
 export function statusLabel(status: string): string {
+  const norm = normalizeStatus(status)
   const map: Record<string, string> = {
     scouting: 'Scout ativo',
     pending_approval: 'Aguardando aprovação',
@@ -261,7 +271,7 @@ export function statusLabel(status: string): string {
     failed: 'Falhou',
     interrupted: 'Interrompido',
   }
-  return map[status] || status
+  return map[norm] || map[status] || status
 }
 
 // ----------------------------------------------------
@@ -454,15 +464,17 @@ export function canTransitionStatus(
   newStatus: string | undefined | null,
 ): boolean {
   if (!currentStatus || !newStatus) return true
+  const curNorm = normalizeStatus(currentStatus)
+  const nextNorm = normalizeStatus(newStatus)
   // Resuming from failed or interrupted to in_progress or scouting is an explicit forward recovery
   if (
-    (currentStatus === 'failed' || currentStatus === 'interrupted') &&
-    (newStatus === 'in_progress' || newStatus === 'scouting')
+    (curNorm === 'failed' || curNorm === 'interrupted') &&
+    (nextNorm === 'in_progress' || nextNorm === 'scouting')
   ) {
     return true
   }
-  const curRank = STATUS_RANK[currentStatus] || 0
-  const newRank = STATUS_RANK[newStatus] || 0
+  const curRank = STATUS_RANK[curNorm] || 0
+  const newRank = STATUS_RANK[nextNorm] || 0
   // MA-20: Never allow delayed responses to regress a research status from a higher rank to a lower rank
   if (curRank > newRank) return false
   return true

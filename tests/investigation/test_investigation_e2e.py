@@ -362,10 +362,10 @@ async def test_investigation_e2e_partial_resilience(
         assert "sk-secret-token-do-not-leak-12345" not in failed_r.result
         assert "Bearer ***" in failed_r.result
 
-        # Ponto do worker falho deve permanecer em AUDIT_PENDING e ter attempt_count incrementado
+        # Ponto do worker falho deve permanecer em AUDIT_PENDING e ter attempt_count inalterado (RN-506)
         point_record = await session.get(ResearchPoint, target_point_id)
         assert point_record is not None
-        assert point_record.attempt_count == 1
+        assert point_record.attempt_count == 0
         assert point_record.status == "AUDIT_PENDING"
 
         # Demais 4 pontos devem estar em AUDIT_PENDING com attempt_count=0
@@ -421,8 +421,8 @@ async def test_investigation_e2e_total_failure(
         final_points = list(rows.scalars().all())
         assert len(final_points) == 5
         assert all(p.status == "SCRAPER_FAILED" for p in final_points)
-        # Cada ponto teve 4 workers falhando, logo attempt_count deve ser 4
-        assert all(p.attempt_count == 4 for p in final_points)
+        # Erros técnicos de personas não incrementam attempt_count de auditoria (RN-506)
+        assert all(p.attempt_count == 0 for p in final_points)
 
         # Valida que a pesquisa transita atomicamente para o status FAILED
         final_research = await session.get(Research, research_id)
@@ -434,6 +434,7 @@ async def test_investigation_e2e_total_failure(
 @pytest.mark.anyio
 async def test_investigation_e2e_json_exhaustion(
     e2e_db: async_sessionmaker[AsyncSession],
+    make_litellm_tool_call_response: Callable[[str, str], Any],
     make_litellm_final_response: Callable[[str, list[str]], Any],
     monkeypatch,
 ):
@@ -442,13 +443,18 @@ async def test_investigation_e2e_json_exhaustion(
     - Simula exaustão de 4 turnos sem formato JSON válido.
     - Valida registro em research_step_results com status FAILED,
       result "Invalid JSON response after 3 corrections" e used_urls vazia.
-    - Valida incremento de attempt_count = 1.
+    - Valida que attempt_count permanece inalterado (RN-506).
     """
     session_factory = e2e_db
     research_id, point_ids = await _seed_approved_research_with_5_points(session_factory)
     target_point_id = point_ids[0]
 
+    jina_sources = ["https://example.com/ok"]
     mock_jina_adapter = AsyncMock(spec=JinaToolAdapter)
+    mock_jina_adapter.search.return_value = JinaSearchResult(
+        content="Evidências válidas coletadas.",
+        urls=jina_sources,
+    )
 
     failed_worker_executed = False
 
@@ -472,10 +478,14 @@ async def test_investigation_e2e_json_exhaustion(
         is_skeptic = "Cético Analítico" in system_content
 
         if is_first_point and is_skeptic:
-            failed_worker_executed = True
-            return _make_invalid_msg("Texto puro sem JSON")
+            if messages and messages[-1].get("role") == "tool":
+                failed_worker_executed = True
+                return _make_invalid_msg("Texto puro sem JSON")
+            return make_litellm_tool_call_response("termo de busca")
 
-        return make_litellm_final_response("Síntese analítica", ["https://example.com/ok"])
+        if messages and messages[-1].get("role") == "tool":
+            return make_litellm_final_response("Síntese analítica", ["https://example.com/ok"])
+        return make_litellm_tool_call_response("termo de busca")
 
     monkeypatch.setattr("app.investigation.worker.call_llm_with_retries", fake_llm)
 
@@ -498,4 +508,4 @@ async def test_investigation_e2e_json_exhaustion(
 
         point_record = await session.get(ResearchPoint, target_point_id)
         assert point_record is not None
-        assert point_record.attempt_count == 1
+        assert point_record.attempt_count == 0

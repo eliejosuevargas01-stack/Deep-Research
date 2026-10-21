@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -11,12 +13,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.investigation.prompts import PERSONA_NAMES
 from app.investigation.storage import (
     STATUS_AUDIT_PENDING,
+    check_merge_barrier,
     get_pending_workers_for_research,
+    save_investigation_merge,
     save_step_result,
 )
 from app.audit.service import AuditService
 from app.audit.domain import MAX_AUDIT_ATTEMPTS, SCRAPER_RETRY, STATE_INCONCLUSIVE
-from app.models.domain_models import AppSettings
+from app.models.domain_models import (
+    AppSettings,
+    Report,
+    Research,
+    ResearchPoint,
+    ResearchStatus,
+    ResearchStepResult,
+)
 from app.services.crypto import decrypt_secret
 from app.core.config import settings as app_config
 from app.services.settings import PROVIDER_BASE_URLS, runtime_jina_proxy, runtime_settings
@@ -184,6 +195,36 @@ class InvestigationService:
             research = await session.get(Research, research_id)
             if research is None:
                 return
+            if research.status == ResearchStatus.DONE.value:
+                return
+            has_report = False
+            writer_points: list[ResearchPoint] = []
+            if research.status == ResearchStatus.WRITE.value:
+                has_report = bool(await session.scalar(
+                    select(Report.id).where(Report.research_id == research_id)
+                ))
+                if not has_report:
+                    rows = await session.execute(
+                        select(ResearchPoint)
+                        .where(ResearchPoint.research_id == research_id)
+                        .order_by(ResearchPoint.position.asc())
+                    )
+                    writer_points = list(rows.scalars().all())
+                else:
+                    return
+
+        if research.status == ResearchStatus.WRITE.value and not has_report:
+            from app.services.pipeline.writer import _write_report
+            await _write_report(research, writer_points)
+            if research.callback_url:
+                from app.services.webhook import dispatch_callback
+                await dispatch_callback(research_id)
+            return
+
+        async with self.session_factory() as session:
+            research = await session.get(Research, research_id)
+            if research is None:
+                return
             theme = research.theme
             rows = await session.execute(
                 select(ResearchPoint)
@@ -217,11 +258,12 @@ class InvestigationService:
             if not work_by_point:
                 return
 
-        adapter = (
-            self.jina_adapter
-            if self.jina_adapter is not None
-            else JinaToolAdapter(api_key=jina_key, proxy_url=proxy_url, proxy_key=proxy_key)
-        )
+        adapter: Any = self.jina_adapter
+        if adapter is None:
+            try:
+                adapter = JinaToolAdapter(api_key=jina_key, proxy_url=proxy_url, proxy_key=proxy_key)
+            except Exception:
+                adapter = None
         models["_credentials_by_persona"] = persona_credentials
         worker = PersonaWorker(
             adapter,
@@ -236,6 +278,7 @@ class InvestigationService:
             persona: str,
             missing_research: list[str] | None = None,
             excluded_urls: set[str] | list[str] | None = None,
+            round: int = 1,
         ) -> None:
             try:
                 res = await worker.execute(
@@ -266,6 +309,7 @@ class InvestigationService:
                     res.used_urls,
                     res.read_urls,
                     res.success,
+                    round=round,
                 )
 
         async def _is_auditor_configured() -> bool:
@@ -280,6 +324,12 @@ class InvestigationService:
         async def _run_reactive_cycle(step_id: UUID, step_title: str, personas: list[str]) -> None:
             """Coleta -> auditoria reativa -> retry por ponto (T046–T048)."""
 
+            current_round = 1
+            async with self.session_factory() as session:
+                point = await session.get(ResearchPoint, step_id)
+                if point is not None and point.investigation_round:
+                    current_round = point.investigation_round
+
             missing_research: list[str] | None = None
             excluded_urls: set[str] | list[str] | None = None
             personas_to_run = personas
@@ -291,6 +341,7 @@ class InvestigationService:
                         persona,
                         missing_research,
                         excluded_urls,
+                        round=current_round,
                     )
                     for persona in personas_to_run
                 ]
@@ -310,38 +361,54 @@ class InvestigationService:
                 if is_failed:
                     return
 
+                # Grava snapshot committed de merge se a barreira de 4 personas foi superada
+                async with self.session_factory() as session:
+                    if await check_merge_barrier(session, research_id, step_id, round=current_round):
+                        step_rows = await session.scalars(
+                            select(ResearchStepResult).where(
+                                ResearchStepResult.step_id == step_id,
+                                ResearchStepResult.round == current_round,
+                                ResearchStepResult.status == STATUS_AUDIT_PENDING,
+                            )
+                        )
+                        personas_data = {}
+                        for r in step_rows:
+                            try:
+                                parsed = json.loads(r.result) if isinstance(r.result, str) else r.result
+                            except Exception:
+                                parsed = {"analysis": r.result, "citations": []}
+                            personas_data[r.worker] = parsed
+                        await save_investigation_merge(
+                            session,
+                            research_id=research_id,
+                            step_id=step_id,
+                            round=current_round,
+                            content={"personas": personas_data},
+                        )
+
                 if not await _is_auditor_configured():
                     return
 
-                verdict = await audit_service.audit_point(research_id, step_id)
+                verdict = await audit_service.audit_point(
+                    research_id, step_id, round=current_round
+                )
                 if verdict.status in (STATUS_AUDIT_PENDING, STATE_INCONCLUSIVE):
                     return
                 if verdict.status != SCRAPER_RETRY:
                     return
-                # RN-303/T047: reprovado antes do teto -> re-executar personas.
-                # Sessão curta de gravação/leitura: o re-audit do teto roda
-                # FORA deste bloco (nunca sessões aninhadas no SQLite).
-                ceiling_forced = False
+                # RN-303/RN-305/T017: reprovado com SCRAPER_RETRY antes do teto -> re-executar personas.
                 evidence: list[dict] = []
                 async with self.session_factory() as session:
                     point = await session.get(ResearchPoint, step_id)
                     if point is None:
                         return
-                    if point.attempt_count >= MAX_AUDIT_ATTEMPTS:
-                        # RN-305: teto atingido à força (ex. falhas prévias das
-                        # personas) -> re-audita com attempt=teto => AUDIT_CAVEAT.
-                        ceiling_forced = True
-                    else:
-                        point.attempt_count += 1
-                        await session.commit()
-                        # D-302: filter anti-duplicação com todas as read_urls
-                        # coletadas nas tentativas anteriores deste ponto.
-                        evidence = await audit_service.get_point_evidence(session, step_id)
-                if ceiling_forced:
-                    await audit_service.audit_point(
-                        research_id, step_id, attempt_count=MAX_AUDIT_ATTEMPTS
+                    point.attempt_count += 1
+                    await session.commit()
+                    # D-302: filtro anti-duplicação com todas as read_urls
+                    # coletadas nas tentativas anteriores deste ponto.
+                    evidence = await audit_service.get_point_evidence(
+                        session, step_id, round=current_round
                     )
-                    return
                 excluded_urls = {
                     url
                     for row in evidence
@@ -349,15 +416,26 @@ class InvestigationService:
                     if isinstance(url, str) and url.strip()
                 }
                 missing_research = list(verdict.missing_research)
+                current_round += 1
                 # Retry re-executa as 4 personas do ponto (evidência append-only).
                 personas_to_run = list(PERSONA_NAMES)
 
-        point_tasks = [
-            _run_reactive_cycle(step_id, work["step_title"], list(work["personas"]))
-            for step_id, work in work_by_point.items()
-        ]
-        if point_tasks:
-            await asyncio.gather(*point_tasks, return_exceptions=True)
+        from app.services.research import ready_point_batches
+        batches = ready_point_batches(points)
+        for batch in batches:
+            batch_tasks = []
+            for idx in batch:
+                p = points[idx]
+                if p.id in work_by_point:
+                    batch_tasks.append(
+                        _run_reactive_cycle(
+                            p.id,
+                            work_by_point[p.id]["step_title"],
+                            list(work_by_point[p.id]["personas"]),
+                        )
+                    )
+            if batch_tasks:
+                await asyncio.gather(*batch_tasks, return_exceptions=True)
 
         async with self.session_factory() as session:
             research = await session.get(Research, research_id)
@@ -383,3 +461,23 @@ class InvestigationService:
                     # check_all_points_completed.
                     research.status = ResearchStatus.AUDIT.value
                 await session.commit()
+
+        # T021: CAS WRITE, sessão fechada antes Writer.
+        if write_transitioned:
+            async with self.session_factory() as session:
+                research = await session.get(Research, research_id)
+                rows = await session.execute(
+                    select(ResearchPoint)
+                    .where(ResearchPoint.research_id == research_id)
+                    .order_by(ResearchPoint.position.asc())
+                )
+                writer_points = list(rows.scalars().all())
+                has_report = bool(await session.scalar(
+                    select(Report.id).where(Report.research_id == research_id)
+                ))
+            if research and not has_report:
+                from app.services.pipeline.writer import _write_report
+                await _write_report(research, writer_points)
+                if research.callback_url:
+                    from app.services.webhook import dispatch_callback
+                    await dispatch_callback(research_id)

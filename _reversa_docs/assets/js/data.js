@@ -1,61 +1,843 @@
+// RV_DATA autogerado pelo Reversa Docs
 window.RV_DATA = {
-  projectName: "Deep Research Engine",
-  modules: [
-    { "name": "app/main.py", "folder": "app/api", "loc": 120, "complexity": 5, "type": "code" },
-    { "name": "app/api/middleware.py", "folder": "app/api", "loc": 180, "complexity": 8, "type": "security" },
-    { "name": "app/agents/scout.py", "folder": "app/agents", "loc": 250, "complexity": 10, "type": "agent" },
-    { "name": "app/agents/workers/historian.py", "folder": "app/agents/workers", "loc": 210, "complexity": 7, "type": "worker" },
-    { "name": "app/agents/workers/skeptic.py", "folder": "app/agents/workers", "loc": 210, "complexity": 7, "type": "worker" },
-    { "name": "app/agents/workers/pragmatist.py", "folder": "app/agents/workers", "loc": 210, "complexity": 7, "type": "worker" },
-    { "name": "app/agents/workers/futurist.py", "folder": "app/agents/workers", "loc": 210, "complexity": 7, "type": "worker" },
-    { "name": "app/tools/search_pipeline.py", "folder": "app/tools", "loc": 340, "complexity": 12, "type": "tool" },
-    { "name": "app/agents/auditor.py", "folder": "app/agents", "loc": 290, "complexity": 11, "type": "auditor" },
-    { "name": "app/agents/writer.py", "folder": "app/agents", "loc": 230, "complexity": 8, "type": "writer" },
-    { "name": "app/db/repository.py", "folder": "app/db", "loc": 310, "complexity": 9, "type": "db" },
-    { "name": "app/services/webhook.py", "folder": "app/services", "loc": 150, "complexity": 4, "type": "service" }
-  ],
-  deps: {
-    nodes: [
-      { id: "app/main.py", label: "FastAPI App / Router" },
-      { id: "app/api/middleware.py", label: "Security & Auth Middleware" },
-      { id: "app/agents/scout.py", label: "Briefing & Scout Agent" },
-      { id: "app/agents/workers/historian.py", label: "Historiador Contextual" },
-      { id: "app/agents/workers/skeptic.py", label: "Cético Analítico" },
-      { id: "app/agents/workers/pragmatist.py", label: "Pragmático Aplicado" },
-      { id: "app/agents/workers/futurist.py", label: "Visionário Futurista" },
-      { id: "app/tools/search_pipeline.py", label: "Unified Search Subflow" },
-      { id: "app/agents/auditor.py", label: "Auditor & Gatekeeper" },
-      { id: "app/agents/writer.py", label: "Redator Editorial" },
-      { id: "app/db/repository.py", label: "Async SQLAlchemy DB" },
-      { id: "app/services/webhook.py", label: "Webhook Callback Service" }
-    ],
-    edges: [
-      { from: "app/main.py", to: "app/api/middleware.py", weight: 2 },
-      { from: "app/api/middleware.py", to: "app/agents/scout.py", weight: 2 },
-      { from: "app/agents/scout.py", to: "app/db/repository.py", weight: 1 },
-      { from: "app/agents/scout.py", to: "app/agents/workers/historian.py", weight: 2 },
-      { from: "app/agents/scout.py", to: "app/agents/workers/skeptic.py", weight: 2 },
-      { from: "app/agents/scout.py", to: "app/agents/workers/pragmatist.py", weight: 2 },
-      { from: "app/agents/scout.py", to: "app/agents/workers/futurist.py", weight: 2 },
-      { from: "app/agents/workers/historian.py", to: "app/tools/search_pipeline.py", weight: 3 },
-      { from: "app/agents/workers/skeptic.py", to: "app/tools/search_pipeline.py", weight: 3 },
-      { from: "app/agents/workers/pragmatist.py", to: "app/tools/search_pipeline.py", weight: 3 },
-      { from: "app/agents/workers/futurist.py", to: "app/tools/search_pipeline.py", weight: 3 },
-      { from: "app/agents/workers/historian.py", to: "app/db/repository.py", weight: 1 },
-      { from: "app/agents/workers/skeptic.py", to: "app/db/repository.py", weight: 1 },
-      { from: "app/agents/workers/pragmatist.py", to: "app/db/repository.py", weight: 1 },
-      { from: "app/agents/workers/futurist.py", to: "app/db/repository.py", weight: 1 },
-      { from: "app/agents/auditor.py", to: "app/db/repository.py", weight: 2 },
-      { from: "app/agents/auditor.py", to: "app/agents/workers/historian.py", weight: 1 },
-      { from: "app/agents/auditor.py", to: "app/agents/writer.py", weight: 3 },
-      { from: "app/agents/writer.py", to: "app/db/repository.py", weight: 2 },
-      { from: "app/agents/writer.py", to: "app/services/webhook.py", weight: 2 }
-    ]
-  },
-  nav: [
-    { id: "index", href: "index.html", label: "Visão Geral" },
-    { id: "arquitetura", href: "arquitetura.html", label: "Arquitetura 3D" },
-    { id: "workflow", href: "../workflow.md", label: "Workflow Spec" },
-    { id: "readme", href: "../README.md", label: "README Spec" }
-  ]
+    "generatedAt": "2026-10-21T08:30:00Z",
+    "version": "0.5.0-convergencia-pipeline",
+    "project": "Deep Research Engine",
+    "modules": [
+    {
+        "name": "app/__init__.py",
+        "folder": "app",
+        "loc": 0,
+        "complexity": 1,
+        "type": "code"
+    },
+    {
+        "name": "app/audit/__init__.py",
+        "folder": "app/audit",
+        "loc": 49,
+        "complexity": 1,
+        "type": "auditor"
+    },
+    {
+        "name": "app/audit/domain.py",
+        "folder": "app/audit",
+        "loc": 351,
+        "complexity": 11,
+        "type": "api"
+    },
+    {
+        "name": "app/audit/prompt_loader.py",
+        "folder": "app/audit",
+        "loc": 27,
+        "complexity": 1,
+        "type": "auditor"
+    },
+    {
+        "name": "app/audit/router.py",
+        "folder": "app/audit",
+        "loc": 177,
+        "complexity": 5,
+        "type": "api"
+    },
+    {
+        "name": "app/audit/schemas.py",
+        "folder": "app/audit",
+        "loc": 84,
+        "complexity": 2,
+        "type": "auditor"
+    },
+    {
+        "name": "app/audit/service.py",
+        "folder": "app/audit",
+        "loc": 707,
+        "complexity": 20,
+        "type": "auditor"
+    },
+    {
+        "name": "app/briefing/__init__.py",
+        "folder": "app/briefing",
+        "loc": 1,
+        "complexity": 1,
+        "type": "agent"
+    },
+    {
+        "name": "app/briefing/domain.py",
+        "folder": "app/briefing",
+        "loc": 166,
+        "complexity": 5,
+        "type": "api"
+    },
+    {
+        "name": "app/briefing/llm_binding.py",
+        "folder": "app/briefing",
+        "loc": 166,
+        "complexity": 5,
+        "type": "agent"
+    },
+    {
+        "name": "app/briefing/prompt_loader.py",
+        "folder": "app/briefing",
+        "loc": 23,
+        "complexity": 1,
+        "type": "agent"
+    },
+    {
+        "name": "app/briefing/router.py",
+        "folder": "app/briefing",
+        "loc": 356,
+        "complexity": 11,
+        "type": "api"
+    },
+    {
+        "name": "app/briefing/schemas.py",
+        "folder": "app/briefing",
+        "loc": 118,
+        "complexity": 3,
+        "type": "agent"
+    },
+    {
+        "name": "app/briefing/serp_client.py",
+        "folder": "app/briefing",
+        "loc": 149,
+        "complexity": 4,
+        "type": "agent"
+    },
+    {
+        "name": "app/briefing/service.py",
+        "folder": "app/briefing",
+        "loc": 364,
+        "complexity": 12,
+        "type": "agent"
+    },
+    {
+        "name": "app/briefing/storage.py",
+        "folder": "app/briefing",
+        "loc": 148,
+        "complexity": 4,
+        "type": "agent"
+    },
+    {
+        "name": "app/core/__init__.py",
+        "folder": "app/core",
+        "loc": 0,
+        "complexity": 1,
+        "type": "code"
+    },
+    {
+        "name": "app/core/config.py",
+        "folder": "app/core",
+        "loc": 58,
+        "complexity": 1,
+        "type": "code"
+    },
+    {
+        "name": "app/core/security.py",
+        "folder": "app/core",
+        "loc": 114,
+        "complexity": 3,
+        "type": "security"
+    },
+    {
+        "name": "app/db/__init__.py",
+        "folder": "app/db",
+        "loc": 0,
+        "complexity": 1,
+        "type": "db"
+    },
+    {
+        "name": "app/db/database.py",
+        "folder": "app/db",
+        "loc": 54,
+        "complexity": 1,
+        "type": "db"
+    },
+    {
+        "name": "app/docs/__init__.py",
+        "folder": "app/docs",
+        "loc": 0,
+        "complexity": 1,
+        "type": "code"
+    },
+    {
+        "name": "app/investigation/__init__.py",
+        "folder": "app/investigation",
+        "loc": 0,
+        "complexity": 1,
+        "type": "worker"
+    },
+    {
+        "name": "app/investigation/llm_binding.py",
+        "folder": "app/investigation",
+        "loc": 122,
+        "complexity": 4,
+        "type": "worker"
+    },
+    {
+        "name": "app/investigation/prompts.py",
+        "folder": "app/investigation",
+        "loc": 97,
+        "complexity": 3,
+        "type": "worker"
+    },
+    {
+        "name": "app/investigation/router.py",
+        "folder": "app/investigation",
+        "loc": 122,
+        "complexity": 4,
+        "type": "api"
+    },
+    {
+        "name": "app/investigation/schemas.py",
+        "folder": "app/investigation",
+        "loc": 83,
+        "complexity": 2,
+        "type": "worker"
+    },
+    {
+        "name": "app/investigation/service.py",
+        "folder": "app/investigation",
+        "loc": 483,
+        "complexity": 16,
+        "type": "worker"
+    },
+    {
+        "name": "app/investigation/storage.py",
+        "folder": "app/investigation",
+        "loc": 181,
+        "complexity": 6,
+        "type": "worker"
+    },
+    {
+        "name": "app/investigation/tools.py",
+        "folder": "app/investigation",
+        "loc": 281,
+        "complexity": 9,
+        "type": "worker"
+    },
+    {
+        "name": "app/investigation/worker.py",
+        "folder": "app/investigation",
+        "loc": 518,
+        "complexity": 17,
+        "type": "worker"
+    },
+    {
+        "name": "app/main.py",
+        "folder": "app",
+        "loc": 110,
+        "complexity": 3,
+        "type": "api"
+    },
+    {
+        "name": "app/models/__init__.py",
+        "folder": "app/models",
+        "loc": 33,
+        "complexity": 1,
+        "type": "db"
+    },
+    {
+        "name": "app/models/domain_models.py",
+        "folder": "app/models",
+        "loc": 210,
+        "complexity": 7,
+        "type": "api"
+    },
+    {
+        "name": "app/routers/__init__.py",
+        "folder": "app/routers",
+        "loc": 0,
+        "complexity": 1,
+        "type": "code"
+    },
+    {
+        "name": "app/routers/auth.py",
+        "folder": "app/routers",
+        "loc": 49,
+        "complexity": 1,
+        "type": "code"
+    },
+    {
+        "name": "app/routers/research.py",
+        "folder": "app/routers",
+        "loc": 458,
+        "complexity": 15,
+        "type": "tool"
+    },
+    {
+        "name": "app/routers/settings.py",
+        "folder": "app/routers",
+        "loc": 105,
+        "complexity": 3,
+        "type": "code"
+    },
+    {
+        "name": "app/schemas/__init__.py",
+        "folder": "app/schemas",
+        "loc": 157,
+        "complexity": 5,
+        "type": "code"
+    },
+    {
+        "name": "app/services/__init__.py",
+        "folder": "app/services",
+        "loc": 0,
+        "complexity": 1,
+        "type": "service"
+    },
+    {
+        "name": "app/services/audit.py",
+        "folder": "app/services",
+        "loc": 52,
+        "complexity": 1,
+        "type": "auditor"
+    },
+    {
+        "name": "app/services/audit_agent.py",
+        "folder": "app/services",
+        "loc": 51,
+        "complexity": 1,
+        "type": "auditor"
+    },
+    {
+        "name": "app/services/crypto.py",
+        "folder": "app/services",
+        "loc": 32,
+        "complexity": 1,
+        "type": "security"
+    },
+    {
+        "name": "app/services/llm.py",
+        "folder": "app/services",
+        "loc": 578,
+        "complexity": 19,
+        "type": "service"
+    },
+    {
+        "name": "app/services/pipeline/__init__.py",
+        "folder": "app/services/pipeline",
+        "loc": 9,
+        "complexity": 1,
+        "type": "service"
+    },
+    {
+        "name": "app/services/pipeline/audit_stage.py",
+        "folder": "app/services/pipeline",
+        "loc": 146,
+        "complexity": 4,
+        "type": "auditor"
+    },
+    {
+        "name": "app/services/pipeline/constants.py",
+        "folder": "app/services/pipeline",
+        "loc": 7,
+        "complexity": 1,
+        "type": "service"
+    },
+    {
+        "name": "app/services/pipeline/point_executor.py",
+        "folder": "app/services/pipeline",
+        "loc": 76,
+        "complexity": 2,
+        "type": "service"
+    },
+    {
+        "name": "app/services/pipeline/scout.py",
+        "folder": "app/services/pipeline",
+        "loc": 144,
+        "complexity": 4,
+        "type": "service"
+    },
+    {
+        "name": "app/services/pipeline/worker.py",
+        "folder": "app/services/pipeline",
+        "loc": 198,
+        "complexity": 6,
+        "type": "service"
+    },
+    {
+        "name": "app/services/pipeline/writer.py",
+        "folder": "app/services/pipeline",
+        "loc": 216,
+        "complexity": 7,
+        "type": "writer"
+    },
+    {
+        "name": "app/services/research.py",
+        "folder": "app/services",
+        "loc": 164,
+        "complexity": 5,
+        "type": "tool"
+    },
+    {
+        "name": "app/services/search.py",
+        "folder": "app/services",
+        "loc": 392,
+        "complexity": 13,
+        "type": "tool"
+    },
+    {
+        "name": "app/services/settings.py",
+        "folder": "app/services",
+        "loc": 425,
+        "complexity": 14,
+        "type": "service"
+    },
+    {
+        "name": "app/services/webhook.py",
+        "folder": "app/services",
+        "loc": 56,
+        "complexity": 1,
+        "type": "service"
+    },
+    {
+        "name": "app/services/workers/__init__.py",
+        "folder": "app/services/workers",
+        "loc": 79,
+        "complexity": 2,
+        "type": "service"
+    },
+    {
+        "name": "app/services/workers/base.py",
+        "folder": "app/services/workers",
+        "loc": 83,
+        "complexity": 2,
+        "type": "service"
+    },
+    {
+        "name": "app/services/workers/personas.py",
+        "folder": "app/services/workers",
+        "loc": 72,
+        "complexity": 2,
+        "type": "service"
+    },
+    {
+        "name": "app/services/workers/scout.py",
+        "folder": "app/services/workers",
+        "loc": 38,
+        "complexity": 1,
+        "type": "service"
+    },
+    {
+        "name": "app/services/workers/writer.py",
+        "folder": "app/services/workers",
+        "loc": 39,
+        "complexity": 1,
+        "type": "writer"
+    },
+    {
+        "name": "app/tools/__init__.py",
+        "folder": "app/tools",
+        "loc": 0,
+        "complexity": 1,
+        "type": "tool"
+    },
+    {
+        "name": "app/tools/outbound.py",
+        "folder": "app/tools",
+        "loc": 51,
+        "complexity": 1,
+        "type": "security"
+    },
+    {
+        "name": "app/tools/search_pipeline.py",
+        "folder": "app/tools",
+        "loc": 262,
+        "complexity": 8,
+        "type": "tool"
+    }
+],
+    "deps": [
+    {
+        "source": "app/audit/router.py",
+        "target": "app/audit/domain.py"
+    },
+    {
+        "source": "app/audit/schemas.py",
+        "target": "app/audit/domain.py"
+    },
+    {
+        "source": "app/audit/service.py",
+        "target": "app/audit/domain.py"
+    },
+    {
+        "source": "app/audit/service.py",
+        "target": "app/audit/prompt_loader.py"
+    },
+    {
+        "source": "app/briefing/router.py",
+        "target": "app/briefing/domain.py"
+    },
+    {
+        "source": "app/briefing/router.py",
+        "target": "app/briefing/llm_binding.py"
+    },
+    {
+        "source": "app/briefing/router.py",
+        "target": "app/briefing/prompt_loader.py"
+    },
+    {
+        "source": "app/briefing/schemas.py",
+        "target": "app/briefing/domain.py"
+    },
+    {
+        "source": "app/briefing/serp_client.py",
+        "target": "app/briefing/domain.py"
+    },
+    {
+        "source": "app/briefing/service.py",
+        "target": "app/briefing/domain.py"
+    },
+    {
+        "source": "app/briefing/service.py",
+        "target": "app/briefing/prompt_loader.py"
+    },
+    {
+        "source": "app/briefing/service.py",
+        "target": "app/briefing/serp_client.py"
+    },
+    {
+        "source": "app/briefing/storage.py",
+        "target": "app/briefing/domain.py"
+    },
+    {
+        "source": "app/core/security.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/db/database.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/investigation/router.py",
+        "target": "app/briefing/domain.py"
+    },
+    {
+        "source": "app/investigation/router.py",
+        "target": "app/briefing/storage.py"
+    },
+    {
+        "source": "app/investigation/router.py",
+        "target": "app/core/security.py"
+    },
+    {
+        "source": "app/investigation/router.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/investigation/service.py",
+        "target": "app/investigation/prompts.py"
+    },
+    {
+        "source": "app/investigation/service.py",
+        "target": "app/audit/service.py"
+    },
+    {
+        "source": "app/investigation/service.py",
+        "target": "app/audit/domain.py"
+    },
+    {
+        "source": "app/investigation/service.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/investigation/storage.py",
+        "target": "app/investigation/prompts.py"
+    },
+    {
+        "source": "app/investigation/worker.py",
+        "target": "app/investigation/llm_binding.py"
+    },
+    {
+        "source": "app/investigation/worker.py",
+        "target": "app/investigation/prompts.py"
+    },
+    {
+        "source": "app/investigation/worker.py",
+        "target": "app/investigation/schemas.py"
+    },
+    {
+        "source": "app/investigation/worker.py",
+        "target": "app/investigation/tools.py"
+    },
+    {
+        "source": "app/main.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/main.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/main.py",
+        "target": "app/briefing/router.py"
+    },
+    {
+        "source": "app/main.py",
+        "target": "app/investigation/router.py"
+    },
+    {
+        "source": "app/main.py",
+        "target": "app/audit/router.py"
+    },
+    {
+        "source": "app/main.py",
+        "target": "app/investigation/service.py"
+    },
+    {
+        "source": "app/routers/auth.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/routers/auth.py",
+        "target": "app/core/security.py"
+    },
+    {
+        "source": "app/routers/auth.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/routers/research.py",
+        "target": "app/core/security.py"
+    },
+    {
+        "source": "app/routers/research.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/routers/research.py",
+        "target": "app/models/__init__.py"
+    },
+    {
+        "source": "app/routers/settings.py",
+        "target": "app/core/security.py"
+    },
+    {
+        "source": "app/routers/settings.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/services/audit_agent.py",
+        "target": "app/models/domain_models.py"
+    },
+    {
+        "source": "app/services/audit_agent.py",
+        "target": "app/services/audit.py"
+    },
+    {
+        "source": "app/services/crypto.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/services/llm.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/services/pipeline/audit_stage.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/services/pipeline/audit_stage.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/services/pipeline/audit_stage.py",
+        "target": "app/models/__init__.py"
+    },
+    {
+        "source": "app/services/pipeline/audit_stage.py",
+        "target": "app/services/audit.py"
+    },
+    {
+        "source": "app/services/pipeline/audit_stage.py",
+        "target": "app/services/llm.py"
+    },
+    {
+        "source": "app/services/pipeline/constants.py",
+        "target": "app/models/__init__.py"
+    },
+    {
+        "source": "app/services/pipeline/point_executor.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/services/pipeline/point_executor.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/services/pipeline/point_executor.py",
+        "target": "app/models/__init__.py"
+    },
+    {
+        "source": "app/services/pipeline/point_executor.py",
+        "target": "app/services/pipeline/audit_stage.py"
+    },
+    {
+        "source": "app/services/pipeline/point_executor.py",
+        "target": "app/services/pipeline/constants.py"
+    },
+    {
+        "source": "app/services/pipeline/scout.py",
+        "target": "app/services/llm.py"
+    },
+    {
+        "source": "app/services/pipeline/worker.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/services/pipeline/worker.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/services/pipeline/worker.py",
+        "target": "app/models/__init__.py"
+    },
+    {
+        "source": "app/services/pipeline/worker.py",
+        "target": "app/services/audit.py"
+    },
+    {
+        "source": "app/services/pipeline/worker.py",
+        "target": "app/services/llm.py"
+    },
+    {
+        "source": "app/services/pipeline/writer.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/services/pipeline/writer.py",
+        "target": "app/models/__init__.py"
+    },
+    {
+        "source": "app/services/pipeline/writer.py",
+        "target": "app/services/llm.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/models/__init__.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/services/llm.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/services/pipeline/constants.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/services/pipeline/scout.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/services/pipeline/worker.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/services/pipeline/audit_stage.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/services/pipeline/point_executor.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/services/pipeline/writer.py"
+    },
+    {
+        "source": "app/services/research.py",
+        "target": "app/investigation/service.py"
+    },
+    {
+        "source": "app/services/search.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/services/settings.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/services/settings.py",
+        "target": "app/models/__init__.py"
+    },
+    {
+        "source": "app/services/settings.py",
+        "target": "app/schemas/__init__.py"
+    },
+    {
+        "source": "app/services/settings.py",
+        "target": "app/services/crypto.py"
+    },
+    {
+        "source": "app/services/webhook.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/services/webhook.py",
+        "target": "app/db/database.py"
+    },
+    {
+        "source": "app/services/webhook.py",
+        "target": "app/models/__init__.py"
+    },
+    {
+        "source": "app/services/webhook.py",
+        "target": "app/services/research.py"
+    },
+    {
+        "source": "app/services/workers/__init__.py",
+        "target": "app/services/audit_agent.py"
+    },
+    {
+        "source": "app/services/workers/base.py",
+        "target": "app/models/domain_models.py"
+    },
+    {
+        "source": "app/services/workers/base.py",
+        "target": "app/services/search.py"
+    },
+    {
+        "source": "app/services/workers/base.py",
+        "target": "app/services/settings.py"
+    },
+    {
+        "source": "app/services/workers/personas.py",
+        "target": "app/models/domain_models.py"
+    },
+    {
+        "source": "app/services/workers/personas.py",
+        "target": "app/services/workers/base.py"
+    },
+    {
+        "source": "app/services/workers/scout.py",
+        "target": "app/models/domain_models.py"
+    },
+    {
+        "source": "app/services/workers/scout.py",
+        "target": "app/services/workers/base.py"
+    },
+    {
+        "source": "app/services/workers/writer.py",
+        "target": "app/models/domain_models.py"
+    },
+    {
+        "source": "app/services/workers/writer.py",
+        "target": "app/services/workers/base.py"
+    },
+    {
+        "source": "app/tools/search_pipeline.py",
+        "target": "app/core/config.py"
+    },
+    {
+        "source": "app/tools/search_pipeline.py",
+        "target": "app/tools/outbound.py"
+    }
+]
 };

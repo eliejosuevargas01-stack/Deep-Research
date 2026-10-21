@@ -158,12 +158,42 @@ async def create_research(payload: ResearchCreate, principal: Principal = Depend
     db.add(research)
     await db.commit()
     await db.refresh(research)
-    schedule_scout(research.id)
     try:
         await add_event(research.id, "scout", "scout_started", "Scout started live preliminary research")
     except Exception:
         pass
-    return {"research_id": research.id, "status": "briefing", "briefing_url": f"/api/research/{research.id}", "stream_url": f"/api/research/{research.id}/events"}
+
+    # Briefing síncrono: executa scout imediatamente antes de responder
+    try:
+        points = await scout(research.theme, db)
+        point_dependencies(points)
+        research.briefing_draft = {"points": points, "source": "live_search_and_llm"}
+        research.status = ResearchStatus.PENDING_APPROVAL.value
+        await db.commit()
+        await db.refresh(research)
+        try:
+            await add_event(research.id, "scout", "briefing_ready", "Five-point briefing ready for one-time approval", {"points": len(points)})
+        except Exception:
+            pass
+    except Exception as exc:
+        await db.rollback()
+        safe_error = sanitize_error(exc, "scout execution")
+        research.status = ResearchStatus.FAILED.value
+        research.error = safe_error
+        await db.commit()
+        await db.refresh(research)
+        try:
+            await add_event(research.id, "scout", "scout_failed", safe_error)
+        except Exception:
+            pass
+
+    return {
+        "research_id": research.id,
+        "status": research.status,
+        "briefing_draft": research.briefing_draft,
+        "briefing_url": f"/api/research/{research.id}",
+        "stream_url": f"/api/research/{research.id}/events",
+    }
 
 
 @router.get("/research")

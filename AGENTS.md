@@ -1,7 +1,7 @@
 # AGENTS.md — Mapa de Documentação e Agentes Deep Research Engine
 
 > Gerado automaticamente pelo Reversa Framework  
-> Data: 2026-10-05  
+> Data: 2026-10-21  
 > Mantido pelo ciclo forward: `/reversa-docs` atualiza este mapa
 
 ---
@@ -24,9 +24,14 @@
 ### 🔬 Especificações Reversa (SDD) — `_reversa_sdd/`
 | Arquivo | Descrição | Gerado Por | Consumido Por |
 |---------|-----------|------------|---------------|
-| `prd.md` | PRD canônico do módulo de briefing (backend) | `/reversa-spec-sdd` | Reviewer, Coding Agent, Forward Planner |
+| `prd.md` | PRD canônico do módulo de briefing e pipeline (backend) | `/reversa-spec-sdd` | Reviewer, Coding Agent, Forward Planner |
 | `sdd/briefing.md` | Spec auditável do módulo de briefing backend | `/reversa-spec-sdd` | Reviewer, Coding Agent, DevOps |
 | `addenda/001-modulo-briefing.md` | Adendo de convergência da Feature 001 | `/reversa-sync` | Reviewer, Forward Planner |
+| `addenda/002-investigacao-personas.md` | Adendo de convergência da Feature 002 (Investigação) | `/reversa-sync` | Reviewer, Forward Planner |
+| `addenda/003-modulo-auditoria.md` | Adendo de convergência da Feature 003 (Auditoria Factual) | `/reversa-sync` | Reviewer, Forward Planner |
+| `addenda/004-modulo-redator-webhook.md` | Adendo de convergência da Feature 004 (Redator & Webhook) | `/reversa-sync` | Reviewer, Forward Planner |
+| `addenda/005-convergencia-pipeline.md` | Adendo de convergência da Feature 005 (Convergência Total) | `/reversa-sync` | Reviewer, Forward Planner |
+| `addenda/diretrizes-20261019-workers-jina-briefing.md` | Diretrizes mandatórias de coleta, teto e briefing síncrono | Usuário / Stakeholders | Orchestrator, Coding Agent |
 | `confidence-report.md` | Relatório global de confiança (100% 🟢 CONFIRMADO) | `/reversa-reviewer` | Orchestrator, QA Specialist, Stakeholders |
 | `questions.md` | Questões críticas e alinhamentos para validação humana | `/reversa-reviewer` | Usuário / Stakeholders |
 | `gaps.md` | Inventário de lacunas categorizadas por severidade | `/reversa-reviewer` | Orchestrator, Forward Planner |
@@ -38,7 +43,10 @@
 | Feature | Descrição | Status | Artefatos Principais |
 |---------|-----------|--------|----------------------|
 | `001-modulo-briefing/` | Módulo de Briefing (Backend) — geração, validação e persistência | ✅ Concluído (T001–T028 + E001) | `requirements.md`, `roadmap.md`, `actions.md`, `legacy-impact.md`, `regression-watch.md` |
-| `002-investigacao-personas/` | Investigação Paralela por 4 Personas (Workers LiteLLM + Jina Search) | 🔄 Em andamento (C1–C7 [X], C8 [ ]) | `requirements.md`, `roadmap.md`, `actions.md`, `interfaces/`, `legacy-impact.md` |
+| `002-investigacao-personas/` | Investigação Paralela por 4 Personas (Workers LiteLLM + Jina Search) | ✅ Concluído (C1–C8) | `requirements.md`, `roadmap.md`, `actions.md`, `interfaces/`, `legacy-impact.md` |
+| `003-modulo-auditoria/` | Módulo de Auditoria Factual e Verificação de Citações Verbatim | ✅ Concluído (A1–A6) | `requirements.md`, `roadmap.md`, `actions.md`, `legacy-impact.md` |
+| `004-modulo-redator-webhook/` | Módulo Redator Editorial e Despacho Assíncrono Webhook | ✅ Concluído (T051–T062) | `requirements.md`, `roadmap.md`, `actions.md`, `legacy-impact.md`, `regression-watch.md` |
+| `005-convergencia-pipeline/` | Convergência Total: 10 corpos Jina, merge por rodada, teto de 4 retries, guardrails flexíveis e briefing síncrono | ✅ Concluído (T001–T031) | `requirements.md`, `roadmap.md`, `actions.md`, `legacy-impact.md`, `regression-watch.md`, `interfaces/` |
 
 ---
 
@@ -80,11 +88,16 @@
 ---
 
 ### 🧪 Testes — `tests/`
-| Arquivo | Descrição |
-|---------|-----------|
-| `test_backend.py` | **2.226 LOC** — Testes integração + unitários mistos (alvo: separar) |
-| `test_e2e_criteria.py` | Teste E2E completo baseado em CRITERIA.md |
-| `test_postgres.py` | Fixtures de banco isolado para testes |
+| Arquivo / Diretório | Descrição | Status / Cobertura |
+|---------------------|-----------|-------------------|
+| `test_backend.py` | Testes de integração + unitários legados da API | Cobertura base FastAPI |
+| `test_e2e_criteria.py` | Teste E2E completo baseado em CRITERIA.md | Integração funcional |
+| `test_postgres.py` | Fixtures de banco isolado para testes | Infraestrutura de teste |
+| `tests/investigation/` | Suíte completa de investigação (jina tool, workers, schemas, round storage, migração, runtime regressions, e2e) | 104 passed (100% GREEN) |
+| `tests/audit/` | Suíte de auditoria factual e validação de merge CAS (`test_audit_api.py`, `test_audit_round_merge.py`) | 22 passed (100% GREEN) |
+| `tests/unit/test_pipeline_writer_convergence.py` | Suíte de convergência do Writer (guardrails de limitação e proposta didática) | 17 passed (100% GREEN) |
+| `tests/test_briefing_*.py` | Suíte de briefing HTTP síncrono e decisão única (api, boundaries, lifecycle) | 23 passed, 162 subtestes (100% GREEN) |
+| `tests/integration/` | Integração ponta a ponta (`test_pipeline_convergence_http.py`, `test_full_pipeline.py`) | 2 passed (100% GREEN) |
 
 ---
 
@@ -94,6 +107,11 @@
 | `0001_initial.py` | Schema inicial (Research, Points, Evidences, Events, Reports, AuditTrails, AdminSessions, AppSettings) |
 | `0002_audit_trails.py` | Tabela audit_trails + índices |
 | `0003_settings_callback_and_base_url.py` | Callback URL global + openai_base_url em AppSettings |
+| `0004_jina_base_url.py` | Configuração de jina_base_url em AppSettings |
+| `0005_jina_proxy_worker.py` | Configurações de proxy e timeouts para workers Jina |
+| `0006_briefing_storage.py` | Tabela briefings e persistência de pontos e temas |
+| `0007_investigation_step_results_and_status.py` | Tabela research_step_results e status refinados de investigação |
+| `0008_investigation_rounds_and_merges.py` | Colunas investigation_round, round, constraints únicas e tabela investigation_merges |
 
 ---
 
@@ -102,12 +120,16 @@
 |--------|---------------------|------------------|
 | `core/` | `config.py`, `security.py` | Settings Pydantic, Auth JWT Cookie + CSRF |
 | `db/` | `database.py` | Engine async SQLAlchemy + session management |
-| `models/` | `domain_models.py` | 8 tabelas Declarative Base |
-| `schemas/` | `__init__.py` | Pydantic schemas request/response |
-| `routers/` | `auth.py`, `research.py`, `settings.py` | Endpoints FastAPI |
-| `services/` | `research.py` (591 LOC), `llm.py`, `audit.py`, `crypto.py`, `settings.py`, `webhook.py` | **Lógica de negócio — alvo principal de modularização** |
-| `tools/` | `search_pipeline.py`, `outbound.py` | Busca multi-provedor + SSRF Guard |
-| `prompts/` | `__init__.py`, `personas.json` | Templates de prompt (em migração para `.md`) |
+| `models/` | `domain_models.py` | 9 tabelas Declarative Base mapeadas |
+| `schemas/` | `__init__.py` | Pydantic schemas base request/response |
+| `routers/` | `auth.py`, `research.py`, `settings.py` | Endpoints FastAPI HTTP/SSE |
+| `briefing/` | `router.py`, `service.py`, `domain.py`, `schemas.py`, `serp_client.py` | Módulo de briefing síncrono e decisão única |
+| `investigation/` | `router.py`, `service.py`, `storage.py`, `worker.py`, `tools.py`, `schemas.py` | Investigação concorrente por 4 personas, barreira de merge e Jina tool com parser HTML |
+| `audit/` | `router.py`, `service.py`, `domain.py`, `schemas.py` | Auditoria factual sobre snapshot committed de merge com teto de 4 tentativas (`AUDIT_CAVEAT`) |
+| `services/pipeline/` | `writer.py`, `constants.py` | Redator editorial unificado com guardrails de notas de limitação e proposta didática |
+| `services/` | `research.py` (adaptador modular topológico), `search.py`, `crypto.py`, `settings.py`, `webhook.py` (anti-SSRF) | Orquestração do ciclo de vida, busca com HTMLParser e despacho seguro de eventos |
+| `tools/` | `outbound.py` (SSRF Guard), `search_pipeline.py` | Utilitários de rede e segurança outbound |
+| `prompts/` | `__init__.py`, `personas.json` | Configurações e templates de personas especialistas |
 
 ---
 
@@ -156,39 +178,40 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    REVERSA FORWARD ATUAL                        │
+│                    REVERSA FORWARD CONCLUÍDO                    │
 ├─────────────────────────────────────────────────────────────────┤
-│  ✅ DISCOVERY (scout)         → _reversa_sdd/discovery_report.md│
-│  ✅ ARCHITECTURE (archaeolog) → _reversa_sdd/architecture.md    │
-│  ✅ DOMAIN (data-master)      → _reversa_sdd/domain.md          │
-│  ✅ CODE-ANALYSIS (inspector) → _reversa_sdd/code-analysis.md   │
-│  ✅ PRINCIPLES                → .reversa/principles.md          │
-│  ✅ REQUIREMENTS              → _reversa_forward/requirements.md│
-│  ✅ QUALITY AUDIT             → _reversa_forward/requirements-audit.md│
-│  ✅ ROADMAP                   → _reversa_forward/roadmap.md     │
-│  ✅ ACTIONS (T001–T013)       → _reversa_forward/actions.md     │
-│  ⏳ CODING                    → app/services/workers/ + tests/  │
-│  ⏳ SYNC                      → specs atualizadas               │
+│  ✅ 001-modulo-briefing       → Briefing síncrono e persistido  │
+│  ✅ 002-investigacao-personas → Investigação por 4 personas     │
+│  ✅ 003-modulo-auditoria      → Auditoria factual por merge     │
+│  ✅ 004-modulo-redator-webhook→ Redator com anti-alucinação     │
+│  ✅ 005-convergencia-pipeline → Coleta 10 Jina, merge atômico,  │
+│                                 teto de 4 retries, guardrails   │
+│                                 flexíveis e briefing síncrono   │
+│  ✅ MATRIZ DE TESTES          → 172 passed, 162 subtestes (GREEN│
+│  ✅ SPEC SYNC                 → _reversa_sdd/addenda/005-*.md   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 📋 Próximas Ações Imediatas (do `actions.md`)
+## 📋 Status Atual de Entregas
 
-| ID | Tarefa | Responsável | Status |
-|----|--------|-------------|--------|
-| **T001–T009** | Modularização dos workers e agentes em `app/services/workers/` | Coding Agent | ✅ Concluído |
-| **T010** | Refatorar `research.py` orquestrador (< 200 LOC) | Coding Agent | ⬜ Pendente |
-| **T011** | Teste E2E integração completa | QA Specialist | ⬜ Pendente |
-| **T012** | CI/CD GitHub Actions + cobertura ≥ 80% | DevOps | ⬜ Pendente |
-| **T013** | Smoke test `docker-compose up` + docs | DevOps | ⬜ Pendente |
+| Feature / Frente | Responsável | Status | Evidências Principais |
+|------------------|-------------|--------|-----------------------|
+| **Feature 001 (Briefing)** | Time Forward | ✅ Concluído | T001–T028 + E001 aprovados |
+| **Feature 002 (Investigação)** | Time Forward | ✅ Concluído | C1–C8 aprovados |
+| **Feature 003 (Auditoria)** | Time Forward | ✅ Concluído | A1–A6 aprovados |
+| **Feature 004 (Redator & Webhook)** | Time Forward | ✅ Concluído | T051–T062 aprovados |
+| **Feature 005 (Convergência Pipeline)** | Time Forward | ✅ Concluído | T001–T031 aprovados (100% GREEN) |
+| **CI/CD e Automação de Testes** | QA / DevOps | ✅ Ativo | Matriz com 172 testes e 162 subtestes |
 
 ---
 
 ## 🔗 Como Navegar
 
-- **Iniciar implementação**: Leia `actions.md` → execute `T001`
+- **Ver contratos da API**: Leia `contracts.md` e `_reversa_forward/005-convergencia-pipeline/interfaces/pipeline-http.md`
+- **Executar suíte completa**: `pytest tests/ -p no:cacheprovider` (requer venv)
+- **Ver adendos de especificação**: Consulte `_reversa_sdd/addenda/`
 - **Entender arquitetura**: Leia `architecture.md` + `domain.md`
 - **Ver contratos de API**: Leia `contracts.md` + `app/routers/*.py`
 - **Executar testes**: `pytest tests/ -x --tb=short` (requer venv)

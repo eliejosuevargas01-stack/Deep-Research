@@ -76,17 +76,17 @@ A Feature 002 ancora-se nos artefatos da extração reversa e adendos vigentes d
    - Tipo: alterada
    - Origem: Princípio IV
 
-3. **RN-03 Parâmetros de Despacho dos Workers.** O orquestrador assíncrono repassa explicitamente para cada função worker a tupla `(research_id, step_id, step_title, persona)`. O worker carrega do banco apenas as chaves de API e configurações de modelo. 🟢
+3. **RN-03 Parâmetros de Despacho e Entrada dos Workers.** O orquestrador assíncrono repassa explicitamente para cada função worker sua entrada composta por personalidade cognitiva (`persona`), ponto de investigação (`step_id`, `step_title`) e ferramenta de busca (`tool`). A tupla de parâmetros `(research_id, step_id, step_title, persona)` é enviada na invocação. A query de pesquisa é formulada e refinada autonomamente pelo modelo a partir dessas entradas. O worker carrega do banco apenas as chaves de API e configurações de modelo. 🟢
    - Tipo: nova
 
 4. **RN-04 Tool Calling e Memória Volátil.** A execução com o LLM utiliza a API nativa de ferramentas do LiteLLM (`tools` padrão OpenAI). O histórico conversacional (`messages`) é retido unicamente em memória RAM pelo tempo de vida do worker e descartado ao final, sem persistência intermediária em banco de dados. 🟢
    - Tipo: nova
    - Origem: Princípio II
 
-5. **RN-05 Ferramenta Jina Search.** A tool de busca realiza requisição HTTP POST para `https://s.jina.ai/` enviando JSON `{"q": query}` com cabeçalhos `Authorization: Bearer ***`, `Accept: application/json` e `X-Engine: direct`. Se as chaves `jina_proxy_url` e `jina_proxy_auth_key` estiverem configuradas em `app_settings`, a requisição é direcionada ao proxy respeitando estritamente o mesmo contrato e cabeçalhos. 🟢
+5. **RN-05 Ferramenta Jina Search e 10 Corpos Limpos Integrais.** A tool de busca realiza requisição HTTP POST para `https://s.jina.ai/` enviando JSON `{"q": query}` com cabeçalhos `Authorization: Bearer *** `Accept: application/json` e `X-Engine: direct`. Se as chaves `jina_proxy_url` e `jina_proxy_auth_key` estiverem configuradas em `app_settings`, a requisição é direcionada ao proxy respeitando estritamente o mesmo contrato e cabeçalhos. A tool fornece ao worker 10 páginas em texto limpo com seus corpos integrais (não resumos nem snippets); o conteúdo HTML bruto passa obrigatoriamente por pipeline de limpeza prévio anti-boilerplate (expurgando headers, footers, navs, anúncios e scripts), entregando o corpo de texto informativo integral sem truncamento silencioso. 🟢
    - Tipo: nova
 
-6. **RN-06 Orçamento de Pesquisa.** Cada worker pode disparar no máximo 3 consultas de busca Jina por ponto. O modelo encerra voluntariamente o loop retornando o JSON de resultado quando julgar as fontes suficientes. Repetições técnicas de uma mesma busca motivadas por falhas de rede NÃO descontam do teto de 3 pesquisas. 🟢
+6. **RN-06 Orçamento de Pesquisa e Garantia de Aprendizado.** Cada worker formulando queries para seu ponto executa a primeira query obrigatoriamente e pode disparar no máximo 3 consultas de busca distintas por persona, ponto e rodada. O modelo encerra voluntariamente o loop retornando o JSON estruturado quando julgar as fontes suficientes. A leitura das 10 páginas integrais limpas garante aprendizado analítico ao worker, que nunca deve emitir resposta vazia; todo aprendizado relevante e evidências coletadas devem constar na saída estruturada com estrita atribuição a fontes e URLs reais lidas, sem inventar fontes fictícias e sem descartar dados parciais relevantes. Repetições técnicas de uma mesma busca motivadas por falhas de rede NÃO descontam do teto de 3 pesquisas. 🟢
    - Tipo: nova
 
 7. **RN-07 Retries Técnicos e Timeouts.** Chamadas externas à Jina e ao LiteLLM executam até 3 tentativas totais (1 inicial + até 2 retries técnicos com backoff exponencial 2s/4s) em caso de erro transitório de rede ou HTTP 429/5xx. Se o cabeçalho `Retry-After` for fornecido, a espera respeita o valor indicado; caso contrário, aplica backoff exponencial de 2s e 4s. O timeout limite por chamada individual é de 90s para o LLM e 90s para a Jina. O timeout global máximo por execução completa de um worker é fixado em 600s. 🟢
@@ -115,6 +115,10 @@ A Feature 002 ancora-se nos artefatos da extração reversa e adendos vigentes d
 14. **RN-14 Prompts Base das Personas e Rastreabilidade Factual (Princípio I).** Os prompts das personas são derivados de `app/prompts/personas.json`, adicionando instrução de sistema que exige citação factual estrita (*verbatim*, trecho exato reproduzido da fonte original conforme o Princípio I) acompanhada das URLs correspondentes em `used_urls` e a entrega do JSON final estruturado. Conforme o Princípio I, links representam acessibilidade e apenas a citação literal comprova veracidade. A validação e auditoria profunda dessas citações ocorrem nas fases subsequentes (Feature 003). 🟢
     - Tipo: nova
     - Origem: Princípio I
+
+15. **RN-15 Barreira Estrita de 4 Análises Persistidas e Merge Pré-Auditoria.** O ponto de investigação **não** transita para auditoria até que todas as 4 personas (`historian`, `skeptic`, `pragmatist`, `futurist`) tenham concluído suas análises para o **mesmo ponto e mesma rodada** e persistido seus resultados analíticos individualmente em `research_step_results`. Falhas terminais de um worker (crash, timeout irrecuperável) são registradas como linha com `status=FAILED` em `research_step_results`, mas **não contam como análise analítica válida** para efeito da barreira. Após as 4 respostas estarem persistidas, o sistema executa o merge inter-personas consolidando as visões complementares e preservando origens, contradições e lacunas. Somente após a conclusão e gravação do merge o ponto é submetido ao Agente Auditor (Feature 003). A política de recuperação quando uma persona sofre falha fatal irrecuperável (impedindo que as 4 análises válidas sejam atingidas) permanece PENDENTE de especificação futura. 🟢
+    - Tipo: nova
+    - Origem: Princípio III, Adendo `_reversa_sdd/addenda/diretrizes-20261019-workers-jina-briefing.md` §2
 
 ### 4.1 Identificador único `research_id` e ajustes na Feature 001
 
@@ -195,11 +199,8 @@ Tabela append-only para auditoria e rastreabilidade total.
 | `PATCH /briefings/{research_id}` por feedback único | `BRIEFING` -> `SCRAPER` | Inseridos em `SCRAPER_IN_PROGRESS` | Nova busca SERP Jina, gera briefing revisado, aprova e inicia investigação automaticamente |
 | Tentativa de 2ª revisão via `PATCH /briefings/{research_id}` | Inalterado | Inalterado | Rejeição com HTTP 409 Conflict |
 | Falha terminal do Scout no POST ou no PATCH de feedback | `FAILED` | (não existem) | Briefing transita para `failed` sem iniciar investigação |
-| Worker individual conclui com sucesso | `SCRAPER` | Mantém `SCRAPER_IN_PROGRESS` | Linha salva com `AUDIT_PENDING` |
-| Worker individual esgota retries em falha | `SCRAPER` | Incrementa `attempt_count` | Linha salva com `FAILED` e erro sanitizado |
-| Ponto com >= 1 worker concluído com sucesso | `SCRAPER` | Transita para `AUDIT_PENDING` | Nenhuma ação adicional |
-| Ponto com todos os 4 workers falhos | `SCRAPER` | Transita para `SCRAPER_FAILED` | Nenhuma ação adicional |
-| Todos os pontos finalizam e >= 1 teve sucesso | `AUDIT` | Preservam status final | Pesquisa avança para auditoria |
+| Ponto com os 4 workers concluídos e persistidos | `SCRAPER` | Transita para `AUDIT_PENDING` apenas com as 4 análises persistidas e merge concluído; falhas terminais não abrem auditor | Barreira RN-15: merge/conexão só executa após as 4 respostas analíticas válidas persistidas do mesmo ponto e rodada; falhas terminais registradas sem abrir auditor automaticamente (aprovação parcial com >=1 sucesso é vedada) |
+| Todos os pontos finalizam com 4 análises válidas e merge | `AUDIT` | Preservam status final | Pesquisa avança para auditoria somente sobre artefatos pós-merge |
 | Todos os pontos finalizam e 100% falharam | `FAILED` | Todos em `SCRAPER_FAILED` | Pesquisa encerrada em falha total |
 
 ### 4.4 Restrições técnicas aprovadas pelo operador
@@ -226,7 +227,7 @@ As opções arquiteturais e ferramentas tecnológicas abaixo foram formalmente a
 | RF-07 | Interceptar e salvar a integridade das URLs retornadas pelo provedor em `read_urls` | Must | Harness captura 100% das URLs retornadas no payload Jina e grava em `read_urls` no banco | 🟢 |
 | RF-08 | Aplicar até 3 tentativas totais (1 chamada inicial + até 2 retries técnicos com suporte a `Retry-After` e backoff 2s/4s) e até 3 chamadas de reparo de JSON | Must | Erros transitórios de rede/429/5xx recebem até 2 retries; formato JSON inválido recebe até 3 correções dedicadas separadas | 🟢 |
 | RF-09 | Persistir linha append-only em `research_step_results` para cada worker finalizado (`AUDIT_PENDING` ou `FAILED`) | Must | Cada worker finalizado insere exatamente uma linha com persona, resultado analítico ou erro sanitizado e URLs | 🟢 |
-| RF-10 | Atualizar o status dos pontos (`AUDIT_PENDING` ou `SCRAPER_FAILED`) e a pesquisa (`AUDIT` ou `FAILED` se 100% falharem) ao término do gather | Must | Pontos com >=1 sucesso passam a AUDIT_PENDING e pesquisa a AUDIT; se 100% falharem, pontos ficam SCRAPER_FAILED e pesquisa FAILED | 🟢 |
+| RF-10 | Atualizar o status dos pontos (`AUDIT_PENDING` ou `SCRAPER_FAILED`) e a pesquisa (`AUDIT` ou `FAILED` se 100% falharem) ao término do gather | Must | Pontos transicionam para AUDIT_PENDING somente após as 4 análises válidas persistidas do mesmo ponto e rodada + merge concluído; falhas terminais de persona não contam como análise válida; se 100% falharem, pontos ficam SCRAPER_FAILED e pesquisa FAILED; aprovação parcial com >=1 sucesso é vedada | 🟢 |
 | RF-11 | Fornecer migração Alembic 0007 criando `research_step_results`, unificando enums de status, removendo `SEARCH_SUCCESS` e executando backfill de briefings legados | Must | Tabela criada com tipos portáteis; SEARCH_SUCCESS migra para AUDIT_PENDING; briefings órfãos ganham linha em research | 🟢 |
 | RF-12 | Readequar endpoints da 001: adotar `research_id`, bloquear `POST /briefings/{research_id}/reopen` em aprovado (HTTP 409) e implementar revisão única via `PATCH /briefings/{research_id}` por feedback `{"note"}` com nova busca SERP Jina por IA (tema + feedback), aprovação e início automático da investigação em background, bloqueando 2ª revisão com HTTP 409 e discriminando falhas em 500/502/503 (Q12) | Must | Reopen de aprovado retorna 409; PATCH executa nova busca SERP Jina por IA, revisa pontos, aprova e inicia investigação automaticamente; 2ª revisão retorna 409; falha terminal retorna 500, 502 ou 503 | 🟢 |
 | RF-13 | Reatar execuções de workers incompletos no startup do servidor | Must | Hook de startup do FastAPI detecta pontos em SCRAPER_IN_PROGRESS e reagenda apenas personas sem linha gravada | 🟢 |
@@ -325,11 +326,12 @@ Cenário: Resiliência em falha individual de worker (RF-08, RF-09)
   E o contador attempt_count do respectivo ponto é incrementado em 1
   E os demais 19 workers prosseguem sua execução sem interrupção
 
-Cenário: Conclusão bem-sucedida da investigação global (RF-10)
-  Dado uma pesquisa com 5 pontos em investigação
-  Quando todos os 20 workers concluem e pelo menos 1 ponto obteve sucesso analítico
-  Então os pontos com >= 1 sucesso transitam para AUDIT_PENDING
-  E a pesquisa transita para o status AUDIT
+Cenário: Conclusão bem-sucedida da investigação global (RF-10, RN-15)
+|  Dado uma pesquisa com 5 pontos em investigação
+|  Quando todos os 20 workers (4 personas × 5 pontos) concluem e persistem suas respostas individuais em research_step_results do mesmo ponto e rodada
+|  Então o sistema executa o merge das 4 visões complementares para cada ponto
+|  E os pontos com as 4 análises válidas persistidas e merge concluído transitam para AUDIT_PENDING
+|  E a pesquisa transita para o status AUDIT pós-merge
 
 Cenário: Falha global de 100% dos pontos investigados (RF-10)
   Dado uma pesquisa onde todos os workers de todos os pontos falharam definitivamente

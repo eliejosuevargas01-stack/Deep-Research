@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Plano de Simplificação — Workflow n8n kjYdSxUiXyuWsmOM</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; color: #1e293b; background: #f8fafc; padding: 24px; margin: 0; }
+    .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    h1, h2, h3 { color: #0f172a; margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+    th { background: #f1f5f9; font-weight: 600; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .badge-green { background: #dcfce7; color: #15803d; }
+    .badge-blue { background: #e0f2fe; color: #0369a1; }
+    .badge-amber { background: #fef3c7; color: #b45309; }
+    pre { background: #0f172a; color: #f8fafc; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Plano de Simplificação (/reversa-simplify) — OPP-001</h1>
+    <p><strong>Alvo:</strong> Workflow n8n <code>kjYdSxUiXyuWsmOM</code> ("Deep Research API")</p>
+    <p><strong>Objetivo:</strong> Reduzir consumo de memória RAM, prevenir timeout em loops de pesquisa e unificar lógica de decisão mantendo 100% de equivalência funcional.</p>
+  </div>
+
+  <div class="card">
+    <h2>1. Diagnóstico da Lógica Atual</h2>
+    <ul>
+      <li><strong>Complexidade de Controle:</strong> 13 nós no total com cascata de 3 nós <code>If</code> sequenciais (<code>Status é Final?</code> &rarr; <code>Pesquisa Teve Sucesso?</code> &rarr; <code>Precisa Aprovar Briefing?</code>).</li>
+      <li><strong>Vazamento de Memória em Loop:</strong> A cada ciclo de 10s, o nó <code>Consultar Status</code> carrega objetos volumosos (rascunhos de briefing, descrições, histórico de eventos). O n8n acumula todo o histórico de execuções de cada nó em memória RAM. Em pesquisas de 5 minutos (30 iterações &times; 5 nós = 150 instâncias de execução), o consumo de RAM cresce progressivamente.</li>
+      <li><strong>Risco de Timeout / Loop Infinito:</strong> Ausência de contador limite de iterações; se o backend travar ou o status não progredir, o workflow repete indefinidamente até esgotar limites do container n8n.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>2. Solução Proposta</h2>
+    <ul>
+      <li><strong>Substituição da Cascata por Switch v3.4 (4 saídas):</strong> Avaliação direta em um único ponto das 4 vias operacionais (0: <code>PENDING_APPROVAL</code>, 1: <code>DONE</code>, 2: <code>FAILED</code>, 3: Fallback em andamento).</li>
+      <li><strong>Poda de Payload em Trânsito (Memory Saver):</strong> O nó <code>Armazenar Contexto Inicial</code> e <code>Filtrar Resposta de Polling</code> preservam apenas <code>research_id</code>, <code>theme</code>, <code>status</code> e <code>loop_count</code>, descartando metadados pesados do ciclo recursivo.</li>
+      <li><strong>Intervalo Otimizado (15s):</strong> Reduz em 33% o número de requisições HTTP e alocações de nós na memória sem prejudicar o tempo de resposta do chat.</li>
+      <li><strong>Guardrail de Loop Máximo (Timeout Prevention):</strong> Limite de 60 iterações (15 minutos). Caso excedido, transita para falha formatada com diagnóstico claro.</li>
+      <li><strong>Unificação de Formatação:</strong> Redução dos nós de formatação de saída para um único nó <code>Formatar Resposta</code>.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>3. Prova de Equivalência de Saída</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Cenário / Status Recebido</th>
+          <th>Comportamento Atual (13 nós)</th>
+          <th>Comportamento Simplificado (9 nós)</th>
+          <th>Resultado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Recebimento de Mensagem no Chat</td>
+          <td>Extrai tema e dispara <code>POST /api/research</code></td>
+          <td>Extrai tema e dispara <code>POST /api/research</code></td>
+          <td><span class="badge badge-green">Idêntico</span></td>
+        </tr>
+        <tr>
+          <td>Status <code>BRIEFING</code> ou <code>SCRAPER</code></td>
+          <td>Cai no false dos 3 Ifs e volta para Wait 10s</td>
+          <td>Cai na saída Fallback e volta para Wait 15s</td>
+          <td><span class="badge badge-green">Idêntico</span></td>
+        </tr>
+        <tr>
+          <td>Status <code>PENDING_APPROVAL</code></td>
+          <td>Passa pelo If de briefing, chama <code>/briefing/approve</code> e volta para Wait</td>
+          <td>Switch Saída 0, chama <code>/briefing/approve</code> e volta para Wait</td>
+          <td><span class="badge badge-green">Idêntico</span></td>
+        </tr>
+        <tr>
+          <td>Status <code>DONE</code></td>
+          <td>Busca relatório via <code>GET /api/reports</code> e formata Markdown</td>
+          <td>Switch Saída 1, busca relatório via <code>GET /api/reports</code> e formata Markdown</td>
+          <td><span class="badge badge-green">Idêntico</span></td>
+        </tr>
+        <tr>
+          <td>Status <code>FAILED</code></td>
+          <td>Formata mensagem de erro para o chat</td>
+          <td>Switch Saída 2, formata mensagem de erro para o chat</td>
+          <td><span class="badge badge-green">Idêntico</span></td>
+        </tr>
+        <tr>
+          <td>Pesquisa Travada (&gt;15 min)</td>
+          <td>Loop infinito até timeout n8n</td>
+          <td>Detecção de <code>loop_count &gt; 60</code>, transita para saída de erro amigável</td>
+          <td><span class="badge badge-blue">Mais Seguro</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

@@ -4,6 +4,7 @@
 > Data: `2026-10-16`  
 > Cenário: `forward` (ancorado em GOAL.md, plan.md, workflow.md e deliberações oficiais de 2026-10-16)  
 > Status: 🟢 CONFIRMADO (100% deliberado pelo operador)
+> **Nota de vigência (2026-10-19):** Este requirements está sujeito ao adendo normativo aprovado [`../../_reversa_sdd/addenda/diretrizes-20261019-workers-jina-briefing.md`](../../_reversa_sdd/addenda/diretrizes-20261019-workers-jina-briefing.md), que possui precedência normativa sobre este documento. Em particular: a auditoria de um ponto só é disparada após a barreira estrita de 4 análises válidas persistidas para o mesmo ponto e rodada, com a etapa formal de merge intermediária e o teto de 4 tentativas totais (1 inicial + 3 reprovações) por ponto. O avanço ao Writer ocorre somente quando 100% dos pontos atingirem estado conclusivo (`AUDIT_APPROVED` ou `AUDIT_CAVEAT`).
 
 ---
 
@@ -45,7 +46,7 @@ Para cada ponto investigado, o Auditor avalia as evidências contra 12 perguntas
 ## 4. Regras de Negócio e Comportamento Operacional
 
 ### RN-301: Disparo Automático por Ponto e Invocação Dedicada via API (D-301)
-- Assim que os 4 workers de um mesmo ponto de pesquisa terminarem sua coleta, os resultados em `research_step_results` são consolidados atomicamente e enviados para o Agente Auditor sem esperar os demais pontos.
+- Para cada ponto de pesquisa, o Agente Auditor só é invocado após as 4 personas (`historian`, `skeptic`, `pragmatist`, `futurist`) terem concluído e persistido **4 análises não-vazias e válidas para o mesmo ponto e rodada** em `research_step_results`, seguida da etapa formal de **merge inter-personas** que consolida as visões complementares conectando origens, contradições e lacunas. Falhas terminais de um worker são registradas como `FAILED` em `research_step_results`, mas **não contam como análise analítica válida** para efeito da barreira. A auditoria de um ponto não aguarda os demais pontos.
 - A API expõe os endpoints administrativos idempotentes:
   - `POST /api/audit/{research_id}/run`: Dispara a auditoria de todos os pontos que estejam em `AUDIT_PENDING`.
   - `POST /api/audit/{research_id}/points/{point_id}/run`: Dispara a auditoria isolada de um ponto específico.

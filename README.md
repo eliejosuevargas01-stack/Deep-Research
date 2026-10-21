@@ -1,5 +1,8 @@
 # Deep Research
 
+> [!IMPORTANT]
+> **Diretrizes aprovadas vigentes (2026-10-19):** Este documento segue o adendo normativo `_reversa_sdd/addenda/diretrizes-20261019-workers-jina-briefing.md` (DIRETRIZES APROVADAS). As diretrizes normativas definem requisitos canônicos de produto; a implementação operacional em código (`app/`) e sua verificação permanecem **não executadas/não verificadas** nesta sprint documental. Trechos conflitantes em especificações anteriores consideram-se superados pelo adendo.
+
 Criei o Deep Research inicialmente no n8n. Cheguei à primeira versão funcional em 15 dias; até o 17º dia do projeto, nas minhas execuções, reduzi o tempo de pesquisa de pelo menos 20 para cerca de 4 minutos, varrendo mais de 100 sites.
 
 Depois acrescentei RAG e vetorização para o agente reaproveitar informações coletadas. Agora estou migrando a ideia para **Python e FastAPI**. Essa implementação continua em desenvolvimento; os resultados de tempo acima pertencem à versão n8n.
@@ -26,44 +29,45 @@ Neste repositório, estou levando a arquitetura para código com apoio de IA e S
 
 Agente inicial de exploração cognitiva equipado com:
 * **Tool de Pesquisa Web**: busca rápida e direcionada via Jina SERP.
-* **Tool de Leitura de Arquivos**: varredura de referências e documentos prévios.
+* **Carregamento interno do prompt**: lê arquivo de prompt do projeto; não é coleta externa. Pesquisa do Scout continua SERP-only.
 
 ### Operação via API
 
-- Geração de briefing: LLM **assíncrono** (Jina SERP + ag. LLM 3–7 pontos), aprovação humana única, controle CAS de versão v1..vN, reabertura, leitura read-only e histórico de versões.
+- Geração de briefing: síncrona no transporte HTTP (Jina SERP + LLM gera 3–7 pontos; corrotinas `async/await` normais internamente, sem fila), 201 retorna snapshot do draft preenchido. Aprovação implícita via `/investigate` sobre draft **ou** revisão única por feedback via PATCH — vias **exclusivas** (escolha uma; cada uma aprova e inicia investigação automaticamente). Investigação dispara em background com `202 Accepted`.
 - Documentação técnica detalhada da API: [docs/api/briefing-scout.md](docs/api/briefing-scout.md).
 
 #### Quickstart via API (cURL)
 
 ```bash
-# 1. Criar briefing (assíncrono; 201 retorna snapshot do draft)
+# 1. Criar briefing (síncrono; 201 retorna snapshot do draft)
 BRIEFING_ID=$(curl -s -X POST \
-  -H "Authorization: Bearer $API_AUTH_SECRET" \
+  -H "Authorization: Bearer ***" \
   -H "Content-Type: application/json" \
   https://api.deepresearchengine.com/v1/briefings \
-  -d '{"theme": "impacto da IA na medicina"}' | jq -r '.id')
+  -d '{"theme": "impacto da IA na medicina"}' | jq -r '.research_id')
 
 # 2. Consultar status / pontos
-curl -s -H "Authorization: Bearer $API_AUTH_SECRET" \
+curl -s -H "Authorization: Bearer ***" \
   https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID | jq '{status, points}'
 
-# 3. Opcional: editar pontos (somente em draft, versão +1)
-curl -s -X PATCH -H "Authorization: Bearer $API_AUTH_SECRET" \
+# 3. ESCOLHA UMA ÚNICA VIA (não use ambas):
+#    A) Revisar via feedback único (só uma vez; aprova e inicia investigação automaticamente)
+curl -s -X PATCH -H "Authorization: Bearer ***" \
   -H "Content-Type: application/json" \
   https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID \
-  -d '{"points":[{"title":"p1","description":"d1"},{"title":"p2","description":"d2"},{"title":"p3","description":"d3"}]}'
+  -d '{"note": "Aprofundar riscos regulatórios"}'
 
-# 4. Aprovar (draft → approved, versão +1, define approved_at)
-curl -s -X POST -H "Authorization: Bearer $API_AUTH_SECRET" \
-  https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID/approve -d '{}'
+#    B) OU aprovar implicitamente e iniciar investigação (draft -> SCRAPER)
+curl -s -X POST -H "Authorization: Bearer ***" \
+  https://api.deepresearchengine.com/v1/briefings/$BRIEFING_ID/investigate -d '{}'
 
-# 5. Consumir aprovado (read-only; 409 se não aprovado)
-curl -s -H "Authorization: Bearer $API_AUTH_SECRET" \
+# 4. Consumir aprovado (read-only; 409 se não aprovado)
+curl -s -H "Authorization: Bearer ***" \
   https://api.deepresearchengine.com/v1/briefings/approved/$BRIEFING_ID | jq '.'
 ```
 
 > [!TIP]
-> Erros 409 (concorrência CAS): reenviar a operação com a versão corrente. Erros 503 (SERP/LLM): retry exponencial, ≤4 tentativas. Veja o guia de referência completo em [docs/api/briefing-scout.md](docs/api/briefing-scout.md).
+> A geração de briefing é síncrona no transporte HTTP: `POST /briefings` retorna `201` apenas após a conclusão da geração (Tx1 + Tx2). `PATCH /briefings/{research_id}` retorna `200` com o briefing revisado final. `POST /briefings/{research_id}/investigate` retorna `202 Accepted` e dispara investigação em background. Internamente usa `async/await` nativo — sem background task na geração, sem polling. Briefing é SERP-only (sem páginas); 10 páginas integrais aplica-se apenas aos workers. Erros 409 de CAS: reler status corrente e reconciliar antes de reenviar (não repetir cegamente PATCH de segunda edição nem POST novo automaticamente). Erros 503 (SERP/LLM): retry exponencial, ≤4 tentativas. Veja guia completo em [docs/api/briefing-scout.md](docs/api/briefing-scout.md).
 
 ### Objetivo
 Realizar o *scout* do assunto, reconhecer o terreno e responder perguntas preliminares essenciais:
@@ -100,10 +104,12 @@ Para cada um dos 5 pontos definidos no briefing, 4 agentes com vieses cognitivos
 
 ### Arquitetura da Tool de Coleta e Leitura
 Os workers utilizam uma tool unificada com subfluxo integrado:
-* **Entrada:** Query refinada pelo agente.
-* **Mecanismo de Busca:** Consulta via Jina Scraper, Apify ou SerpAPI.
-* **Leitura Massiva:** Extração e parsing de 5 a 10 páginas por rodada utilizando Jina Reader (ou correspondente).
+* **Entrada:** Query refinada pelo agente (máximo 3 queries distintas por persona/ponto por rodada).
+* **Mecanismo de Busca:** Consulta via Jina SERP (`https://s.jina.ai/`) com JSON `{"q": query}`.
+* **Leitura Massiva:** tool de coleta deve entregar 10 corpos de páginas íntegros em texto limpo por query — requisito do worker, não garantia observada do provedor; exceções de menos de 10/página, conteúdo inacessível, estouro de contexto ou falha fatal de persona permanecem pendentes conforme §1.6 do adendo. Conteúdo bruto passa por parser anti-boilerplate (remove headers, nav, footers, scripts, ads) antes de chegar ao worker. O texto entregue ao worker é o **corpo integral das páginas**, não snippets.
 * **Processamento & Limpeza:** Função de sanitização que consolida, limpa o ruído do HTML/Markdown e devolve o compilado de evidências estruturadas diretamente ao agente.
+* **Persistência Individual:** Cada persona salva sua resposta estruturada individualmente antes do merge. O merge conecta as visões mantendo origens, contradições e lacunas.
+* **Barreira das 4 Personas:** O ponto **não avança para auditoria** até que todas as 4 personas (`historian`, `skeptic`, `pragmatist`, `futurist`) concluam e persistam **4 análises válidas** para o mesmo ponto e rodada. Apenas após a etapa formal de merge das 4 visões o ponto transita para `AUDIT_PENDING` e é submetido ao Auditor. O Agente Writer é acionado somente quando 100% dos pontos da pesquisa atingirem estado conclusivo (`AUDIT_APPROVED` ou `AUDIT_CAVEAT`).
 
 ---
 
@@ -141,7 +147,7 @@ Os workers utilizam uma tool unificada com subfluxo integrado:
 
 ## Arquitetura
 
-- Fluxo: scout aprovação humana (cas único) workers paralelos (4 personas) auditor LLM writer
+- Fluxo: scout aprovação humana (cas único) workers paralelos (4 personas, persistência individual pré-merge) merge (conecta origens, contradições e lacunas) auditor LLM writer
 - Backend FastAPI (SQLite por defeito) with JWT cookie + CSRF double-submit, API key fallback, alembic migrations, SSRF guards, fail-closed on provider misconfig
 - **Refatoração T010**: `app/services/research.py` é uma facade fina (161 LOC) que orquestra módulos em `app/services/pipeline/` (scout.py, worker.py, audit_stage.py, point_executor.py, writer.py, constants.py)
 - Módulos pipeline: implementam a lógica padrão: scraper, searcher, extractor, verifier, synthesizer

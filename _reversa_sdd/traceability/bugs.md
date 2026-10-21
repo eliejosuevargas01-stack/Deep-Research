@@ -25,5 +25,7 @@ Registry canônico: `_reversa_bugs/`.
 | 19 | BUG-20261014-6C7B | settings | P3 | open |
 | 20 | BUG-20261014-7E1B | research-pipeline | P3 | open |
 | 21 | BUG-20261014-8F3E | frontend | P3 | open |
+| 22 | BUG-20261019-1 | investigacao-redator | P1 | fixed |
+| 23 | BUG-20261019-2 | investigacao-redator | P2 | fixed |
 
-A promoção #4–#21 veio da inspeção `_reversa_bugs/modulo-briefing/inspections/depth-inspection-20261014/report.md`. Cada fechamento deve ser feito pelo `/reversa-debugger-fix` e registrar teste de regressão conforme `closure.policy`.
+A promoção #4–#21 veio da inspeção `_reversa_bugs/modulo-briefing/inspections/depth-inspection-20261014/report.md`. #22 e #23 vieram do diagnóstico em `_reversa_bugs/investigacao-redator/` e foram resolvidos/comprovados na Feature 005 via `tests/unit/test_pipeline_writer_convergence.py`. Cada fechamento deve ser feito pelo `/reversa-debugger-fix` e registrar teste de regressão conforme `closure.policy`.
