@@ -1,7 +1,16 @@
 # Ambientes e Segredos
 .env
+.env.*
 .env.local
 *.env
+
+# Banco de dados e dados locais
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
 
 # Python & Cache
 __pycache__/

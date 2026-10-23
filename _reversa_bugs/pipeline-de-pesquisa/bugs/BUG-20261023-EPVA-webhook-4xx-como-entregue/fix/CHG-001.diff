@@ -1,0 +1,18 @@
+--- a/app/services/webhook_client.py
++++ b/app/services/webhook_client.py
+@@ -144,8 +144,14 @@
+                 last_status_code = res.status_code
+ 
+                 if res.status_code in (429, 500, 502, 503, 504) or res.is_server_error:
+                     res.raise_for_status()
+ 
+                 # Entrega confirmada com sucesso (código 2xx)
+-                status_result = "entregue"
++                # BUG-20261023-EPVA: apenas 2xx confirma a entrega. Um 4xx é rejeição
++                # definitiva do receptor e não pode ser gravado como 'entregue'.
++                # A lista acima continua existindo só para decidir RETRY, nunca para
++                # decidir que a entrega ocorreu.
++                status_result = "entregue" if res.is_success else "falha_definitiva"
+                await self._update_repo_status(
+                    repo=repo,
+                    id_pesquisa=id_pesquisa,

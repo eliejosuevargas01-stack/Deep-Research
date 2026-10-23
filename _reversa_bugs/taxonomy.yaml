@@ -1,34 +1,26 @@
+# Vocabulário controlado de area/module/feature do registro de bugs.
+# Semeado dos componentes de _reversa_sdd/ (architecture.md e domain.md nao existem;
+# extração manual a partir de _reversa_sdd/sdd/ e _reversa_forward/).
+# Se nenhum termo servir, use "unclassified" e registre a proposta no Agent Notes.
+
 area:
-  - research-pipeline
-  - frontend
-  - settings
-  - scout
-  - report
-  - security
-  - infra
+  - pesquisa-profunda
+
 module:
-  - research-orchestrator
-  - llm-client
-  - audit-stage
-  - settings-router
-  - research-ui
-  - briefing-router
-  - briefing-storage
-  - briefing-service
-  - investigation-router
-  - investigation-service
-  - investigation-worker
-  - investigation-tools
-  - writer-stage
-  - outbound-ssrf
-  - auth-cors
-  - env-bootstrap
+  - planejamento
+  - busca
+  - auditoria
+  - redacao
+  - pipeline
+  - integracao
+  - persistencia
+  - seguranca
+
 feature:
-  - deep-research-execution
-  - llm-gateway-fallback
-  - report-rendering
-  - scout-discovery
-  - modulo-briefing
-  - investigacao-personas
-  - settings-management
-  - ssrf-protection
+  - plano-de-investigacao
+  - busca-com-personas
+  - auditoria-de-qualidade
+  - redacao-do-dossier
+  - pipeline-autonomo-seguro
+  - streaming-reasoning
+  - falhas-de-coleta-e-diagnostico

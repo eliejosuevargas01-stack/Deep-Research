@@ -1,1 +1,0 @@
-"""Briefing domain module."""

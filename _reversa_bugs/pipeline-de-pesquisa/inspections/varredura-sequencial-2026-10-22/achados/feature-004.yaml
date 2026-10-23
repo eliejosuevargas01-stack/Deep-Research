@@ -1,0 +1,227 @@
+# Achados da Feature 004 - Falhas de Coleta e Diagnostico
+# Varredura sequencial Reversa - 2026-10-22
+# NOTA DE CONTEXTO IMPORTANTE: esta feature JA FOI IMPLEMENTADA no codigo atual.
+# A spec descreve um incidente real (dossier sem evidencia web tratado como valido).
+# Portanto a varredura aqui nao busca "o defeito original", e sim se a CORRECAO
+# esta completa, se propagou por todas as camadas, e se nao deixou bordas abertas.
+# Status: diagnostico apenas. Nenhuma correcao aplicada.
+
+# ---------------------------------------------------------------------------
+# Lente: Conformidade com spec
+# ---------------------------------------------------------------------------
+- finding_id: F4-SPEC-01
+  lens: Conformidade com spec
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Searcher retorna status_pesquisa fixo como 'coletado' mesmo quando ha pontos em falha_coleta; a variavel pontos_falhados e calculada e descartada."
+  confidence: alta
+  suspected_severity: critical
+  signals: [data-corruption, operational-risk]
+  evidence:
+    - "app/core/searcher.py:523-531 -> pontos_falhados = [r for r in resumos if r['falha_coleta']] e logo apos 'status_pesquisa': 'coletado' fixo no dicionario de retorno"
+    - "app/core/searcher.py:452-453 -> falha_coleta = len(urls_lidas_dedup) == 0; status_ponto = STATUS_FALHA_COLETA if falha_coleta else 'coletado' (o ponto acusa falha, a pesquisa nao)"
+    - "_reversa_forward/004-falhas-de-coleta-e-diagnostico/requirements.md: escopo 2.1 RF-04 -> a resposta da etapa de busca deve expor, por ponto, o detalhe da falha de coleta, e nao apenas contadores zerados; RF-06 (nao coberto aqui) trata do status da pesquisa"
+    - "Impacto: o incidente original (pesquisa marcada 'coletado' com zero evidencia) permanece possivel no nivel agregado mesmo com o ponto individual correto. Uma pesquisa com 1 ponto valido e 4 em falha_coleta reporta 'coletado' sem sinalizacao."
+
+- finding_id: F4-SPEC-02
+  lens: Conformidade com spec
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Endpoint de busca nao expoe ao cliente externo a informacao de falha de coleta, anulando o beneficio do RF-04 pela camada de API."
+  confidence: alta
+  suspected_severity: high
+  signals: [operational-risk]
+  evidence:
+    - "app/api/v1/endpoints/search.py -> grep por 'falha_coleta', 'status_pesquisa' e 'total_falhas' retorna zero ocorrencias no arquivo inteiro"
+    - "app/core/searcher.py:526-531 -> o dicionario retornado contem total_falhas_coleta e resumo_coletas com falha_coleta por ponto, informacao que nao chega ao response model"
+    - "_reversa_forward/004-falhas-de-coleta-e-diagnostico/requirements.md -> RF-04 exige que a resposta da etapa de busca exponha por ponto o detalhe da falha (categoria, mensagem, URLs encontradas, queries executadas)"
+    - "Consequencia: cliente HTTP da etapa de busca conclui sucesso sem saber que ponto nenhum foi efetivamente coletado; o diagnostico fica preso no log interno."
+
+- finding_id: F4-SPEC-03
+  lens: Conformidade com spec
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Pipeline autonomo (runner) ignora total_falhas_coleta do Searcher, entao ciclo de reprova/readquire nao usa o diagnostico para nova coleta."
+  confidence: media
+  suspected_severity: medium
+  signals: [operational-risk]
+  evidence:
+    - "app/core/pipeline_runner.py:119-138 -> loop max_ciclos=4 chama await searcher.execute_search(id_pesquisa=id_pesquisa) e ignora o retorno; decide nova rodada apenas por audit_res['reprovados']"
+    - "app/core/pipeline_runner.py -> grep por 'falha_coleta' ou 'falhas_coleta' nao retorna nenhuma ocorrencia"
+    - "_reversa_forward/004-falhas-de-coleta-e-diagnostico/requirements.md -> RF-07/escopo de diagnostico exige uso da categoria de falha para acao corretiva no pipeline"
+    - "Efeito observavel: falha de billing (402, terminal conforme app/tools/errors.py:45) consome ciclos de re-busca inuteis antes de esgotar o teto, atrasando a reprovacao definitiva em ate 4 passagens."
+
+# ---------------------------------------------------------------------------
+# Lente: Contratos e integracoes
+# ---------------------------------------------------------------------------
+- finding_id: F4-CONTRACT-01
+  lens: Contratos e integracoes
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "JinaReader.read() engole erro da Jina encapsulado em HTTP 200 (ex.: 402 devolvido como corpo markdown de erro), tratando mensagem de erro como conteudo legitimo."
+  confidence: alta
+  suspected_severity: high
+  signals: [data-corruption, intermittency]
+  evidence:
+    - "app/tools/jina_client.py:164-169 -> comentarproprio admite 'mesmo defeito de classe do search() - o corpo de erro (ex.: 402 InsufficientBalanceError) era devolvido como markdown legitimo'; res = await self._request(url, headers) e return res.text sem inspecionar conteudo"
+    - "app/tools/jina_client.py:153-169 -> nenhuma verificacao de marcador de erro no corpo texto antes de retornar"
+    - "_reversa_forward/004-falhas-de-coleta-e-diagnostico/requirements.md -> RF-01 estabelece que o cliente Jina deve classificar e expor falhas sem converte-las em conteudo vazio ou valido"
+    - "Nota: o metodo search() agora usa _request com classify_failure; read() reutiliza _request mas devolve res.text direto, e o erro pode vir em 200 conforme o comentario do proprio codigo."
+
+- finding_id: F4-CONTRACT-02
+  lens: Contratos e integracoes
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Timeouts e erros de transporte httpx (ConnectError/ReadTimeout) em chamadas da Jina nao sa convertidos em JinaError, subindo como excecao generica e mascarando a categoria."
+  confidence: alta
+  suspected_severity: medium
+  signals: [intermittency, operational-risk]
+  evidence:
+    - "app/tools/jina_client.py:88-99 -> laco de tentativa chama await self._client.get(url, headers=headers) sem try/except para httpx.TransportError ou httpx.TimeoutException"
+    - "app/tools/jina_client.py -> apenas caminho de status HTTP >= 400 gera classify_failure; falha de rede nao entra nesse caminho"
+    - "_reversa_forward/004-falhas-de-coleta-e-diagnostico/requirements.md -> RF-01 fala em expor falhas de error HTTP da Jina; erros de rede ficaram fora do escopo explicito, mas a camada de diagnostico deveria categoriza-los"
+    - "Consequencia operacional: relatorio de falha nao distingue 'Jina fora do ar' de 'URL especifica nao respondeu', dificultando a acao corretiva."
+
+# ---------------------------------------------------------------------------
+# Lente: Estados de erro e edge cases
+# ---------------------------------------------------------------------------
+- finding_id: F4-ERR-01
+  lens: Estados de erro e edge cases
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Classificacao 'desconhecido' nao identifica acao corretiva, entao falhas fora da tabela (ex.: 408, 509) viram diagnostico opaco para o operador."
+  confidence: media
+  suspected_severity: low
+  signals: [operational-risk]
+  evidence:
+    - "app/tools/errors.py:80-86 -> classify_status retorna 'desconhecido' para qualquer status fora de CATEGORIA_POR_STATUS e fora da faixa 500-599"
+    - "app/tools/errors.py:34-43 -> CATEGORIA_POR_STATUS cobre apenas 401, 403, 402, 429, 500, 502, 503, 504"
+    - "app/tools/errors.py:45 -> TERMINAIS = billing, autenticacao; 'desconhecido' nao e terminal, portanto entra em retry mesmo quando poderia nao fazer sentido"
+    - "Efeito: HTTP 408 Request Timeout ou 509 Bandwidth Limit Exceeded da Jina recebem categoria inutil e retry automatico."
+
+- finding_id: F4-ERR-02
+  lens: Estados de erro e edge cases
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Falha parcial de coleta (alguns pontos coletados, outros sem evidencia) nao reprova a pesquisa e o dossie e redigido com base apenas nos pontos que tem evidencia."
+  confidence: alta
+  suspected_severity: high
+  signals: [data-corruption, operational-risk]
+  evidence:
+    - "app/core/writer.py:104-114 -> sem_evidencia acumula pontos sem evidencia, mas o bloqueio so ocorre se len(sem_evidencia) == len(pontos), ou seja, exige falha TOTAL"
+    - "app/core/pipeline_runner.py:129-138 -> break do ciclo depende de reprovados == 0 na auditoria; pontos sem evidencia nao contam como reprovacao de busca"
+    - "_reversa_forward/004-falhas-de-coleta-e-diagnostico/requirements.md -> RF-05 exige que nenhuma analise sintetica seja gerada sem evidencia bruta coletada, com razao explicita; o tratamento atual e binario (tudo ou nada)"
+    - "Impacto: pesquisa com 5 pontos onde apenas 1 teve evidencia gera dossie de 1 ponto entregue como resultado completo, sem aviso de degradacao ao cliente."
+
+- finding_id: F4-ERR-03
+  lens: Estados de erro e edge cases
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Ponto em falha_coleta em rodada anterior pode ser sobrescrito por rodada seguinte vazia, apagando o diagnostico que explicaria a falha."
+  confidence: media
+  suspected_severity: medium
+  signals: [data-corruption]
+  evidence:
+    - "app/core/searcher.py:452-453 -> status_ponto = STATUS_FALHA_COLETA if falha_coleta else 'coletado' a cada execucacao, sem verificacao do estado anterior do ponto"
+    - "app/core/pipeline_runner.py:119-126 -> loop chama searcher repetidamente para o mesmo id_pesquisa em ate 4 ciclos"
+    - "tests/unit/test_searcher_falha_coleta.py:135 -> existe teste test_falha_de_coleta_nao_apaga_coleta_anterior_com_evidencia, indicando que a preocupacao e conhecida; o cenario inverso (evidencia anterior sobrescrita por falha posterior) nao esta coberto"
+    - "Nota: a direcao oposta (falha apagando evidencia) e protegida pelo teste; a direcao falha posterior sobre evidencia anterior merece confirmacao."
+
+- finding_id: F4-ERR-04
+  lens: Estados de erro e edge cases
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "LLM com billing esgotado da Jina nao interrompe a sintese da persona quando ha outras personas com evidencia, entao texto analitico parcialmente inventado pode compor a sintese consolidada."
+  confidence: media
+  suspected_severity: medium
+  signals: [data-corruption]
+  evidence:
+    - "app/core/searcher.py:204 -> prompt ainda contem trecho 'apresente diretamente sua sintese analitica final aprofundada (sem chamar a ferramenta novamente)'"
+    - "app/core/searcher.py:361 -> outro trecho 'Com base em todas as evidencias coletadas, produza agora sua sintese analitica final' permanece no fluxo de esgotamento de queries"
+    - "app/core/searcher.py:343-344 -> comentario RF-05/CA-05.1 e CA-05.4 declara 'sem evidencia bruta nao ha sintese possivel', o que mostra intencao de correcao; os fragmentos acima indicam instrucao residual que contradiz a regra em caminhos especificos do prompt"
+    - "Requer verificacao humana: confirmar se esses fragmentos sao alcancaveis apos a guarda de evidencia vazia ou se estao em branches inativas."
+
+# ---------------------------------------------------------------------------
+# Lente: Fluxo de dados
+# ---------------------------------------------------------------------------
+- finding_id: F4-DATA-01
+  lens: Fluxo de dados
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Contador total_urls_lidas conta URLs deduplicadas apos join entre personas, podendo mascarar que uma persona especifica falhou integralmente."
+  confidence: baixa
+  suspected_severity: low
+  signals: [operational-risk]
+  evidence:
+    - "app/core/searcher.py:433 -> urls_lidas_dedup = list(dict.fromkeys(todas_urls_lidas)) consolida sem preservar a contagem por persona"
+    - "app/core/searcher.py:509 -> total_urls_lidas: len(urls_lidas_dedup) exposto no retorno"
+    - "app/core/searcher.py:382-394 -> persona_read_urls por persona existe em resumo_coletas, mas o agregado nao permite detectar persona com zero leitura quando outra persona leu a mesma URL"
+    - "Cenario: persona A falha mas cita URL que persona B ja leu; dedup faz a URL contar, e o total fica acima de zero apesar de persona A sem evidencia propria."
+
+- finding_id: F4-DATA-02
+  lens: Fluxo de dados
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Diagnostico usa dict.fromkeys sobre motivos textuais, o que suprime motivos repetidos e pode esconder multiplicidade de falhas identicas em personas diferentes."
+  confidence: baixa
+  suspected_severity: low
+  signals: [operational-risk]
+  evidence:
+    - "app/core/searcher.py:470 -> diagnostico montado com dict.fromkeys(motivos), descartando repeticoes exatas"
+    - "app/core/searcher.py:457-468 -> motivos incluem res['persona'] quando nao ha erro_provedor, portanto repeticoes exatas so ocorrem se persona e contagem coincidirem; nesse caso a supressao e benefica"
+    - "Avaliacao: risco baixo, listado para nao haver truncamento silencioso na varredura; o impacto real e cosmetico no relatorio de diagnostico."
+
+# ---------------------------------------------------------------------------
+# Lente: Cobertura de testes
+# ---------------------------------------------------------------------------
+- finding_id: F4-TEST-01
+  lens: Cobertura de testes
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Nao ha teste para o cenario parcial (5 pontos, apenas 1 coletado) que e justamente o caminho que escapa da guarda tudo-ou-nada do Writer."
+  confidence: alta
+  suspected_severity: high
+  signals: [coverage-gap, operational-risk]
+  evidence:
+    - "tests/unit/test_searcher_falha_coleta.py:39 -> test_falha_402_marca_ponto_como_falha_coleta"
+    - "tests/unit/test_searcher_falha_coleta.py:187 -> test_texto_extenso_do_llm_nao_mascara_ausencia_de_fonte"
+    - "tests/unit/test_searcher_falha_coleta.py:135 -> test_falha_de_coleta_nao_apaga_coleta_anterior_com_evidencia"
+    - "app/core/writer.py:113 -> condicao if len(sem_evidencia) == len(pontos) e o exato oposto do cenario parcial, e nao existe teste exercitando-a"
+    - "_reversa_forward/004-falhas-de-coleta-e-diagnostico/requirements.md -> RF-05 fala em ausencia de evidencia por analise sintetica; cobertura parcial ausente deixa a regra sem prova"
+
+- finding_id: F4-TEST-02
+  lens: Cobertura de testes
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Nao ha teste para erro de rede/transporte httpx em JinaClient, caminho classificado em F4-CONTRACT-02 e portanto sem regressao protegida."
+  confidence: alta
+  suspected_severity: medium
+  signals: [coverage-gap, intermittency]
+  evidence:
+    - "tests/unit/test_jina_client.py -> cobre classificacao por status HTTP (conforme nome do arquivo e o cenario 402 do teste de searcher)"
+    - "app/tools/jina_client.py:88 -> await self._client.get(url, headers=headers) sem try/except de transporte, caminho nao exercitado por nenhum teste listado em tests/unit/"
+    - "Gap: ConnectError, ReadTimeout e ConnectTimeout nao possuem teste que prove o comportamento atual"
+
+# ---------------------------------------------------------------------------
+# Lente: Observabilidade
+# ---------------------------------------------------------------------------
+- finding_id: F4-OBS-01
+  lens: Observabilidade
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "Categoria de falha da Jina nao e registrada em log quando o ponto e marcado falha_coleta, impedindo auditar quantos dossies foram bloqueados por billing versus autorizacao."
+  confidence: media
+  suspected_severity: medium
+  signals: [operational-risk]
+  evidence:
+    - "app/core/searcher.py:452-470 -> bloco que classifica falha_coleta e monta diagnostico nao emite logger (nenhuma chamada de log no trecho)"
+    - "app/tools/errors.py:34-45 -> categorias billing e autenticacao existem e sao terminais, dado valioso para operacao que hoje fica apenas no campo diagnostico do banco"
+    - "_reversa_forward/004-falhas-de-coleta-e-diagnostico/requirements.md -> a feature nasce de falha silenciosa; a correcao persiste o diagnostico no banco mas nao o torna observavel em tempo de execucao"
+
+- finding_id: F4-OBS-02
+  lens: Observabilidade
+  feature: 004-falhas-de-coleta-e-diagnostico
+  summary: "total_falhas_coleta nao e comparado com total_pontos_processados em nenhuma metrica exposta, entao degradacao parcial da pesquisa nao gera alerta objetivo."
+  confidence: baixa
+  suspected_severity: low
+  signals: [operational-risk]
+  evidence:
+    - "app/core/searcher.py:526-530 -> retorno expoe total_pontos_processados e total_falhas_coleta lado a lado, mas nenhum consumidor calcula a razao"
+    - "app/api/v1/endpoints/search.py -> nenhuma referencia a esses campos, confirmado por grep sem ocorrencias"
+    - "Avaliacao: consequencia de F4-SPEC-02; listado separado para deixar claro que a razao de degradacao e o indicador que a operacao precisa."
+
+# ---------------------------------------------------------------------------
+# Cluster
+# ---------------------------------------------------------------------------
+# Cluster A - propagacao truncada da correcao (causa estrutural comum):
+# F4-SPEC-01, F4-SPEC-02, F4-SPEC-03 e F4-OBS-02 convergem no mesmo componente
+# (dicionario de retorno do Searcher e seus consumidores). A correcao da feature
+# parou na primeira camada (status do ponto) e nao subiu para Pesquisa, endpoint,
+# pipeline e operacao. Indicio de causa estrutural unica: resultado do Searcher e
+# consumido sem contrato explicito de status agregado.

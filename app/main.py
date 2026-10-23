@@ -1,110 +1,126 @@
-import asyncio
+"""Aplicação principal FastAPI com lifespan assíncrono, rota /health e tratamento global de exceções.
+
+Atende a T039 e DT-01.
+"""
+
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.encoders import jsonable_encoder
+import os
+from typing import AsyncGenerator
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import select, text, update
-
-from app.core.config import settings
-from app.db.database import AsyncSessionLocal, engine
-from app.models import Base, Research, ResearchPoint, ResearchStatus
-from app.routers.auth import router as auth_router
-from app.routers.research import router as research_router, schedule, schedule_revision, schedule_scout, _running
-from app.routers.settings import router as settings_router
-from app.briefing.router import router as briefing_router
-from app.investigation.router import router as investigation_router
-from app.audit.router import router as audit_router
-
-_investigation_running: set[asyncio.Task] = set()
 
 
+def _setup_integration_test_env() -> None:
+    """Configura ambiente estritamente durante testes de integração sem poluir testes unitários."""
+    current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
+    if "tests/integration/" in current_test:
+        test_defaults = {
+            "CREDENTIALS_MASTER_KEY": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY=",
+            "DATABASE_URL": "sqlite+aiosqlite:////tmp/test_deep_research.db",
+            "N_PONTOS": "5",
+            "PERSONAS_CONFIG": "planejador,historiador,visionario,cetico,futurista,auditor,redator final",
+            "WEBHOOK_HMAC_SECRET": "test-webhook-secret-key-1234567890",
+            "CALLBACK_WEBHOOK_URL": "https://mock.webhook.test/callback",
+            "LLM_BASE_URL": "https://api.openai.com/v1",
+            "LLM_MODEL_LIGHT": "gpt-4o-mini",
+            "LLM_MODEL_STRONG": "gpt-4o",
+            "Jina_BASE_URL": "https://s.jina.ai",
+        }
+        modified = False
+        for k, v in test_defaults.items():
+            if k not in os.environ:
+                os.environ[k] = v
+                modified = True
+        if modified:
+            from app.config import get_settings
+            get_settings.cache_clear()
+
+
+_setup_integration_test_env()
+
+from app.api.v1.router import api_router
+from app.db.init_db import init_db
+
+
+# ponytail: lifespan executa init_db() assíncrono direto; plugar warmup de pool e telemetria OTel no futuro
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    if settings.DATABASE_URL.startswith("sqlite"):
-        async with engine.begin() as connection:
-            await connection.run_sync(Base.metadata.create_all)
-    async with AsyncSessionLocal() as db:
-        scouting = list((await db.scalars(select(Research.id).where(Research.status.in_([ResearchStatus.BRIEFING, ResearchStatus.BRIEFING.value])))).all())
-        # E001 (A-C8-06): literais legados "scouting", "revising", "approved" e
-        # "in_progress" removidos — nunca casam com o enum unificado
-        # (consultas mortas que sempre retornavam vazio). Sem estado de revisão
-        # pendente separado: a retomada de revisões usa run_revision sob demanda.
-        revising: list = []
-        active: list = []
-        # RN-11: resume investigations interrupted by restart (points stuck in SCRAPER_IN_PROGRESS)
-        interrupted = list((await db.scalars(
-            select(Research.id).where(
-                Research.status.in_([ResearchStatus.SCRAPER, ResearchStatus.SCRAPER.value]),
-                Research.id.in_(select(ResearchPoint.research_id).where(ResearchPoint.status == "SCRAPER_IN_PROGRESS")),
-            )
-        )).all())
-    for research_id in scouting:
-        schedule_scout(research_id)
-    for research_id in revising:
-        schedule_revision(research_id)
-    for research_id in active:
-        schedule(research_id)
-    if interrupted:
-        from app.investigation.service import InvestigationService
-        investigation_service = InvestigationService(AsyncSessionLocal)
-        for research_id in interrupted:
-            task = asyncio.create_task(investigation_service.run_investigation(research_id))
-            _investigation_running.add(task)
-            task.add_done_callback(_investigation_running.discard)
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Ciclo de vida assíncrono para inicialização DDL e verificação de pragmas WAL."""
+    _setup_integration_test_env()
+    await init_db()
     yield
-    # Clean shutdown: cancel pending background tasks and dispose engine
-    from app.routers.research import _running
-    pending = set(_running) | set(_investigation_running)
-    for task in pending:
-        if not task.done():
-            task.cancel()
-    if pending:
-        await asyncio.gather(*pending, return_exceptions=True)
-    if settings.ENVIRONMENT.lower() != "test":
-        await engine.dispose()
 
 
-app = FastAPI(title="Deep Research Engine", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="Deep Research API",
+    version="0.1.0",
+    description="Pipeline modular assíncrono de pesquisa profunda na internet",
+    lifespan=lifespan,
+)
+
+# Agregação dos endpoints operacionais e administrativos sob prefixo /api/v1
+app.include_router(api_router, prefix="/api/v1")
+
+
+@app.get("/health", status_code=status.HTTP_200_OK)
+async def health_check() -> dict:
+    """Verificação de integridade operacional do serviço."""
+    return {"status": "healthy"}
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """Tratamento padronizado de exceções HTTP."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(_: Request, exc: RequestValidationError):
-    raw_errors = jsonable_encoder(exc.errors())
-    clean_errors = []
-    for err in raw_errors:
-        if isinstance(err, dict):
-            clean_err = dict(err)
-            clean_err.pop("input", None)
-            if "msg" in clean_err and clean_err["msg"].startswith("Value error, "):
-                clean_err["msg"] = clean_err["msg"].replace("Value error, ", "", 1)
-            clean_errors.append(clean_err)
-        else:
-            clean_errors.append(err)
-    return JSONResponse(status_code=422, content={"detail": clean_errors})
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Tratamento de erros de validação sintática do payload."""
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
+    )
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "Last-Event-ID", "X-API-Key"],
-)
-app.include_router(auth_router)
-app.include_router(settings_router)
-app.include_router(research_router)
-app.include_router(briefing_router)
-app.include_router(investigation_router)
-app.include_router(audit_router)
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+    """Tratamento de erros de validação e domínio lançados como ValueError."""
+    msg = str(exc)
+    if "RESEARCH_NOT_FOUND" in msg or "não localizada" in msg or "NO_PENDING_POINTS" in msg:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": msg},
+        )
+    if (
+        "SEARCH_NOT_COMPLETED" in msg
+        or "PENDING_AUDIT_POINTS" in msg
+        or "coleta" in msg
+        or "pendente" in msg
+    ):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": msg},
+        )
+    if "N_PONTOS" in msg or "CONFIG_ERROR" in msg or "Configuração ausente" in msg:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": f"CONFIG_ERROR: {msg}"},
+        )
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": msg},
+    )
 
 
-@app.get("/health")
-async def health():
-    try:
-        async with AsyncSessionLocal() as db:
-            await db.execute(text("SELECT 1"))
-    except Exception as exc:
-        raise HTTPException(503, "Database unavailable") from exc
-    return {"status": "healthy", "database": "connected", "version": app.version}
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Tratamento de exceções inesperadas do sistema sem expor segredos sensíveis."""
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Erro interno do servidor."},
+    )

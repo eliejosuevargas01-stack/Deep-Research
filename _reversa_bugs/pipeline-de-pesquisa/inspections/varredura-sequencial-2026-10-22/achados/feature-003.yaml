@@ -1,0 +1,201 @@
+# Achados da Feature 003 - Streaming Nativo Obrigatório e Captura Segregada de Reasoning
+# Varredura diagnóstica Reversa (reversa-depth-inspection) - 2026-10-22
+# Status: diagnóstico estritamente leitor. Nenhuma correção aplicada ao código-fonte.
+
+- finding_id: F3-SPEC-01
+  lens: "Conformidade com spec"
+  summary: "Webhook despachado no encerramento da pesquisa omite o campo reasoning_auditoria no payload, violando o requisito RF-05."
+  confidence: "alta"
+  suspected_severity: "critical"
+  signals: ["spec-divergence?", "operational-risk?"]
+  evidence:
+    - "app/core/writer.py:222-231: webhook_payload monta apenas id_pesquisa, tema, total_pontos, total_caracteres_dossier, dossier_final, reasoning_dossier e concluido_em, omitindo completamente reasoning_auditoria"
+    - "_reversa_forward/003-streaming-reasoning-audit/requirements.md:37-39: RF-05 estipula formalmente que o payload despachado para CALLBACK_WEBHOOK_URL no evento research.completed deve incluir o campo reasoning_dossier e reasoning_auditoria"
+
+- finding_id: F3-SPEC-02
+  lens: "Conformidade com spec"
+  summary: "Módulo Auditor não consome o reasoning gerado pelas etapas anteriores de planejamento e busca, descumprindo o requisito RF-06."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["spec-divergence?"]
+  evidence:
+    - "app/core/auditor.py:99-166: método _auditar_ponto concatena unicamente col.conteudo_coletado em conteudo_unificado e não carrega col.reasoning_coleta nem ponto.reasoning_planejamento para a análise do LLM"
+    - "_reversa_forward/003-streaming-reasoning-audit/requirements.md:41-43: RF-06 determina expressamente que o módulo Auditor deve ter acesso ao reasoning gerado pelas etapas anteriores para aprimorar a rastreabilidade metodológica"
+
+- finding_id: F3-SPEC-03
+  lens: "Conformidade com spec"
+  summary: "Streaming SSE é desabilitado sob transporte mockado de testes e caminhos de retry utilizam stream=False, violando o streaming nativo obrigatório."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["spec-divergence?", "operational-risk?"]
+  evidence:
+    - "app/tools/llm_client.py:143-146: stream_mode desativa streaming sempre que transport não for nulo (and getattr(self, 'transport', None) is None), desativando o fluxo SSE na suite de testes"
+    - "app/core/writer.py:198-204: fallback do redator quando dossiê é curto ou nulo chama chat_completion com stream=False explicitamente"
+    - "app/tools/llm_client.py:356-362: fallback de tentativa em generate_json chama chat_completion_with_reasoning com stream=False"
+    - "_reversa_forward/003-streaming-reasoning-audit/requirements.md:19-21: RF-01 exige que todas as inferências enviadas a roteadores ou provedores LLM operem com stream: true universalmente"
+
+- finding_id: F3-SPEC-04
+  lens: "Conformidade com spec"
+  summary: "Schema PlanResponse não disponibiliza o campo reasoning de planejamento no nível raiz do objeto retornado pela API."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["spec-divergence?"]
+  evidence:
+    - "app/schemas/plan.py:76-106: PlanResponse declara apenas pontos: List[PlanPontoItem] e atributos gerais, contendo reasoning_planejamento em cada item filho, mas omitindo reasoning raiz"
+    - "_reversa_forward/003-streaming-reasoning-audit/requirements.md:32-34: RF-04 especifica que PlanResponse e PlanAsyncResponse devem devolver reasoning do planejamento"
+
+- finding_id: F3-DADOS-01
+  lens: "Fluxo de dados e tipos"
+  summary: "Fallback de content para reasoning_content contamina o histórico de mensagens do assistente e pode substituir análise de persona por pensamento bruto."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["data-corruption?"]
+  evidence:
+    - "app/core/searcher.py:249: content = msg.get('content') or msg.get('reasoning_content') or '' unifica os dois canais sem segregação estrita"
+    - "app/core/searcher.py:256: analise_final recebe content.strip(), atribuindo a cadeia de pensamento bruto como conteúdo de análise se content vier vazio"
+    - "app/core/searcher.py:258: messages.append({'role': 'assistant', 'content': content or None}) re-injeta o reasoning no histórico de conversa subsequente"
+    - "app/tools/llm_client.py:205-206: diretriz ponytail expressa 'não sobrescrever content com reasoning; manter estritamente segregados'"
+
+- finding_id: F3-DADOS-02
+  lens: "Fluxo de dados e tipos"
+  summary: "Re-tentativa síncrona do Redator Final provoca dessincronização semântica entre reasoning_dossier e o dossier_final persistido."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["data-corruption?"]
+  evidence:
+    - "app/core/writer.py:193-205: se dossier_final da primeira chamada streaming for inválido, invoca segunda chamada sem reasoning (chat_completion com stream=False)"
+    - "app/core/writer.py:208-212: update_research_dossier grava no banco o dossier_final da segunda inferência pareado com o reasoning_dossier da primeira tentativa descartada"
+
+- finding_id: F3-DADOS-03
+  lens: "Fluxo de dados e tipos"
+  summary: "Falha na síntese final de persona no Searcher descarta raciocínios das rodadas anteriores de tool_calls ao recorrer a raw_evidence_chunks."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["data-corruption?"]
+  evidence:
+    - "app/core/searcher.py:356-374: quando a síntese analítica final da persona não é produzida, o fallback adota fatias de raw_evidence_chunks como analise_final"
+    - "app/core/searcher.py:384-386: persona_reasonings acumula pensamentos parciais de chamadas anteriores que perdem correspondência com o texto bruto salvo"
+
+- finding_id: F3-CONT-01
+  lens: "Contratos e integrações"
+  summary: "Parser SSE exige prefixo estrito 'data: ' com espaço e ignora formatos alternativos de reasoning como Gemini thinking e DeepSeek reasoning."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["intermittency?", "operational-risk?"]
+  evidence:
+    - "app/tools/llm_client.py:171: if line.startswith('data: '): descarta chunks válidos da especificação W3C SSE formatados como 'data:{...}' sem espaço"
+    - "app/tools/llm_client.py:178-179: avalia exclusivamente delta.get('reasoning_content'), ignorando deltas emitidos como delta.get('thinking') (Gemini) e delta.get('reasoning')"
+    - "_reversa_forward/003-streaming-reasoning-audit/requirements.md:46-48: RNF-01 estipula leitura de stream tratando formatos delta de múltiplos provedores (OpenAI, DeepSeek/StepFun reasoning, Gemini thinking)"
+
+- finding_id: F3-CONT-02
+  lens: "Contratos e integrações"
+  summary: "Simulador de rede (MockNetwork) não implementa streaming SSE, gerando divergência entre ambiente de testes e infraestrutura de produção."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk?"]
+  evidence:
+    - "tests/mocks/http_mock.py:201-220: rota /chat/completions retorna apenas httpx.Response(200, json={...}), sem suporte a text/event-stream ou chunks serializados"
+    - "_reversa_forward/003-streaming-reasoning-audit/requirements.md:49-51: RNF-02 define que transportes mockados devem serializar chunks em stream para validar a máquina de estados"
+
+- finding_id: F3-ERRO-01
+  lens: "Estados de erro e edge cases"
+  summary: "Tratamento broad except Exception no loop de linhas SSE suprime silenciosamente falhas de decodificação e corrupção de chunks."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk?", "intermittency?"]
+  evidence:
+    - "app/tools/llm_client.py:198-199: except Exception: pass suprime qualquer exceção de json.loads ou formatação inesperada de dicionário sem log ou telemetria"
+    - "app/tools/llm_client.py:215-216: lança RuntimeError genérico ('LLM stream finalizou sem emitir nenhum conteúdo.') quando erros silenciados impedem acúmulo de dados"
+
+- finding_id: F3-ERRO-02
+  lens: "Estados de erro e edge cases"
+  summary: "Respostas HTTP 4xx em modo streaming não disparam raise_for_status e causam RuntimeError enganoso sem engajamento de retries."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk?"]
+  evidence:
+    - "app/tools/llm_client.py:164-165: verifica apenas status in (429, 500, 502, 503, 504) or res.is_server_error, ignorando status de cliente como 400, 401 e 403"
+    - "app/tools/llm_client.py:167-216: itera sobre corpo de erro não-SSE, resultando em chunks vazios e levantando RuntimeError indevido"
+    - "app/tools/llm_client.py:243: except do loop captura apenas (HTTPStatusError, TransportError, JSONDecodeError), permitindo escape imediato do RuntimeError na 1ª tentativa"
+
+- finding_id: F3-TEST-01
+  lens: "Cobertura de testes"
+  summary: "Suite de testes automatizados possui cobertura zero da máquina de estados do streaming SSE e do parser de deltas em tempo de execução."
+  confidence: "alta"
+  suspected_severity: "critical"
+  signals: ["operational-risk?"]
+  evidence:
+    - "tests/unit/test_streaming_reasoning.py:14-29: instancia LLMClient passando transport=transport, o que força stream_mode=False em app/tools/llm_client.py:145"
+    - "tests/unit/test_streaming_reasoning.py:32-80: foca unicamente em persistência no banco SQLite, deixando todo o bloco async with self._client.stream() sem execução em testes"
+    - "tests/: não há nenhum teste cobrindo aiter_lines, tratamento de data: [DONE], acúmulo incremental de tool_calls ou quebra de streaming"
+
+- finding_id: F3-TEST-02
+  lens: "Cobertura de testes"
+  summary: "Ausência completa de asserções nos testes para exposição dos novos campos de reasoning nos endpoints HTTP e no payload do webhook."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk?"]
+  evidence:
+    - "tests/integration/test_endpoints.py: não contém validações para campos reasoning_planejamento, reasoning_coleta, reasoning_auditoria ou reasoning_dossier nos schemas de retorno"
+    - "tests/unit/test_webhook_client.py: testes de webhook verificam apenas assinatura HMAC e campos originais sem assertar envio dos campos de reasoning"
+
+- finding_id: F3-CONC-01
+  lens: "Concorrência e consistência"
+  summary: "Acesso concorrente sem lock ao dicionário content_cache entre personas pode provocar corridas lógicas durante coletas paralelas."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["intermittency?"]
+  evidence:
+    - "app/core/searcher.py:153: content_cache: Dict[str, str] = {} instanciado no escopo compartilhado de _processar_ponto"
+    - "app/core/searcher.py:301-305: apenas seen_urls é sincronizado sob urls_lock"
+    - "app/core/searcher.py:310, 319: escrita content_cache[u] = page_text e leitura if u in content_cache são executadas fora de lock assíncrono em tarefas concorrentes via asyncio.gather"
+
+- finding_id: F3-CONC-02
+  lens: "Concorrência e consistência"
+  summary: "Módulo Redator executa gravações redundantes consecutivas no banco para persistência do mesmo dossiê final."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["operational-risk?"]
+  evidence:
+    - "app/core/writer.py:208-212: update_research_dossier grava dossiê e reasoning logo após a geração de texto"
+    - "app/core/writer.py:244-250: update_research_dossier grava novamente o mesmo dossiê e reasoning apenas para anexar webhook_status e webhook_resposta"
+
+- finding_id: F3-OBS-01
+  lens: "Observabilidade"
+  summary: "Encerramento abrupto de stream SSE gera RuntimeError sem métricas, logs de debug ou dados de requisição para diagnóstico operacional."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk?"]
+  evidence:
+    - "app/tools/llm_client.py:216: mensagem de erro 'LLM stream finalizou sem emitir nenhum conteúdo.' não informa endpoint, model, quantidade de bytes recebidos nem status"
+    - "app/tools/llm_client.py:167-200: ausência de logger.debug ou logger.warning para registrar descarte de chunks inválidos ou finalização de stream"
+
+- finding_id: F3-OBS-02
+  lens: "Observabilidade"
+  summary: "Endpoint de status do pipeline omite reasoning_coleta das personas e metadados de telemetria das etapas intermediárias."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["operational-risk?"]
+  evidence:
+    - "app/api/v1/endpoints/pipeline.py:38-55: expõe reasoning_planejamento, reasoning_auditoria e reasoning_dossier, mas não disponibiliza o reasoning_coleta das personas gravado na tabela conteudo_coletado"
+    - "app/schemas/pipeline.py:46-58: schema PipelineStatusResponse não contempla campo para expor reasoning granular das personas coletoras"
+
+- finding_id: F3-DESEMP-01
+  lens: "Desempenho e I/O"
+  summary: "Módulo Auditor executa padrão anti-performance N+1 ao consultar o banco repetidamente por ponto em vez de reutilizar as coletas pré-carregadas."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk?"]
+  evidence:
+    - "app/core/auditor.py:61: todas_coletas = await self.research_repo.get_collected_content(id_pesquisa) carrega todas as coletas da pesquisa na memória"
+    - "app/core/auditor.py:73-82: dentro do loop de pontos, invoca repetidamente get_collected_content_for_point e get_last_coleta_evidence, gerando múltiplas consultas SQL adicionais para dados já disponíveis"
+
+- finding_id: F3-DESEMP-02
+  lens: "Desempenho e I/O"
+  summary: "Acúmulo incremental de argumentos de tool_calls no streaming realiza concatenação repetida de strings em memória em vez de buffer estruturado."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["operational-risk?"]
+  evidence:
+    - "app/tools/llm_client.py:195, 197: tool_calls_acc[idx]['function']['name'] += fn_delta['name'] e tool_calls_acc[idx]['function']['arguments'] += fn_delta['arguments'] realizam concatenação iterativa de string em loop"
+    - "app/tools/llm_client.py:154-155: chunks e reasoning_chunks empregam buffer em lista ([] com ''.join()), demonstrando inconsistência no tratamento de I/O em memória para tool_calls"

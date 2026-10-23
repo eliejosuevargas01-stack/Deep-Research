@@ -1,10 +1,32 @@
 {
-  "schema-version": 1,
-  "feature-dir": "_reversa_forward/005-convergencia-pipeline",
-  "feature-id": "005",
-  "short-name": "convergencia-pipeline",
-  "started-at": "2026-10-20T03:45:41Z",
-  "current-stage": "coding",
-  "stages-completed": ["requirements", "plan", "to-do", "audit", "quality"],
-  "paused-features": []
+  "schema-version": 2,
+  "feature-dir": "_reversa_forward/004-falhas-de-coleta-e-diagnostico",
+  "feature-id": "004",
+  "short-name": "falhas-de-coleta-e-diagnostico",
+  "started-at": "2026-10-22T19:00:00Z",
+  "current-stage": "requirements",
+  "stages-completed": [],
+  "paused-features": [
+    {
+      "feature-id": "001",
+      "short-name": "pesquisa-profunda-mvp",
+      "feature-dir": "_reversa_forward/001-pesquisa-profunda-mvp",
+      "paused-at": "2026-10-22T03:59:00Z",
+      "stage-at-pause": "done"
+    },
+    {
+      "feature-id": "002",
+      "short-name": "pipeline-autonomo-seguro",
+      "feature-dir": "_reversa_forward/002-pipeline-autonomo-seguro",
+      "paused-at": "2026-10-22T13:57:00Z",
+      "stage-at-pause": "done"
+    },
+    {
+      "feature-id": "003",
+      "short-name": "streaming-reasoning-audit",
+      "feature-dir": "_reversa_forward/003-streaming-reasoning-audit",
+      "paused-at": "2026-10-22T19:00:00Z",
+      "stage-at-pause": "actions"
+    }
+  ]
 }

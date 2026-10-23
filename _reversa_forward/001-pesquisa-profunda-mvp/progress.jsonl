@@ -1,0 +1,30 @@
+{"ts":"2026-10-21T18:30:00Z","action":"T001","status":"done","files":["pyproject.toml"]}
+{"ts":"2026-10-21T18:31:00Z","action":"T002","status":"done","files":["app/config.py"]}
+{"ts":"2026-10-21T18:32:00Z","action":"T003","status":"done","files":["app/services/crypto_service.py"]}
+{"ts":"2026-10-21T18:33:00Z","action":"T004","status":"done","files":["app/db/session.py"]}
+{"ts":"2026-10-21T18:34:00Z","action":"T005","status":"done","files":["app/db/models.py"]}
+{"ts":"2026-10-21T18:35:00Z","action":"T006","status":"done","files":["app/db/init_db.py"]}
+{"ts":"2026-10-21T18:36:00Z","action":"T007","status":"done","files":["app/db/credentials_repository.py"]}
+{"ts":"2026-10-21T18:37:00Z","action":"T008","status":"done","files":["app/db/research_repository.py"]}
+{"ts":"2026-10-21T18:40:00Z","action":"T009","status":"done","files":["tests/conftest.py"]}
+{"ts":"2026-10-21T18:41:00Z","action":"T010","status":"done","files":["tests/mocks/http_mock.py"]}
+{"ts":"2026-10-21T18:42:00Z","action":"T011","status":"done","files":["tests/unit/test_crypto_service.py"]}
+{"ts":"2026-10-21T18:43:00Z","action":"T012","status":"done","files":["tests/unit/test_credentials_repository.py"]}
+{"ts":"2026-10-21T18:44:00Z","action":"T013","status":"done","files":["tests/unit/test_database.py"]}
+{"ts":"2026-10-21T18:45:00Z","action":"T014","status":"done","files":["tests/unit/test_schemas.py"]}
+{"ts":"2026-10-21T18:46:00Z","action":"T015","status":"done","files":["tests/unit/test_jina_client.py"]}
+{"ts":"2026-10-21T18:47:00Z","action":"T016","status":"done","files":["tests/unit/test_llm_client.py"]}
+{"ts":"2026-10-21T18:48:00Z","action":"T017","status":"done","files":["tests/unit/test_webhook_client.py"]}
+{"ts":"2026-10-21T18:49:00Z","action":"T018","status":"done","files":["tests/unit/test_domain_modules.py"]}
+{"ts":"2026-10-21T18:50:00Z","action":"T019","status":"done","files":["tests/integration/test_endpoints.py"]}
+{"ts":"2026-10-21T18:51:00Z","action":"T020","status":"done","files":["tests/integration/test_edge_cases.py"]}
+{"id":"T021","status":"done","ts":"2026-10-21T20:29:00Z","note":"schemas plan derivados da spec; orquestrador removeu hedge dossier_resumo/dossier_final (spec manda dossier_final)"}
+{"id":"T022","status":"done","ts":"2026-10-21T20:29:00Z","note":"schemas search derivados da spec"}
+{"id":"T023","status":"done","ts":"2026-10-21T20:29:00Z","note":"schemas audit com 12 criterios conforme RF-04"}
+{"id":"T024","status":"done","ts":"2026-10-21T20:29:00Z","note":"schemas writer; campo dossier_final unico, alinhado a spec"}
+{"id":"T025","status":"done","ts":"2026-10-21T20:29:00Z","note":"schemas admin com mascaramento e precedencia de ambiente"}
+{"id":"T030","status":"done","ts":"2026-10-21T20:56:00Z","note":"JinaClient s.jina.ai/r.jina.ai, 1+3 retries, timeout 600s"}
+{"id":"T031","status":"done","ts":"2026-10-21T20:56:00Z","note":"LLMClient OpenAI-compatible /v1/chat/completions, modelos leve e forte, response_format json"}
+{"id":"T032","status":"done","ts":"2026-10-21T20:56:00Z","note":"WebhookClient HMAC-SHA256 X-Signature, timing-safe, 1+3 retries"}
+{"id":"T027","status":"done","ts":"2026-10-22T00:20:00Z","note":"Searcher ajustado: executa 4 personas concorrentes por ponto com chamada ao LLM leve e consolidacao no conteudo_coletado"}
+{"id":"T028","status":"done","ts":"2026-10-22T02:45:00Z","note":"Auditor implementado com histórico cumulativo de rodadas, sarrafo de 85%, feedback direcionado aos workers e teto de 3 reprovações"}

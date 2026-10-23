@@ -1,109 +1,179 @@
-# PRD: Módulo de Briefing (Backend)
+# PRD: Deep Research
 
-> Selo 🟢 CONFIRMADO. Documento de Produto ancorado exclusivamente nos requisitos e decisões aprovados pelo operador em 2026-10-16.
->
-> **Aviso de vigência documental:** Este PRD registra a concepção original da Feature 001 (Módulo de Briefing). Conforme os requisitos vigentes da Feature 002 (`_reversa_forward/002-investigacao-personas/requirements.md:134-137,231`), decisões de produto sucessoras superdimensionaram e ajustaram fluxos: (1) a reabertura de briefing aprovado foi descontinuada (retornando HTTP 409 em `POST /briefings/{research_id}/reopen` com status aprovado definitivo); (2) o endpoint de edição manual direta de lista de pontos foi substituído por revisão única assistida via `PATCH /briefings/{research_id}` com nota de feedback (`note`). As especificações originais da Feature 001 são preservadas abaixo como histórico com notas de vigência, sem antecipar a implementação de mudanças futuras de escopo (como a extinção de `/approve` de C8).
+> Selo 🟡 PLANEJADO. Documento gerado a partir de brief, ideation + personas.
 
-**Versão:** 1.0  
-**Data:** 2026-10-11  
-**Autor:** reversa-drafter  
-**Status:** planejado; requisitos de produto aprovados, documento ainda sujeito a revisão  
+**Versão:** 1.0
+**Data:** 2026-10-21
+**Autor:** reversa-drafter
+**Status:** rascunho
 
 ---
 
-## 1. Problema
+## 1. Visão geral
 
-🟢 O operador precisa definir e aprovar quais pontos uma pesquisa investigará antes da execução. Este módulo transforma um tema em proposta de foco, com controle de edição, aprovação e reabertura. Não responde ao tema nem inicia investigação. Essa necessidade deriva das decisões do usuário; não representa medição ou diagnóstico do código atual.
+🟡 Pipeline simples de pesquisa profunda na internet composto de 4 etapas, cada uma com um endpoint próprio, em Python (FastAPI), monolito modular, cada endpoint funciona por separado.
+
+🟡 Valor entregue: 🟡 pesquisa profunda auditada com rastreabilidade a custo baixo — o usuário passa de dias manuais a um dossiê completo em menos de 10 minutos, com cada ponto aprovado/reprovado e fontes canônicas marcadas.
+
+---
+
+## 2. Problema
+
+🟡 Pesquisas manuais levam dias, fontes não auditadas, relatório sem rastreabilidade; o custo atual é alto.
 
 ### Quem sente
-🟢 O operador de pesquisa que precisa direcionar o escopo da investigação e os módulos consumidores a jusante que necessitam de um plano de pesquisa estável e aprovado.
+
+🟡 Analistas, redatores, devs e times de research, sempre que precisam produzir uma investigação profunda sob demanda.
+
+🟡 **Analista de Research**: sente no momento da consulta ao briefing de campanha ou início do planejamento estratégico, quando surge a necessidade de embasar uma decisão com dados de terceiros.
+
+🟡 **Redator/Dev integrador**: sente ao desenvolver um produto que depende de pesquisa (relatórios corporativos, blog, conteúdo institucional) ou ao precisar consultar o dossier gerado.
 
 ---
 
-## 2. Personas-alvo
+## 3. Personas-alvo
 
-- 🟢 **Operador de Pesquisa**: Usuário que submete o tema, revisa os pontos de foco propostos pela IA, edita/reordena e decide quando aprovar ou reabrir.
-- 🟢 **Pipeline de Pesquisa (Consumidor futuro)**: Módulo posterior do backend que consome os pontos aprovados para iniciar a coleta profunda.
+> 🟡 Referência completa em [`personas.md`](./personas.md). Resumo das personas de usuário:
+
+- 🟡 **Analista de Research**: profissional de pesquisa de mercado, nível técnico intermediário (análise de dados e triangulação de fontes; conhece métricas de qualidade, mas não escreve código). Dor principal: pesquisas manuais levam dias, fontes não são auditadas e o relatório final perde a rastreabilidade das fontes canônicas. Objetivo: dossier auditado com fontes canônicas, N pontos aprovados, em menos de 10 minutos.
+- 🟡 **Redator/Dev integrador**: profissional avançado em integração de APIs e automação; escreve scripts Python e configura variáveis de ambiente. Dor principal: ferramentas existentes (Perplexity, GPT Deep Research) são caixas pretas sem auditoria por ponto nem rastreabilidade de fontes. Objetivo: integrar os 4 endpoints como serviço reusável e consumir o dossier final via webhook ou banco.
+
+### Personas do sistema (7)
+
+🟡 planejador, historiador, visionario, cetico, futurista, auditor, redator final. Número e identidade definidos por variável de ambiente; sem fallback hardcoded.
 
 ---
 
-## 3. Métricas de sucesso
+## 4. Métricas de sucesso
 
 | Métrica | Unidade | Alvo | Prazo |
 |---|---|---|---|
-| 🟢 Conformidade de pontos gerados | % de briefings com 3 a 7 pontos (alvo 5) | 100% | Imediato |
-| 🟢 Isolamento de busca externa | Chamadas SERP sem falhas / simultâneas por geração | 1 / máximo 1; até 4 tentativas sequenciais se houver falha | Na verificação da feature |
-| 🟢 Zero vazamento de segredos | Ocorrências de chaves em logs/APIs | 0 | Imediato |
+| 🟡 Dossier com fontes canônicas | 🟡 % de pontos com URLs de origem rastreadas | 🟡 100% | 🟡 21/10/2026 |
+| 🟡 N pontos aprovados | 🟡 quantidade | 🟡 todos os N pontos definidos por variável de ambiente (padrão 5) com status `aprovado` | 🟡 21/10/2026 |
+| 🟡 Tempo < 10 min | 🟡 minutos | 🟡 < 10 (ciclo completo: plano → busca → auditoria → redação) | 🟡 21/10/2026 |
 
 ---
 
-## 4. Escopo (in)
+## 5. Escopo (in)
 
-- 🟢 Validação estrita do tema (3 a 300 caracteres).
-- 🟢 Uma única tool SERP via Jina, sem garantia de Google exclusivo, uma chamada por vez e sem leitura de páginas. Decisão de 2026-10-11 aceita parser tolerante (`title`, `url`, `description`; extras ignorados) e timeout Jina/LLM 30s configurável por tentativa. `X-Respond-With: no-content` tem evidência documental; resposta real não foi verificada.
-- 🟢 Carregamento de system prompt diretamente de arquivo na pasta de prompts a cada geração. Caminho exato é decisão técnica, não regra herdada.
-- 🟢 Geração de rascunho com 3 a 7 pontos focais (visando 5 como média/alvo habitual).
-- 🟢 Edição e ajuste de rascunho: o operador envia tema -> scout gera rascunho -> operador envia feedback -> scout formula nova query com tema + feedback e ajusta pontos -> auto-aprova e avança. mantendo a restrição de 3 a 7 pontos. *(Nota de vigência: Requisito original da Feature 001 supersedido pelos requisitos vigentes de `_reversa_forward/002-investigacao-personas/requirements.md:136,231`, que extinguiram a edição manual de lista em favor de revisão única assistida via `PATCH /briefings/{research_id}` com campo `note`.)*
-- 🟢 Aprovação definitiva: uma vez aprovado, o briefing nunca mais volta a ser rascunho (reabertura proibida com HTTP 409). Iniciar investigação aprova em etapa única. conteúdo aprovado e bloqueia edição direta; reabertura explícita retorna ao rascunho e libera edição. Aprovar ou reabrir não inicia pesquisa. *(Nota de vigência: A reabertura de briefing aprovado foi supersedida pela Feature 002 em `_reversa_forward/002-investigacao-personas/requirements.md:135,231`, tornando a aprovação definitiva e retornando HTTP 409 em tentativas de reabertura; a aprovação implícita de C8 permanece futura.)*
-- 🟢 Retentativa automática sequencial de até 4 tentativas totais em falhas transitórias externas (SERP ou LLM), com reuso da SERP bem-sucedida em falhas de LLM.
-- 🟢 Exposição de briefing aprovado via endpoint/consulta segura.
-
----
-
-## 5. Não-objetivos (out)
-
-- 🟢 Leitura de páginas completas, web scraping profundo ou Jina Reader (`r.jina.ai`).
-- 🟢 Múltiplas ferramentas de busca, SerpAPI, DuckDuckGo ou fallbacks de provedores alternativos.
-- 🟢 Execução de pesquisa profunda, workers de persona ou redação de relatórios.
-- 🟢 Interface gráfica de usuário (frontend).
-- 🟢 Alteração de contratos globais legados de pesquisa antes de sua respectiva modularização.
+- 🟡 Endpoint `/api/v1/plan` (Etapa 1 — Plano de investigação).
+- 🟡 Endpoint `/api/v1/search` (Etapa 2 — Busca).
+- 🟡 Endpoint `/api/v1/audit` (Etapa 3 — Auditoria).
+- 🟡 Endpoint `/api/v1/writer` (Etapa 4 — Redação).
+- 🟡 Endpoints administrativos extras permitidos para cadastrar pesquisa e carregar/salvar configuração (chaves, base URLs, preferências).
+- 🟡 Persistência SQLite permanente (sobrevive a redeploy sem perder dados).
+- 🟡 Tabela de credenciais criptografada com override por variável de ambiente do container.
+- 🟡 Base URL de Jina e de LLM configuráveis e persistidas.
 
 ---
 
-## 6. Restrições
+## 6. Não-objetivos (out)
+
+- 🟡 Não fazer tudo de uma vez só (cada endpoint funciona por separado).
+- 🟡 Não complicar a pesquisa.
+- 🟡 Não entregar resultado mediano.
+- 🟡 Não ter mais de 4 endpoints principais.
+- 🟡 Compliance: nenhuma exigência regulatória no MVP (resposta da entrevista).
+
+---
+
+## 7. Requisitos funcionais
+
+### Etapa 1 — Plano de investigação
+
+- 🟡 **RF-001**: `POST /api/v1/plan` recebe tema/entrada → salva no banco → LLM + tool Jina SERP (só lê resultados SERP, nunca abre páginas) → LLM formula query e escolhe N pontos mais relevantes → parser → persiste pontos no banco (`tema`, `id_pesquisa`, `ponto_id`, `ponto_n`).
+- 🟡 **RF-002**: N por pesquisa definido em variável de ambiente (padrão 5, sem fallback hardcoded).
+
+### Etapa 2 — Busca
+
+- 🟡 **RF-003**: `POST /api/v1/search` recebe `id_pesquisa` do banco → processa todos os pontos em paralelo por LLM leve → aplica personas (`historiador`, `visionario`, `cectico`, `futurista`) → memória apenas para tool call.
+- 🟡 **RF-004**: Tool Jina SERP + Scrapper (`s.jina.ai`) → filtro de URLs já lidas por `id_pesquisa` → parser concatena resposta inteira (sem cortar) em 1 item com links → persiste URLs em background → modelo decide mais query ou devolve resposta → parser (`tema`, `id_pesquisa`, `ponto`, `ponto_id`, `conteudo_coletado`, `urls_lidas`, `urls_fonte`) → banco.
+
+### Etapa 3 — Auditoria
+
+- 🟡 **RF-005**: `POST /api/v1/audit` recebe `id_pesquisa` do banco → LLM forte responde 12 perguntas de qualidade sobre o conteúdo coletado → parser (`id_pesquisa`, `tema`, `id_ponto`, `ponto`, `aprovado|reprovado`, `pontos_fracos`) → banco.
+
+### Etapa 4 — Redação
+
+- 🟡 **RF-006**: `POST /api/v1/writer` recebe `id_pesquisa` do banco (somente quando todos os pontos finalizados) → concatena tudo → LLM forte gera dossier completo com fontes canônicas marcadas → parser → banco → POST para webhook de callback.
+
+### Administração e configuração
+
+- 🟡 **RF-007**: Endpoints administrativos extras para cadastrar pesquisa e carregar/salvar configuração (chaves, base URLs, preferências).
+- 🟡 **RF-008**: Toda credencial (chave, base URL, preferência) persistida em tabela criptografada, com override por variável de ambiente do container.
+
+---
+
+## 8. Modelo de dados (tabelas)
+
+- 🟡 **`pesquisa`** — usada pelo endpoint 1 (cadastro) e pelo writer (relatório final). Campos mínimos: 🟡 `id_pesquisa`, `tema`.
+- 🟡 **`pontos`** — usada pelo plan (1 item por ponto) e pelo auditor (status). Campos: 🟡 `tema`, `id_pesquisa`, `ponto_id`, `ponto_n`, `ponto`, `aprovado|reprovado`, `pontos_fracos`.
+- 🟡 **`conteudo_coletado`** — usada pelo search e pelo auditor. Campos: 🟡 `tema`, `id_pesquisa`, `ponto`, `ponto_id`, `conteudo_coletado`, `urls_lidas`, `urls_fonte`.
+- 🟡 **`credenciais`** (tabela criptografada) — 🟡 chave, base URL, preferência; override por variável de ambiente do container.
+
+---
+
+## 9. Variáveis de ambiente
+
+- 🟡 **N pontos por pesquisa** — padrão 5; sem fallback hardcoded (valor ausente exige configuração explícita).
+- 🟡 **Personas do sistema** — número (7) e identidade (planejador, historiador, visionario, cetico, futurista, auditor, redator final); sem fallback hardcoded.
+- 🟡 **Credenciais e base URLs** — override por variável de ambiente do container sobre a tabela criptografada (chaves, base URL de Jina, base URL de LLM, preferências).
+
+---
+
+## 10. Restrições (técnicas + não-funcionais)
 
 | Tipo | Descrição |
 |---|---|
-| 🟢 Técnica | Backend modular; stack e reutilização de infraestrutura são decisões técnicas do plano, não fonte de regras funcionais. |
-| 🟢 Provedor de Busca | Jina Search API (`s.jina.ai`) exclusiva. |
-| 🟢 Concorrência e Retentativa | Uma chamada ativa por vez na geração. Máximo 4 tentativas totais por operação que falhar (inicial e 3 retentativas); não repetir operação bem-sucedida. |
-| 🟢 Segurança | Chaves de API (`JINA_API_KEY`, chaves LLM) nunca retornadas em payloads ou expostas em logs. *(Nota de auditoria: Classificação inferida. Omissão em schemas e sanitização de exceções em `app/briefing/schemas.py:5` e `app/briefing/serp_client.py:19-23` tratam payloads e erros de busca conhecidos, mas não constituem garantia global comprovada em todo o sistema de logging.)* |
+| 🟡 Stack | 🟡 Python + FastAPI, monolito modular, exatamente 4 endpoints principais |
+| 🟡 Prazo | 🟡 21 de outubro, 22h (horário de Brasília) |
+| 🟡 Compliance | 🟡 Nenhuma exigência regulatória (LGPD ou outra) no MVP |
+| 🟡 Orçamento | 🟡 [INDEFINIDO, validar com usuário] |
+| 🟡 NFR — Retries | 🟡 1 tentativa inicial + 3 retries |
+| 🟡 NFR — Timeout | 🟡 600s por chamada |
+| 🟡 NFR — LLM | 🟡 chamadas HTTP a modelos apenas OpenAI-compatible |
+| 🟡 NFR — Jina | 🟡 Jina acessado via tool (SERP + Scrapper `s.jina.ai`); base URL configurável e persistida |
+| 🟡 NFR — Persistência | 🟡 SQLite permanente (sobrevive a redeploy sem perder dados) |
+| 🟡 NFR — Config | 🟡 N e personas definidos exclusivamente por variável de ambiente, sem fallback hardcoded |
+| 🟡 NFR — Personas | 🟡 7 personas do sistema: planejador, historiador, visionario, cetico, futurista, auditor, redator final |
 
 ---
 
-## 7. Dependências externas
+## 11. Dependências externas
 
-- 🟢 Jina Search API (`https://s.jina.ai/`).
-- 🟢 Provedor LLM compatível com o módulo de completude da aplicação.
+- 🟡 Jina SERP + Scrapper (`s.jina.ai`) — tool nas etapas plan e search.
+- 🟡 Modelos LLM OpenAI-compatible — LLM leve (busca em paralelo) e LLM forte (auditoria e redação); base URLs configuráveis e persistidas.
+- 🟡 Webhook de callback — destino do POST do dossier final (writer).
 
 ---
 
-## 8. Riscos
+## 12. Riscos
 
 | Risco | Impacto | Probabilidade | Mitigação proposta |
 |---|---|---|---|
-| 🟢 Oscilação na API Jina Search | Alto | Média | Retentativa automática com até 4 tentativas totais e mensagem de erro 503 segura. |
-| 🟢 Resposta do agente fora da faixa 3 a 7 pontos | Médio | Não medida | Rejeitar saída inválida sem publicar rascunho parcial. Falha de parse/conteúdo fora de 3..7 consome tentativa do teto de 4 tentativas totais e reutiliza SERP; esgotadas as 4 tentativas, briefing é marcado FAILED sem rascunho inválido. Requisito de pontos de foco sem conclusão permanece orientado pelo prompt; não há julgador semântico automático nem retry extra por qualidade/conclusividade. |
-| 🟢 Validação de pontos <3 ou >7 pontos | Baixo | Alta | Validação 422 na API de edição preservando a versão anterior intacta. *(Nota de vigência: Validação presente nos schemas de domínio, mas endpoint HTTP de lista manual supersedido por `_reversa_forward/002-investigacao-personas/requirements.md:136,231` em favor de `PATCH` com `note`.)* |
+| 🟡 Custo de tokens (Jina SERP + LLM forte estoura orçamento viável) | 🟡 alto | 🟡 média | 🟡 limitar N pontos via variável de ambiente; monitorar consumo por endpoint |
+| 🟡 Qualidade da persona (perda de coerência de tom e foco das 7 personas degrada output) | 🟡 alto | 🟡 média | 🟡 definir identidade via variável de ambiente; validar coerência antes da redação |
+| 🟡 Complexidade do código (acoplamento entre os 4 endpoints gera bugs em produção) | 🟡 médio | 🟡 média | 🟡 manter monolito modular com endpoints isolados, cada um funcionando por separado |
+| 🟡 Falhas em produção (dependência de Jina e LLM OpenAI-compatible) | 🟡 alto | 🟡 alta | 🟡 retries 1+3 e timeout 600s; credenciais com override por env do container |
+| 🟡 Orçamento não definido | 🟡 médio | 🟡 média | 🟡 validar com usuário antes do próximo estágio |
 
 ---
 
-## 9. Critérios de aceite (alto nível)
+## 13. Critérios de aceite (alto nível)
 
-- 🟢 **Dado** um tema válido, **Quando** o operador solicita a criação do briefing, **Então** o sistema obtém resultados SERP via Jina, sem leitura de páginas, aciona a IA com o prompt de arquivo e grava rascunho com 3 a 7 pontos. Sem falhas, há uma busca; falhas podem causar até 4 tentativas sequenciais.
-- 🟢 **Dado** um rascunho de briefing, **Quando** o operador edita pontos mantendo entre 3 e 7 itens, **Então** a nova versão é salva; se enviar <3 ou >7, o sistema rejeita com 422. *(Nota de vigência: Critério histórico da Feature 001 supersedido pela Feature 002 em `_reversa_forward/002-investigacao-personas/requirements.md:136,231`.)*
-- 🟢 **Dado** um briefing aprovado, **Quando** o operador solicita reabertura, **Então** o briefing retorna ao estado de rascunho permitindo edições. *(Nota de vigência: Critério histórico da Feature 001 supersedido pela Feature 002 em `_reversa_forward/002-investigacao-personas/requirements.md:135,231`, que formalizou HTTP 409 na reabertura de aprovado.)*
+- 🟡 **Dado** o Analista de Research envia um tema via `/api/v1/plan`, **Quando** o LLM formula a query e escolhe N pontos (só com resultados SERP), **Então** os pontos são persistidos no banco e o usuário recebe `id_pesquisa` e a lista de pontos para análise.
+- 🟡 **Dado** os pontos persistidos, **Quando** o usuário dispara `/api/v1/search`, **Então** os pontos são processados em paralelo por LLM leve com as personas, URLs já lidas são filtradas por `id_pesquisa`, e `conteudo_coletado` + `urls_lidas` + `urls_fonte` são persistidos sem cortar a resposta.
+- 🟡 **Dado** conteúdo coletado, **Quando** o usuário executa `/api/v1/audit`, **Então** o LLM forte responde 12 perguntas de qualidade e cada ponto recebe status `aprovado` ou `reprovado` com `pontos_fracos` persistidos.
+- 🟡 **Dado** todos os N pontos finalizados, **Quando** o usuário chama `/api/v1/writer`, **Então** o dossier completo com fontes canônicas marcadas é gerado, persistido e enviado via POST ao webhook de callback.
+- 🟡 **Dado** o Redator/Dev integrador configura chaves e base URLs via endpoint administrativo, **Quando** o container define variáveis de ambiente de override, **Então** credenciais e N/ personas são carregados sem fallback hardcoded.
 
 ---
 
 ## Pendências de cobertura
 
-- 🟢 Regras de produto aprovadas: tema 3–300, briefing 3–7 em geração/edição/aprovação, alvo habitual 5, reabertura e até 4 tentativas por operação.
-- 🟢 Escolhas de T003 resolvidas pelo usuário em 2026-10-11: SERP Jina sem motor exclusivo, parser tolerante e timeout 30s configurável. Evidência documental não substitui teste da integração; exemplos sintéticos não comprovam resposta real.
-- 🟢 Rotas, autenticação, persistência, timeouts e erros devem ser congelados no plano; não são fatos de uma implementação entregue.
+- 🟡 [INDEFINIDO] Orçamento: limite viável de custo de tokens não definido nas fontes — validar com usuário antes de `/reversa-spec-sdd`.
 
-## Fontes e rastreabilidade
+---
 
-- `_reversa_forward/001-modulo-briefing/requirements.md`, RN-01–RN-07, RF-01–RF-10 e seção 9 (esclarecimentos).
-- Decisão explícita do usuário: criar PRD e spec somente para este módulo a partir dos requisitos aprovados.
-- Código e documentação Reversa antiga não foram usados como fonte de regras de produto.
+Gerado por reversa-drafter em 2026-10-21T22:00:00Z
+Fontes: newproject-brief.md, ideation.md, personas.md, state.json (newproject_progress.interview)

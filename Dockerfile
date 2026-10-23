@@ -1,8 +1,13 @@
-FROM python:3.12-slim
-WORKDIR /srv
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY alembic.ini .
-COPY alembic ./alembic
+FROM python:3.14-slim
+
+WORKDIR /app
+
+COPY pyproject.toml ./
 COPY app ./app
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"]
+
+RUN pip install --no-cache-dir . && mkdir -p /app/data
+
+EXPOSE 8000
+
+# Sem --reload: container de produção. DATABASE_URL aponta para volume persistente.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
