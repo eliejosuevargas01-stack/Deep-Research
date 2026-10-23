@@ -1,0 +1,248 @@
+# Achados da Feature 002 - Pipeline Autônomo Seguro (HMAC, X-API-Key, Runner em Background)
+# Varredura sequencial Reversa - 2026-10-22
+# Inspeção profunda: reversa-depth-inspection (6 lentes obrigatórias + 2 condicionais)
+# Status: diagnóstico estrito. Nenhuma correção aplicada ao código.
+
+- finding_id: F2-SPEC-01
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Conformidade com spec"
+  summary: "Endpoint dedicado POST /api/v1/pipeline/execute previsto na RF-04 não foi implementado, restringindo a execução autônoma ao flag inline async_execute do endpoint /plan."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["spec-divergence?"]
+  evidence:
+    - "_reversa_forward/002-pipeline-autonomo-seguro/requirements.md:38-41: RF-04 estipula parâmetro opcional 'async_execute': true no POST /api/v1/plan (e/ou endpoint dedicado POST /api/v1/pipeline/execute)"
+    - "app/api/v1/endpoints/pipeline.py:1-49: módulo declara exclusivamente a rota GET /pipeline/{id_pesquisa}/status, omitindo qualquer endpoint POST de execução dedicada"
+    - "app/api/v1/router.py:20: api_router inclui apenas pipeline.router que expõe rota de leitura de status"
+
+- finding_id: F2-SPEC-02
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Conformidade com spec"
+  summary: "Endpoint POST /api/v1/writer ignora credencial CALLBACK_WEBHOOK_URL persistida no banco cifrado, violando a regra de precedência RN-10 e o requisito RF-01."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["spec-divergence?", "operational-risk?"]
+  evidence:
+    - "app/api/v1/endpoints/writer.py:74-79: instanciação de Writer não consulta resolve_callback_webhook_url(db), passando callback_url=None"
+    - "app/core/writer.py:47-51: construtor busca self.callback_url somente em get_settings().callback_webhook_url ou os.environ, sem consultar o repositório de credenciais cifradas"
+    - "_reversa_forward/002-pipeline-autonomo-seguro/requirements.md:27-31: RF-01 e RN-10 exigem suporte a CALLBACK_WEBHOOK_URL no banco de dados com fallback seguro quando ausente em variáveis de ambiente"
+
+- finding_id: F2-SPEC-03
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Conformidade com spec"
+  summary: "Mecanismo de idempotência em Writer.execute_writer impede retentativa de despacho de webhook para dossiês já gerados, mesmo quando webhook_status registra falha."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["spec-divergence?", "operational-risk?"]
+  evidence:
+    - "app/core/writer.py:66-88: if pesquisa.dossier_final: retorna imediatamente o payload salvo sem acionar self.webhook_client.send_webhook"
+    - "app/core/writer.py:69: atribui webhook_status = pesquisa.webhook_status or 'nao_aplicavel', deixando webhook com status falha_definitiva permanentemente sem reenvio"
+    - "_reversa_forward/002-pipeline-autonomo-seguro/requirements.md:73: RNF-03 estabelece que a falha no envio do webhook não descarta o dossiê, mas a impossibilidade de retry após falha bloqueia a entrega externa"
+
+- finding_id: F2-DATA-01
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Fluxo de dados"
+  summary: "Método update_research_dossier sobrescreve incondicionalmente o timestamp concluido_em a cada atualização de telemetria do webhook, corrompendo a auditoria temporal."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["data-corruption?", "operational-risk?"]
+  evidence:
+    - "app/db/research_repository.py:88: pesquisa.concluido_em = datetime.now(timezone.utc).isoformat() é atribuído incondicionalmente a cada chamada"
+    - "app/core/writer.py:207-208: primeira gravação do dossiê gera concluido_em antes do despacho ao webhook"
+    - "app/core/writer.py:230: concluido_em original é enviado no payload assinado do webhook"
+    - "app/core/writer.py:244: segunda gravação após o webhook chama update_research_dossier novamente, alterando o concluido_em persistido no banco para um timestamp posterior"
+
+- finding_id: F2-DATA-02
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Fluxo de dados"
+  summary: "Inconsistência de tipo e representação de dados para webhook_resposta entre a gravação no WebhookClient (texto puro) e no Writer (JSON serializado)."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["data-corruption?"]
+  evidence:
+    - "app/services/webhook_client.py:99-100: _update_repo_status atribui pesquisa.webhook_resposta = resposta (string bruta do corpo HTTP retornado)"
+    - "app/core/writer.py:249: update_research_dossier atribui webhook_resposta = json.dumps(res_webhook, ensure_ascii=False) (dicionário serializado com status, código HTTP e erro)"
+    - "app/db/models.py:48: coluna webhook_resposta é Text genérico sem definição explícita de formato estruturado"
+
+- finding_id: F2-DATA-03
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Fluxo de dados"
+  summary: "Timestamps ISO 8601 gerados com microssegundos e timezone UTC possuem até 32 caracteres, excedendo a largura de colunas String(30) no modelo Pesquisa."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["data-corruption?", "operational-risk?"]
+  evidence:
+    - "app/db/models.py:38,40: criado_em: Mapped[str] = mapped_column(String(30)) e concluido_em: Mapped[Optional[str]] = mapped_column(String(30))"
+    - "app/db/research_repository.py:42,88: datetime.now(timezone.utc).isoformat() produz formato '2026-10-22T23:59:59.123456+00:00' (32 caracteres)"
+    - "app/db/session.py:15-32: SQLite em modo relaxado aceita sobretamanho, mas migrações para PostgreSQL ou drivers com checagem rígida causarão falha de integridade DataError"
+
+- finding_id: F2-CONTRACT-01
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Contratos e integrações"
+  summary: "WebhookClient classifica respostas HTTP 4xx (exceto 429) como 'entregue', mascarando rejeições e erros de contrato de webhook como entregas bem-sucedidas."
+  confidence: "alta"
+  suspected_severity: "critical"
+  signals: ["operational-risk?", "security?"]
+  evidence:
+    - "app/services/webhook_client.py:146-150: if res.status_code in (429, 500, 502, 503, 504) or res.is_server_error: res.raise_for_status() ignora códigos 400, 401, 403, 404, 422"
+    - "app/services/webhook_client.py:150: linha imediatamente subsequente executa status_result = 'entregue' e persiste no banco"
+    - "_reversa_forward/002-pipeline-autonomo-seguro/requirements.md:73: RNF-03 exige garantia de integridade da telemetria de entrega do webhook"
+    - "app/core/writer.py:237: webhook_status assume 'entregue' mesmo se o receptor externo recusou a requisição com 400 Bad Request ou 401 Unauthorized"
+
+- finding_id: F2-CONTRACT-02
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Contratos e integrações"
+  summary: "Ausência de WEBHOOK_HMAC_SECRET no ambiente faz o pipeline concluir com sucesso sem disparar o webhook solicitado nem alertar erro de integração."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk?"]
+  evidence:
+    - "app/core/pipeline_runner.py:84-91: webhook_client é instanciado como None se webhook_secret for ausente ou vazio"
+    - "app/core/writer.py:221-252: bloco if self.webhook_client and target_url: é ignorado silenciosamente quando webhook_client é None"
+    - "app/core/writer.py:216: webhook_status permanece como 'pendente_reenvio' sem tentativa real de conexão e sem notificar falha em erro_pipeline"
+    - "app/core/pipeline_runner.py:157: repo.update_pipeline_status(id_pesquisa, 'concluido') encerra a execução sem acusar o descumprimento do contrato de callback"
+
+- finding_id: F2-ERR-01
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Estados de erro e edge cases"
+  summary: "Falha de persistência SQLAlchemy deixa sessão em estado de rollback pendente, impedindo PipelineRunner de registrar status 'falha' e causando falha silenciosa."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk?", "intermittency?"]
+  evidence:
+    - "app/core/pipeline_runner.py:54: async with session_factory() as db: mantém a mesma sessão durante toda a execução"
+    - "app/core/pipeline_runner.py:161-172: bloco except Exception as exc: invoca await repo.update_pipeline_status(...) sem chamar await db.rollback() prévio"
+    - "sqlalchemy.exc.PendingRollbackError: disparado se a exceção original ocorreu durante operação de banco, impedindo a gravação do status 'falha' e deixando o registro congelado em 'buscando', 'auditando' ou 'redigindo'"
+
+- finding_id: F2-ERR-02
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Estados de erro e edge cases"
+  summary: "Confirmação de conformidade: re-raise de NO_EVIDENCE_COLLECTED na linha 150 de PipelineRunner interrompe corretamente retries inúteis e registra falha estruturada."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["operational-risk?"]
+  evidence:
+    - "app/core/pipeline_runner.py:149-151: if 'NO_EVIDENCE_COLLECTED' in str(w_exc) or w_attempt == 3: raise"
+    - "app/core/pipeline_runner.py:172: await repo.update_pipeline_status(id_pesquisa, 'falha', erro_pipeline=erro_msg) grava a causa exata no banco"
+    - "_reversa_forward/002-pipeline-autonomo-seguro/requirements.md:65-68: RF-08 estipula que a ausência de evidências é falha determinística que dispensa retentativas"
+
+- finding_id: F2-ERR-03
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Estados de erro e edge cases"
+  summary: "Condição de parada atingiu_teto usa operador any() interrompendo prematuramente o ciclo de busca de pontos viáveis assim que um único ponto atinge o limite."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk?", "spec-divergence?"]
+  evidence:
+    - "app/core/pipeline_runner.py:135: atingiu_teto = any((p.tentativas or 0) >= 4 or (p.tentativas_auditoria or 0) >= 3 for p in pontos)"
+    - "app/core/pipeline_runner.py:136: if atingiu_teto or ciclo == max_ciclos: break interrompe o for de busca/auditoria para todos os pontos da pesquisa"
+    - "_reversa_forward/002-pipeline-autonomo-seguro/requirements.md:46-49: RF-05 estipula retentativas de busca até 4 passagens por ponto; interrupção global por um único ponto falho degrada o acervo de evidências dos demais pontos"
+
+- finding_id: F2-TEST-01
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Cobertura de testes"
+  summary: "Inexistência de testes que executem o ciclo completo de PipelineRunner em background até a conclusão de status e despacho de webhook."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["coverage-gap", "operational-risk?"]
+  evidence:
+    - "tests/integration/test_pipeline_autonomo.py:46-73: test_async_pipeline_execution_and_status dispara POST /api/v1/plan e consulta status imediatamente após receber 202, finalizando sem aguardar a conclusão do runner em background"
+    - "tests/unit/: nenhum arquivo test_pipeline_runner.py existe no projeto"
+    - "_reversa_forward/002-pipeline-autonomo-seguro/roadmap.md:44-46: Fase 3 estipula 'Testes unitários do runner com mocks' e cobertura de transição de status completa"
+
+- finding_id: F2-TEST-02
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Cobertura de testes"
+  summary: "Ausência de teste para status HTTP 4xx no WebhookClient, encobrindo o bug de falso-positivo que classifica erros de cliente como entrega bem-sucedida."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["coverage-gap", "operational-risk?"]
+  evidence:
+    - "tests/unit/test_webhook_client.py:27-149: suíte testa apenas 200 OK, 500 com retries e 429 com backoff"
+    - "tests/unit/test_webhook_client.py: não possui nenhum caso de teste simulando resposta HTTP 400, 401, 403 ou 404 do servidor de webhook"
+    - "app/services/webhook_client.py:146-150: código falho que trata 4xx como entregue passou ileso na suíte de testes devido a essa lacuna"
+
+- finding_id: F2-TEST-03
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Cobertura de testes"
+  summary: "Inexistência de testes para resolução de API_SECRET_KEY via banco de dados cifrado (CredentialsRepository) na dependência verify_api_key."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["coverage-gap", "security?"]
+  evidence:
+    - "tests/unit/test_security.py:1-125: testa autenticação apenas com chave configurada em variável de ambiente ou settings"
+    - "app/core/security.py:36: configured_key = await resolve_key(db, 'API_SECRET_KEY') nunca é exercitado com chave válida no banco cifrado nem com falha de descriptografia"
+    - "_reversa_forward/002-pipeline-autonomo-seguro/requirements.md:32-37: RF-02 e RN-10 definem precedência de chaves de ambiente e banco cifrado"
+
+- finding_id: F2-CONC-01
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Concorrência e consistência"
+  summary: "Sessão AsyncSession do SQLAlchemy mantida aberta continuamente ao longo de múltiplos ciclos de rede (busca, auditoria e redação), elevando risco de locks."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk?", "intermittency?"]
+  evidence:
+    - "app/core/pipeline_runner.py:53-54: session_factory = get_sessionmaker(); async with session_factory() as db: engloba todo o loop de execução"
+    - "app/core/pipeline_runner.py:119-157: a mesma sessão executa transações intercaladas com dezenas de requisições externas lentas (Jina e LLMs) durante minutos"
+    - "app/db/session.py:15-32: SQLite em WAL mode gerencia leituras concorrentes, mas manter conexões de escrita ativas por períodos prolongados pode desencadear SQLite busy timeout sob carga"
+
+- finding_id: F2-CONC-02
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Concorrência e consistência"
+  summary: "Conjunto seen_urls compartilhado entre todos os pontos da pesquisa na busca pode esvaziar URLs lidas de pontos posteriores e acionar falso STATUS_FALHA_COLETA."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["data-corruption?", "operational-risk?"]
+  evidence:
+    - "app/core/searcher.py:149-151: seen_urls: Set[str] = set(urls_lidas_existentes) é compartilhado por todos os pontos processados na iteração"
+    - "app/core/searcher.py:302-305: se as mesmas URLs forem encontradas em pontos subsequentes, is_new é False e as URLs não são adicionadas a persona_read_urls"
+    - "app/core/searcher.py:453: falha_coleta = len(urls_lidas_dedup) == 0 faz o ponto ser classificado como 'falha_coleta' mesmo que conteúdo relevante tenha sido aproveitado do cache"
+
+- finding_id: F2-SEG-01
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Segurança e autorização"
+  summary: "Comportamento fail-open em verify_api_key permite acesso não autenticado irrestrito a todos os endpoints /api/v1 caso API_SECRET_KEY esteja ausente ou falhe na decriptografia."
+  confidence: "alta"
+  suspected_severity: "critical"
+  signals: ["security?", "operational-risk?"]
+  evidence:
+    - "app/core/security.py:38-40: if not configured_key or not str(configured_key).strip(): return True libera qualquer requisição anônima"
+    - "app/services/credential_resolver.py:37-39: resolve_key suprime ValueError e retorna None caso a descriptografia do banco falhe por erro na chave mestra"
+    - "app/api/v1/router.py:11: api_router aplica verify_api_key como dependência única; seu retorno True abre endpoints críticos como /api/v1/admin/credentials para qualquer cliente externo sem autenticação"
+    - "_reversa_forward/002-pipeline-autonomo-seguro/requirements.md:32-35: RF-02 menciona modo aberto apenas para desenvolvimento local, mas o código aplica fail-open incondicional inclusive em produção"
+
+- finding_id: F2-SEG-02
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Segurança e autorização"
+  summary: "Exposição da chave secreta WEBHOOK_HMAC_SECRET em texto claro via endpoint administrativo devido a falha na regra de mascaramento para tipo 'webhook'."
+  confidence: "alta"
+  suspected_severity: "critical"
+  signals: ["security?"]
+  evidence:
+    - "app/db/credentials_repository.py:121-122: if tipo == 'webhook' or value.startswith('http://') or value.startswith('https://'): return value"
+    - "app/schemas/admin.py:118-119: mask_secret aplica a mesma regra: credenciais com tipo 'webhook' são retornadas intactas sem máscara"
+    - "_reversa_forward/002-pipeline-autonomo-seguro/requirements.md:27-31: RF-01 exige leitura mascarada de WEBHOOK_HMAC_SECRET no endpoint GET /api/v1/admin/credentials"
+    - "Risco direto: vazamento do segredo HMAC permite que terceiros forjem assinaturas X-Signature válidas e comprometam a integridade dos serviços consumidores de webhooks"
+
+- finding_id: F2-OBS-01
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Observabilidade"
+  summary: "WebhookClient executa retentativas de despacho sem emissão de logs ou métricas de latência e resposta HTTP intermediária."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk?"]
+  evidence:
+    - "app/services/webhook_client.py:137-171: loop de tentativas for attempt in range(1, max_attempts + 1) não realiza chamadas a logger.info ou logger.warning para registrar tentativas com falha ou tempos de resposta"
+    - "app/services/webhook_client.py:164-170: captura de HTTPStatusError e TransportError dorme o backoff silenciosamente sem visibilidade operacional"
+    - "_reversa_forward/002-pipeline-autonomo-seguro/requirements.md:73: RNF-03 e RNF-06 demandam observabilidade sobre o ciclo de retentativas de webhook"
+
+- finding_id: F2-OBS-02
+  feature: 002-pipeline-autonomo-seguro
+  lens: "Observabilidade"
+  summary: "Ausência de propagação de Correlation ID / Request ID da requisição HTTP para a rotina em segundo plano de PipelineRunner."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["operational-risk?"]
+  evidence:
+    - "app/api/v1/endpoints/plan.py:121: background_tasks.add_task(runner.run, pesquisa.id_pesquisa, payload.callback_url) repassa apenas o id da pesquisa e a URL"
+    - "app/core/pipeline_runner.py:51-174: logs utilizam apenas id_pesquisa sem identificador de correlação de rastreabilidade distribuída, dificultando a correlação de logs entre o gateway HTTP e a tarefa assíncrona"

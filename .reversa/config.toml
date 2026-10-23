@@ -1,7 +1,19 @@
+[project]
+name = "deep-research"
+created_at = "2026-10-21T18:20:00Z"
+
+[user]
+name = "eliezer"
+chat_language = "pt-br"
+doc_language = "Português"
+
+[output]
+folder = "_reversa_sdd"
+forward_folder = "_reversa_forward"
+
 [specs]
 layout = "feature-folder"
-granularity = "feature"
+granularity = "endpoint"
 custom_folders = []
 scout_suggestion = ""
-decided_at = "2026-10-05T04:20:00Z"
-doc_level = "completo"
+decided_at = "2026-10-21T18:20:00Z"

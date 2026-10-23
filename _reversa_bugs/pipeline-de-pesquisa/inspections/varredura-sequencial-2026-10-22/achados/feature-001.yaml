@@ -1,0 +1,496 @@
+# Achados da Feature 001 - Pesquisa Profunda MVP (endpoint /plan)
+# Varredura sequencial Reversa - 2026-10-22
+# Fonte: trabalho de lentes pre-compaction recuperado de scratch; evidencia por arquivo:linha
+# Status: diagnostico apenas. Nenhuma correcao aplicada.
+
+- finding_id: F-SPEC-01
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Conformidade com spec"
+  summary: "Prompt de sistema do planejador possui texto literal hardcoded e ignora configurações dinâmicas de PERSONAS_CONFIG, violando a RN-02."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["spec-divergence?"]
+  evidence:
+    - "app/core/planner.py:89-95: system_prompt contém string literal fixa ('Você é a persona planejador do sistema Deep Research...') sem interpolação de persona dinâmica"
+    - "app/core/planner.py:53-59: self.personas é carregado de PERSONAS_CONFIG mas apenas valida a presença da string 'planejador', descartando seu conteúdo"
+    - "_reversa_forward/001-pesquisa-profunda-mvp/requirements.md:55-58: RN-02 exige carregar a definição das personas exclusivamente do ambiente/banco sem valores embutidos em código"
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:51-52: NG-04 proíbe explicitamente fallbacks hardcoded no sistema"
+    - "app/core/planner.py:89-95: system_prompt contém string literal fixa (''Você é a persona planejador do sistema Deep Research...'') sem interpolação de persona dinâmica"
+    - "app/core/planner.py:53-59: self.personas é carregado de PERSONAS_CONFIG mas apenas valida a presença da string ''planejador'', descartando seu conteúdo"
+
+- finding_id: F-SPEC-02
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Conformidade com spec"
+  summary: "Consulta Jina SERP é disparada diretamente pelo backend com query estática sem disponibilizar ferramenta ao LLM para formulação de queries exploratórias."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["spec-divergence?"]
+  evidence:
+    - "app/core/planner.py:79: serp_results = await self.jina_client.search(query=tema_limpo) é executado estaticamente em Python com o tema cru antes de qualquer inferência"
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:82: RF-04 estipula que o sistema deve acionar o LLM com persona planejador e disponibilizar a ferramenta Jina SERP para formulação de queries exploratórias"
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:90-91: Seção 6.2 detalha que o modelo invoca a ferramenta Jina SERP enviando query derivada do tema e recebe títulos e resumos"
+    - "_reversa_sdd/prd.md:84: RF-001 estipula LLM + tool Jina SERP onde o LLM formula a query e escolhe os N pontos"
+
+- finding_id: F-SPEC-03
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Conformidade com spec"
+  summary: "Tema com menos de 5 caracteres é interceptado pelo Pydantic retornando HTTP 422, contrariando a especificação de edge cases que determina HTTP 400."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["spec-divergence?"]
+  evidence:
+    - "app/schemas/plan.py:56-61: PlanRequest.tema valida min_length=5 e dispara RequestValidationError antes do endpoint"
+    - "app/main.py:81-87: validation_exception_handler mapeia erros do Pydantic para HTTP 422 Unprocessable Entity"
+    - "app/core/planner.py:73-74: validação len(tema_limpo) < 5 que lançaria ValueError (tratado como 400 pelo endpoint) torna-se código morto via HTTP"
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:175: EC-01 especifica que entrada com menos de 5 caracteres retorna HTTP 400 informando que o tema deve conter descrição suficiente"
+    - "_reversa_forward/001-pesquisa-profunda-mvp/interfaces/endpoint-plan.md:89: tabela de erros mapeia tema < 5 caracteres como HTTP 400 Bad Request (VALIDATION_ERROR)"
+
+- finding_id: F-SPEC-04
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Conformidade com spec"
+  summary: "O schema PlanRequest não expõe o campo pontos_textos, impedindo a flexibilidade de 1 ou N pontos prometida no adendo vigente."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["spec-divergence?"]
+  evidence:
+    - "app/schemas/plan.py:53-74: PlanRequest declara apenas tema, id_pesquisa, async_execute e callback_url, omitindo pontos_textos"
+    - "app/core/planner.py:64-68: Planner.execute_plan aceita apenas tema e id_pesquisa, forçando sempre a geração de self.n_pontos pelo LLM"
+    - "app/db/research_repository.py:25-34: create_research implementa suporte completo a pontos_textos: List[str] com qualquer quantidade de pontos (1 ou N)"
+    - "_reversa_sdd/addenda/001-pesquisa-profunda-mvp.md:21: adendo normativo declara expressamente 'Implementado POST /api/v1/plan com suporte a 1 ou N pontos e LLM Step 5'"
+    - "_reversa_sdd/addenda/001-pesquisa-profunda-mvp.md:21: adendo normativo declara expressamente ''Implementado POST /api/v1/plan com suporte a 1 ou N pontos e LLM Step 5"
+
+- finding_id: F-SPEC-05
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Conformidade com spec"
+  summary: "Envio de id_pesquisa pré-existente gera violação de chave primária no banco (IntegrityError/HTTP 500) em vez de reaproveitar o registro conforme Fluxo Alternativo A."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["spec-divergence?", "operational-risk?"]
+  evidence:
+    - "app/core/planner.py:124-128: repassa id_pesquisa recebido diretamente para create_research, contendo apenas comentário ponytail de reaproveitamento"
+    - "app/db/research_repository.py:36-44: instancia e adiciona novo objeto Pesquisa com o id_pesquisa sem verificar existência nem efetuar merge, estourando erro de unicidade no SQLite"
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:98-101: Fluxo Alternativo A exige verificar existência prévia na tabela pesquisa e vincular novos pontos ao ID fornecido"
+    - "_reversa_forward/001-pesquisa-profunda-mvp/interfaces/endpoint-plan.md:98: estipula que o envio de um id_pesquisa pré-existente reaproveita a pesquisa existente de forma idempotente"
+
+- finding_id: F-SPEC-06
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Conformidade com spec"
+  summary: "Divergência quantitativa ou estrutural na resposta do LLM resulta em HTTP 400 ou 502 sem rotina de correção sintática, violando EC-04."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["spec-divergence?"]
+  evidence:
+    - "app/core/planner.py:118-122: se len(pontos) != self.n_pontos lança ValueError sem rotina de correção ou re-prompting"
+    - "app/api/v1/endpoints/plan.py:99-102: captura ValueError decorrente de pontos inválidos do modelo e retorna HTTP 400 Bad Request ao cliente"
+    - "app/api/v1/endpoints/plan.py:87-91: captura JSONDecodeError e levanta HTTP 502 Bad Gateway"
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:178: EC-04 estipula que em falha de parser JSON o sistema deve acionar rotina de correção sintática e retornar HTTP 500 caso persista"
+
+- finding_id: F-SPEC-07
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Conformidade com spec"
+  summary: "Endpoint retorna HTTP 201/202 e inclui campos não contratados na resposta síncrona original da Etapa 1."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["spec-divergence?"]
+  evidence:
+    - "app/api/v1/endpoints/plan.py:44: @router.post('/plan', status_code=status.HTTP_201_CREATED) e linha 119 alterando para HTTP 202 com PlanAsyncResponse"
+    - "app/schemas/plan.py:35-46,102-105: PlanResponse inclui status_pipeline e PlanPontoItem inclui pontos_fracos, reasoning_planejamento e reasoning_auditoria"
+    - "_reversa_forward/001-pesquisa-profunda-mvp/interfaces/endpoint-plan.md:41-80: contrato formal do endpoint para o MVP define resposta limpa sem campos de reasoning nem status_pipeline na Etapa 1"
+    - "app/api/v1/endpoints/plan.py:44: @router.post(''/plan'', status_code=status.HTTP_201_CREATED) e linha 119 alterando para HTTP 202 com PlanAsyncResponse"
+
+- finding_id: F-DATA-01
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Fluxo de dados"
+  summary: "Conversão incorreta de valores nulos da SERP para string literal 'None' e ausência de limite de tamanho em metadados"
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["data-corruption", "operational-risk"]
+  evidence:
+    - "app/tools/jina_client.py:144-147"
+    - "'title': str(item.get('title', '')), 'url': str(item.get('url', '')), 'description': str(item.get('description', '') or item.get('snippet', ''))"
+
+- finding_id: F-DATA-02
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Fluxo de dados"
+  summary: "Concatenação cega de snippets vazios e ausência de tratamento contextual para busca SERP com zero resultados"
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["operational-risk"]
+  evidence:
+    - "app/core/planner.py:80-86"
+    - "for item in serp_results: ... snippets.append(f'- Título: {t}\\n  URL: {u}\\n  Resumo: {d}'); serp_context = '\\n'.join(snippets)"
+
+- finding_id: F-DATA-03
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Fluxo de dados"
+  summary: "Ausência de validação estrutural individual de títulos/enunciados para os pontos retornados pelo LLM"
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["data-corruption"]
+  evidence:
+    - "app/core/planner.py:112-117"
+    - "pontos = [str(p).strip() for p in pontos_raw if str(p).strip()]"
+
+- finding_id: F-DATA-04
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Fluxo de dados"
+  summary: "Falta de sanitização de caracteres de controle e de limite de comprimento para o tema na camada de repositório"
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["operational-risk"]
+  evidence:
+    - "app/db/research_repository.py:31-42"
+    - "if not tema or not tema.strip(): raise ValueError(...) e tema=tema.strip()"
+
+- finding_id: F-DATA-05
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Fluxo de dados"
+  summary: "Incompatibilidade de tamanho entre timestamps ISO 8601 com microssegundos e fuso horário (32 caracteres) e coluna String(30)"
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["data-corruption", "operational-risk"]
+  evidence:
+    - "app/db/models.py:38,86"
+    - "criado_em: Mapped[str] = mapped_column(String(30), nullable=False) vs datetime.now(timezone.utc).isoformat() (32 chars)"
+
+- finding_id: F-CONTRACT-01
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Contratos e integrações"
+  summary: "Desalinhamento de contrato: spec exige LLM forte para planejamento, mas Planner invoca model_type light"
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk"]
+  evidence:
+    - "app/core/planner.py:106-110"
+    - "await self.llm_client.generate_json(model_type='light', messages=messages, return_reasoning=True) vs _reversa_sdd/addenda/001-pesquisa-profunda-mvp.md:12"
+
+- finding_id: F-CONTRACT-02
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Contratos e integrações"
+  summary: "Falhas de rede e timeouts em JinaClient._request não realizam retries nem são mapeadas em JinaError"
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["intermittency?", "operational-risk?"]
+  evidence:
+    - "app/tools/jina_client.py:88-99"
+    - "res = await self._client.get(url, headers=headers) executado sem bloco try-except para capturar TransportError ou Timeout"
+
+- finding_id: F-CONTRACT-03
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Contratos e integrações"
+  summary: "Falhas HTTP 4xx do LLM em modo streaming mascaradas como erro genérico de stream vazio sem capturar corpo de erro"
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk"]
+  evidence:
+    - "app/tools/llm_client.py:164,215-216"
+    - "if res.status_code in (429, 500, 502, 503, 504) or res.is_server_error: res.raise_for_status() e raise RuntimeError('LLM stream finalizou sem emitir nenhum conteúdo.')"
+
+- finding_id: F-CONTRACT-04
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Contratos e integrações"
+  summary: "Erros de formato e contagem gerados pelo LLM são convertidos em HTTP 400 Bad Request atribuindo falha ao cliente"
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk"]
+  evidence:
+    - "app/api/v1/endpoints/plan.py:92-102"
+    - "except ValueError as exc: ... raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)"
+
+- finding_id: F-CONTRACT-05
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Contratos e integrações"
+  summary: "Método JinaClient.read não valida respostas de erro encapsuladas em HTTP 200 retornando JSON como markdown"
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["data-corruption", "operational-risk"]
+  evidence:
+    - "app/tools/jina_client.py:166-169"
+    - "res = await self._request(url, headers); return res.text sem inspecionar código de erro interno"
+
+- finding_id: F-CONTRACT-06
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Contratos e integrações"
+  summary: "Injeção incondicional de pesquisa impede reutilização anunciada de id_pesquisa gerando IntegrityError no banco"
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk"]
+  evidence:
+    - "app/db/research_repository.py:44,60"
+    - "self.session.add(pesquisa); await self.session.commit() vs app/core/planner.py:124"
+
+- finding_id: F-ERR-01
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Estados de erro e edge cases"
+  summary: "Falha de rede ou timeout no JinaClient não possui retry nem captura no endpoint, retornando HTTP 500 genérico em vez de 502/504."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["intermittency", "operational-risk"]
+  evidence:
+    - "app/tools/jina_client.py:88"
+    - "app/api/v1/endpoints/plan.py:87-103"
+    - "app/main.py:120-126"
+
+- finding_id: F-ERR-02
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Estados de erro e edge cases"
+  summary: "Jina SERP retornando zero resultados não interrompe o fluxo e gera plano alucinado sem fundamentação em metadados."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["data-corruption", "operational-risk"]
+  evidence:
+    - "app/tools/jina_client.py:135"
+    - "app/core/planner.py:79-87"
+
+- finding_id: F-ERR-03
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Estados de erro e edge cases"
+  summary: "Ausência de PERSONAS_CONFIG é classificada erroneamente como HTTP 400 Bad Request em vez de HTTP 500 CONFIG_ERROR."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk"]
+  evidence:
+    - "app/services/credential_resolver.py:43-46"
+    - "app/core/planner.py:50-60"
+    - "app/api/v1/endpoints/plan.py:92-102"
+
+- finding_id: F-ERR-04
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Estados de erro e edge cases"
+  summary: "Endpoint plan não captura IntegrityError do SQLAlchemy, retornando HTTP 500 opaco quando id_pesquisa já existe."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk"]
+  evidence:
+    - "app/db/research_repository.py:36-62"
+    - "app/core/planner.py:124-130"
+    - "app/api/v1/endpoints/plan.py:87-103"
+
+- finding_id: F-ERR-05
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Estados de erro e edge cases"
+  summary: "Falta de sanitização contra caracteres de controle e nulos no tema pode truncar registros ou quebrar integrações."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["data-corruption", "operational-risk"]
+  evidence:
+    - "app/schemas/plan.py:56-61"
+    - "app/core/planner.py:70-76"
+    - "app/db/research_repository.py:41"
+
+- finding_id: F-ERR-06
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Estados de erro e edge cases"
+  summary: "Autenticação opera em fail-open permitindo acesso anônimo total se API_SECRET_KEY não for configurada."
+  confidence: "alta"
+  suspected_severity: "critical"
+  signals: ["security", "operational-risk"]
+  evidence:
+    - "app/core/security.py:38-40"
+    - "app/api/v1/router.py:11"
+
+- finding_id: F-CONC-01
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Concorrência e consistência"
+  summary: "Ausência de chave de idempotência ou trava para requisições concorrentes com o mesmo tema gera duplicatas e consumo duplicado de LLM/SERP."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk", "data-corruption"]
+  evidence:
+    - "app/api/v1/endpoints/plan.py:44-86"
+    - "app/db/models.py:36-37"
+    - "app/db/research_repository.py:36-44"
+
+- finding_id: F-CONC-02
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Concorrência e consistência"
+  summary: "Chamadas concorrentes com id_pesquisa idêntico pré-fornecido colidem em chave primária sem tratamento de corrida."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["intermittency", "operational-risk"]
+  evidence:
+    - "app/db/research_repository.py:36-62"
+    - "app/db/models.py:36"
+    - "app/core/planner.py:124"
+
+- finding_id: F-CONC-03
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Concorrência e consistência"
+  summary: "Pesquisa e pontos já commitados permanecem órfãos no SQLite se falhar a listagem ou despacho do background task no endpoint."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["data-corruption", "operational-risk"]
+  evidence:
+    - "app/api/v1/endpoints/plan.py:82-121"
+    - "app/db/research_repository.py:60-61"
+
+- finding_id: F-CONC-04
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Concorrência e consistência"
+  summary: "Cache lru_cache em get_settings não invalida alterações de configuração em runtime e gera inconsistência entre requests."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["intermittency", "operational-risk"]
+  evidence:
+    - "app/config.py:57-60"
+    - "app/core/planner.py:36-53"
+    - "app/services/credential_resolver.py:12-29"
+
+- finding_id: F-CONC-05
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Concorrência e consistência"
+  summary: "Interrupção do servidor ou cancelamento assíncrono deixa status_pipeline permanentemente preso em estágio intermediário sem mecanismo de recuperação."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["data-corruption", "operational-risk"]
+  evidence:
+    - "app/core/pipeline_runner.py:121-173"
+    - "app/main.py:48-53"
+    - "app/api/v1/endpoints/plan.py:121"
+
+- finding_id: F-CONC-06
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Concorrência e consistência"
+  summary: "Ausência de rollback explícito em create_research deixa sessão do SQLAlchemy em estado dirty se commit falhar antes do fechamento."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["operational-risk"]
+  evidence:
+    - "app/db/research_repository.py:44-62"
+    - "app/db/session.py:70-75"
+
+- finding_id: F-TEST-01
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Cobertura de testes"
+  summary: "Ausência de teste para envio de id_pesquisa pré-existente (Fluxo Alternativo A da spec), ocultando que create_research tenta reinserir a PK e estoura IntegrityError."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["coverage-gap", "operational-risk"]
+  evidence:
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:98-101"
+    - "app/core/planner.py:124-128"
+    - "app/db/research_repository.py:36-45"
+    - "tests/unit/test_domain_modules.py:16-45"
+    - "tests/integration/test_endpoints.py:45-60"
+
+- finding_id: F-TEST-02
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Cobertura de testes"
+  summary: "O teste unitário do Planner injeta n_pontos=5 manualmente no construtor e depende de mock com lista estática de 5 itens, não provando resolução nem flexibilidade de N."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["coverage-gap"]
+  evidence:
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:33,81"
+    - "tests/unit/test_domain_modules.py:33"
+    - "tests/mocks/http_mock.py:151-160"
+    - "app/core/planner.py:33-48,119"
+
+- finding_id: F-TEST-03
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Cobertura de testes"
+  summary: "Não há teste simulando resposta corrompida, texto livre ou formato não-JSON do LLM na etapa de planejamento (EC-04 / RF-05)."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["coverage-gap", "operational-risk"]
+  evidence:
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:83,178"
+    - "app/core/planner.py:112-115"
+    - "app/api/v1/endpoints/plan.py:87-91"
+    - "tests/unit/test_domain_modules.py:16-45"
+    - "tests/unit/test_llm_client.py:75-96"
+
+- finding_id: F-TEST-04
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Cobertura de testes"
+  summary: "Não existe teste para Jina SERP retornando vazio ou erro de indisponibilidade durante o planejamento (EC-02)."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["coverage-gap", "operational-risk"]
+  evidence:
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:165,176"
+    - "app/core/planner.py:79-87"
+    - "app/api/v1/endpoints/plan.py:87-103"
+    - "tests/unit/test_domain_modules.py:16-45"
+
+- finding_id: F-TEST-05
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Cobertura de testes"
+  summary: "Não há teste para timeout operacional de 600s de chamadas externas nem tratamento para HTTP 504 no endpoint de plano (RNF-02, EC-03)."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["coverage-gap", "operational-risk"]
+  evidence:
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:109,177"
+    - "app/api/v1/endpoints/plan.py:87-103"
+    - "tests/integration/test_edge_cases.py:14-83"
+
+- finding_id: F-TEST-06
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Cobertura de testes"
+  summary: "Não há teste validando a recusa do Planner caso a persona obrigatória 'planejador' esteja ausente de PERSONAS_CONFIG (RF-04)."
+  confidence: "alta"
+  suspected_severity: "low"
+  signals: ["coverage-gap"]
+  evidence:
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:59,82"
+    - "app/core/planner.py:58-60"
+    - "tests/unit/test_domain_modules.py:16-45"
+    - "tests/integration/test_edge_cases.py:14-83"
+
+- finding_id: F-TEST-07
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Cobertura de testes"
+  summary: "Inexistência de testes unitários isolados com mocks injetados para o handler FastAPI create_plan em app/api/v1/endpoints/plan.py."
+  confidence: "média"
+  suspected_severity: "low"
+  signals: ["coverage-gap"]
+  evidence:
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:79,119,125"
+    - "app/api/v1/endpoints/plan.py:44-139"
+    - "tests/integration/test_endpoints.py:45-60"
+
+- finding_id: F-OBS-01
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Observabilidade"
+  summary: "Ausência completa de logging em app/core/planner.py, impossibilitando rastrear id_pesquisa, tempo de resposta e fluxo de planejamento."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk"]
+  evidence:
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:188"
+    - "app/core/planner.py:9-16"
+    - "app/core/planner.py:64-131"
+
+- finding_id: F-OBS-02
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Observabilidade"
+  summary: "O cliente LLM descarta completamente os dados de consumo de tokens (usage) e métricas de tempo de inferência retornado pela API."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk"]
+  evidence:
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:196"
+    - "app/tools/llm_client.py:232-241"
+    - "app/tools/llm_client.py:153-219"
+
+- finding_id: F-OBS-03
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Observabilidade"
+  summary: "Retries automáticos com backoff exponencial no LLMClient ocorrem em silêncio absoluto sem warnings ou métricas de degradação transitória."
+  confidence: "alta"
+  suspected_severity: "medium"
+  signals: ["operational-risk"]
+  evidence:
+    - "app/tools/llm_client.py:243-249"
+
+- finding_id: F-OBS-04
+  feature: 001-pesquisa-profunda-mvp
+  lens: "Observabilidade"
+  summary: "O endpoint POST /api/v1/plan não emite logs estruturados contendo id_pesquisa, duração e status gerados, violando a Seção 12 da spec."
+  confidence: "alta"
+  suspected_severity: "high"
+  signals: ["operational-risk"]
+  evidence:
+    - "_reversa_sdd/sdd/endpoint-plano-de-investigacao.md:188"
+    - "app/api/v1/endpoints/plan.py:44-139"
