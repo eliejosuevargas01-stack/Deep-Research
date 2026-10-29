@@ -1,27 +1,13 @@
 import React, { Suspense } from 'react';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  PenTool,
-  RefreshCw,
-  ShieldCheck,
-  XCircle,
-} from 'lucide-react';
-import type { AuditItem, AuditResponse, PlanResponse, SearchResponse } from '../types/api';
+import { ChevronDown, RefreshCw, ShieldCheck } from 'lucide-react';
+import type { AuditCriterionDetail, AuditItem, AuditResponse, PlanResponse, SearchResponse } from '../types/api';
 import type { ReasoningFeedItem } from '../types/stream';
 import '../styles/linear-timeline.css';
-import { PersonaIcon } from './ResearchIcons';
+import { ConvergenceLogo, PersonaIcon } from './ResearchIcons';
+import type { PersonaType } from './ResearchIcons';
 import { Favicon } from './Favicon';
 
-
 const MarkdownBody = React.lazy(() => import('./ReasoningMarkdownBody'));
-
-export interface TimelineNodeAction {
-  ponto_id: string;
-  ponto_n: number;
-  reprovado: boolean;
-  emReprocesso: boolean;
-}
 
 export interface LinearTimelineProps {
   plan?: PlanResponse | null;
@@ -40,23 +26,14 @@ function nomePersona(id: string): string {
     visionario: 'Visionário',
     cetico: 'Cético',
     futurista: 'Futurista',
+    auditor: 'Auditor',
+    planejador: 'Planejador',
+    redator: 'Redator',
   };
   return mapa[id.toLowerCase()] ?? id;
 }
 
-/** Classe da pílula cromática por persona (item 1 da crítica: logs com identidade). */
-function classePersona(agentName: string): string {
-  const n = agentName.toLowerCase();
-  if (n.includes('historiador')) return 'tl-pill-historiador';
-  if (n.includes('vision')) return 'tl-pill-visionario';
-  if (n.includes('cetico') || n.includes('cético')) return 'tl-pill-cetico';
-  if (n.includes('futurista')) return 'tl-pill-futurista';
-  if (n.includes('auditor')) return 'tl-pill-auditor';
-  if (n.includes('redator') || n.includes('planejador')) return 'tl-pill-sistema';
-  return 'tl-pill-sistema';
-}
-
-function mapearPersonaParaTipo(persona: string): string {
+function mapearPersonaParaTipo(persona: string): PersonaType {
   const p = persona.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (p.includes('planejador')) return 'planejador';
   if (p.includes('historiador')) return 'historiador';
@@ -143,47 +120,8 @@ function dominiosFontes(urls: string[], limite = 6): Array<{ dominio: string; pa
     .map(([dominio, paginas]) => ({ dominio, paginas }));
 }
 
-/** Linha de reasoning com sintaxe mínima: linhas de ferramenta viram tag
-    mono destacada; texto corrido passa pelo markdown final (item 1 da crítica). */
-type BlocoReasoning =
-  | { tipo: 'tool'; ferramenta: string; resto: string }
-  | { tipo: 'md'; texto: string };
-
-function blocosReasoning(texto: string): BlocoReasoning[] {
-  const blocos: BlocoReasoning[] = [];
-  for (const linha of texto.split('\n')) {
-    const m = linha.match(/^\s*(?:\*\*)?Ferramenta\s*[·•-]\s*(SERP|Reader)(?:\*\*)?\s*(.*)$/i);
-    if (m) {
-      blocos.push({ tipo: 'tool', ferramenta: m[1], resto: m[2].trim() || '—' });
-      continue;
-    }
-    const ultimo = blocos[blocos.length - 1];
-    if (ultimo && ultimo.tipo === 'md') {
-      ultimo.texto += `\n${linha}`;
-    } else {
-      blocos.push({ tipo: 'md', texto: linha });
-    }
-  }
-  return blocos;
-}
-
-const LinhaReasoning: React.FC<{ texto: string }> = ({ texto }) => (
-  <div className="tl-reasoning-corpo">
-    {blocosReasoning(texto).map((b, i) =>
-      b.tipo === 'tool' ? (
-        <span key={i} className={`tl-tool tl-tool-${b.ferramenta.toLowerCase()}`}>
-          <span className="tl-tool-tag">{b.ferramenta}</span>
-          <span className="tl-tool-resto">{b.resto}</span>
-          {'\n'}
-        </span>
-      ) : (
-        <MarkdownBody key={i} text={b.texto} />
-      ),
-    )}
-  </div>
-);
-
-function tituloPasso(persona: string, pontoN?: number | null): string {
+/** "Persona — o que está fazendo": a frase densa da linha fechada. */
+function tituloPasso(persona: string): string {
   const foco: Record<string, string> = {
     historiador: 'Sintetizando evidências históricas',
     visionario: 'Mapeando tendências emergentes',
@@ -193,29 +131,12 @@ function tituloPasso(persona: string, pontoN?: number | null): string {
     redator: 'Consolidando o dossiê',
     planejador: 'Decompondo o tema',
   };
-  const base = foco[persona.toLowerCase()] ?? 'Analisando evidências';
-  return typeof pontoN === 'number' ? `Passo ${pontoN}: ${base}` : base;
+  return foco[persona.toLowerCase()] ?? 'Analisando evidências';
 }
-
-interface NoProps {
-  ultimo?: boolean;
-  children: React.ReactNode;
-}
-
-const No: React.FC<NoProps> = ({ ultimo = false, children }) => (
-  <li className={`tl-no${ultimo ? ' ultimo' : ''}`}>
-    <span className="tl-trilho" aria-hidden="true" />
-    <div className="tl-conteudo">{children}</div>
-  </li>
-);
 
 function eventosDaPersona(nome: string, eventos: ReasoningFeedItem[]): ReasoningFeedItem[] {
-  const alvo = mapearPersonaParaTipo(nome).toLowerCase();
-  if (!alvo) return [];
-  return eventos.filter((evento) => {
-    const nomeEvento = mapearPersonaParaTipo(evento.agentName).toLowerCase();
-    return nomeEvento === alvo;
-  });
+  const alvo = mapearPersonaParaTipo(nome);
+  return eventos.filter((evento) => mapearPersonaParaTipo(evento.agentName) === alvo);
 }
 
 function queriesDaPersona(personaReasoning: string | null | undefined, eventos: ReasoningFeedItem[]): string[] {
@@ -230,6 +151,165 @@ function queriesDaPersona(personaReasoning: string | null | undefined, eventos: 
 function horaDe(evento: ReasoningFeedItem | undefined): string {
   return formatarHoraTimelog(evento?.timestamp ?? '');
 }
+
+function idSeguro(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+interface FonteResumo {
+  dominio: string;
+  paginas: number;
+}
+
+interface PassoProps {
+  idBase: string;
+  persona: PersonaType;
+  rotulo: string;
+  resumo: string;
+  aoVivo?: boolean;
+  falha?: boolean;
+  hora?: string;
+  timestamp?: string;
+  consultas?: string[];
+  analise?: string | null;
+  reasoning?: string | null;
+  fontes?: FonteResumo[];
+  detalhe?: React.ReactNode;
+  acoes?: React.ReactNode;
+}
+
+/**
+ * Passo da timeline: a linha fechada é UM rótulo denso (`Persona — o que
+ * faz`) com o ícone à esquerda e o chevron à direita. Hora, queries, análise,
+ * reasoning, chips de fonte e critérios vivem só no corpo expandido.
+ */
+const Passo: React.FC<PassoProps> = ({
+  idBase,
+  persona,
+  rotulo,
+  resumo,
+  aoVivo = false,
+  falha = false,
+  hora,
+  timestamp,
+  consultas,
+  analise,
+  reasoning,
+  fontes,
+  detalhe,
+  acoes,
+}) => {
+  const [aberto, setAberto] = React.useState(false);
+  const jaEsteveAoVivo = React.useRef(aoVivo);
+
+  // Streaming: ao concluir, o item recolhe sozinho e o ícone volta a ser o da
+  // persona (DESIGN §6). Só recolhe se estava ao vivo na renderização anterior.
+  React.useEffect(() => {
+    if (jaEsteveAoVivo.current && !aoVivo) setAberto(false);
+    jaEsteveAoVivo.current = aoVivo;
+  }, [aoVivo]);
+
+  const listaConsultas = consultas ?? [];
+  const listaFontes = fontes ?? [];
+  const corpoId = `tl-corpo-${idBase}`;
+  const temCorpo = Boolean(
+    hora || listaConsultas.length > 0 || analise || reasoning || listaFontes.length > 0 || detalhe || acoes,
+  );
+
+  const rotuloInterno = (
+    <>
+      <span className={`tl-icone${falha ? ' tl-falha' : ''}`} aria-hidden="true">
+        {aoVivo ? <ConvergenceLogo phase="stream" size={16} /> : <PersonaIcon persona={persona} size={16} />}
+      </span>
+      <span className="tl-texto">
+        <span className="tl-persona">{rotulo}</span>
+        <span className="tl-traco" aria-hidden="true">
+          {' — '}
+        </span>
+        <span className="tl-acao-texto" title={resumo}>
+          {resumo}
+        </span>
+        {aoVivo ? <span className="tl-cursor" aria-hidden="true" /> : null}
+      </span>
+    </>
+  );
+
+  if (!temCorpo) {
+    return (
+      <div className={`tl-entrada${falha ? ' reprovado' : ''}${aoVivo ? ' ao-vivo' : ''}`}>
+        <div className="tl-entrada-linha tl-linha-estatica">{rotuloInterno}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`tl-entrada${falha ? ' reprovado' : ''}${aoVivo ? ' ao-vivo' : ''}${aberto ? ' aberto' : ''}`}
+    >
+      <button
+        type="button"
+        className="tl-entrada-linha"
+        aria-expanded={aberto}
+        aria-controls={corpoId}
+        onClick={() => setAberto((atual) => !atual)}
+      >
+        {rotuloInterno}
+        <ChevronDown className={`tl-chevron${aberto ? ' aberto' : ''}`} size={16} aria-hidden="true" />
+      </button>
+      <div id={corpoId} className="tl-entrada-corpo" hidden={!aberto}>
+        {hora || listaConsultas.length > 0 ? (
+          <div className="tl-corpo-meta">
+            {hora ? (
+              <time className="tl-hora" dateTime={timestamp}>
+                {hora}
+              </time>
+            ) : null}
+            {listaConsultas.length > 0 ? (
+              <span className="tl-contagem">
+                {listaConsultas.length} {listaConsultas.length === 1 ? 'consulta' : 'consultas'}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        {analise ? <p className="tl-analise">{analise}</p> : null}
+        {listaConsultas.length > 0 ? (
+          <div className="tl-queries">
+            {listaConsultas.map((query, indice) => (
+              <code className="tl-query-line" key={`${idBase}-q${indice}`}>
+                {`$ ${query}`}
+              </code>
+            ))}
+          </div>
+        ) : null}
+        {reasoning ? (
+          <Suspense fallback={<div className="tl-reasoning-corpo">{reasoning.slice(0, 400)}</div>}>
+            <MarkdownBody text={reasoning} />
+          </Suspense>
+        ) : null}
+        {listaFontes.length > 0 ? (
+          <ul className="tl-fontes" aria-label={`${listaFontes.length} domínios lidos`}>
+            {listaFontes.map(({ dominio, paginas }) => (
+              <li key={`${idBase}-${dominio}`} className="tl-fonte">
+                <Favicon dominio={dominio} size={16} className="tl-fonte-icone" />
+                <span className="tl-fonte-dominio">{dominio}</span>
+                <span className="tl-fonte-paginas">
+                  {paginas} {paginas === 1 ? 'página' : 'páginas'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {detalhe}
+        {acoes ? <div className="tl-acoes">{acoes}</div> : null}
+      </div>
+    </div>
+  );
+};
 
 interface LinhaAuditorProps {
   auditoria: AuditItem;
@@ -253,67 +333,80 @@ const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
   onReauditarPonto,
 }) => {
   const reprovado = auditoria.status === 'reprovado';
-  const reprovados = auditoria.criterios?.filter((c) => !c.aprovado) ?? [];
+  const reprovados: AuditCriterionDetail[] = auditoria.criterios?.filter((c) => !c.aprovado) ?? [];
   const motivo = reprovados[0]?.justificativa?.trim() || 'critérios não atendidos';
   const percentual = Math.round(auditoria.pontuacao_percentual ?? 0);
   const frase = reprovado
-    ? `Auditor reprovou o ponto número ${pontoN} por ${motivo} (${percentual}% × ${auditoria.criterios_aprovados}/${minimos}) — reenviado`
-    : `Auditor aprovou o ponto número ${pontoN} (${percentual}% × ${auditoria.criterios_aprovados}/${minimos})`;
+    ? `reprovou o ponto número ${pontoN} por ${motivo} (${percentual}% × ${auditoria.criterios_aprovados}/${minimos}) — reenviado`
+    : `aprovou o ponto número ${pontoN} (${percentual}% × ${auditoria.criterios_aprovados}/${minimos})`;
+
+  const acoes =
+    reprovado && (onRefazerBuscaPonto || onReauditarPonto) ? (
+      <>
+        {onRefazerBuscaPonto ? (
+          <button
+            type="button"
+            className="tl-acao"
+            disabled={emReprocesso}
+            onClick={() => onRefazerBuscaPonto(auditoria.ponto_id)}
+            aria-label={`Refazer busca do ponto ${pontoN}`}
+          >
+            <RefreshCw size={12} aria-hidden="true" />
+            <span>{emReprocesso ? 'buscando…' : 'refazer busca'}</span>
+          </button>
+        ) : null}
+        {onReauditarPonto ? (
+          <button
+            type="button"
+            className="tl-acao"
+            disabled={emReprocesso}
+            onClick={() => onReauditarPonto(auditoria.ponto_id)}
+            aria-label={`Reauditar ponto ${pontoN}`}
+          >
+            <ShieldCheck size={12} aria-hidden="true" />
+            <span>{emReprocesso ? 'auditando…' : 'reauditar'}</span>
+          </button>
+        ) : null}
+      </>
+    ) : null;
 
   return (
-    <div className={`tl-entrada tl-entrada-auditor${reprovado ? ' reprovado' : ' aprovado'}`}>
-      <time className="tl-hora" dateTime={timestamp}>
-        {hora || '--:--:--'}
-      </time>
-      <span className={`tl-icone tl-${reprovado ? 'falha' : 'ok'}`} aria-hidden="true">
-        {reprovado ? <AlertTriangle size={13} aria-hidden="true" /> : <CheckCircle2 size={13} aria-hidden="true" />}
-      </span>
-      <div className="tl-entrada-corpo">
-        <div className="tl-linha-auditor">
-          <span className={`tl-pill ${classePersona('auditor')}`}>Auditor</span>
-          <span className="tl-auditor-frase">{frase}</span>
-          {reprovado && (onRefazerBuscaPonto || onReauditarPonto) && (
-            <span className="tl-acoes tl-acoes-log sempre">
-              {onRefazerBuscaPonto && (
-                <button
-                  type="button"
-                  className="tl-acao"
-                  disabled={emReprocesso}
-                  onClick={() => onRefazerBuscaPonto(auditoria.ponto_id)}
-                  aria-label={`Refazer busca do ponto ${pontoN}`}
-                >
-                  <RefreshCw size={12} aria-hidden="true" />
-                  <span>{emReprocesso ? 'buscando…' : 'refazer busca'}</span>
-                </button>
-              )}
-              {onReauditarPonto && (
-                <button
-                  type="button"
-                  className="tl-acao"
-                  disabled={emReprocesso}
-                  onClick={() => onReauditarPonto(auditoria.ponto_id)}
-                  aria-label={`Reauditar ponto ${pontoN}`}
-                >
-                  <ShieldCheck size={12} aria-hidden="true" />
-                  <span>{emReprocesso ? 'auditando…' : 'reauditar'}</span>
-                </button>
-              )}
+    <Passo
+      idBase={`auditor-${idSeguro(auditoria.ponto_id)}`}
+      persona="auditor"
+      rotulo="Auditor"
+      resumo={frase}
+      falha={reprovado}
+      hora={hora}
+      timestamp={timestamp}
+      analise={auditoria.resumo_auditoria ?? null}
+      reasoning={auditoria.reasoning_auditoria ?? null}
+      acoes={acoes}
+      detalhe={
+        <div className="tl-detalhe tl-callout">
+          <p className="tl-callout-score">
+            <strong>{`${percentual}%`}</strong>
+            <span>{`${auditoria.criterios_aprovados}/${minimos} critérios`}</span>
+            <span className={`tl-callout-status ${reprovado ? 'reprovado' : 'aprovado'}`}>
+              {reprovado ? 'reprovado' : 'aprovado'}
             </span>
-          )}
+          </p>
+          {reprovados.length > 0 ? (
+            <div className="tl-criterios">
+              {reprovados.slice(0, 4).map((c) => (
+                <p key={c.id} className="tl-criterio">
+                  <strong>{`Critério ${c.id}:`}</strong> {c.justificativa}
+                  {c.correcao ? ` — correção: ${c.correcao}` : ''}
+                </p>
+              ))}
+              {reprovados.length > 4 ? (
+                <p className="tl-meta">{`+${reprovados.length - 4} critérios não atendidos`}</p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-        {reprovado && reprovados.length > 0 && (
-          <div id={`tl-auditoria-${auditoria.ponto_id}`} className="tl-detalhe">
-            {reprovados.slice(0, 4).map((c) => (
-              <p key={c.id} className="tl-criterio">
-                <strong>{`Critério ${c.id}:`}</strong> {c.justificativa}
-                {c.correcao ? ` — correção: ${c.correcao}` : ''}
-              </p>
-            ))}
-            {reprovados.length > 4 && <p className="tl-meta">+{reprovados.length - 4} critérios não atendidos</p>}
-          </div>
-        )}
-      </div>
-    </div>
+      }
+    />
   );
 };
 
@@ -362,206 +455,140 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
         const auditorEvento =
           eventos.find((e) => e.agentType === 'auditor') ?? eventos.find((e) => /auditor/i.test(e.agentName));
         const consumidos = new Set<string>();
-
         const minimos = auditoria?.criterios_minimos ?? rigorAtual ?? 12;
 
         return (
-          <No key={ponto.ponto_id} ultimo={ultimo}>
-            {personas.map((persona, personaIndice) => {
-              const candidatos = eventosDaPersona(persona.persona, buscaEventos);
-              const evento = candidatos[0] ?? buscaEventos[personaIndice] ?? buscaEventos[0];
-              for (const usado of candidatos) consumidos.add(usado.id);
-              if (evento) consumidos.add(evento.id);
-              const queries = queriesDaPersona(persona.reasoning, candidatos.length > 0 ? candidatos : evento ? [evento] : []);
-              return (
-                <div className="tl-entrada" key={`${ponto.ponto_id}-${persona.persona}-${personaIndice}`}>
-                  <time className="tl-hora" dateTime={evento?.timestamp}>
-                    {horaDe(evento) || '--:--:--'}
-                  </time>
-                  <span className={`tl-icone tl-${persona.falha_coleta ? 'falha' : 'ok'}`} aria-hidden="true">
-                    <PersonaIcon persona={mapearPersonaParaTipo(persona.persona) as any} size={16} />
-                  </span>
-                  <div className="tl-entrada-corpo">
-                    <div className="tl-entrada-topo">
-                      <span className={`tl-pill ${classePersona(persona.persona)}`}>{nomePersona(persona.persona)}</span>
-                      <span className="tl-entrada-titulo">{tituloPasso(persona.persona)}</span>
-                    </div>
-                    {persona.analise && <p className="tl-analise">{persona.analise}</p>}
-                    {queries.length > 0 && (
-                      <div className="tl-queries">
-                        {queries.map((query) => (
-                          <code className="tl-query-line" key={`${persona.persona}-${query}`}>
-                            {`$ ${query}`}
-                          </code>
-                        ))}
-                      </div>
-                    )}
-                    {(() => {
-                      const doms = dominiosFontes(persona.urls_fonte ?? []);
-                      if (doms.length === 0) return null;
-                      return (
-                        <ul className="tl-fontes" aria-label={`${doms.length} domínios lidos`}>
-                          {doms.map(({ dominio, paginas }) => (
-                            <li key={dominio} className="tl-fonte">
-                              <Favicon dominio={dominio} size={32} className="tl-fonte-icone" />
-                              <span className="tl-fonte-dominio">{dominio}</span>
-                              <span className="tl-fonte-paginas">
-                                {paginas} {paginas === 1 ? 'página lida' : 'páginas lidas'}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      );
-                    })()}
-                  </div>
-                </div>
-              );
-            })}
+          <li className={`tl-no${ultimo ? ' ultimo' : ''}`} key={ponto.ponto_id}>
+            <span className="tl-trilho" aria-hidden="true" />
+            <div className="tl-conteudo">
+              <p className="tl-grupo">
+                <span className="tl-grupo-rotulo">{`Ponto ${String(ponto.ponto_n).padStart(2, '0')}`}</span>
+                <span className="tl-grupo-tema">{ponto.ponto}</span>
+              </p>
 
-            {personas.length === 0 && buscaEventos.length > 0 &&
-              buscaEventos.map((evento) => (
-                <div className="tl-entrada" key={`busca-${evento.id}`}>
-                  <time className="tl-hora" dateTime={evento.timestamp}>
-                    {horaDe(evento) || '--:--:--'}
-                  </time>
-                  <span className="tl-icone tl-ok" aria-hidden="true">
-                    <PersonaIcon persona={mapearPersonaParaTipo(evento.agentName) as any} size={16} />
-                  </span>
-                  <div className="tl-entrada-corpo">
-                    <div className="tl-entrada-topo">
-                      <span className={`tl-pill ${classePersona(evento.agentName)}`}>{evento.agentName}</span>
-                      <span className="tl-entrada-titulo">{evento.title}</span>
-                    </div>
-                    <div className="tl-queries">
-                      {extrairQueriesTimelog(evento.reasoning).map((query) => (
-                        <code className="tl-query-line" key={`${evento.id}-${query}`}>
-                          {`$ ${query}`}
-                        </code>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {personas.map((persona, personaIndice) => {
+                const candidatos = eventosDaPersona(persona.persona, buscaEventos);
+                const evento = candidatos[0] ?? buscaEventos[personaIndice] ?? buscaEventos[0];
+                for (const usado of candidatos) consumidos.add(usado.id);
+                if (evento) consumidos.add(evento.id);
+                const queries = queriesDaPersona(persona.reasoning, candidatos.length > 0 ? candidatos : evento ? [evento] : []);
+                const aoVivo = candidatos.some((c) => c.streaming) || Boolean(evento?.streaming);
+                return (
+                  <Passo
+                    key={`${ponto.ponto_id}-${persona.persona}-${personaIndice}`}
+                    idBase={`${idSeguro(ponto.ponto_id)}-${mapearPersonaParaTipo(persona.persona)}-${personaIndice}`}
+                    persona={mapearPersonaParaTipo(persona.persona)}
+                    rotulo={nomePersona(persona.persona)}
+                    resumo={tituloPasso(persona.persona)}
+                    aoVivo={aoVivo}
+                    falha={persona.falha_coleta}
+                    hora={horaDe(evento)}
+                    timestamp={evento?.timestamp}
+                    consultas={queries}
+                    analise={persona.analise}
+                    reasoning={persona.reasoning || evento?.reasoning}
+                    fontes={dominiosFontes(persona.urls_fonte ?? [])}
+                  />
+                );
+              })}
 
-            {personas.length === 0 && buscaEventos.length === 0 && (
-              <div className="tl-entrada">
-                <time className="tl-hora" dateTime={auditorEvento?.timestamp}>
-                  {horaDe(auditorEvento) || ultimaHora || '--:--:--'}
-                </time>
-                <span className="tl-icone tl-ativo" aria-hidden="true">
-                  <PersonaIcon persona='planejador' size={16} />
-                </span>
-                <div className="tl-entrada-corpo">
-                  <div className="tl-entrada-topo">
-                    <span className="tl-entrada-titulo">
-                      Ponto {ponto.ponto_n}: aguardando varredura das personas
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+              {personas.length === 0 &&
+                buscaEventos.map((evento, eventoIndice) => {
+                  consumidos.add(evento.id);
+                  return (
+                    <Passo
+                      key={`busca-${evento.id}`}
+                      idBase={`${idSeguro(ponto.ponto_id)}-busca-${eventoIndice}`}
+                      persona={mapearPersonaParaTipo(evento.agentName)}
+                      rotulo={nomePersona(evento.agentName)}
+                      resumo={evento.title.replace(/\s*\(ao vivo\)\s*$/i, '')}
+                      aoVivo={Boolean(evento.streaming)}
+                      hora={horaDe(evento)}
+                      timestamp={evento.timestamp}
+                      consultas={extrairQueriesTimelog(evento.reasoning)}
+                      reasoning={evento.reasoning}
+                    />
+                  );
+                })}
 
-            {auditoria && (
-              <LinhaAuditor
-                auditoria={auditoria}
-                pontoN={ponto.ponto_n}
-                minimos={minimos}
-                hora={horaDe(auditorEvento) || ultimaHora}
-                timestamp={auditorEvento?.timestamp}
-                emReprocesso={emReprocesso}
-                onRefazerBuscaPonto={onRefazerBuscaPonto}
-                onReauditarPonto={onReauditarPonto}
-              />
-            )}
+              {personas.length === 0 && buscaEventos.length === 0 && (
+                <Passo
+                  idBase={`${idSeguro(ponto.ponto_id)}-aguardando`}
+                  persona="planejador"
+                  rotulo="Planejador"
+                  resumo={`aguardando varredura das personas no ponto ${ponto.ponto_n}`}
+                />
+              )}
 
-            {!auditoria && coleta && !coleta.falha_coleta && (
-              <div className="tl-entrada">
-                <time className="tl-hora" dateTime={buscaEventos[buscaEventos.length - 1]?.timestamp}>
-                  {horaDe(buscaEventos[buscaEventos.length - 1]) || ultimaHora || '--:--:--'}
-                </time>
-                <span className="tl-icone tl-neutro" aria-hidden="true">
-                  <ShieldCheck size={13} aria-hidden="true" />
-                </span>
-                <div className="tl-entrada-corpo">
-                  <div className="tl-entrada-topo">
-                    <span className="tl-pill tl-pill-auditor">Auditor</span>
-                    <span className="tl-entrada-titulo">
-                      {personas.length >= 2
-                        ? `Analisando discrepâncias entre ${nomePersona(personas[0].persona)} e ${nomePersona(
-                            personas[1].persona,
-                          )}`
-                        : `Analisando o ponto ${ponto.ponto_n} com foco em contradições entre alegações`}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+              {auditoria ? (
+                <LinhaAuditor
+                  auditoria={auditoria}
+                  pontoN={ponto.ponto_n}
+                  minimos={minimos}
+                  hora={horaDe(auditorEvento) || ultimaHora}
+                  timestamp={auditorEvento?.timestamp}
+                  emReprocesso={emReprocesso}
+                  onRefazerBuscaPonto={onRefazerBuscaPonto}
+                  onReauditarPonto={onReauditarPonto}
+                />
+              ) : null}
 
-            {(() => {
-              const extras = eventos.filter((evento) => !consumidos.has(evento.id) && evento.id !== auditorEvento?.id);
-              if (extras.length === 0) return null;
-              return (
-                <details className="tl-reasoning">
-                  <summary className="tl-reasoning-toggle">
-                    ver reasoning ({extras.length} {extras.length === 1 ? 'registro' : 'registros'})
-                  </summary>
-                  <div className="tl-detalhe tl-reasoning-lista">
-                    {extras.map((item) => (
-                      <div className="tl-entrada tl-entrada-reasoning" key={item.id}>
-                        <time className="tl-hora" dateTime={item.timestamp}>
-                          {formatarHoraTimelog(item.timestamp) || '--:--:--'}
-                        </time>
-                      <span className={`tl-icone tl-neutro`} aria-hidden="true">
-                        <PersonaIcon persona={mapearPersonaParaTipo(item.agentName) as any} size={16} />
-                      </span>
-                        <div className="tl-entrada-corpo">
-                          <p className="tl-meta tl-meta-pill">
-                            <span className={`tl-pill ${classePersona(item.agentName)}`}>{item.agentName}</span>
-                            <span>{item.title.replace(/\s*\(ao vivo\)\s*$/i, '')}</span>
-                          </p>
-                          <Suspense fallback={<span className="tl-reasoning-corpo">{item.reasoning.slice(0, 400)}</span>}>
-                            <LinhaReasoning texto={item.reasoning} />
-                          </Suspense>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              );
-            })()}
-          </No>
+              {!auditoria && coleta && !coleta.falha_coleta && (
+                <Passo
+                  idBase={`${idSeguro(ponto.ponto_id)}-auditoria-pendente`}
+                  persona="auditor"
+                  rotulo="Auditor"
+                  resumo={
+                    personas.length >= 2
+                      ? `analisando discrepâncias entre ${nomePersona(personas[0].persona)} e ${nomePersona(
+                          personas[1].persona,
+                        )}`
+                      : `analisando o ponto ${ponto.ponto_n} com foco em contradições entre alegações`
+                  }
+                />
+              )}
+
+              {(() => {
+                const extras = eventos.filter((evento) => !consumidos.has(evento.id) && evento.id !== auditorEvento?.id);
+                if (extras.length === 0) return null;
+                return extras.map((evento, extraIndice) => (
+                  <Passo
+                    key={`extra-${evento.id}`}
+                    idBase={`${idSeguro(ponto.ponto_id)}-extra-${extraIndice}`}
+                    persona={mapearPersonaParaTipo(evento.agentName)}
+                    rotulo={nomePersona(evento.agentName)}
+                    resumo={evento.title.replace(/\s*\(ao vivo\)\s*$/i, '')}
+                    aoVivo={Boolean(evento.streaming)}
+                    hora={formatarHoraTimelog(evento.timestamp)}
+                    timestamp={evento.timestamp}
+                    consultas={extrairQueriesTimelog(evento.reasoning)}
+                    reasoning={evento.reasoning}
+                  />
+                ));
+              })()}
+            </div>
+          </li>
         );
       })}
 
       {/* Nó final: redação, quando há parecer */}
-      {auditResult && (
-        <No ultimo>
-          <div className="tl-entrada tl-entrada-final">
-            <time className="tl-hora" dateTime={reasoningItems[reasoningItems.length - 1]?.timestamp}>
-              {ultimaHora || '--:--:--'}
-            </time>
-            <span className={`tl-icone tl-${auditResult.pronto_para_writer ? 'ok' : 'falha'}`} aria-hidden="true">
-              {auditResult.pronto_para_writer ? (
-                <PenTool size={13} aria-hidden="true" />
-              ) : (
-                <XCircle size={13} aria-hidden="true" />
-              )}
-            </span>
-            <div className="tl-entrada-corpo">
-              <span className="tl-entrada-titulo">
-                {auditResult.pronto_para_writer ? (
-                  'Pesquisa aprovada, Redator está gerando o relatório final'
-                ) : (
-                  <>
-                    {auditResult.aprovados}/{auditResult.total_pontos} pontos aprovados — redação bloqueada até
-                    aprovação total
-                  </>
-                )}
-              </span>
-            </div>
+      {auditResult ? (
+        <li className="tl-no ultimo">
+          <span className="tl-trilho" aria-hidden="true" />
+          <div className="tl-conteudo">
+            <Passo
+              idBase="redator-final"
+              persona="redator"
+              rotulo="Redator"
+              resumo={
+                auditResult.pronto_para_writer
+                  ? 'pesquisa aprovada, gerando o relatório final'
+                  : `${auditResult.aprovados}/${auditResult.total_pontos} pontos aprovados — redação bloqueada até aprovação total`
+              }
+            />
           </div>
-        </No>
-      )}
+        </li>
+      ) : null}
     </ol>
   );
 };
