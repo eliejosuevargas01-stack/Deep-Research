@@ -9,6 +9,13 @@ import './styles/open-canvas.css';
 import './styles/world.css';
 import './styles/linear-timeline.css';
 import './styles/gdr-refit.css';
+import { initReducedMotionSMIL } from './utils/reduceMotion';
+
+// SMIL (`<animate>`/`animateTransform`/`animateMotion`) não é alcançado por
+// `@media (prefers-reduced-motion: reduce)` no CSS: sem `pauseAnimations()`
+// os ícones com anel animado seguem girando. Inicializa antes do render para
+// que o primeiro paint já respeite a preferência.
+initReducedMotionSMIL();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
