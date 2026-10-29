@@ -363,65 +363,50 @@ export const PlanView: React.FC<PlanViewProps> = ({
           </div>
         </header>
 
-        {/* Cartão de pré-voo: faixa de fases + ações primárias antes da busca */}
-        <section className="gdr-plan-preflight" aria-label="Pré-voo da investigação">
-          <ol className="gdr-phases" aria-label="Fases da investigação">
-            {fases.map((f) => (
-              <li key={f.num} className="gdr-phase">
-                <span className="gdr-phase-num">{f.num}</span>
-                <span className="gdr-phase-name">{f.nome}</span>
-                <span className="gdr-phase-meta" title={f.meta}>{f.meta}</span>
-              </li>
-            ))}
-          </ol>
+      {/* Cartão de pré-voo: faixa de fases + ações primárias antes da busca */}
+      <section className="gdr-plan-preflight" aria-label="Pré-voo da investigação">
+        <p className="gdr-plan-preflight-summary">
+          {plan.n_pontos} {plan.n_pontos === 1 ? 'eixo investigativo' : 'eixos investigativos'} prontos para revisão.
+        </p>
+        <ol className="gdr-phases" aria-label="Fases da investigação">
+          {fases.map((f) => (
+            <li key={f.num} className="gdr-phase">
+              <span className="gdr-phase-num">{f.num}</span>
+              <span className="gdr-phase-name">{f.nome}</span>
+              <span className="gdr-phase-meta" title={f.meta}>{f.meta}</span>
+            </li>
+          ))}
+        </ol>
 
-          <div
-            className="gdr-plan-actions"
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: '8px',
-              marginTop: '12px',
-            }}
+        <div
+          className="gdr-plan-actions"
+        >
+          <button
+            type="button"
+            className="gdr-plan-action gdr-plan-action--outline"
+            data-gdr-action="edit-parameters"
+            onClick={handleEditParameters}
+            disabled={isStarting}
+            title="Revisar tema, personas e pontos antes de iniciar"
+            aria-label="Editar parâmetros do plano"
           >
-            <span
-              className="gdr-plan-actions-label"
-              style={{
-                marginRight: 'auto',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                color: 'var(--color-text-secondary)',
-              }}
-            >
-              Revise os parâmetros e aprove para iniciar
-            </span>
-            <button
-              type="button"
-              className="query-action-btn gdr-plan-action gdr-plan-action--edit"
-              data-gdr-action="edit-parameters"
-              onClick={handleEditParameters}
-              disabled={isStarting}
-              title="Revisar tema, personas e pontos antes de iniciar"
-              aria-label="Editar parâmetros do plano"
-            >
-              <SlidersHorizontal size={14} aria-hidden="true" />
-              <span>Editar parâmetros</span>
-            </button>
-            <button
-              type="button"
-              className="btn-start-research gdr-plan-action gdr-plan-action--approve"
-              data-gdr-action="approve-and-start"
-              onClick={onStartExecution}
-              disabled={isStarting}
-              title="Aprovar o plano e iniciar a pesquisa"
-              aria-label="Aprovar plano e iniciar pesquisa"
-            >
-              <Play size={16} fill="currentColor" aria-hidden="true" />
-              <span>Aprovar e iniciar</span>
-            </button>
-          </div>
-        </section>
+            <SlidersHorizontal size={14} aria-hidden="true" />
+            <span>Editar parâmetros</span>
+          </button>
+          <button
+            type="button"
+            className="gdr-plan-action gdr-plan-action--primary"
+            data-gdr-action="approve-and-start"
+            onClick={onStartExecution}
+            disabled={isStarting}
+            title="Aprovar o plano e iniciar a pesquisa"
+            aria-label="Aprovar plano e iniciar pesquisa"
+          >
+            <Play size={16} fill="currentColor" aria-hidden="true" />
+            <span>Aprovar e iniciar</span>
+          </button>
+        </div>
+      </section>
 
         {/* Stepper Vertical dos Pontos (1..N) com Divulgação Progressiva */}
         <section className="plan-stepper" aria-label="Eixos investigativos do plano">

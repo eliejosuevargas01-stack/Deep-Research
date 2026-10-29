@@ -3,7 +3,122 @@
    Craft-floor polish without modifying shared CSS files.
    ========================================================================== */
 
-/* --- PlanView: Compact Header & Immediate Primary Action Visibility --- */
+/* --- PlanView: Preflight card per DESIGN.md §8 --- */
+.gdr-plan-preflight {
+  background: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, #E4E6E1);
+  border-radius: var(--radius-lg, 10px);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gdr-plan-preflight-summary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary, #4A5254);
+}
+
+.gdr-phases {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gdr-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border, #E4E6E1);
+  border-radius: 9999px;
+  background: var(--color-surface-subtle, #F6F7F4);
+  min-height: 28px;
+}
+
+.gdr-phase-num {
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--color-text-muted, #5F6868);
+}
+
+.gdr-phase-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2F3737);
+}
+
+.gdr-phase-meta {
+  font-size: 11px;
+  color: var(--color-text-muted, #5F6868);
+}
+
+.gdr-plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-subtle, #EDEFEA);
+}
+
+.gdr-plan-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+}
+
+.gdr-plan-action--outline {
+  background: var(--color-surface, #FFFFFF);
+  color: var(--color-text-primary, #2F3737);
+  border: 1px solid var(--color-border, #E4E6E1);
+}
+
+.gdr-plan-action--outline:hover:not(:disabled) {
+  background: var(--color-surface-subtle, #F6F7F4);
+  border-color: var(--color-border-strong, #C9CCC6);
+}
+
+.gdr-plan-action--primary {
+  background: var(--color-primary, #6D28D9);
+  color: var(--color-primary-fg, #FFFFFF);
+  border: 1px solid var(--color-primary, #6D28D9);
+}
+
+.gdr-plan-action--primary:hover:not(:disabled) {
+  background: var(--color-primary-hover, #5B21B6);
+  border-color: var(--color-primary-hover, #5B21B6);
+}
+
+.gdr-plan-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gdr-plan-action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring, 0 0 0 2px #FFFFFF, 0 0 0 4px var(--violet-2));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gdr-plan-action {
+    transition: none !important;
+  }
+}
+
 .plan-header--compact {
   display: flex;
   flex-direction: column;
