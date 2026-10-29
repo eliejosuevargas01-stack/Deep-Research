@@ -23,6 +23,7 @@ const DocsView = React.lazy(() =>
 );
 import { ReasoningHarness } from './dev/ReasoningHarness';
 import { ExecutionHarness } from './dev/ExecutionHarness';
+import { PlanHarness } from './dev/PlanHarness';
 import { api, RIGOR_PADRAO, normalizarRigor, validarCallbackUrl } from './services/api';
 import { historyService } from './services/history';
 import {
@@ -321,7 +322,7 @@ export const App: React.FC = () => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') || 'research';
       const rotas = ['research', 'history', 'settings', 'docs'];
-      if (import.meta.env.DEV) rotas.push('harness', 'execution-search', 'execution-audit', 'execution-rejected');
+      if (import.meta.env.DEV) rotas.push('harness', 'plan', 'execution-search', 'execution-audit', 'execution-rejected');
       if (rotas.includes(hash)) {
         setCurrentRoute(hash);
       }
@@ -1468,6 +1469,7 @@ export const App: React.FC = () => {
         )}
 
         {import.meta.env.DEV && currentRoute === 'harness' && <ReasoningHarness />}
+        {import.meta.env.DEV && currentRoute === 'plan' && <PlanHarness />}
         {import.meta.env.DEV && currentRoute === 'execution-search' && (
           <ExecutionHarness stage="searching" />
         )}

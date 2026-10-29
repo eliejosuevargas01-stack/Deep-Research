@@ -10,7 +10,7 @@ import { ReasoningFeedItem } from '../types/stream';
  * real. Só existe em DEV: `#execution/searching` e `#execution/auditing`.
  */
 
-const PLAN: PlanResponse = {
+export const HARNESS_PLAN: PlanResponse = {
   id_pesquisa: 'harness-0001',
   tema: 'Automação bancária no Brasil: impactos no emprego e na requalificação profissional entre 2010 e 2026',
   n_pontos: 3,
@@ -236,7 +236,7 @@ export const ExecutionHarness: React.FC<Props> = ({ stage }) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <ExecutionView
           stage={stage}
-          plan={PLAN}
+          plan={HARNESS_PLAN}
           searchResult={SEARCH}
           auditResult={AUDIT}
           cycleNumber={stage === 'auditing' ? 2 : 1}
@@ -246,13 +246,13 @@ export const ExecutionHarness: React.FC<Props> = ({ stage }) => (
         />
       </div>
     <ContextSidebar
-      plan={PLAN}
+      plan={HARNESS_PLAN}
       pipelineStatus={stage}
       cycleNumber={stage === 'auditing' ? 2 : 1}
       maxCycles={4}
       collectedPoints={2}
       auditSummary={{ aprovados: AUDIT.aprovados, total: AUDIT.total_pontos, ciclo: 1 }}
-      metadadosModelo={PLAN.metadados_modelo}
+      metadadosModelo={HARNESS_PLAN.metadados_modelo}
       searchResult={SEARCH}
       fontesAtivas={stage === 'searching'}
     />
