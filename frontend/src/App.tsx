@@ -174,6 +174,8 @@ export const App: React.FC = () => {
 
   // Histórico local do navegador
   const [historyRecords, setHistoryRecords] = useState<ResearchHistoryRecord[]>([]);
+  // Pesquisa aberta no workspace (espelha activeResearchIdRef para a navegação lateral)
+  const [activeResearchId, setActiveResearchId] = useState<string | null>(null);
 
   // Referências para foco e animação GSAP
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -370,7 +372,14 @@ export const App: React.FC = () => {
     if (!idAtivo) {
       try {
         const rascunho = sessionStorage.getItem(DRAFT_PLAN_KEY);
-        if (rascunho) setCurrentPlan(JSON.parse(rascunho) as PlanResponse);
+        if (rascunho) {
+          const planoRascunho = JSON.parse(rascunho) as PlanResponse;
+          setCurrentPlan(planoRascunho);
+          if (planoRascunho?.id_pesquisa) {
+            activeResearchIdRef.current = planoRascunho.id_pesquisa;
+            setActiveResearchId(planoRascunho.id_pesquisa);
+          }
+        }
       } catch {
         /* rascunho inválido: ignora */
       }
@@ -400,6 +409,7 @@ export const App: React.FC = () => {
         const status = (await resp.json()) as PipelineStatusResumo;
         const registro = historyService.get(idAtivo);
         if (!registro?.planResponse) return;
+        setActiveResearchId(idAtivo);
         const estagio = status.status_pipeline ? STAGE_POR_STATUS[status.status_pipeline] : undefined;
         if (estagio) {
           setCurrentPlan(registro.planResponse);
@@ -534,6 +544,10 @@ export const App: React.FC = () => {
         };
       }
       setCurrentPlan(plan);
+      // Plano recém-criado é a pesquisa aberta no workspace: o item da sidebar
+      // precisa nascer ativo, antes de qualquer execução.
+      activeResearchIdRef.current = plan.id_pesquisa;
+      setActiveResearchId(plan.id_pesquisa);
       // Registra raciocínio inicial do Planejador
       if (plan.plano_estruturado || plan.reasoning_planejamento) {
         addReasoningItem({
@@ -619,6 +633,7 @@ export const App: React.FC = () => {
 
     const id_pesquisa = currentPlan.id_pesquisa;
     activeResearchIdRef.current = id_pesquisa;
+    setActiveResearchId(id_pesquisa);
     try {
       localStorage.setItem(ACTIVE_RESEARCH_KEY, id_pesquisa);
     } catch {
@@ -975,6 +990,7 @@ export const App: React.FC = () => {
       }
     }
     activeResearchIdRef.current = record.id_pesquisa;
+    setActiveResearchId(record.id_pesquisa);
     activeExecutionTokenRef.current = null;
     isExecutingRef.current = false;
     setIsRetrying(false);
@@ -1067,6 +1083,7 @@ export const App: React.FC = () => {
       }
     }
     activeResearchIdRef.current = null;
+    setActiveResearchId(null);
     activeExecutionTokenRef.current = null;
     isExecutingRef.current = false;
     setIsRetrying(false);
@@ -1143,6 +1160,10 @@ export const App: React.FC = () => {
           });
         }}
         onToggleTheme={() => setTema((atual) => (atual === 'dark' ? 'light' : 'dark'))}
+        history={historyRecords}
+        activeResearchId={activeResearchId}
+        onOpenRecord={handleSelectRecord}
+        onOpenHistory={() => navigateTo('history')}
       />
       <div className="app-main">
       <div className="app-container">

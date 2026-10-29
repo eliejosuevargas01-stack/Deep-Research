@@ -1,6 +1,7 @@
 import React from 'react';
-import { Plus, ArrowRight, History, Settings, BookOpen, Moon, Sun, ShieldCheck, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Plus, ArrowRight, History, Settings, BookOpen, Moon, Sun, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { BrandMark } from './BrandMark';
+import type { ResearchHistoryRecord } from '../types/api';
 
 interface SidebarProps {
   currentRoute: string;
@@ -12,6 +13,11 @@ interface SidebarProps {
   onToggleTheme?: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  /** Pesquisas salvas no navegador, já ordenadas da mais nova para a mais antiga. */
+  history?: ResearchHistoryRecord[];
+  activeResearchId?: string | null;
+  onOpenRecord?: (record: ResearchHistoryRecord) => void;
+  onOpenHistory?: () => void;
 }
 
 interface ItemProps {
@@ -35,6 +41,46 @@ const Item: React.FC<ItemProps> = ({ active, onClick, icon, label, collapsed = f
   </button>
 );
 
+const STATUS_LABEL: Record<ResearchHistoryRecord['status'], string> = {
+  planejado: 'Planejado',
+  buscando: 'Buscando',
+  auditando: 'Auditando',
+  redigindo: 'Redigindo',
+  concluido: 'Concluída',
+  reprovado: 'Reprovada',
+  falha: 'Falha',
+};
+
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/**
+ * Data curta e legível: "agora", "há 2 h", "ontem", "há 3 d" ou "12 out".
+ * Retorna string vazia para datas inválidas para não imprimir "Invalid Date".
+ */
+const formatRelativeDate = (iso: string): string => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  if (diffMs <= 0) return 'agora';
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'agora';
+  if (minutes < 60) return `há ${minutes} min`;
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const dayDiff = Math.round((startOfToday - startOfDate) / 86400000);
+  if (dayDiff <= 0) return `há ${Math.floor(minutes / 60)} h`;
+  if (dayDiff === 1) return 'ontem';
+  if (dayDiff < 7) return `há ${dayDiff} d`;
+  return `${date.getDate()} ${MESES_CURTOS[date.getMonth()]}`;
+};
+
+const recordMeta = (record: ResearchHistoryRecord): string => {
+  const parts = [STATUS_LABEL[record.status], formatRelativeDate(record.criado_em)].filter(Boolean);
+  return parts.join(' · ');
+};
+
 /**
  * Navegação lateral fixa e recolhível: libera a altura da tela para a
  * investigação e substitui a topbar cheia de botões fortes.
@@ -50,6 +96,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleTheme,
   collapsed = false,
   onToggleCollapse,
+  history = [],
+  activeResearchId = null,
+  onOpenRecord,
+  onOpenHistory,
 }) => {
   return (
     <aside
@@ -133,12 +183,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       </nav>
 
+      {!collapsed && (
+        <section className="sidebar-conversations" aria-labelledby="sidebar-conversations-heading">
+          <p className="sidebar-group" id="sidebar-conversations-heading">Conversas</p>
+          {history.length === 0 ? (
+            <p className="sidebar-conversations-empty">Nenhuma pesquisa ainda</p>
+          ) : (
+            <ul className="sidebar-conversation-list">
+              {history.slice(0, 6).map((record) => {
+                const active = activeResearchId === record.id_pesquisa;
+                return (
+                  <li key={record.id_pesquisa}>
+                    <button
+                      type="button"
+                      className={`sidebar-conversation ${active ? 'is-active' : ''}`}
+                      onClick={() => onOpenRecord?.(record)}
+                      aria-current={active ? 'page' : undefined}
+                      title={record.tema}
+                    >
+                      <span className="sidebar-conversation-title">{record.tema}</span>
+                      <span className="sidebar-conversation-meta">{recordMeta(record)}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <button type="button" className="sidebar-history-link" onClick={() => onOpenHistory?.()}>
+            Ver histórico
+          </button>
+        </section>
+      )}
+
       <div className="sidebar-footer">
-        {!collapsed && (
-          <span className="sidebar-footer-note">
-            <ShieldCheck size={14} aria-hidden="true" /> Dados ficam neste navegador
-          </span>
-        )}
         <button
           type="button"
           className="sidebar-theme"
