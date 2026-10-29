@@ -363,7 +363,9 @@ a.gdr-source-chip:focus-visible,
 
 .gdr-phase-num {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  /* 12px em valor absoluto: 0.72rem caía para 10,8px com root de 15px e
+     reprovava o piso de 11px do detector (advisory). */
+  font-size: 12px;
   font-weight: 600;
   color: var(--color-accent-text);
   letter-spacing: 0.04em;
