@@ -1,0 +1,475 @@
+/* =========================================================================
+   GDR Refit — padrão Google Deep Research sobre o design system existente.
+   Somente classes novas (prefixo gdr-) + polimento de focos e painéis.
+   Nenhum seletor de teste (.reasoning-card, .stepper-item, .exec-error-card…)
+   é renomeado ou removido aqui.
+   ========================================================================= */
+
+/* ---------- A.1 TokenUsageMeter ---------- */
+.gdr-token-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gdr-token-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gdr-token-icon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.gdr-token-title {
+  font-size: 0.95rem;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.gdr-token-model {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gdr-token-total {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.gdr-token-total span {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.gdr-token-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.gdr-token-bar {
+  display: flex;
+  height: 8px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--color-surface-inset);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.gdr-token-bar-prompt {
+  background: linear-gradient(90deg, var(--violet), var(--violet-2));
+}
+
+.gdr-token-bar-completion {
+  background: var(--indigo);
+  opacity: 0.55;
+}
+
+.gdr-token-rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gdr-token-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.gdr-token-row dt {
+  color: var(--color-text-secondary);
+}
+
+.gdr-token-row dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.gdr-token-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- A.2 SourcesExplorer ---------- */
+.gdr-sources-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.gdr-sources-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gdr-sources-icon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.gdr-sources-title {
+  font-size: 0.95rem;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.gdr-sources-live {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background-color: var(--color-accent-text);
+}
+
+.gdr-sources-live::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--color-accent-text);
+  opacity: 0;
+  animation: gdr-ping 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes gdr-ping {
+  0% { transform: scale(1); opacity: 0.55; }
+  70% { transform: scale(2.4); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.gdr-sources-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.gdr-sources-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.gdr-source-item {
+  min-width: 0;
+}
+
+.gdr-source-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
+}
+
+a.gdr-source-chip:hover {
+  border-color: var(--color-accent-border);
+  background: var(--color-surface-hover);
+}
+
+a.gdr-source-chip:active {
+  transform: scale(0.99);
+}
+
+a.gdr-source-chip:focus-visible,
+.gdr-source-chip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.gdr-source-favicon {
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+
+.gdr-source-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.gdr-source-status {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+}
+
+.gdr-source-status.is-lendo {
+  color: var(--color-accent-text);
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent-border);
+}
+
+.gdr-source-status.is-processado {
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+
+.gdr-source-status.is-invalidado {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+.gdr-source-link-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.gdr-sources-more {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- B.1 Reasoning: takeaway + streaming + acordeão ---------- */
+.reasoning-takeaway {
+  margin: 10px 0 2px;
+  padding: 8px 12px;
+  background: var(--color-accent-subtle);
+  border-left: 2px solid var(--color-primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.reasoning-takeaway strong {
+  display: block;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+}
+
+.reasoning-takeaway p {
+  margin: 0;
+}
+
+.reasoning-card-body {
+  animation: gdr-card-in 180ms ease-out;
+}
+
+@keyframes gdr-card-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+
+.reasoning-card.is-streaming .reasoning-streaming-text::after {
+  content: "▍";
+  color: var(--color-accent-text);
+  animation: gdr-caret 1s steps(2, start) infinite;
+}
+
+@keyframes gdr-caret {
+  50% { opacity: 0; }
+}
+
+.reasoning-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.reasoning-copy-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.reasoning-copy-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* ---------- B.2 PlanCard: faixas numeradas ---------- */
+.gdr-phases {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gdr-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+  min-width: 0;
+}
+
+.gdr-phase-num {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-accent-text);
+  letter-spacing: 0.04em;
+}
+
+.gdr-phase-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.gdr-phase-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .gdr-phases {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- B.3 Auditoria: pílulas de critérios não cumpridos ---------- */
+.gdr-criteria-pills {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gdr-criteria-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Banner de erro modernizado sem trocar de classes de contrato. */
+.exec-error-card {
+  border-radius: var(--radius-xl, 20px);
+  border: 1px solid var(--color-danger-border);
+  background:
+    linear-gradient(180deg, var(--color-danger-bg), transparent 140%),
+    var(--color-surface);
+}
+
+/* ---------- C. Composer: foco com brilho + toolbar ---------- */
+.composer-box {
+  transition: border-color 0.15s ease, box-shadow 0.2s ease, background-color 0.15s ease;
+}
+
+.composer-box:focus-within {
+  border-color: transparent;
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--violet-2),
+    0 0 24px -6px var(--violet-2),
+    var(--shadow-composer);
+}
+
+.composer-meta[role="toolbar"] {
+  gap: 8px;
+}
+
+/* ---------- Dock: painel flutuante com blur ---------- */
+.dock-panel {
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ---------- Movimento reduzido ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .gdr-sources-live,
+  .gdr-sources-live::after,
+  .reasoning-card-body,
+  .reasoning-card.is-streaming .reasoning-streaming-text::after {
+    animation: none !important;
+  }
+
+  .gdr-source-chip,
+  .composer-box,
+  .reasoning-copy-btn {
+    transition: none;
+  }
+}
+
+/* Spring físico na expansão + hover dos chips (GDR micro-interações) */
+.gdr-source-chip { transition: border-color .15s ease, background-color .15s ease, transform .16s cubic-bezier(.34,1.56,.64,1); }
+.gdr-source-chip:hover { transform: translateY(-1px); }
+.reasoning-card-body, .tl-reasoning-corpo { transition: opacity .18s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .gdr-source-chip:hover { transform: none; }
+}
+/* Contraste WCAG 2.2: garantir que subtextos cinzas nunca caiam abaixo de 4.5:1 no tema claro */
+.gdr-sources-more, .gdr-token-note { color: var(--color-text-secondary); }
