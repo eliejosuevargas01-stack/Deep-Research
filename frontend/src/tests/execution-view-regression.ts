@@ -124,7 +124,7 @@ async function runExecutionViewRegressionTests() {
     'Timeline linear deve renderizar no lugar do breakdown aninhado'
   );
   assert.ok(
-    htmlCycle2.includes('Auditor reprovou o ponto #'),
+    htmlCycle2.includes('Auditor reprovou o ponto número'),
     'Timeline deve usar copy operacional na reprovação'
   );
   // Linha de estágios: texto corrido, sem caixas.

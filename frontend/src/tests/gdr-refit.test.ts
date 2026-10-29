@@ -50,8 +50,11 @@ const html = renderToString(
   })
 );
 assert.ok(html.includes('Tokens'), 'rail exibe medidor de tokens');
-assert.ok(html.includes('Fontes analisadas'), 'rail exibe explorer com contagem');
-assert.ok(html.includes('(<!-- -->1<!-- -->)'), 'contagem de fontes = 1');
-assert.ok(html.includes('example.com'), 'chip exibe domínio');
+/* Contrato atual (DESIGN.md §7): o painel se chama "Fontes exploradas" e a
+   contagem vive num span próprio ao lado do título. */
+assert.ok(html.includes('Fontes exploradas'), 'rail exibe o painel de fontes exploradas');
+assert.ok(/Fontes exploradas<\/span><span class="right-rail__header-count">1</.test(html), 'contagem de fontes = 1');
+assert.ok(html.includes('example.com'), 'chip referencia o domínio da fonte');
+assert.ok(html.includes('Artigo A'), 'chip exibe o título truncado');
 
 console.log('T1 ok');

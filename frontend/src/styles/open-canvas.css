@@ -7,6 +7,11 @@
   gap: 0;
 }
 
+.workspace-grid > :first-child {
+  /* respiro antes do hairline do inspetor: a coluna encostava em x=1044 */
+  padding-right: 24px;
+}
+
 .workspace-grid > .sidebar-container {
   border: 0;
   border-left: 1px solid var(--color-border);

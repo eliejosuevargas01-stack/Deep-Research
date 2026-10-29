@@ -364,6 +364,12 @@ a.rr-sources__chip:hover {
   color: var(--color-text-secondary);
 }
 
+.rr-status__meta-value .icon-button {
+  /* alvo de toque: 20x28 medido antes */
+  min-width: 24px;
+  min-height: 24px;
+}
+
 .rr-status__meta-value {
   color: var(--color-text-primary);
   font-weight: 500;

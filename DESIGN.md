@@ -28,7 +28,9 @@ paleta de atalhos).
 | Right rail (inspetor) | 360px, `border-left: 1px` | tokens, status, fontes, escopo |
 | Composer | largura da coluna central, `position: sticky bottom` em ≤640px | input + parâmetros |
 
-`workspace-grid` = `minmax(0,1fr) 360px`, `gap: 0`, separação por hairline.
+`workspace-grid` = `minmax(0,1fr) 360px`, `gap: 0`, separação por hairline. A
+coluna central reserva `padding-right: 24px` para não encostar no hairline do
+inspetor.
 Right rail: `position: sticky; top: 58px + 16px`, rolagem própria quando
 exceder a viewport, **nunca** criar segunda barra de rolagem na página.
 
@@ -91,7 +93,9 @@ Uma linha de rail vertical de 1px percorre a timeline. Cada passo:
               chips de fonte (favicon 14px + domínio mono truncado)
 ```
 
-- Altura da linha fechada: 40–48px. Aberta: cresce só o necessário.
+- Altura da linha de uma linha só: 40–48px. Com título + resumo (o caso real):
+  72–96px, porque o conteúdo empilha duas linhas de texto. Altura vem do
+  conteúdo, nunca de padding: `padding: 4px 0` na linha.
 - Divisor de estágio: micro-label mono 11px maiúsculo + hairline, não uma caixa.
 - Callout de chave: fundo `--color-surface-subtle`, `border-left: 0`,
   `padding: 8px 12px`, raio 8px, sem ícone decorativo. Usado para a conclusão do
@@ -120,8 +124,8 @@ Cada seção ≤ 220px de altura antes de rolar internamente; a lista de fontes 
 
 ## 8. Formulários / composer / pré-voo
 
-- Prompt bar: superfície branca, raio 20px, hairline 1px, foco com `--focus-ring`,
-  altura mínima 52px, `Enter` planeja / `Shift+Enter` nova linha, contador
+- Prompt bar: superfície branca, raio 26px (a casca existente), hairline 1px,
+  anel de foco violeta via `:focus-within`, altura mínima 52px, `Enter` planeja / `Shift+Enter` nova linha, contador
   `n/500` em mono 11px.
 - Card de pré-voo do plano: resumo de 1 linha + 4 chips de fase (Mapeamento,
   Busca, Auditoria, Dossiê) em linha, ações "Editar parâmetros" (outline) e

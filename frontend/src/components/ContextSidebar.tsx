@@ -123,7 +123,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   const statusNormalized = pipelineStatus || plan.status_pipeline || 'aguardando';
 
   return (
-    <aside className="sidebar-container right-rail right-rail--sticky" aria-label="Informações contextuais da pesquisa">
+    <aside className="sidebar-container context-sidebar right-rail right-rail--sticky" aria-label="Informações contextuais da pesquisa">
       <TokenUsageMeter metadados={metadadosModelo ?? plan?.metadados_modelo ?? null} />
 
       <div className="right-rail__section">
@@ -131,9 +131,13 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
           <Clock size={12} aria-hidden="true" className="right-rail__header-icon" />
           <span>Status</span>
         </div>
-        <span className={`rr-status__badge ${getStatusBadgeClass(statusNormalized)}`}>
-          {getStatusLabel(statusNormalized)}
-        </span>
+        {/* Contrato E2E: `.status-badge-container > .status-badge-chip` precisa
+            continuar existindo (features/step_definitions/*.ts). */}
+        <div className="status-badge-container">
+          <span className={`status-badge-chip ${getStatusBadgeClass(statusNormalized)} rr-status__badge`}>
+            {getStatusLabel(statusNormalized)}
+          </span>
+        </div>
         <div className="rr-status__meta">
           <div className="rr-status__meta-row">
             <span className="rr-status__meta-label">

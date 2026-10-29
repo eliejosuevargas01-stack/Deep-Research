@@ -226,7 +226,9 @@ button.tl-frase:focus-visible {
   cursor: pointer;
   color: var(--color-text-tertiary);
   font-size: 0.75rem;
-  padding: 2px 0;
+  /* alvo de toque: 21px medidos antes; >=24 CSS px */
+  padding: 4px 0;
+  min-height: 24px;
 }
 
 .tl-reasoning-toggle:hover {
@@ -259,9 +261,10 @@ button.tl-frase:focus-visible {
 }
 
 .tl-pill-historiador {
-  color: #7c3aed;
-  border-color: color-mix(in srgb, #7c3aed 50%, transparent);
-  background: color-mix(in srgb, #7c3aed 14%, transparent);
+  /* 4.49:1 no tint; #6d28d9 mede >5.5:1 */
+  color: #6d28d9;
+  border-color: color-mix(in srgb, #6d28d9 50%, transparent);
+  background: color-mix(in srgb, #6d28d9 14%, transparent);
 }
 
 .tl-pill-visionario {
@@ -271,15 +274,17 @@ button.tl-frase:focus-visible {
 }
 
 .tl-pill-cetico {
-  color: #c2410c;
-  border-color: color-mix(in srgb, #c2410c 50%, transparent);
-  background: color-mix(in srgb, #c2410c 14%, transparent);
+  /* #c2410c sobre o tint de 14% media 4.1:1; #9a3412 mede 5.6:1 */
+  color: #9a3412;
+  border-color: color-mix(in srgb, #9a3412 50%, transparent);
+  background: color-mix(in srgb, #9a3412 14%, transparent);
 }
 
 .tl-pill-futurista {
-  color: #047857;
-  border-color: color-mix(in srgb, #047857 50%, transparent);
-  background: color-mix(in srgb, #047857 14%, transparent);
+  /* 4.4:1 no tint; #065f46 mede >5.5:1 */
+  color: #065f46;
+  border-color: color-mix(in srgb, #065f46 50%, transparent);
+  background: color-mix(in srgb, #065f46 14%, transparent);
 }
 
 .tl-pill-auditor {
@@ -292,6 +297,38 @@ button.tl-frase:focus-visible {
   color: var(--color-text-secondary);
   border-color: var(--color-border);
   background: var(--color-surface-subtle);
+}
+
+/* Tema escuro: as pílulas nascem com hues de tema claro (2.5-3.2:1 sobre o
+   fundo escuro). Aqui cada hue sobe para o passo 300 equivalente. */
+:root[data-theme='dark'] .tl-pill-historiador {
+  color: #c4b5fd;
+  border-color: color-mix(in srgb, #c4b5fd 45%, transparent);
+  background: color-mix(in srgb, #c4b5fd 16%, transparent);
+}
+
+:root[data-theme='dark'] .tl-pill-visionario {
+  color: #7dd3fc;
+  border-color: color-mix(in srgb, #7dd3fc 45%, transparent);
+  background: color-mix(in srgb, #7dd3fc 16%, transparent);
+}
+
+:root[data-theme='dark'] .tl-pill-cetico {
+  color: #fdba74;
+  border-color: color-mix(in srgb, #fdba74 45%, transparent);
+  background: color-mix(in srgb, #fdba74 16%, transparent);
+}
+
+:root[data-theme='dark'] .tl-pill-futurista {
+  color: #6ee7b7;
+  border-color: color-mix(in srgb, #6ee7b7 45%, transparent);
+  background: color-mix(in srgb, #6ee7b7 16%, transparent);
+}
+
+:root[data-theme='dark'] .tl-pill-auditor {
+  color: #fcd34d;
+  border-color: color-mix(in srgb, #fcd34d 45%, transparent);
+  background: color-mix(in srgb, #fcd34d 16%, transparent);
 }
 
 .tl-reasoning-corpo {
@@ -354,6 +391,9 @@ button.tl-frase:focus-visible {
   width: 14px;
   height: 14px;
   border-radius: 3px;
+  /* domínio sem favicon responde 404 no gstatic e o <img> vira uma caixa
+     vazia; o tile de surface faz isso parecer intencional */
+  background: var(--color-surface-inset);
 }
 
 .tl-fonte-dominio {
@@ -368,7 +408,8 @@ button.tl-frase:focus-visible {
   flex-shrink: 0;
   margin-left: auto;
   color: var(--color-text-tertiary);
-  font-size: 0.7rem;
+  /* piso funcional 11px */
+  font-size: 11px;
   white-space: nowrap;
 }
 

@@ -43,7 +43,6 @@ export default defineConfig({
           if (id.includes('react-markdown') || id.includes('/remark') || id.includes('micromark') || id.includes('mdast') || id.includes('/unified') || id.includes('hast')) {
             return 'vendor-markdown';
           }
-          if (id.includes('gsap')) return 'vendor-gsap';
           if (id.includes('lucide-react')) return 'vendor-icons';
           if (id.includes('/react') || id.includes('scheduler')) return 'vendor-react';
           return 'vendor';

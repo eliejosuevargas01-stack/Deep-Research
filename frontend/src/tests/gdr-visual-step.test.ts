@@ -103,12 +103,16 @@ const marker = css.indexOf('D. Polish final');
 assert.ok(marker > 0, 'bloco final de polish existe no CSS');
 const tail = css.slice(marker);
 
-/* Spring físico nos chips */
+/* Movimento: overshoot banido (DESIGN.md §9) — ease-out-quint nos chips */
 assert.ok(
-  tail.includes('cubic-bezier(0.34, 1.56, 0.64, 1)'),
-  'spring (curva com overshoot) aplicado às transições de chip'
+  !tail.includes('cubic-bezier(0.34, 1.56, 0.64, 1)'),
+  'nenhuma transição usa curva com overshoot (bounce)'
 );
-assert.ok(tail.includes('.dock-chip:hover'), 'chips do dock ganham hover com spring');
+assert.ok(
+  tail.includes('cubic-bezier(0.22, 1, 0.36, 1)'),
+  'ease-out-quint aplicado às transições de chip'
+);
+assert.ok(tail.includes('.dock-chip:hover'), 'chips do dock ganham hover com ease-out');
 assert.ok(tail.includes('transform: scale(0.985)'), 'active devolve compressão sutil');
 
 /* Glow de foco por CSS */

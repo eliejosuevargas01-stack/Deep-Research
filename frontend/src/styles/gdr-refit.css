@@ -690,7 +690,8 @@ a.gdr-source-chip:hover,
 .tl-hora {
   padding-top: 3px;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  /* piso funcional 11px: 0.7rem caía em 10.5px com root 15px */
+  font-size: 11px;
   line-height: 1.5;
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
@@ -723,8 +724,15 @@ a.gdr-source-chip:hover,
   overflow-wrap: anywhere;
 }
 
+.tl-criterio {
+  text-wrap: pretty;
+}
+
 .tl-analise {
   margin: 0;
+  /* medida de leitura: 100+ caracteres por linha na coluna de 640px */
+  max-width: 68ch;
+  text-wrap: pretty;
   font-size: 0.8rem;
   line-height: 1.45;
   color: var(--color-text-secondary);

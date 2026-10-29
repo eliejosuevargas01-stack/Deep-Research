@@ -93,6 +93,14 @@
   gap: 10px;
 }
 
+/* Medida de leitura: o corpo do aviso ocupava a largura inteira do card
+   (~93 caracteres por linha). 68ch mantém a coluna de texto legível. */
+.exec-error-card .execution-banner-copy {
+  /* 1ch mede 8px nesta face: 68ch dava ~89 caracteres por linha. */
+  max-width: 58ch;
+  text-wrap: pretty;
+}
+
 /* Ações de correção como botões outline: contorno visível, sem texto miúdo. */
 .exec-error-card .btn-secondary,
 .exec-error-card .btn-start-research {
@@ -219,6 +227,10 @@
 
 .execution-theme-inline {
   margin: 0;
+  /* nowrap sem min-width:0 estourava o container: a 390px o tema media
+     573px e começava em x=-103 (início do texto cortado). */
+  min-width: 0;
+  max-width: 100%;
   font-size: 0.8125rem;
   line-height: 1.3;
   color: var(--color-text-secondary);
@@ -275,4 +287,16 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
   opacity: 1;
+}
+
+/* No mobile o tema do run ocupa a largura toda e quebra em até 2 linhas: a
+   regra precisa ficar DEPOIS da declaração base (nowrap) na cascata. */
+@media (max-width: 640px) {
+  .execution-theme-inline {
+    flex-basis: 100%;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
 }
