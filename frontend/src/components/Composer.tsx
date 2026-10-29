@@ -2,6 +2,7 @@ import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react
 import { ArrowUp, CornerDownLeft, Keyboard, Loader2, Sparkles } from 'lucide-react';
 import { ResearchPreferences, ResearchPreferencesProps } from './ResearchPreferences';
 import '../styles/forms-parity.css';
+import '../styles/composer-parity.css';
 
 export interface ComposerHandle {
   focus: () => void;
@@ -16,8 +17,18 @@ interface ComposerProps {
   placeholder?: string;
   preferencesProps?: ResearchPreferencesProps;
   currentPlanActive?: boolean;
+  /** Rótulo do modelo em uso no seletor de acessórios (padrão: roteamento Auto). */
+  modelLabel?: string;
 }
 
+/**
+ * Composer — uma barra só (DESIGN.md §8).
+ *
+ * Linhas dentro da caixa: (1) acessórios — parâmetros, pill de modelo, ferramentas
+ * portadas pelo BottomDock e contador; (2) textarea; (3) atalhos + enviar.
+ * Abaixo da caixa: slot em fluxo para o painel de ferramentas, aviso legal e a
+ * mensagem de validação (visível apenas quando o tema é inválido).
+ */
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
   value,
   onChange,
@@ -27,6 +38,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
   placeholder = 'Descreva o tema da pesquisa: ângulo, período e a decisão que a resposta deve sustentar…',
   preferencesProps,
   currentPlanActive = false,
+  modelLabel = 'Auto',
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const length = value.trim().length;
@@ -34,7 +46,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
 
   // Copy do prompt: estado vazio explica o formato; estados de erro dizem
   // exatamente quanto falta ou quanto sobra, sem repetir a mesma frase.
-  let helperMessage = 'Do tema ao plano em um passo. Enter envia; Shift+Enter abre nova linha; 5 a 500 caracteres.';
+  let helperMessage = 'Do tema ao plano em um passo. Enter planeja; Shift+Enter abre nova linha; 5 a 500 caracteres.';
   let helperClass = 'helper-info';
   if (length > 0 && length < 5) {
     helperMessage = `Faltam ${5 - length} ${5 - length === 1 ? 'caractere' : 'caracteres'} para o mínimo de 5 (limite: 500). Shift+Enter abre nova linha.`;
@@ -106,18 +118,48 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
 
   return (
     <div className="composer-anchor" role="region" aria-label="Entrada de tema de pesquisa">
-      {/* Aviso de plano ativo permanece fora da caixa; o controle de preferências
-          desce para o rodapé do composer, como chip de modelo do ImagineArt. */}
+      {/* Nota de plano ativo: 11px, sem números que os controles já mostram. */}
       {currentPlanActive && (
-        <div className="composer-toolbar" role="note">
+        <p className="composer-toolbar" role="note">
           <span className="composer-plan-indicator">
-            <Sparkles size={13} className="composer-plan-icon" aria-hidden="true" />
-            Plano formulado — submeter novo tema elaborará outro plano
+            <Sparkles size={12} className="composer-plan-icon" aria-hidden="true" />
+            Plano formulado — novo tema elabora outro plano
           </span>
-        </div>
+        </p>
       )}
 
       <div className={`composer-box ${disabled || isSubmitting ? 'disabled' : ''}`}>
+        {/* Linha 1: acessórios na própria barra — sem faixa de status separada. */}
+        <div
+          className="composer-accessories"
+          role="toolbar"
+          aria-label="Ações do tema"
+          aria-orientation="horizontal"
+        >
+          <div className="composer-meta-group" role="group" aria-label="Parâmetros da pesquisa">
+            {preferencesProps && <ResearchPreferences {...preferencesProps} />}
+          </div>
+
+          <span
+            className="composer-model-pill"
+            title={`Modelo em uso: ${modelLabel} (roteamento automático)`}
+          >
+            {modelLabel}
+          </span>
+
+          {/* BottomDock transporta os quatro gatilhos para este slot. */}
+          <div className="composer-tools" data-composer-tools />
+
+          <span
+            className={`composer-counter ${length > 500 || (length > 0 && length < 5) ? 'invalid' : ''}`}
+            title="O tema deve conter entre 5 e 500 caracteres"
+            aria-hidden="true"
+          >
+            {length}/500
+          </span>
+        </div>
+
+        {/* Linha 2: campo de tema */}
         <div className="composer-main">
           <label htmlFor="composer-theme-input" className="sr-only">
             Tema de pesquisa
@@ -139,6 +181,22 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
             autoComplete="off"
             spellCheck
           />
+        </div>
+
+        {/* Linha 3: dicas discretas à esquerda, envio à direita */}
+        <div className="composer-actions">
+          <div className="composer-shortcut" aria-hidden="true">
+            <kbd className="composer-shortcut-key">
+              <CornerDownLeft size={11} aria-hidden="true" />
+              Enter
+            </kbd>
+            <span className="composer-shortcut-label">planeja</span>
+            <kbd className="composer-shortcut-key">
+              <Keyboard size={11} aria-hidden="true" />
+              Shift+Enter
+            </kbd>
+            <span className="composer-shortcut-label">nova linha</span>
+          </div>
 
           <button
             type="button"
@@ -162,43 +220,21 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
             )}
           </button>
         </div>
-
-        <div
-          className="composer-meta"
-          role="toolbar"
-          aria-label="Ações do tema"
-          aria-orientation="horizontal"
-        >
-          <div className="composer-meta-group" role="group" aria-label="Parâmetros da pesquisa">
-            {preferencesProps && <ResearchPreferences {...preferencesProps} />}
-          </div>
-
-          {/* Dica de atalho é decorativa: os mesmos comandos já estão na
-              descrição do textarea, então não duplicamos o anúncio. */}
-          <div className="composer-shortcut" aria-hidden="true">
-            <kbd className="composer-shortcut-key">
-              <CornerDownLeft size={11} aria-hidden="true" />
-              Enter
-            </kbd>
-            <span className="composer-shortcut-label">planeja</span>
-            <kbd className="composer-shortcut-key">
-              <Keyboard size={11} aria-hidden="true" />
-              Shift+Enter
-            </kbd>
-            <span className="composer-shortcut-label">nova linha</span>
-          </div>
-
-          <div
-            className={`composer-counter ${length > 0 && !isValid ? 'invalid' : ''} ${isValid ? 'is-valid' : ''}`}
-            title="O tema deve conter entre 5 e 500 caracteres"
-            aria-hidden="true"
-          >
-            {length}/500
-          </div>
-        </div>
       </div>
 
-      <div id="composer-helper-text" className="composer-helper-text" aria-live="polite">
+      {/* Slot em fluxo: o painel do BottomDock abre AQUI, abaixo da caixa,
+          nunca como popover sobre o input. */}
+      <div className="composer-panel-slot" data-composer-panel />
+
+      <p className="composer-legal">
+        A IA pode cometer erros. Verifique as fontes citadas antes de decidir.
+      </p>
+
+      <div
+        id="composer-helper-text"
+        className={`composer-helper-text ${isValid || length === 0 ? 'is-quiet' : ''}`}
+        aria-live="polite"
+      >
         <span className={helperClass}>
           {helperMessage}
         </span>
