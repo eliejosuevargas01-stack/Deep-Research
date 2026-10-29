@@ -5,6 +5,7 @@ import {
   RotateCcw,
   RefreshCw,
   Clock,
+  ShieldCheck,
 } from 'lucide-react';
 import { AuditResponse, PlanResponse, SearchResponse } from '../types/api';
 import { ReasoningFeedItem } from '../types/stream';
@@ -166,6 +167,133 @@ export function getCycleBadgeClass(stage: PipelineStage): string {
   }
 }
 
+/** Limite de critérios não cumpridos exibidos por ponto no banner. */
+const LIMITE_CRITERIOS_POR_PONTO = 4;
+/** Limite de pontos com pendências exibidos no banner (evita banner infinito). */
+const LIMITE_PONTOS_NO_BANNER = 4;
+
+type CriterioAuditoria = NonNullable<AuditResponse['auditorias'][number]['criterios']>[number];
+
+interface PontoPendente {
+  ponto_id: string;
+  ponto_n: number;
+  criterios_aprovados: number | null;
+  criterios_minimos: number | null;
+  naoCumpridos: CriterioAuditoria[];
+}
+
+/** Pendências por ponto: critérios reprovados da auditoria ou, sem parecer,
+    os pontos do plano como alvo de recuperação. */
+export function derivarPontosPendentes(
+  auditResult: AuditResponse | null | undefined,
+  pontosPlano: Array<{ ponto_id: string; ponto_n: number }> = []
+): PontoPendente[] {
+  const porPonto = (auditResult?.auditorias ?? [])
+    .map((auditoria) => ({
+      ponto_id: auditoria.ponto_id,
+      ponto_n: auditoria.ponto_n,
+      criterios_aprovados: auditoria.criterios_aprovados ?? null,
+      criterios_minimos: auditoria.criterios_minimos ?? null,
+      naoCumpridos: (auditoria.criterios ?? []).filter((c) => !c.aprovado),
+    }))
+    .filter((ponto) => ponto.naoCumpridos.length > 0);
+
+  if (porPonto.length > 0) return porPonto;
+
+  return pontosPlano.map((ponto) => ({
+    ponto_id: ponto.ponto_id,
+    ponto_n: ponto.ponto_n,
+    criterios_aprovados: null,
+    criterios_minimos: null,
+    naoCumpridos: [],
+  }));
+}
+
+/** Bloco compartilhado pelos banners de reprovação e de falha: pílulas de
+    critérios não cumpridos por ponto + recuperação pontual. */
+const BannerPontosPendentes: React.FC<{
+  pontos: PontoPendente[];
+  onRefazerBuscaPonto?: (ponto_id: string) => void;
+  onReauditarPonto?: (ponto_id: string) => void;
+  pontoEmReprocesso?: string | null;
+}> = ({ pontos, onRefazerBuscaPonto, onReauditarPonto, pontoEmReprocesso = null }) => {
+  if (pontos.length === 0) return null;
+  const visiveis = pontos.slice(0, LIMITE_PONTOS_NO_BANNER);
+  const pontosOcultos = pontos.length - visiveis.length;
+
+  return (
+    <div className="execution-stack exec-pontos-pendentes">
+      {visiveis.map((ponto) => {
+        const ocultos = ponto.naoCumpridos.length - LIMITE_CRITERIOS_POR_PONTO;
+        const emReprocesso = pontoEmReprocesso === ponto.ponto_id;
+        return (
+          <div key={ponto.ponto_id} className="exec-ponto-pendencia" data-ponto-id={ponto.ponto_id}>
+            <p className="execution-subheading">
+              {ponto.criterios_aprovados !== null && ponto.criterios_minimos !== null
+                ? `Ponto ${ponto.ponto_n} — ${ponto.criterios_aprovados}/${ponto.criterios_minimos} critérios atendidos`
+                : `Ponto ${ponto.ponto_n}`}
+            </p>
+            {ponto.naoCumpridos.length > 0 && (
+              <ul
+                className="gdr-criteria-pills"
+                aria-label={`Critérios não cumpridos do ponto ${ponto.ponto_n}`}
+              >
+                {ponto.naoCumpridos.slice(0, LIMITE_CRITERIOS_POR_PONTO).map((criterio) => (
+                  <li
+                    key={criterio.id}
+                    className="gdr-criteria-pill"
+                    title={criterio.justificativa || `Critério ${criterio.id}`}
+                  >
+                    {CANONICAL_CRITERIA_NAMES[criterio.id] ?? `Critério ${criterio.id}`}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {ocultos > 0 && (
+              <p className="execution-subheading">
+                +{ocultos} {ocultos === 1 ? 'critério não cumprido' : 'critérios não cumpridos'} neste ponto
+              </p>
+            )}
+            {(onRefazerBuscaPonto || onReauditarPonto) && (
+              <div className="execution-banner-actions">
+                {onRefazerBuscaPonto && (
+                  <button
+                    type="button"
+                    className="btn-start-research btn-compact"
+                    onClick={() => onRefazerBuscaPonto(ponto.ponto_id)}
+                    disabled={emReprocesso}
+                    aria-label={`Refazer busca do ponto ${ponto.ponto_n}`}
+                  >
+                    <RefreshCw size={14} aria-hidden="true" />
+                    <span>Refazer busca</span>
+                  </button>
+                )}
+                {onReauditarPonto && (
+                  <button
+                    type="button"
+                    className="btn-start-research btn-compact"
+                    onClick={() => onReauditarPonto(ponto.ponto_id)}
+                    disabled={emReprocesso}
+                    aria-label={`Reauditar por ponto ${ponto.ponto_n}`}
+                  >
+                    <ShieldCheck size={14} aria-hidden="true" />
+                    <span>Reauditar por ponto</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {pontosOcultos > 0 && (
+        <p className="execution-subheading">
+          +{pontosOcultos} {pontosOcultos === 1 ? 'ponto com pendência' : 'pontos com pendências'} não exibidos
+        </p>
+      )}
+    </div>
+  );
+};
+
 interface ExecutionViewProps {
   stage: PipelineStage;
   plan?: PlanResponse | null;
@@ -271,6 +399,13 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
   const isWritingActive = stage === 'writing';
   const isWritingFailed = stage === 'failed' && failedStage === 'writing';
   const isWritingDone = stage === 'completed';
+
+  // Pendências por ponto exibidas no banner. Em falha sem parecer, os pontos
+  // do plano viram alvo de recuperação pontual.
+  const pontosPendentes = derivarPontosPendentes(
+    auditResult,
+    stage === 'failed' ? plan?.pontos ?? [] : []
+  );
 
   // Progresso macro: cada estágio avança a barra de 2px do topo.
   const progresso =
@@ -389,15 +524,12 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
               aprovados.
             </p>
             {auditResult?.auditorias?.some((a) => (a.criterios ?? []).some((c) => !c.aprovado)) && (
-              <ul className="gdr-criteria-pills" aria-label="Critérios não cumpridos">
-                {auditResult.auditorias.flatMap((a) =>
-                  (a.criterios ?? []).filter((c) => !c.aprovado).map((c) => (
-                    <li key={`${a.ponto_id}-${c.id}`} className="gdr-criteria-pill" title={c.justificativa || `Critério ${c.id}`}>
-                      {CANONICAL_CRITERIA_NAMES[c.id] ?? `Critério ${c.id}`}
-                    </li>
-                  ))
-                ).slice(0, 12)}
-              </ul>
+              <BannerPontosPendentes
+                pontos={pontosPendentes}
+                onRefazerBuscaPonto={onRefazerBuscaPonto}
+                onReauditarPonto={onReauditarPonto}
+                pontoEmReprocesso={pontoEmReprocesso}
+              />
             )}
             <div className="execution-banner-actions">
               <button
@@ -429,6 +561,12 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
             <p className="execution-banner-copy execution-banner-copy--break">
               {errorMessage || 'Ocorreu uma instabilidade na execução do pipeline de pesquisa ou comunicação com o servidor.'}
             </p>
+            <BannerPontosPendentes
+              pontos={pontosPendentes}
+              onRefazerBuscaPonto={onRefazerBuscaPonto}
+              onReauditarPonto={onReauditarPonto}
+              pontoEmReprocesso={pontoEmReprocesso}
+            />
             <div className="execution-banner-actions">
               {onRetry && (
                 <button

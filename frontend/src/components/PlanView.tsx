@@ -18,6 +18,7 @@ interface PlanViewProps {
   onStartExecution: () => void;
   onReset: () => void;
   onEditTheme?: (tema: string) => void;
+  onEditParameters?: (tema: string) => void;
   isStarting: boolean;
 }
 
@@ -26,6 +27,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
   onStartExecution,
   onReset,
   onEditTheme,
+  onEditParameters,
   isStarting,
 }) => {
   const [contextOpen, setContextOpen] = useState(false);
@@ -187,6 +189,22 @@ export const PlanView: React.FC<PlanViewProps> = ({
     : null;
   const activePointsCount = plan.preferencias?.n_pontos ?? plan.n_pontos ?? plan.pontos.length;
 
+  // Faixa numerada de fases exibida no cartão de pré-voo, antes de iniciar a busca.
+  const fases = [
+    { num: '01', nome: 'Mapeamento', meta: `${plan.n_pontos} ${plan.n_pontos === 1 ? 'eixo' : 'eixos'}` },
+    { num: '02', nome: 'Busca', meta: activePersonasCount !== null ? `${activePersonasCount} personas` : 'Personas' },
+    { num: '03', nome: 'Auditoria', meta: '12 critérios' },
+    { num: '04', nome: 'Dossiê', meta: structured?.formato_entrega?.split(' ').slice(0, 2).join(' ') || 'Analítico' },
+  ];
+
+  const handleEditParameters = () => {
+    if (onEditParameters) {
+      onEditParameters(plan.tema);
+      return;
+    }
+    if (onEditTheme) onEditTheme(plan.tema);
+  };
+
   return (
     <div className="plan-container" id="plan-workspace">
       {/* Banner de Consulta Ativa (Comp C Top Left) */}
@@ -305,21 +323,6 @@ export const PlanView: React.FC<PlanViewProps> = ({
                 O planejador formulou {plan.n_pontos} {plan.n_pontos === 1 ? 'eixo investigativo estruturado' : 'eixos investigativos estruturados'} para o tema,
                 com hipóteses falseáveis, consultas direcionadas e critérios claros de conclusão antes da busca web.
               </p>
-
-              <ol className="gdr-phases" aria-label="Fases da investigação">
-                {[
-                  { num: '01', nome: 'Mapeamento', meta: `${plan.n_pontos} ${plan.n_pontos === 1 ? 'eixo' : 'eixos'}` },
-                  { num: '02', nome: 'Busca', meta: activePersonasCount !== null ? `${activePersonasCount} personas` : 'Personas' },
-                  { num: '03', nome: 'Auditoria', meta: '12 critérios' },
-                  { num: '04', nome: 'Dossiê', meta: structured?.formato_entrega?.split(' ').slice(0, 2).join(' ') || 'Analítico' },
-                ].map((f) => (
-                  <li key={f.num} className="gdr-phase">
-                    <span className="gdr-phase-num">{f.num}</span>
-                    <span className="gdr-phase-name">{f.nome}</span>
-                    <span className="gdr-phase-meta" title={f.meta}>{f.meta}</span>
-                  </li>
-                ))}
-              </ol>
             </div>
 
             {/* Ação Primária Única de Continuidade: Iniciar Pesquisa (no cabeçalho compacto, imediatamente visível acima da dobra) */}
@@ -359,6 +362,66 @@ export const PlanView: React.FC<PlanViewProps> = ({
             </button>
           </div>
         </header>
+
+        {/* Cartão de pré-voo: faixa de fases + ações primárias antes da busca */}
+        <section className="gdr-plan-preflight" aria-label="Pré-voo da investigação">
+          <ol className="gdr-phases" aria-label="Fases da investigação">
+            {fases.map((f) => (
+              <li key={f.num} className="gdr-phase">
+                <span className="gdr-phase-num">{f.num}</span>
+                <span className="gdr-phase-name">{f.nome}</span>
+                <span className="gdr-phase-meta" title={f.meta}>{f.meta}</span>
+              </li>
+            ))}
+          </ol>
+
+          <div
+            className="gdr-plan-actions"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '8px',
+              marginTop: '12px',
+            }}
+          >
+            <span
+              className="gdr-plan-actions-label"
+              style={{
+                marginRight: 'auto',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                color: 'var(--color-text-secondary)',
+              }}
+            >
+              Revise os parâmetros e aprove para iniciar
+            </span>
+            <button
+              type="button"
+              className="query-action-btn gdr-plan-action gdr-plan-action--edit"
+              data-gdr-action="edit-parameters"
+              onClick={handleEditParameters}
+              disabled={isStarting}
+              title="Revisar tema, personas e pontos antes de iniciar"
+              aria-label="Editar parâmetros do plano"
+            >
+              <SlidersHorizontal size={14} aria-hidden="true" />
+              <span>Editar parâmetros</span>
+            </button>
+            <button
+              type="button"
+              className="btn-start-research gdr-plan-action gdr-plan-action--approve"
+              data-gdr-action="approve-and-start"
+              onClick={onStartExecution}
+              disabled={isStarting}
+              title="Aprovar o plano e iniciar a pesquisa"
+              aria-label="Aprovar plano e iniciar pesquisa"
+            >
+              <Play size={16} fill="currentColor" aria-hidden="true" />
+              <span>Aprovar e iniciar</span>
+            </button>
+          </div>
+        </section>
 
         {/* Stepper Vertical dos Pontos (1..N) com Divulgação Progressiva */}
         <section className="plan-stepper" aria-label="Eixos investigativos do plano">
