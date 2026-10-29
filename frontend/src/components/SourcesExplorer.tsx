@@ -1,5 +1,4 @@
 import React from 'react';
-import { Globe } from 'lucide-react';
 import { Favicon } from './Favicon';
 
 export type FonteExplorerStatus = 'lendo' | 'processado' | 'invalidado';
@@ -45,10 +44,17 @@ interface SourcesExplorerProps {
   isActive?: boolean;
 }
 
+/**
+ * Lista de fontes do painel de contexto (DESIGN.md §7).
+ *
+ * Linhas abertas: favicon 16px na cor original, título truncado em 1 linha,
+ * domínio em mono 11px e badge de estado. Agrupamento por ponto quando o dado
+ * existe. A rolagem fica no corpo do painel — esta lista não abre um segundo
+ * scroller.
+ */
 export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
   const lista = Array.isArray(items) ? items : [];
 
-  // Group by ponto_n when exists
   const grupos: Array<{ ponto_n: number | null; itens: FonteExplorerItem[] }> = [];
   const map = new Map<string, FonteExplorerItem[]>();
   for (const item of lista) {
@@ -56,7 +62,6 @@ export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(item);
   }
-  // Sort keys: pontos first numerically
   const keys = Array.from(map.keys()).sort((a, b) => {
     const na = a.startsWith('p') ? parseInt(a.slice(1), 10) : 9999;
     const nb = b.startsWith('p') ? parseInt(b.slice(1), 10) : 9999;
@@ -66,68 +71,70 @@ export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
     const ponto_n = k.startsWith('p') ? parseInt(k.slice(1), 10) : null;
     grupos.push({ ponto_n, itens: map.get(k)! });
   }
+  const temPonto = grupos.some((g) => g.ponto_n !== null);
 
   return (
-    <div className="right-rail__section" aria-label="Fontes exploradas">
-      <div className="right-rail__header">
-        <Globe size={12} aria-hidden="true" className="right-rail__header-icon" />
-        <span>Fontes exploradas</span>
-        <span className="right-rail__header-count">{lista.length}</span>
-      </div>
-
+    <div className="rr-sources" aria-label="Fontes exploradas">
       {lista.length === 0 ? (
         <p className="rr-sources__empty">Nenhuma fonte explorada ainda</p>
       ) : (
-        <ul className="rr-sources__list">
-          {grupos.map((grupo, gIdx) => (
-            <React.Fragment key={`g-${gIdx}`}>
-              {grupos.length > 1 && grupo.ponto_n !== null && (
-                <li style={{ fontSize: '11px', color: 'var(--color-text-secondary)', padding: '2px 0' }}>
-                  Ponto {grupo.ponto_n}
-                </li>
-              )}
-              {grupo.itens.map((fonte, indice) => {
-                const dominio = dominioDe(fonte.url, fonte.dominio);
-                const titulo = fonte.titulo && fonte.titulo.trim() ? fonte.titulo.trim() : dominio;
-                const seguro = isSafeUrl(fonte.url);
-                const descricao = `${titulo} — ${dominio} — ${STATUS_ROTULO[fonte.status]}`;
-                const init = inicialDominio(dominio);
-                const conteudo = (
-                  <>
-                    <span className="rr-sources__favicon-wrap" aria-hidden="true">
-                      <span className="rr-sources__favicon-fallback">{init}</span>
-                      <Favicon dominio={dominio} size={64} className="rr-sources__favicon" />
-                    </span>
-                    <span className="rr-sources__title" title={titulo}>
-                      {titulo}
-                    </span>
-                    <span className={`rr-sources__badge is-${fonte.status}`}>{STATUS_ROTULO[fonte.status]}</span>
-                  </>
-                );
-                return (
-                  <li key={`${fonte.url}-${indice}`} className="rr-sources__item">
-                    {seguro ? (
-                      <a
-                        className="rr-sources__chip"
-                        href={fonte.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={descricao}
-                        aria-label={`Abrir fonte externa: ${descricao}`}
-                      >
-                        {conteudo}
-                      </a>
-                    ) : (
-                      <span className="rr-sources__chip" title={descricao}>
-                        {conteudo}
+        grupos.map((grupo) => {
+          const rotulo = grupo.ponto_n !== null ? `Ponto ${grupo.ponto_n}` : temPonto ? 'Sem ponto' : null;
+          return (
+            <section
+              key={grupo.ponto_n === null ? 'geral' : `ponto-${grupo.ponto_n}`}
+              className="rr-sources__group"
+              aria-label={rotulo ?? 'Fontes exploradas'}
+            >
+              {rotulo && <p className="rr-sources__group-label">{rotulo}</p>}
+              <ul className="rr-sources__list">
+                {grupo.itens.map((fonte, indice) => {
+                  const dominio = dominioDe(fonte.url, fonte.dominio);
+                  const titulo = fonte.titulo && fonte.titulo.trim() ? fonte.titulo.trim() : dominio;
+                  const seguro = isSafeUrl(fonte.url);
+                  const descricao = `${titulo} — ${dominio} — ${STATUS_ROTULO[fonte.status]}`;
+                  const conteudo = (
+                    <>
+                      <span className="rr-source__icon" aria-hidden="true">
+                        <span className="rr-source__fallback">{inicialDominio(dominio)}</span>
+                        <Favicon dominio={dominio} size={32} className="rr-source__img" />
                       </span>
-                    )}
-                  </li>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </ul>
+                      <span className="rr-source__text">
+                        <span className="rr-source__title" title={titulo}>
+                          {titulo}
+                        </span>
+                        <span className="rr-source__domain" title={dominio}>
+                          {dominio}
+                        </span>
+                      </span>
+                      <span className={`rr-source__badge is-${fonte.status}`}>{STATUS_ROTULO[fonte.status]}</span>
+                    </>
+                  );
+                  return (
+                    <li key={`${fonte.url}-${indice}`} className="rr-sources__row">
+                      {seguro ? (
+                        <a
+                          className="rr-source"
+                          href={fonte.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={descricao}
+                          aria-label={`Abrir fonte externa: ${descricao}`}
+                        >
+                          {conteudo}
+                        </a>
+                      ) : (
+                        <span className="rr-source" title={descricao}>
+                          {conteudo}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })
       )}
     </div>
   );
