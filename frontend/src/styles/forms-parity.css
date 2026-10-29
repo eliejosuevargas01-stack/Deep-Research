@@ -1,0 +1,293 @@
+/* forms-parity.css - Composer, forms, preflight parity per DESIGN.md §8 */
+.composer-anchor {
+  width: 100%;
+  max-width: 1400px;
+  margin: var(--space-6, 24px) auto 0 auto;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.composer-anchor > * {
+  pointer-events: auto;
+}
+
+.composer-box {
+  position: relative;
+  background: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, #E4E6E1);
+  border-radius: 20px;
+  min-height: 52px;
+  box-shadow: var(--shadow-composer);
+  padding: 10px 12px 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.composer-box:focus-within {
+  border-color: var(--color-border-strong, #C9CCC6);
+  box-shadow: var(--focus-ring, 0 0 0 2px #FFFFFF, 0 0 0 4px var(--violet-2));
+}
+
+.composer-main {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.composer-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--color-text-primary, #2F3737);
+  padding: 6px 0;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.composer-input::placeholder {
+  color: var(--color-text-muted, #5F6868);
+}
+
+.composer-input:focus,
+.composer-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.composer-send-btn {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 9999px;
+  background: var(--color-primary, #6D28D9);
+  color: var(--color-primary-fg, #FFFFFF);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 150ms ease-out, opacity 150ms ease-out, transform 150ms ease-out;
+}
+
+.composer-send-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover, #5B21B6);
+}
+
+.composer-send-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.composer-send-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring, 0 0 0 2px #FFFFFF, 0 0 0 4px var(--violet-2));
+}
+
+.composer-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.composer-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border-subtle, #EDEFEA);
+  min-height: 32px;
+}
+
+.composer-meta-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.composer-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  color: var(--color-text-muted, #5F6868);
+  font-size: 11px;
+}
+
+.composer-shortcut-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border, #E4E6E1);
+  border-radius: 6px;
+  background: var(--color-surface-subtle, #F6F7F4);
+  color: var(--color-text-secondary, #4A5254);
+  min-height: 24px;
+  line-height: 1;
+}
+
+.composer-shortcut-label {
+  font-size: 11px;
+  color: var(--color-text-muted, #5F6868);
+}
+
+.composer-counter {
+  margin-left: auto;
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--color-text-secondary, #4A5254);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.composer-counter.invalid {
+  color: var(--color-danger-text, #9B2C2C);
+  font-weight: 600;
+}
+
+.composer-counter.is-valid {
+  color: var(--color-success-text, #0F7B4F);
+}
+
+.composer-helper-text {
+  margin-top: 6px;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.helper-info {
+  color: var(--color-text-secondary, #4A5254);
+}
+
+.helper-warning {
+  color: var(--color-danger-text, #9B2C2C);
+  font-weight: 600;
+}
+
+.helper-success {
+  color: var(--color-success-text, #0F7B4F);
+  font-weight: 500;
+}
+
+.composer-plan-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text-secondary, #4A5254);
+}
+
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 6px;
+}
+
+@media (max-width: 640px) {
+  .composer-anchor {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 12px 0 0 0;
+    padding: 0 var(--space-3, 12px) calc(var(--space-2, 8px) + env(safe-area-inset-bottom, 0));
+    background: var(--color-surface, #FFFFFF);
+    border-top: 1px solid var(--color-border, #E4E6E1);
+    z-index: 40;
+  }
+
+  .composer-box {
+    border-radius: 16px;
+    padding: 8px 10px 8px 14px;
+    min-height: 52px;
+  }
+
+  .composer-input {
+    font-size: 16px;
+    padding: 8px 0;
+  }
+
+  .composer-send-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .composer-meta {
+    gap: 8px;
+  }
+
+  .composer-counter {
+    margin-left: auto;
+  }
+}
+
+/* Preferences/QuickSheet/BottomDock parity */
+.preferences-panel {
+  background: var(--color-surface, #FFFFFF) !important;
+  border: 1px solid var(--color-border-strong, #C9CCC6) !important;
+  box-shadow: var(--shadow-lg);
+}
+
+.preferences-toggle-btn,
+.point-option-btn,
+.persona-checkbox-label,
+.dock-btn,
+.dock-chip,
+.dock-segment button,
+.sheet-panel,
+.dock-panel {
+  min-height: 24px;
+}
+
+.preferences-toggle-btn:focus-visible,
+.point-option-btn:focus-visible,
+.persona-checkbox-label:focus-visible,
+.preferences-close-btn:focus-visible,
+.dock-btn:focus-visible,
+.dock-chip:focus-visible,
+.dock-close:focus-visible,
+.sheet-close:focus-visible,
+.sheet-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring, 0 0 0 2px #FFFFFF, 0 0 0 4px var(--violet-2));
+}
+
+.preferences-label,
+.preferences-hint,
+.preferences-helper,
+.dock-label,
+.dock-note,
+.sheet-label,
+.sheet-note,
+.composer-shortcut,
+.composer-counter,
+.composer-helper-text {
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preferences-panel,
+  .dock-panel,
+  .sheet-panel {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+

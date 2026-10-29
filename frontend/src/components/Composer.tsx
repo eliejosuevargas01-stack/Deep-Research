@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { ArrowUp, CornerDownLeft, Keyboard, Loader2, Sparkles } from 'lucide-react';
 import { ResearchPreferences, ResearchPreferencesProps } from './ResearchPreferences';
+import '../styles/forms-parity.css';
 
 export interface ComposerHandle {
   focus: () => void;
