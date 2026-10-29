@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { SlidersHorizontal, Palette, Keyboard, ShieldCheck, Minus, Plus, X } from 'lucide-react';
 
 export interface BottomDockProps {
