@@ -1,0 +1,49 @@
+/* reasoning-step.css */
+.reasoning-step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.reasoning-step-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+.reasoning-step-rail {
+  width: 1px;
+  background: var(--color-border);
+  align-self: stretch;
+}
+.reasoning-step-body {
+  border-radius: 8px;
+  background: var(--color-surface-subtle);
+  padding: 8px 12px;
+}
+.reasoning-step-queries {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.reasoning-step-reasoning {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.reasoning-step-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.reasoning-step-source-favicon {
+  width: 14px;
+  height: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reasoning-step *,
+  .reasoning-step *::before,
+  .reasoning-step *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

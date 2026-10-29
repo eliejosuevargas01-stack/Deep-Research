@@ -12,6 +12,7 @@ import { ReasoningFeedItem } from '../types/stream';
 import { LinearTimeline } from './LinearTimeline';
 import '../styles/execution-view.css';
 import { formatarTitulo } from '../utils/texto';
+import { ConvergenceLogo } from './ResearchIcons';
 
 export type PipelineStage = 'idle' | 'searching' | 'auditing' | 'writing' | 'completed' | 'rejected' | 'failed';
 
@@ -433,7 +434,8 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
       </div>
 
       <header className="card-header execution-heading-row">
-        <div className="execution-heading-main">
+        <div className="execution-heading-main" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <ConvergenceLogo phase={stage === 'auditing' ? 'audit' : (stage === 'writing' || stage === 'completed') ? 'synthesis' : 'stream'} size={18} />
           <h1 className="card-title execution-heading-title">
             {stage === 'failed'
               ? 'Investigação interrompida'
