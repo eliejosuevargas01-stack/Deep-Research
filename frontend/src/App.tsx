@@ -1122,8 +1122,8 @@ export const App: React.FC = () => {
   return (
     <div className={`app-shell ${ambientOn ? 'has-ambient' : ''}`}>
       {ambientOn && <HorizonBackground theme={tema} />}
-      <a className="skip-link" href="#main-content">
-        Pular para o conteúdo principal
+      <a className="skip-link" href="#conteudo">
+        Pular para o conteúdo
       </a>
 
       <Sidebar
@@ -1179,7 +1179,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Conteúdo Principal por Rota */}
-      <main className="workspace-main" id="main-content">
+      <main className="workspace-main" id="conteudo">
         {currentRoute === 'research' && (
           <>
             {/* Mensagem de Erro no Planejamento */}

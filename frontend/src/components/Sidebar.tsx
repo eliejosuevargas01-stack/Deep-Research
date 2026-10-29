@@ -92,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {!collapsed && (sessionAuthenticated ? 'Sessão ativa' : 'Sessão pendente')}
       </span>
 
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" aria-label="Navegação principal">
         {!collapsed && <p className="sidebar-group">Investigação</p>}
         <Item
           active={currentRoute === 'research' && !hasPlan}
