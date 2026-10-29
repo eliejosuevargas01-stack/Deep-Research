@@ -3,7 +3,7 @@
    - linha fechada = ícone 16 + UM rótulo denso "Persona — o que faz" + chevron;
      sem hora, sem chip, sem parágrafo de análise;
    - hora, queries, reasoning e chips de fonte só no corpo expandido;
-   - divisor de grupo = micro-label mono 11px maiúsculo + hairline (nunca caixa);
+   - divisor de grupo = micro-label mono 12px maiúsculo + hairline (nunca caixa);
    - nada de card dentro de card.
 
    As regras nascem ancoradas em `.tl-linear` (0,2,0) porque `gdr-refit.css`
@@ -60,14 +60,16 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  max-width: 100%;
   margin: 0 0 2px;
   padding: 0;
+  overflow: hidden;
 }
 
 .tl-linear .tl-grupo-rotulo {
   flex-shrink: 0;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   font-weight: 500;
   letter-spacing: 0.06em;
@@ -77,16 +79,21 @@
 }
 
 .tl-linear .tl-grupo-tema {
-  min-width: 0;
   flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   letter-spacing: 0.02em;
   color: var(--color-text-secondary);
+  /* Tema longo quebra em até 2 linhas e para com reticências: o rótulo do
+     estágio nunca empurra o container (F8), e o texto completo fica no title. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .tl-linear .tl-grupo::after {
@@ -226,26 +233,17 @@ button.tl-entrada-linha:focus-visible {
   transform: rotate(180deg);
 }
 
-/* Cursor de texto do item ao vivo. */
-.tl-linear .tl-cursor {
+/* Rótulo textual do item ao vivo (DESIGN §6: sem cursor piscante). */
+.tl-linear .tl-estado-vivo {
   flex: 0 0 auto;
-  align-self: center;
-  width: 2px;
-  height: 1em;
-  margin-left: 2px;
-  background: var(--color-primary);
-  animation: tl-pisca 1s steps(1, end) infinite;
-}
-
-@keyframes tl-pisca {
-  0%,
-  49% {
-    opacity: 1;
-  }
-  50%,
-  100% {
-    opacity: 0;
-  }
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
 /* ---------- corpo expandido ---------- */
@@ -512,11 +510,6 @@ button.tl-entrada-linha:focus-visible {
   button.tl-entrada-linha,
   .tl-linear .tl-acao {
     transition: none;
-  }
-
-  .tl-linear .tl-cursor {
-    animation: none;
-    opacity: 1;
   }
 
   /* SMIL congelado: esconde os <animate> e o traço fica na posição estática. */

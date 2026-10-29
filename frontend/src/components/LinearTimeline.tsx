@@ -234,7 +234,7 @@ const Passo: React.FC<PassoProps> = ({
         <span className="tl-acao-texto" title={resumo}>
           {resumo}
         </span>
-        {aoVivo ? <span className="tl-cursor" aria-hidden="true" /> : null}
+        {aoVivo ? <span className="tl-estado-vivo">ao vivo</span> : null}
       </span>
     </>
   );
@@ -462,8 +462,8 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
             <span className="tl-trilho" aria-hidden="true" />
             <div className="tl-conteudo">
               <p className="tl-grupo">
-                <span className="tl-grupo-rotulo">{`Ponto ${String(ponto.ponto_n).padStart(2, '0')}`}</span>
-                <span className="tl-grupo-tema">{ponto.ponto}</span>
+                <span className="tl-grupo-rotulo">{`Ponto ${String(ponto.ponto_n).padStart(2, '0')} ·`}</span>
+                <span className="tl-grupo-tema" title={ponto.ponto}>{ponto.ponto}</span>
               </p>
 
               {personas.map((persona, personaIndice) => {
