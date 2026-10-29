@@ -661,3 +661,141 @@ a.gdr-source-chip:hover,
 .gdr-phase-meta {
   color: var(--color-text-secondary);
 }
+
+/* --- Timelog flat (spec imagem 3): entradas flat com timestamp, queries
+   mono inline, linha do auditor com score. Sem box-dentro-de-box. */
+.tl-detalhe {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 0;
+  background: none;
+  border-radius: 0;
+}
+
+.tl-entrada {
+  display: grid;
+  grid-template-columns: 58px 20px minmax(0, 1fr);
+  gap: 0 8px;
+  align-items: start;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+}
+
+.tl-entrada + .tl-entrada {
+  border-top: 1px solid var(--color-border);
+}
+
+.tl-hora {
+  padding-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tl-entrada .tl-icone {
+  transform: none;
+}
+
+.tl-entrada-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tl-entrada-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tl-entrada-titulo {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.tl-analise {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.tl-queries {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.tl-query-line {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.tl-linha-auditor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  min-width: 0;
+}
+
+.tl-auditor-frase {
+  min-width: 0;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.tl-acoes-log {
+  margin-left: 0;
+  opacity: 1;
+}
+
+.tl-entrada-auditor.reprovado .tl-acoes-log {
+  flex-wrap: wrap;
+}
+
+.tl-reasoning-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tl-entrada-reasoning {
+  grid-template-columns: 54px 20px minmax(0, 1fr);
+}
+
+.tl-entrada-final {
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .tl-entrada {
+    grid-template-columns: 52px 20px minmax(0, 1fr);
+    gap: 0 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tl-entrada {
+    transition: none !important;
+  }
+}
