@@ -178,16 +178,21 @@ const html = renderToString(
 );
 
 // --- Timestamp por entrada ---
-assert.ok(html.includes('class="tl-hora"'), 'entradas usam a classe tl-hora');
+/* Contrato r3 (DESIGN.md §6): a hora vive no corpo expandido; a linha fechada
+   tem só o rótulo denso. No SSR os corpos vêm com `hidden`, então a hora
+   existe no markup mas não é visível. */
+assert.ok(html.includes('class="tl-hora"'), 'corpo expandido usa a classe tl-hora');
 const horaHistoriador = formatarHoraTimelog('2026-10-28T03:02:00');
 const horaCetico = formatarHoraTimelog('2026-10-28T03:02:07');
 const horaAuditor = formatarHoraTimelog('2026-10-28T03:02:15');
 assert.match(horaHistoriador, /^\d{2}:\d{2}:\d{2}$/, 'hora da persona segue HH:MM:SS');
-assert.ok(html.includes(`>${horaHistoriador}</time>`), 'timestamp do Historiador visivel na entrada');
-assert.ok(html.includes(`>${horaCetico}</time>`), 'timestamp do Cético visivel na entrada');
-assert.ok(html.includes(`>${horaAuditor}</time>`), 'timestamp do Auditor visivel na entrada');
+assert.ok(html.includes(`>${horaHistoriador}</time>`), 'timestamp do Historiador no corpo');
+assert.ok(html.includes(`>${horaCetico}</time>`), 'timestamp do Cético no corpo');
+assert.ok(html.includes(`>${horaAuditor}</time>`), 'timestamp do Auditor no corpo');
 assert.ok(html.includes('dateTime="2026-10-28T03:02:00"'), 'time preserva o carimbo ISO no atributo');
-assert.equal(contar(html, 'class="tl-hora"'), 4, 'uma hora por entrada (2 personas + auditor + no final)');
+assert.equal(contar(html, 'class="tl-entrada-corpo" hidden=""'), 3, 'todo corpo nasce fechado (3 passos com detalhe)');
+assert.equal(contar(html, 'aria-expanded="false"'), 3, 'linha fechada anuncia aria-expanded=false');
+assert.equal(contar(html, 'class="tl-pill'), 0, 'linha fechada não tem chip de persona');
 
 // --- Queries inline de TODAS as personas ---
 assert.equal(contar(html, 'class="tl-query-line"'), 3, 'todas as queries das duas personas viram linhas');
@@ -197,13 +202,19 @@ assert.ok(html.includes('$ custo agencia bancaria dieese'), 'query do Cético in
 assert.ok(!html.includes('ver query'), 'nao existe mais o toggle de primeira query');
 
 // --- Linha do auditor reprovando ---
-const linhaAuditor = 'Auditor reprovou o ponto número 1 por tema difuso (50% × 6/11) — reenviado';
-assert.ok(html.includes(linhaAuditor), 'linha do auditor usa formato exato e primeiro criterio reprovado');
-assert.ok(html.includes('<span>refazer busca</span>'), 'botao refazer busca presente');
-assert.ok(html.includes('<span>reauditar</span>'), 'botao reauditar presente');
+/* Contrato r3: persona e frase são nós separados na linha fechada
+   (`Persona — frase`), e as ações de recuperação vivem no corpo. */
+const fraseAuditor = 'reprovou o ponto número 1 por tema difuso (50% × 6/11) — reenviado';
+assert.ok(html.includes(fraseAuditor), 'linha do auditor preserva o formato e o primeiro critério');
 assert.ok(
-  html.indexOf(linhaAuditor) < html.indexOf('<span>refazer busca</span>'),
-  'acoes ficam na mesma linha, depois da frase do auditor'
+  html.indexOf('>Auditor<') < html.indexOf(fraseAuditor),
+  'persona do auditor vem antes da frase na mesma linha'
+);
+assert.ok(html.includes('<span>refazer busca</span>'), 'botao refazer busca presente no corpo');
+assert.ok(html.includes('<span>reauditar</span>'), 'botao reauditar presente no corpo');
+assert.ok(
+  html.indexOf(fraseAuditor) < html.indexOf('<span>refazer busca</span>'),
+  'acoes de recuperação continuam depois da frase do auditor'
 );
 assert.ok(html.includes('tl-detalhe'), 'criterios reprovados usam tl-detalhe');
 assert.ok(html.includes('Critério 1:'), 'detalhe mantem criterio reprovado');

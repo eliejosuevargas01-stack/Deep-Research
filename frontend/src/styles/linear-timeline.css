@@ -1,5 +1,13 @@
-/* Linear Timeline: trilho único, sem box-in-box. Nós são linhas com recuo,
-   detalhe sob demanda com borda lateral simples. */
+/* Linear Timeline (rodada 3) — trilho único, linha densa por passo.
+   Contrato DESIGN §6:
+   - linha fechada = ícone 16 + UM rótulo denso "Persona — o que faz" + chevron;
+     sem hora, sem chip, sem parágrafo de análise;
+   - hora, queries, reasoning e chips de fonte só no corpo expandido;
+   - divisor de grupo = micro-label mono 11px maiúsculo + hairline (nunca caixa);
+   - nada de card dentro de card.
+
+   As regras nascem ancoradas em `.tl-linear` (0,2,0) porque `gdr-refit.css`
+   carrega depois deste arquivo em `main.tsx` e define `.tl-entrada` em (0,1,0). */
 
 .tl-linear {
   list-style: none;
@@ -7,418 +15,513 @@
   padding: 0;
 }
 
-.tl-no {
+/* ---------- grupo / estágio ---------- */
+
+.tl-linear .tl-no {
   position: relative;
   display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: 0 10px;
-  padding-bottom: 14px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 0 12px;
+  padding: 0 0 18px;
 }
 
-.tl-no.ultimo {
+.tl-linear .tl-no.ultimo {
   padding-bottom: 0;
 }
 
-.tl-trilho {
+.tl-linear .tl-trilho {
   position: relative;
   grid-column: 1;
 }
 
-.tl-trilho::before {
+.tl-linear .tl-trilho::before {
   content: '';
   position: absolute;
   left: 9px;
-  top: 22px;
-  bottom: -14px;
-  width: 2px;
+  top: 2px;
+  bottom: -18px;
+  width: 1px;
   background: var(--color-border);
 }
 
-.tl-no.ultimo .tl-trilho::before {
+.tl-linear .tl-no.ultimo .tl-trilho::before {
   display: none;
 }
 
-.tl-conteudo {
+.tl-linear .tl-conteudo {
   grid-column: 2;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
-.tl-no-cabecalho {
+.tl-linear .tl-grupo {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   min-width: 0;
+  margin: 0 0 2px;
+  padding: 0;
 }
 
-.tl-frase {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
+.tl-linear .tl-grupo-rotulo {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.tl-linear .tl-grupo-tema {
   min-width: 0;
-  padding: 2px 0;
-  font-size: 0.85rem;
-  line-height: 1.45;
-  color: var(--color-text-primary);
-  background: none;
+  flex: 0 1 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-linear .tl-grupo::after {
+  content: '';
+  flex: 1 1 auto;
+  min-width: 12px;
+  height: 1px;
+  background: var(--color-border);
+}
+
+/* ---------- linha fechada ---------- */
+
+.tl-linear .tl-entrada {
+  display: block;
+  padding: 0;
   border: 0;
-  text-align: left;
+  background: none;
 }
 
-button.tl-frase {
+.tl-linear .tl-entrada + .tl-entrada {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.tl-linear .tl-entrada-linha {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 0 10px;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 6px 8px 6px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  color: var(--color-text-primary);
+}
+
+button.tl-entrada-linha {
   cursor: pointer;
 }
 
-button.tl-frase:hover .tl-linha {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+button.tl-entrada-linha:hover {
+  background: var(--color-surface-subtle);
 }
 
-button.tl-frase:focus-visible {
+button.tl-entrada-linha:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: 4px;
+  outline-offset: 1px;
 }
 
-.tl-estatica {
+.tl-linear .tl-entrada-linha.tl-linha-estatica {
+  grid-template-columns: 20px minmax(0, 1fr);
   cursor: default;
 }
 
-.tl-icone {
-  flex-shrink: 0;
+.tl-linear .tl-icone {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 50%;
-  transform: translateY(3px);
-  border: 1px solid var(--color-border);
+  border: 0;
+  border-radius: 0;
+  background: none;
   color: var(--color-text-secondary);
-  background: var(--color-surface);
+  transform: none;
 }
 
-.tl-icone.tl-ok {
-  color: var(--color-success-text);
-  border-color: var(--color-success-border);
+.tl-linear .tl-icone svg {
+  display: block;
 }
 
-.tl-icone.tl-falha {
+/* Ícones da persona usam os traços originais do spec (#f4f4f5 sobre fundo
+   escuro). No tema claro esses traços somem sobre o canvas: aqui só os
+   tons neutros são remapeados para tinta; âmbar/verde (acentos) ficam. */
+:root:not([data-theme='dark']) .tl-linear .tl-entrada .tl-icone [stroke='#f4f4f5'] {
+  stroke: var(--color-text-primary);
+}
+
+:root:not([data-theme='dark']) .tl-linear .tl-entrada .tl-icone [stroke='#71717a'] {
+  stroke: var(--color-text-muted);
+}
+
+:root:not([data-theme='dark']) .tl-linear .tl-entrada .tl-icone [fill='#f4f4f5'] {
+  fill: var(--color-text-primary);
+}
+
+:root:not([data-theme='dark']) .tl-linear .tl-entrada .tl-icone [fill='#71717a'] {
+  fill: var(--color-text-muted);
+}
+
+.tl-linear .tl-icone.tl-falha {
   color: var(--color-danger-text);
-  border-color: var(--color-danger-border);
 }
 
-.tl-icone.tl-ativo {
-  color: var(--color-accent-text);
-  border-color: var(--color-accent-border);
-}
-
-.tl-linha {
+.tl-linear .tl-texto {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
   min-width: 0;
-  overflow-wrap: anywhere;
 }
 
-.tl-ver {
-  color: var(--color-text-secondary);
+.tl-linear .tl-persona {
+  flex: 0 0 auto;
+  font-weight: 500;
+  color: var(--color-text-primary);
   white-space: nowrap;
 }
 
-.tl-chevron {
+.tl-linear .tl-traco {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  white-space: pre;
+}
+
+.tl-linear .tl-acao-texto {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+}
+
+.tl-linear .tl-chevron {
+  justify-self: end;
   flex-shrink: 0;
-  transform: translateY(2px);
   color: var(--color-text-secondary);
-  transition: transform 120ms ease;
+  transition: transform 150ms ease-out;
 }
 
-.tl-chevron.aberto {
-  transform: translateY(2px) rotate(180deg);
+.tl-linear .tl-chevron.aberto {
+  transform: rotate(180deg);
 }
 
-.tl-detalhe {
-  margin: 2px 0 6px 28px;
-  padding-left: 10px;
-  border-left: 2px solid var(--color-border);
+/* Cursor de texto do item ao vivo. */
+.tl-linear .tl-cursor {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  background: var(--color-primary);
+  animation: tl-pisca 1s steps(1, end) infinite;
+}
+
+@keyframes tl-pisca {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------- corpo expandido ---------- */
+
+.tl-linear .tl-entrada-corpo {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 0.82rem;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 8px 12px 30px;
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--color-text-secondary);
 }
 
-.tl-query {
-  font-family: ui-monospace, monospace;
-  font-size: 0.78rem;
-  color: var(--color-text-primary);
-  overflow-wrap: anywhere;
+.tl-linear .tl-entrada-corpo[hidden] {
+  display: none;
 }
 
-.tl-meta {
-  font-size: 0.75rem;
-  color: var(--color-text-tertiary);
-}
-
-.tl-criterio {
-  margin: 0;
-  font-size: 0.82rem;
-  line-height: 1.45;
-  color: var(--color-text-secondary);
-  overflow-wrap: anywhere;
-}
-
-.tl-criterio strong {
-  color: var(--color-text-primary);
-  font-weight: 600;
-}
-
-.tl-acoes {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: auto;
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.tl-no-cabecalho:hover .tl-acoes,
-.tl-no-cabecalho:focus-within .tl-acoes,
-.tl-acoes.sempre {
-  opacity: 1;
-}
-
-.tl-acao {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 7px;
-  min-height: 26px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: 0.73rem;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.tl-acao:hover:not(:disabled) {
-  color: var(--color-text-primary);
-  border-color: var(--color-border);
-}
-
-.tl-acao:disabled {
-  cursor: wait;
-  opacity: 0.7;
-}
-
-.tl-acao:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
-}
-
-.tl-reasoning {
-  margin: 0 0 4px 28px;
-  font-size: 0.78rem;
-}
-
-.tl-reasoning-toggle {
-  cursor: pointer;
-  color: var(--color-text-tertiary);
-  font-size: 0.75rem;
-  /* alvo de toque: 21px medidos antes; >=24 CSS px */
-  padding: 4px 0;
-  min-height: 24px;
-}
-
-.tl-reasoning-toggle:hover {
-  color: var(--color-text-primary);
-}
-
-.tl-reasoning-item {
+.tl-linear .tl-corpo-meta {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
 }
 
-/* Item 1 da crítica: pílula cromática por persona + corpo mono. */
-.tl-meta-pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tl-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 8px;
-  border-radius: var(--radius-full, 999px);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  border: 1px solid transparent;
-  white-space: nowrap;
-}
-
-.tl-pill-historiador {
-  /* 4.49:1 no tint; #6d28d9 mede >5.5:1 */
-  color: #6d28d9;
-  border-color: color-mix(in srgb, #6d28d9 50%, transparent);
-  background: color-mix(in srgb, #6d28d9 14%, transparent);
-}
-
-.tl-pill-visionario {
-  color: #0369a1;
-  border-color: color-mix(in srgb, #0369a1 50%, transparent);
-  background: color-mix(in srgb, #0369a1 14%, transparent);
-}
-
-.tl-pill-cetico {
-  /* #c2410c sobre o tint de 14% media 4.1:1; #9a3412 mede 5.6:1 */
-  color: #9a3412;
-  border-color: color-mix(in srgb, #9a3412 50%, transparent);
-  background: color-mix(in srgb, #9a3412 14%, transparent);
-}
-
-.tl-pill-futurista {
-  /* 4.4:1 no tint; #065f46 mede >5.5:1 */
-  color: #065f46;
-  border-color: color-mix(in srgb, #065f46 50%, transparent);
-  background: color-mix(in srgb, #065f46 14%, transparent);
-}
-
-.tl-pill-auditor {
-  color: #92400e;
-  border-color: color-mix(in srgb, #92400e 50%, transparent);
-  background: color-mix(in srgb, #92400e 14%, transparent);
-}
-
-.tl-pill-sistema {
-  color: var(--color-text-secondary);
-  border-color: var(--color-border);
-  background: var(--color-surface-subtle);
-}
-
-/* Tema escuro: as pílulas nascem com hues de tema claro (2.5-3.2:1 sobre o
-   fundo escuro). Aqui cada hue sobe para o passo 300 equivalente. */
-:root[data-theme='dark'] .tl-pill-historiador {
-  color: #c4b5fd;
-  border-color: color-mix(in srgb, #c4b5fd 45%, transparent);
-  background: color-mix(in srgb, #c4b5fd 16%, transparent);
-}
-
-:root[data-theme='dark'] .tl-pill-visionario {
-  color: #7dd3fc;
-  border-color: color-mix(in srgb, #7dd3fc 45%, transparent);
-  background: color-mix(in srgb, #7dd3fc 16%, transparent);
-}
-
-:root[data-theme='dark'] .tl-pill-cetico {
-  color: #fdba74;
-  border-color: color-mix(in srgb, #fdba74 45%, transparent);
-  background: color-mix(in srgb, #fdba74 16%, transparent);
-}
-
-:root[data-theme='dark'] .tl-pill-futurista {
-  color: #6ee7b7;
-  border-color: color-mix(in srgb, #6ee7b7 45%, transparent);
-  background: color-mix(in srgb, #6ee7b7 16%, transparent);
-}
-
-:root[data-theme='dark'] .tl-pill-auditor {
-  color: #fcd34d;
-  border-color: color-mix(in srgb, #fcd34d 45%, transparent);
-  background: color-mix(in srgb, #fcd34d 16%, transparent);
-}
-
-.tl-reasoning-corpo {
+.tl-linear .tl-hora {
   font-family: var(--font-mono);
-  font-size: 0.76rem;
-  line-height: 1.6;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tl-linear .tl-contagem {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.tl-linear .tl-analise {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.tl-linear .tl-queries {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tl-linear .tl-query-line {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.tl-linear .tl-reasoning-corpo {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: var(--color-text-secondary);
 }
 
-.tl-tool {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.tl-tool-tag {
-  flex-shrink: 0;
-  padding: 0 6px;
-  border-radius: 4px;
-  font-weight: 700;
-  font-size: 0.68rem;
-}
-
-.tl-tool-serp .tl-tool-tag {
-  color: #0ea5e9;
-  background: color-mix(in srgb, #0ea5e9 15%, transparent);
-}
-
-.tl-tool-reader .tl-tool-tag {
-  color: #10b981;
-  background: color-mix(in srgb, #10b981 15%, transparent);
-}
-
-.tl-tool-resto {
-  color: var(--color-text-primary);
-}
-
-/* Item 3 da crítica: domínios lidos com favicon + contagem de páginas. */
-.tl-fontes {
+/* Chips de fonte: favicon na cor original + domínio mono truncado + páginas. */
+.tl-linear .tl-fontes {
   list-style: none;
-  margin: 2px 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.tl-fonte {
-  display: flex;
-  align-items: center;
-  gap: 7px;
+  flex-wrap: wrap;
+  gap: 6px;
   min-width: 0;
-  font-size: 0.76rem;
 }
 
-.tl-fonte-icone {
-  flex-shrink: 0;
+.tl-linear .tl-fonte {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-surface);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.tl-linear .tl-fonte-icone {
+  flex: 0 0 14px;
   width: 14px;
   height: 14px;
   border-radius: 3px;
-  /* domínio sem favicon responde 404 no gstatic e o <img> vira uma caixa
-     vazia; o tile de surface faz isso parecer intencional */
+  /* domínio sem favicon responde 404 e o <img> fica vazio: o tile de surface
+     faz isso parecer intencional (cor original preservada no que carrega). */
   background: var(--color-surface-inset);
 }
 
-.tl-fonte-dominio {
+.tl-linear .tl-fonte-dominio {
+  min-width: 0;
   font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.tl-fonte-paginas {
+.tl-linear .tl-fonte-paginas {
   flex-shrink: 0;
-  margin-left: auto;
-  color: var(--color-text-tertiary);
-  /* piso funcional 11px */
   font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .tl-reasoning-toggle {
-    transition: none;
+/* Callout do auditor: fundo sutil, sem borda lateral, raio 8 — DESIGN §6. */
+.tl-linear .tl-detalhe {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-left: 0;
+  border-radius: 8px;
+  background: var(--color-surface-subtle);
+}
+
+.tl-linear .tl-callout-score {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.tl-linear .tl-callout-score strong {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.tl-linear .tl-callout-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.tl-linear .tl-callout-status.aprovado {
+  color: var(--color-success-text);
+}
+
+.tl-linear .tl-callout-status.reprovado {
+  color: var(--color-danger-text);
+}
+
+.tl-linear .tl-criterios {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tl-linear .tl-criterio {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.tl-linear .tl-criterio strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.tl-linear .tl-meta {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+/* Ações de correção ficam no corpo expandido, com alvo >= 24px. */
+.tl-linear .tl-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.tl-linear .tl-acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tl-linear .tl-acao:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+}
+
+.tl-linear .tl-acao:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.tl-linear .tl-acao:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+@media (max-width: 640px) {
+  .tl-linear .tl-no {
+    grid-template-columns: 16px minmax(0, 1fr);
+    gap: 0 8px;
   }
-  svg [animate], svg animate {
-    display: none !important;
+
+  .tl-linear .tl-trilho::before {
+    left: 7px;
+  }
+
+  .tl-linear .tl-entrada-corpo {
+    padding-left: 26px;
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .tl-linear .tl-chevron,
+  button.tl-entrada-linha,
+  .tl-linear .tl-acao {
+    transition: none;
+  }
+
+  .tl-linear .tl-cursor {
+    animation: none;
+    opacity: 1;
+  }
+
+  /* SMIL congelado: esconde os <animate> e o traço fica na posição estática. */
+  svg [animate],
+  svg animate {
+    display: none !important;
+  }
+}
