@@ -58,6 +58,15 @@ const PLAN: PlanResponse = {
       status: 'pendente',
     },
   ],
+  metadados_modelo: {
+    model_used: 'deepseek-v4.1-flash',
+    usage_total: {
+      prompt_tokens: 12345,
+      completion_tokens: 6789,
+      total_tokens: 19134,
+    },
+    usage_complete: true,
+  },
 };
 
 const SEARCH: SearchResponse = {
@@ -91,6 +100,20 @@ const SEARCH: SearchResponse = {
           queries_executadas: 4,
           falha_coleta: false,
         },
+        {
+          persona: 'visionario',
+          analise: 'Programas de requalificação aparecem em acordos coletivos.',
+          urls_fonte: ['https://www.ipea.gov.br/portal/'],
+          queries_executadas: 2,
+          falha_coleta: false,
+        },
+        {
+          persona: 'futurista',
+          analise: 'Dados governamentais sobre automação.',
+          urls_fonte: ['https://www.gov.br/'],
+          queries_executadas: 2,
+          falha_coleta: false,
+        },
       ],
     },
     {
@@ -107,6 +130,13 @@ const SEARCH: SearchResponse = {
           persona: 'visionario',
           analise: 'Programas de requalificação aparecem em acordos coletivos, mas a cobertura declarada não é auditada.',
           urls_fonte: ['https://www.contrafcut.com.br/'],
+          queries_executadas: 2,
+          falha_coleta: false,
+        },
+        {
+          persona: 'historiador',
+          analise: 'Análises sobre requalificação profissional.',
+          urls_fonte: ['https://medium.com/'],
           queries_executadas: 2,
           falha_coleta: false,
         },
@@ -222,6 +252,9 @@ export const ExecutionHarness: React.FC<Props> = ({ stage }) => (
       maxCycles={4}
       collectedPoints={2}
       auditSummary={{ aprovados: AUDIT.aprovados, total: AUDIT.total_pontos, ciclo: 1 }}
+      metadadosModelo={PLAN.metadados_modelo}
+      searchResult={SEARCH}
+      fontesAtivas={stage === 'searching'}
     />
   </div>
 );

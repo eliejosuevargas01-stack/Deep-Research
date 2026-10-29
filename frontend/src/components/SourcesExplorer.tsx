@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Globe } from 'lucide-react';
+import { Globe } from 'lucide-react';
 
 export type FonteExplorerStatus = 'lendo' | 'processado' | 'invalidado';
 
@@ -17,7 +17,6 @@ const STATUS_ROTULO: Record<FonteExplorerStatus, string> = {
   invalidado: 'Invalidado',
 };
 
-/** Aceita somente HTTP(S) público — mesmo validador do SourceBreakdown. */
 function isSafeUrl(url: string): boolean {
   const clean = url.trim().toLowerCase();
   return clean.startsWith('http://') || clean.startsWith('https://');
@@ -32,104 +31,128 @@ function dominioDe(url: string, explicito?: string | null): string {
   }
 }
 
-const MAX_EXIBIDAS = 24;
+function inicialDominio(dominio: string): string {
+  const clean = dominio.replace(/^www\./, '').trim();
+  if (!clean) return '?';
+  const parts = clean.split('.');
+  const base = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+  return base.charAt(0).toUpperCase();
+}
 
 interface SourcesExplorerProps {
-  /** Itens reais derivados de `resumo_coletas[].personas[].urls_fonte`. */
   items?: FonteExplorerItem[] | null;
-  /** Coleta em andamento: ativa o badge pulsante do cabeçalho. */
   isActive?: boolean;
 }
 
-/**
- * Painel de fontes exploradas na barra lateral (estilo Google Deep Research).
- *
- * Cada fonte é um chip compacto com favicon do domínio, título truncado,
- * badge de status real (Lendo/Processado/Invalidado) e link externo.
- * Nenhuma fonte é fabricada: sem coleta, o painel declara o estado vazio.
- */
-export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items, isActive = false }) => {
+export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
   const lista = Array.isArray(items) ? items : [];
-  const visiveis = lista.slice(0, MAX_EXIBIDAS);
-  const restantes = lista.length - visiveis.length;
+
+  // Group by ponto_n when exists
+  const grupos: Array<{ ponto_n: number | null; itens: FonteExplorerItem[] }> = [];
+  const map = new Map<string, FonteExplorerItem[]>();
+  for (const item of lista) {
+    const key = typeof item.ponto_n === 'number' ? `p${item.ponto_n}` : 'geral';
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(item);
+  }
+  // Sort keys: pontos first numerically
+  const keys = Array.from(map.keys()).sort((a, b) => {
+    const na = a.startsWith('p') ? parseInt(a.slice(1), 10) : 9999;
+    const nb = b.startsWith('p') ? parseInt(b.slice(1), 10) : 9999;
+    return na - nb;
+  });
+  for (const k of keys) {
+    const ponto_n = k.startsWith('p') ? parseInt(k.slice(1), 10) : null;
+    grupos.push({ ponto_n, itens: map.get(k)! });
+  }
 
   return (
-    <div className="card gdr-sources-card" aria-label="Fontes exploradas">
-      <div className="gdr-sources-head">
-        <Globe size={16} aria-hidden="true" className="gdr-sources-icon" />
-        <h2 className="card-title gdr-sources-title">Fontes analisadas ({lista.length})</h2>
-        {isActive && (
-          <span className="gdr-sources-live" role="status" aria-label="Coletando fontes" title="Coletando fontes da web" />
-        )}
+    <div className="right-rail__section" aria-label="Fontes exploradas">
+      <div className="right-rail__header">
+        <Globe size={12} aria-hidden="true" className="right-rail__header-icon" />
+        <span>Fontes exploradas</span>
+        <span className="right-rail__header-count">{lista.length}</span>
       </div>
 
-      {visiveis.length === 0 ? (
-        <p className="gdr-sources-empty">
-          {isActive ? 'Coletando fontes da web…' : 'Nenhuma fonte coletada até o momento.'}
-        </p>
+      {lista.length === 0 ? (
+        <p className="rr-sources__empty">Nenhuma fonte explorada ainda</p>
       ) : (
-        <ul className="gdr-sources-list">
-          {visiveis.map((fonte, indice) => {
-            const dominio = dominioDe(fonte.url, fonte.dominio);
-            const titulo = fonte.titulo && fonte.titulo.trim() ? fonte.titulo.trim() : dominio;
-            const seguro = isSafeUrl(fonte.url);
-            const descricao = `${titulo} — ${dominio} — ${STATUS_ROTULO[fonte.status]}${
-              typeof fonte.ponto_n === 'number' ? ` — ponto ${fonte.ponto_n}` : ''
-            }`;
-            const conteudo = (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(dominio)}&sz=32`}
-                  alt=""
-                  width={14}
-                  height={14}
-                  loading="lazy"
-                  aria-hidden="true"
-                  className="gdr-source-favicon"
-                  onError={(event) => {
-                    event.currentTarget.style.display = 'none';
-                  }}
-                />
-                <span className="gdr-source-title" title={descricao}>
-                  {titulo}
-                </span>
-                <span className={`gdr-source-status is-${fonte.status}`}>{STATUS_ROTULO[fonte.status]}</span>
-                {seguro && <ExternalLink size={12} aria-hidden="true" className="gdr-source-link-icon" />}
-              </>
-            );
-            return (
-              <li key={`${fonte.url}-${indice}`} className="gdr-source-item">
-                {seguro ? (
-                  <a
-                    className="gdr-source-chip"
-                    href={fonte.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`Abrir fonte externa: ${fonte.url}`}
-                    aria-label={`Abrir fonte externa: ${descricao}`}
-                  >
-                    {conteudo}
-                  </a>
-                ) : (
-                  <span className="gdr-source-chip" title={descricao}>
-                    {conteudo}
-                  </span>
-                )}
-              </li>
-            );
-          })}
+        <ul className="rr-sources__list">
+          {grupos.map((grupo, gIdx) => (
+            <React.Fragment key={`g-${gIdx}`}>
+              {grupos.length > 1 && grupo.ponto_n !== null && (
+                <li style={{ fontSize: '11px', color: 'var(--color-text-secondary)', padding: '2px 0' }}>
+                  Ponto {grupo.ponto_n}
+                </li>
+              )}
+              {grupo.itens.map((fonte, indice) => {
+                const dominio = dominioDe(fonte.url, fonte.dominio);
+                const titulo = fonte.titulo && fonte.titulo.trim() ? fonte.titulo.trim() : dominio;
+                const seguro = isSafeUrl(fonte.url);
+                const descricao = `${titulo} — ${dominio} — ${STATUS_ROTULO[fonte.status]}`;
+                const init = inicialDominio(dominio);
+                const conteudo = (
+                  <>
+                    <span className="rr-sources__favicon-wrap" aria-hidden="true">
+                      <span className="rr-sources__favicon-fallback">{init}</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(dominio)}&sz=64`}
+                        alt=""
+                        width={14}
+                        height={14}
+                        loading="lazy"
+                        className="rr-sources__favicon"
+                        onLoad={(event) => {
+                          const img = event.currentTarget;
+                          if (img.naturalWidth > 0) {
+                            img.classList.add('is-loaded');
+                          } else {
+                            img.style.display = 'none';
+                          }
+                        }}
+                        onError={(event) => {
+                          event.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </span>
+                    <span className="rr-sources__title" title={titulo}>
+                      {titulo}
+                    </span>
+                    <span className={`rr-sources__badge is-${fonte.status}`}>{STATUS_ROTULO[fonte.status]}</span>
+                  </>
+                );
+                return (
+                  <li key={`${fonte.url}-${indice}`} className="rr-sources__item">
+                    {seguro ? (
+                      <a
+                        className="rr-sources__chip"
+                        href={fonte.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={descricao}
+                        aria-label={`Abrir fonte externa: ${descricao}`}
+                      >
+                        {conteudo}
+                      </a>
+                    ) : (
+                      <span className="rr-sources__chip" title={descricao}>
+                        {conteudo}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </React.Fragment>
+          ))}
         </ul>
       )}
-
-      {restantes > 0 && <p className="gdr-sources-more">+{restantes} outras fontes</p>}
     </div>
   );
 };
 
 import type { SearchResponse } from '../types/api';
 
-/** Deriva itens do explorer a partir do SearchResponse real. Dedupe por URL, só http(s), sem fabricar títulos. */
 export function derivarFontesParaExplorer(
   search: SearchResponse | null | undefined,
   opts?: { emColeta?: boolean; pontosReprovados?: Set<string> | null }
@@ -145,7 +168,11 @@ export function derivarFontesParaExplorer(
         if (vistos.has(url)) continue;
         vistos.add(url);
         let dominio: string | null = null;
-        try { dominio = new URL(url).hostname.replace(/^www\./, ''); } catch { dominio = null; }
+        try {
+          dominio = new URL(url).hostname.replace(/^www\./, '');
+        } catch {
+          dominio = null;
+        }
         const reprovado = Boolean(coleta.ponto_id && opts?.pontosReprovados?.has(coleta.ponto_id));
         itens.push({
           url,
