@@ -993,6 +993,22 @@
   word-break: break-word;
 }
 
+/* Medida de leitura: dossiê/relatório */
+.report-card .markdown-body > p,
+.report-card .markdown-body > ul,
+.report-card .markdown-body > ol,
+.report-card .markdown-body > blockquote {
+  max-width: 65ch;
+}
+
+.report-card .markdown-body {
+  text-wrap: pretty;
+}
+
+.report-card .markdown-body li {
+  text-wrap: pretty;
+}
+
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
@@ -2312,9 +2328,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .workspace-enter,
-  .workspace-pulse,
-  .preferences-panel-enter {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -402,7 +402,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
             title="Aprovar o plano e iniciar a pesquisa"
             aria-label="Aprovar plano e iniciar pesquisa"
           >
-            <Play size={16} fill="currentColor" aria-hidden="true" />
+            <Play size={16} aria-hidden="true" />
             <span>Aprovar e iniciar</span>
           </button>
         </div>

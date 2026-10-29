@@ -650,7 +650,7 @@
 .composer-anchor .composer-legal {
   margin: 8px 0 0 0;
   padding: 0 4px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--color-text-secondary);
   text-align: center;
@@ -759,7 +759,7 @@
 
   .composer-anchor .composer-legal {
     margin-top: 6px;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .composer-anchor .dock-panel.dock-sheet {

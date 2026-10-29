@@ -23,11 +23,11 @@ function isSafeUrl(url: string): boolean {
 }
 
 function dominioDe(url: string, explicito?: string | null): string {
-  if (explicito && explicito.trim()) return explicito.trim();
+  if (explicito && explicito.trim()) return explicito.trim().replace(/^www\./i, '');
   try {
     return new URL(url).hostname.replace(/^www\./, '');
   } catch {
-    return url;
+    return url.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '');
   }
 }
 
@@ -153,18 +153,20 @@ export function derivarFontesParaExplorer(
     for (const p of coleta.personas ?? []) {
       for (const raw of p.urls_fonte ?? []) {
         const url = String(raw ?? '').trim();
-        if (!/^https:\/\//i.test(url)) continue;
-        if (vistos.has(url)) continue;
-        vistos.add(url);
+        if (!url) continue;
+        if (!/^https?:\/\//i.test(url)) continue;
+        const normalizada = url.replace(/^http:\/\//i, 'https://');
+        if (vistos.has(normalizada)) continue;
+        vistos.add(normalizada);
         let dominio: string | null = null;
         try {
-          dominio = new URL(url).hostname.replace(/^www\./, '');
+          dominio = new URL(normalizada).hostname.replace(/^www\./, '');
         } catch {
           dominio = null;
         }
         const reprovado = Boolean(coleta.ponto_id && opts?.pontosReprovados?.has(coleta.ponto_id));
         itens.push({
-          url,
+          url: normalizada,
           titulo: null,
           dominio,
           status: reprovado ? 'invalidado' : opts?.emColeta ? 'lendo' : 'processado',

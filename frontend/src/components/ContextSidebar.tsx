@@ -24,31 +24,34 @@ interface ContextSidebarProps {
   pontosReprovados?: Set<string> | null;
 }
 
-type RailMode = 'raciocinio' | 'fontes';
+type RailMode = 'contexto' | 'fontes';
 
 const RAIL_MODE_KEY = 'deepResearch.railMode';
 const RAIL_PANEL_ID = 'rr-rail-panel';
 
 const TAB_ID: Record<RailMode, string> = {
-  raciocinio: 'rr-tab-raciocinio',
+  contexto: 'rr-tab-contexto',
   fontes: 'rr-tab-fontes',
 };
 
 const PANEL_ID: Record<RailMode, string> = {
-  raciocinio: 'rr-panel-raciocinio',
+  contexto: 'rr-panel-contexto',
   fontes: 'rr-panel-fontes',
 };
 
-const MODES: RailMode[] = ['raciocinio', 'fontes'];
+const MODES: RailMode[] = ['contexto', 'fontes'];
 
-function readStoredMode(): RailMode {
+function readStoredMode(): RailMode | null {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(RAIL_MODE_KEY) : null;
-    if (raw === 'fontes' || raw === 'raciocinio') return raw;
+    if (raw === 'fontes' || raw === 'contexto' || raw === 'raciocinio') {
+      if (raw === 'raciocinio') return 'contexto';
+      return raw;
+    }
   } catch {
     /* storage bloqueado */
   }
-  return 'raciocinio';
+  return null;
 }
 
 function getStatusLabel(status: string): string {
@@ -121,22 +124,41 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   fontesAtivas,
   pontosReprovados,
 }) => {
-  const [mode, setMode] = useState<RailMode>(readStoredMode);
   const [collapsed, setCollapsed] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const tabRefs = useRef<Record<RailMode, HTMLButtonElement | null>>({
-    raciocinio: null,
+    contexto: null,
     fontes: null,
   });
   const copiadoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const itensFontes =
+    fontes ?? derivarFontesParaExplorer(searchResult, { emColeta: fontesAtivas, pontosReprovados });
+  const temFontesColetadas = Array.isArray(itensFontes) && itensFontes.length > 0;
+
+  const [mode, setMode] = useState<RailMode>(() => {
+    const stored = readStoredMode();
+    if (stored) return stored;
+    return temFontesColetadas ? 'fontes' : 'contexto';
+  });
+  const userChangedModeRef = useRef(false);
+
   useEffect(() => {
-    try {
-      localStorage.setItem(RAIL_MODE_KEY, mode);
-    } catch {
-      /* storage bloqueado */
+    if (userChangedModeRef.current) {
+      try {
+        localStorage.setItem(RAIL_MODE_KEY, mode);
+      } catch {
+        /* storage bloqueado */
+      }
     }
   }, [mode]);
+
+  useEffect(() => {
+    if (userChangedModeRef.current) return;
+    const stored = readStoredMode();
+    if (stored) return;
+    setMode(temFontesColetadas ? 'fontes' : 'contexto');
+  }, [temFontesColetadas]);
 
   useEffect(
     () => () => {
@@ -151,8 +173,6 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
 
   const nPontos = typeof plan?.n_pontos === 'number' ? plan.n_pontos : null;
   const personas = Array.isArray(plan?.preferencias?.personas) ? plan!.preferencias!.personas! : [];
-  const itensFontes =
-    fontes ?? derivarFontesParaExplorer(searchResult, { emColeta: fontesAtivas, pontosReprovados });
   const titulo = plan?.tema?.trim() ? plan.tema.trim() : 'Nova pesquisa';
 
   const resumoPartes: string[] = [];
@@ -202,6 +222,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
     else if (event.key === 'End') next = MODES[MODES.length - 1];
     if (!next) return;
     event.preventDefault();
+    userChangedModeRef.current = true;
     setMode(next);
     tabRefs.current[next]?.focus();
   };
@@ -220,7 +241,10 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
         ref={(node) => {
           tabRefs.current[value] = node;
         }}
-        onClick={() => setMode(value)}
+        onClick={() => {
+          userChangedModeRef.current = true;
+          setMode(value);
+        }}
       >
         <span>{rotulo}</span>
         {typeof count === 'number' && (
@@ -240,6 +264,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
       <aside
         className="sidebar-container context-sidebar right-rail right-rail--sticky rr-rail rr-rail--collapsed"
         aria-label="Informações contextuais da pesquisa"
+        aria-expanded={false}
       >
         <button
           type="button"
@@ -260,6 +285,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
     <aside
       className="sidebar-container context-sidebar right-rail right-rail--sticky rr-rail"
       aria-label="Informações contextuais da pesquisa"
+      aria-expanded={true}
     >
       <div className="rr-rail__panel" id={RAIL_PANEL_ID}>
         <header className="rr-rail__head">
@@ -285,7 +311,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
           aria-label="Modos do painel de contexto"
           onKeyDown={handleTabKeyDown}
         >
-          {renderTab('raciocinio', 'Raciocínio')}
+          {renderTab('contexto', 'Contexto')}
           {renderTab('fontes', 'Fontes', itensFontes.length)}
         </div>
 
@@ -305,10 +331,10 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
         <div className="rr-rail__body">
           <div
             role="tabpanel"
-            id={PANEL_ID.raciocinio}
-            aria-labelledby={TAB_ID.raciocinio}
+            id={PANEL_ID.contexto}
+            aria-labelledby={TAB_ID.contexto}
             className="rr-rail__pane"
-            hidden={mode !== 'raciocinio'}
+            hidden={mode !== 'contexto'}
           >
             <dl className="rr-facts">
               <div className="rr-facts__row">

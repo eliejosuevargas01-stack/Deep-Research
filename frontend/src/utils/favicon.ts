@@ -1,20 +1,18 @@
 /**
  * Cadeia de favicons por domínio.
  *
- * O endpoint do Google responde 301 para `t*.gstatic.com/faviconV2`, que
- * devolve 404 para vários domínios públicos (bcb.gov.br, ibge.gov.br). Sem
- * cadeia, todo chip cai no tile com a inicial e o requisito "favicon
- * automático do domínio" nunca é cumprido de fato.
- *
- * Ordem: Google (melhor cobertura para marcas grandes) -> DuckDuckGo ->
- * /favicon.ico do próprio domínio -> tile com a inicial (CSS).
+ * Ordem: DuckDuckGo -> Google (com domínio normalizado) -> /favicon.ico do próprio domínio -> tile com a inicial (CSS).
  */
 export function faviconCandidates(dominio: string, size = 64): string[] {
-  const host = dominio.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  const host = dominio
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/.*$/, '')
+    .replace(/^www\./i, '');
+  const httpsHost = host;
   return [
-    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=${size}`,
-    `https://icons.duckduckgo.com/ip3/${host}.ico`,
-    `https://${host}/favicon.ico`,
+    `https://icons.duckduckgo.com/ip3/${httpsHost}.ico`,
+    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(httpsHost)}&sz=${size}`,
+    `https://${httpsHost}/favicon.ico`,
   ];
 }
 
