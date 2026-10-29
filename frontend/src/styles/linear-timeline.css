@@ -57,11 +57,11 @@
 
 .tl-linear .tl-grupo {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
   min-width: 0;
   max-width: 100%;
-  margin: 0 0 2px;
+  margin: 0 0 8px;
   padding: 0;
   overflow: hidden;
 }
@@ -70,30 +70,37 @@
   flex-shrink: 0;
   font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.4;
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-text-secondary);
   white-space: nowrap;
+  padding-top: 2px;
+}
+
+.tl-linear .tl-grupo-texto {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  overflow: hidden;
 }
 
 .tl-linear .tl-grupo-tema {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: 100%;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans, var(--font-mono));
   font-size: 12px;
-  line-height: 1.5;
-  letter-spacing: 0.02em;
-  color: var(--color-text-secondary);
-  /* Tema longo quebra em até 2 linhas e para com reticências: o rótulo do
-     estágio nunca empurra o container (F8), e o texto completo fica no title. */
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: var(--color-text-primary);
   display: -webkit-box;
-  -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .tl-linear .tl-grupo::after {

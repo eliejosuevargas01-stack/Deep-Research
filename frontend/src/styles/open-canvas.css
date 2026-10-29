@@ -546,6 +546,13 @@
   align-items: baseline;
   gap: 8px;
   text-align: left;
+  width: 100%;
+}
+
+/* Campos ocupam a coluna inteira e mantêm alvo de toque confortável. */
+.settings-container .form-input {
+  width: 100%;
+  min-height: 42px;
 }
 
 .settings-container .form-label-hint {
