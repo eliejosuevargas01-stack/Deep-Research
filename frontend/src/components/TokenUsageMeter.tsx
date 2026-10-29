@@ -1,6 +1,13 @@
 import React from 'react';
-import { Gauge } from 'lucide-react';
 import type { ModeloMetadados } from '../types/api';
+
+/**
+ * Faixa de telemetria do painel de contexto (DESIGN.md §7).
+ *
+ * Vive logo abaixo das abas e é a mesma nos dois modos: total em mono,
+ * entrada/saída/total e modelo truncado. Quando não há telemetria o estado é
+ * honesto ("telemetria indisponível") — nunca zero inventado.
+ */
 
 export function formatCompactTokens(n: unknown): string {
   if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) return '—';
@@ -16,78 +23,68 @@ interface TokenUsageMeterProps {
 
 export const TokenUsageMeter: React.FC<TokenUsageMeterProps> = ({ metadados }) => {
   const usage = metadados?.usage_total ?? null;
-  const prompt = typeof usage?.prompt_tokens === 'number' ? usage.prompt_tokens : 0;
-  const completion = typeof usage?.completion_tokens === 'number' ? usage.completion_tokens : 0;
-  const total = typeof usage?.total_tokens === 'number' ? usage.total_tokens : prompt + completion;
+  const total = typeof usage?.total_tokens === 'number' ? usage.total_tokens : 0;
 
-  if (!usage || total <= 0) {
+  if (!usage || !(total > 0)) {
     return (
-      <div className="right-rail__section" aria-label="Consumo de tokens">
-        <div className="right-rail__header">
-          <Gauge size={12} aria-hidden="true" className="right-rail__header-icon" />
-          <span>Tokens da sessão</span>
-        </div>
-        <p className="rr-token__empty">Telemetria de tokens indisponível</p>
+      <div className="rr-tokens rr-tokens--empty" aria-label="Consumo de tokens">
+        <span className="rr-tokens__total">Tokens</span>
+        <span className="rr-tokens__empty">telemetria indisponível</span>
       </div>
     );
   }
 
-  const promptRatio = total > 0 ? prompt / total : 0;
-  const completionRatio = total > 0 ? completion / total : 0;
+  const prompt = typeof usage.prompt_tokens === 'number' ? usage.prompt_tokens : 0;
+  const completion = typeof usage.completion_tokens === 'number' ? usage.completion_tokens : 0;
+  const promptRatio = total > 0 ? Math.min(1, Math.max(0, prompt / total)) : 0;
+  const completionRatio = total > 0 ? Math.min(1, Math.max(0, completion / total)) : 0;
+  const modelo = typeof metadados?.model_used === 'string' && metadados.model_used ? metadados.model_used : null;
 
   return (
-    <div className="right-rail__section" aria-label="Consumo de tokens do planejamento">
-      <div className="right-rail__header">
-        <Gauge size={12} aria-hidden="true" className="right-rail__header-icon" />
-        <span>Tokens da sessão</span>
+    <div className="rr-tokens" aria-label="Consumo de tokens">
+      <div className="rr-tokens__head">
+        <span className="rr-tokens__total">{formatCompactTokens(total)}</span>
+        <span className="rr-tokens__unit">tokens</span>
+        {modelo && (
+          <span className="rr-tokens__model" title={modelo}>
+            {modelo}
+          </span>
+        )}
       </div>
 
-      <p className="rr-token__total">
-        {formatCompactTokens(total)}
-        <span className="rr-token__total-unit">tokens</span>
-      </p>
-
       <div
-        className="rr-token__bar"
+        className="rr-tokens__bar"
         role="img"
         aria-label={`${formatCompactTokens(prompt)} tokens de entrada e ${formatCompactTokens(completion)} tokens de saída`}
       >
         <span
-          className="rr-token__bar-prompt"
+          className="rr-tokens__seg rr-tokens__seg--entrada"
           style={{ transform: `scaleX(${promptRatio})` }}
           aria-hidden="true"
         />
         <span
-          className="rr-token__bar-completion"
-          style={{ transform: `scaleX(${completionRatio})`, left: `${promptRatio * 100}%` }}
+          className="rr-tokens__seg rr-tokens__seg--saida"
+          style={{ transform: `translateX(${promptRatio * 100}%) scaleX(${completionRatio})` }}
           aria-hidden="true"
         />
       </div>
 
-      <div className="rr-token__rows">
-        <div className="rr-token__row">
-          <span className="rr-token__row-label">Entrada</span>
-          <span className="rr-token__row-value">{formatCompactTokens(prompt)}</span>
+      <dl className="rr-tokens__metrics">
+        <div className="rr-tokens__metric">
+          <dt>Entrada</dt>
+          <dd>{formatCompactTokens(prompt)}</dd>
         </div>
-        <div className="rr-token__row">
-          <span className="rr-token__row-label">Saída</span>
-          <span className="rr-token__row-value">{formatCompactTokens(completion)}</span>
+        <div className="rr-tokens__metric">
+          <dt>Saída</dt>
+          <dd>{formatCompactTokens(completion)}</dd>
         </div>
-        <div className="rr-token__row">
-          <span className="rr-token__row-label">Total</span>
-          <span className="rr-token__row-value">{formatCompactTokens(total)}</span>
+        <div className="rr-tokens__metric">
+          <dt>Total</dt>
+          <dd>{formatCompactTokens(total)}</dd>
         </div>
-      </div>
+      </dl>
 
-      {typeof metadados?.model_used === 'string' && metadados.model_used && (
-        <div className="rr-token__model" title={metadados.model_used}>
-          {metadados.model_used}
-        </div>
-      )}
-
-      {metadados?.usage_complete === false && (
-        <p className="rr-token__note">Telemetria parcial</p>
-      )}
+      {metadados?.usage_complete === false && <p className="rr-tokens__note">telemetria parcial</p>}
     </div>
   );
 };

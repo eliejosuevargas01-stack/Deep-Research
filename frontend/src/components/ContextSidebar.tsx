@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Clock, Target, Copy, Check } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Check, Copy, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { PlanResponse, ModeloMetadados, SearchResponse } from '../types/api';
 import { TokenUsageMeter } from './TokenUsageMeter';
 import { SourcesExplorer, derivarFontesParaExplorer, FonteExplorerItem } from './SourcesExplorer';
@@ -22,6 +22,33 @@ interface ContextSidebarProps {
   searchResult?: SearchResponse | null;
   fontesAtivas?: boolean;
   pontosReprovados?: Set<string> | null;
+}
+
+type RailMode = 'raciocinio' | 'fontes';
+
+const RAIL_MODE_KEY = 'deepResearch.railMode';
+const RAIL_PANEL_ID = 'rr-rail-panel';
+
+const TAB_ID: Record<RailMode, string> = {
+  raciocinio: 'rr-tab-raciocinio',
+  fontes: 'rr-tab-fontes',
+};
+
+const PANEL_ID: Record<RailMode, string> = {
+  raciocinio: 'rr-panel-raciocinio',
+  fontes: 'rr-panel-fontes',
+};
+
+const MODES: RailMode[] = ['raciocinio', 'fontes'];
+
+function readStoredMode(): RailMode {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(RAIL_MODE_KEY) : null;
+    if (raw === 'fontes' || raw === 'raciocinio') return raw;
+  } catch {
+    /* storage bloqueado */
+  }
+  return 'raciocinio';
 }
 
 function getStatusLabel(status: string): string {
@@ -94,124 +121,246 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   fontesAtivas,
   pontosReprovados,
 }) => {
-  const [copiouId, setCopiouId] = useState(false);
-  if (!plan) {
+  const [mode, setMode] = useState<RailMode>(readStoredMode);
+  const [collapsed, setCollapsed] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const tabRefs = useRef<Record<RailMode, HTMLButtonElement | null>>({
+    raciocinio: null,
+    fontes: null,
+  });
+  const copiadoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RAIL_MODE_KEY, mode);
+    } catch {
+      /* storage bloqueado */
+    }
+  }, [mode]);
+
+  useEffect(
+    () => () => {
+      if (copiadoTimer.current) clearTimeout(copiadoTimer.current);
+    },
+    []
+  );
+
+  const statusNormalized = pipelineStatus || plan?.status_pipeline || 'aguardando';
+  const statusLabel = plan ? getStatusLabel(statusNormalized) : 'Pronto para iniciar';
+  const statusBadgeClass = getStatusBadgeClass(statusNormalized);
+
+  const nPontos = typeof plan?.n_pontos === 'number' ? plan.n_pontos : null;
+  const personas = Array.isArray(plan?.preferencias?.personas) ? plan!.preferencias!.personas! : [];
+  const itensFontes =
+    fontes ?? derivarFontesParaExplorer(searchResult, { emColeta: fontesAtivas, pontosReprovados });
+  const titulo = plan?.tema?.trim() ? plan.tema.trim() : 'Nova pesquisa';
+
+  const resumoPartes: string[] = [];
+  if (nPontos !== null) resumoPartes.push(`${nPontos} ${nPontos === 1 ? 'ponto' : 'pontos'}`);
+  if (personas.length) resumoPartes.push(`${personas.length} personas`);
+  const resumo = resumoPartes.join(' · ');
+
+  const cicloTexto =
+    typeof cycleNumber === 'number' ? `${cycleNumber}/${maxCycles ?? 4}` : '—';
+  const coletadosTexto =
+    typeof collectedPoints === 'number' && nPontos !== null ? `${collectedPoints}/${nPontos}` : '—';
+  const auditoriaTexto = auditSummary ? `${auditSummary.aprovados}/${auditSummary.total}` : 'Aguardando';
+
+  const idPesquisa = plan?.id_pesquisa ? String(plan.id_pesquisa) : null;
+  const idCurto = idPesquisa ? (idPesquisa.length > 8 ? idPesquisa.slice(0, 8) : idPesquisa) : '—';
+
+  const plano = plan?.plano_estruturado ?? null;
+  const escopoPartes: string[] = [];
+  if (plano?.publico) escopoPartes.push(`Público: ${plano.publico}`);
+  if (plano?.formato_entrega) escopoPartes.push(`Entrega: ${plano.formato_entrega}`);
+  if (plano?.recorte_temporal) escopoPartes.push(`Recorte: ${plano.recorte_temporal}`);
+  if (!escopoPartes.length && plan) {
+    const recencia = plan.preferencias?.recencia;
+    if (recencia) escopoPartes.push(`Recência: ${recencia}`);
+    if (nPontos !== null) escopoPartes.push(`${nPontos} ${nPontos === 1 ? 'ponto' : 'pontos'}`);
+  }
+  const escopo = escopoPartes.length ? escopoPartes.join(' · ') : 'Escopo não informado';
+
+  const copiarId = useCallback(async () => {
+    if (!idPesquisa) return;
+    try {
+      await navigator.clipboard.writeText(idPesquisa);
+      setCopiado(true);
+      if (copiadoTimer.current) clearTimeout(copiadoTimer.current);
+      copiadoTimer.current = setTimeout(() => setCopiado(false), 1600);
+    } catch {
+      setCopiado(false);
+    }
+  }, [idPesquisa]);
+
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const atual = MODES.indexOf(mode);
+    let next: RailMode | null = null;
+    if (event.key === 'ArrowRight') next = MODES[(atual + 1) % MODES.length];
+    else if (event.key === 'ArrowLeft') next = MODES[(atual - 1 + MODES.length) % MODES.length];
+    else if (event.key === 'Home') next = MODES[0];
+    else if (event.key === 'End') next = MODES[MODES.length - 1];
+    if (!next) return;
+    event.preventDefault();
+    setMode(next);
+    tabRefs.current[next]?.focus();
+  };
+
+  const renderTab = (value: RailMode, rotulo: string, count?: number) => {
+    const selected = mode === value;
     return (
-      <aside className="sidebar-container right-rail right-rail--sticky" aria-label="Informações contextuais">
-        <TokenUsageMeter metadados={metadadosModelo ?? null} />
-        <div className="right-rail__section">
-          <div className="right-rail__header">
-            <Clock size={12} aria-hidden="true" className="right-rail__header-icon" />
-            <span>Status</span>
-          </div>
-          <span className="rr-status__badge planejado">Pronto para iniciar</span>
-          <p className="rr-sources__empty">Digite um tema para iniciar a investigação</p>
-        </div>
-        <SourcesExplorer items={[]} />
-        <div className="right-rail__section">
-          <div className="right-rail__header">
-            <Target size={12} aria-hidden="true" className="right-rail__header-icon" />
-            <span>Escopo</span>
-          </div>
-          <p className="rr-sources__empty">Sem escopo definido</p>
-        </div>
+      <button
+        type="button"
+        role="tab"
+        id={TAB_ID[value]}
+        aria-selected={selected}
+        aria-controls={PANEL_ID[value]}
+        tabIndex={selected ? 0 : -1}
+        className="rr-rail__tab"
+        ref={(node) => {
+          tabRefs.current[value] = node;
+        }}
+        onClick={() => setMode(value)}
+      >
+        <span>{rotulo}</span>
+        {typeof count === 'number' && (
+          <>
+            <span className="rr-rail__tab-sep" aria-hidden="true">
+              ·
+            </span>
+            <span className="rr-rail__tab-count">{count}</span>
+          </>
+        )}
+      </button>
+    );
+  };
+
+  if (collapsed) {
+    return (
+      <aside
+        className="sidebar-container context-sidebar right-rail right-rail--sticky rr-rail rr-rail--collapsed"
+        aria-label="Informações contextuais da pesquisa"
+      >
+        <button
+          type="button"
+          className="rr-rail__reopen"
+          aria-expanded={false}
+          aria-controls={RAIL_PANEL_ID}
+          aria-label="Expandir painel de contexto"
+          title="Expandir painel"
+          onClick={() => setCollapsed(false)}
+        >
+          <PanelRightOpen size={18} aria-hidden="true" />
+        </button>
       </aside>
     );
   }
 
-  const structured = plan.plano_estruturado;
-  const statusNormalized = pipelineStatus || plan.status_pipeline || 'aguardando';
-
   return (
-    <aside className="sidebar-container context-sidebar right-rail right-rail--sticky" aria-label="Informações contextuais da pesquisa">
-      <TokenUsageMeter metadados={metadadosModelo ?? plan?.metadados_modelo ?? null} />
+    <aside
+      className="sidebar-container context-sidebar right-rail right-rail--sticky rr-rail"
+      aria-label="Informações contextuais da pesquisa"
+    >
+      <div className="rr-rail__panel" id={RAIL_PANEL_ID}>
+        <header className="rr-rail__head">
+          <h2 className="rr-rail__title" title={titulo}>
+            {titulo}
+          </h2>
+          <button
+            type="button"
+            className="rr-rail__collapse"
+            aria-expanded={true}
+            aria-controls={RAIL_PANEL_ID}
+            aria-label="Recolher painel de contexto"
+            title="Recolher painel"
+            onClick={() => setCollapsed(true)}
+          >
+            <PanelRightClose size={16} aria-hidden="true" />
+          </button>
+        </header>
 
-      <div className="right-rail__section">
-        <div className="right-rail__header">
-          <Clock size={12} aria-hidden="true" className="right-rail__header-icon" />
-          <span>Status</span>
+        <div
+          className="rr-rail__tabs"
+          role="tablist"
+          aria-label="Modos do painel de contexto"
+          onKeyDown={handleTabKeyDown}
+        >
+          {renderTab('raciocinio', 'Raciocínio')}
+          {renderTab('fontes', 'Fontes', itensFontes.length)}
         </div>
-        {/* Contrato E2E: `.status-badge-container > .status-badge-chip` precisa
-            continuar existindo (features/step_definitions/*.ts). */}
-        <div className="status-badge-container">
-          <span className={`status-badge-chip ${getStatusBadgeClass(statusNormalized)} rr-status__badge`}>
-            {getStatusLabel(statusNormalized)}
-          </span>
-        </div>
-        <div className="rr-status__meta">
-          <div className="rr-status__meta-row">
-            <span className="rr-status__meta-label">
-              {`${plan.n_pontos} ${plan.n_pontos === 1 ? 'ponto' : 'pontos'}`}
+
+        <TokenUsageMeter metadados={metadadosModelo ?? plan?.metadados_modelo ?? null} />
+
+        {/* Contrato E2E: `.context-sidebar .status-badge-container > .status-badge-chip`
+            precisa existir e estar visível nos dois modos. */}
+        <div className="status-badge-container rr-rail__status">
+          <span className={`status-badge-chip ${statusBadgeClass} rr-status__badge`}>{statusLabel}</span>
+          {resumo && (
+            <span className="rr-rail__status-meta" title={resumo}>
+              {resumo}
             </span>
-            <span className="rr-status__meta-value">
-              {Array.isArray(plan.preferencias?.personas) && plan.preferencias.personas.length
-                ? `${plan.preferencias.personas.length} personas`
-                : '—'}
-            </span>
-          </div>
-          {typeof cycleNumber === 'number' && (
-            <div className="rr-status__meta-row">
-              <span className="rr-status__meta-label">Ciclo</span>
-              <span className="rr-status__meta-value">
-                {`${cycleNumber}${maxCycles ? ` / ${maxCycles}` : ''}`}
-              </span>
-            </div>
           )}
-          {typeof collectedPoints === 'number' && (
-            <div className="rr-status__meta-row">
-              <span className="rr-status__meta-label">Pontos coletados</span>
-              <span className="rr-status__meta-value">{`${collectedPoints} / ${plan.n_pontos}`}</span>
-            </div>
-          )}
-          <div className="rr-status__meta-row">
-            <span className="rr-status__meta-label">ID</span>
-            <span className="rr-status__meta-value mono" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <span title={plan.id_pesquisa}>{plan.id_pesquisa.slice(0, 8)}</span>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Copiar ID completo da pesquisa"
-                title={plan.id_pesquisa}
-                onClick={() => {
-                  void navigator.clipboard?.writeText(plan.id_pesquisa);
-                  setCopiouId(true);
-                  window.setTimeout(() => setCopiouId(false), 1500);
-                }}
-              >
-                {copiouId ? <Check size={10} aria-hidden="true" /> : <Copy size={10} aria-hidden="true" />}
-              </button>
-            </span>
-          </div>
         </div>
-        {auditSummary && (
-          <div className="rr-status__meta-row">
-            <span className="rr-status__meta-label">Auditoria</span>
-            <span className="rr-status__meta-value">{`${auditSummary.aprovados}/${auditSummary.total} aprovados`}</span>
-          </div>
-        )}
-      </div>
 
-      <SourcesExplorer
-        items={fontes ?? derivarFontesParaExplorer(searchResult, { emColeta: fontesAtivas, pontosReprovados })}
-      />
+        <div className="rr-rail__body">
+          <div
+            role="tabpanel"
+            id={PANEL_ID.raciocinio}
+            aria-labelledby={TAB_ID.raciocinio}
+            className="rr-rail__pane"
+            hidden={mode !== 'raciocinio'}
+          >
+            <dl className="rr-facts">
+              <div className="rr-facts__row">
+                <dt>Estágio</dt>
+                <dd>{statusLabel}</dd>
+              </div>
+              <div className="rr-facts__row">
+                <dt>Ciclo</dt>
+                <dd className="rr-facts__mono">{cicloTexto}</dd>
+              </div>
+              <div className="rr-facts__row">
+                <dt>Pontos coletados</dt>
+                <dd className="rr-facts__mono">{coletadosTexto}</dd>
+              </div>
+              <div className="rr-facts__row">
+                <dt>Auditoria</dt>
+                <dd className="rr-facts__mono">{auditoriaTexto}</dd>
+              </div>
+              <div className="rr-facts__row">
+                <dt>ID</dt>
+                <dd className="rr-facts__id">
+                  <span className="rr-facts__mono" title={idPesquisa ?? undefined}>
+                    {idCurto}
+                  </span>
+                  {idPesquisa && (
+                    <button
+                      type="button"
+                      className={`rr-copy${copiado ? ' is-copied' : ''}`}
+                      aria-label={copiado ? 'ID copiado' : 'Copiar ID da pesquisa'}
+                      title={copiado ? 'Copiado' : 'Copiar ID completo'}
+                      onClick={copiarId}
+                    >
+                      {copiado ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+                    </button>
+                  )}
+                </dd>
+              </div>
+              <div className="rr-facts__row rr-facts__row--stack">
+                <dt>Escopo</dt>
+                <dd className="rr-facts__scope">{escopo}</dd>
+              </div>
+            </dl>
+          </div>
 
-      <div className="right-rail__section">
-        <div className="right-rail__header">
-          <Target size={12} aria-hidden="true" className="right-rail__header-icon" />
-          <span>Escopo</span>
-        </div>
-        <div className="rr-scope">
-          <div className="rr-scope__row">
-            <span className="rr-scope__label">Público</span>
-            <span className="rr-scope__value">{structured?.publico || 'Analistas e tomadores de decisão'}</span>
-          </div>
-          <div className="rr-scope__row">
-            <span className="rr-scope__label">Recorte temporal</span>
-            <span className="rr-scope__value">{structured?.recorte_temporal || 'Contemporânea'}</span>
-          </div>
-          <div className="rr-scope__row">
-            <span className="rr-scope__label">Entregável</span>
-            <span className="rr-scope__value">{structured?.formato_entrega || 'Dossiê analítico com fontes'}</span>
+          <div
+            role="tabpanel"
+            id={PANEL_ID.fontes}
+            aria-labelledby={TAB_ID.fontes}
+            className="rr-rail__pane"
+            hidden={mode !== 'fontes'}
+          >
+            <SourcesExplorer items={itensFontes} />
           </div>
         </div>
       </div>

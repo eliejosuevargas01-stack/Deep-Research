@@ -49,11 +49,12 @@ const html = renderToString(
     fontes: [{ url: 'https://example.com/a', titulo: 'Artigo A', dominio: 'example.com', status: 'processado', ponto_n: 1 }],
   })
 );
-assert.ok(html.includes('Tokens'), 'rail exibe medidor de tokens');
-/* Contrato atual (DESIGN.md §7): o painel se chama "Fontes exploradas" e a
-   contagem vive num span próprio ao lado do título. */
-assert.ok(html.includes('Fontes exploradas'), 'rail exibe o painel de fontes exploradas');
-assert.ok(/Fontes exploradas<\/span><span class="right-rail__header-count">1</.test(html), 'contagem de fontes = 1');
+assert.ok(html.includes('tokens'), 'rail exibe medidor de tokens');
+/* Contrato r3 (DESIGN.md §7): painel único com abas, contagem na aba
+   "Fontes" e lista de fontes com favicon/título/domínio/estado. */
+assert.ok(html.includes('Raciocínio') && html.includes('Fontes'), 'rail tem as duas abas');
+assert.ok(/rr-rail__tab-count">1</.test(html), 'contagem de fontes = 1 na aba');
+assert.ok(html.includes('aria-label="Fontes exploradas"'), 'lista de fontes mantém o rótulo acessível');
 assert.ok(html.includes('example.com'), 'chip referencia o domínio da fonte');
 assert.ok(html.includes('Artigo A'), 'chip exibe o título truncado');
 
