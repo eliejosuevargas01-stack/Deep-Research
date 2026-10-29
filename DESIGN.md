@@ -23,16 +23,24 @@ paleta de atalhos).
 
 | Zona | Largura | Conteúdo |
 |---|---|---|
-| Sidebar de navegação | 244px (rail 64px colapsado, esconde ≤900px) | marca, navegação, rodapé de dados/tema |
+| Sidebar de navegação | 244px (rail 64px colapsado, esconde ≤900px) | marca, navegação, **conversas recentes**, rodapé de tema |
 | Coluna central | `minmax(0, 1fr)` | plano, timeline de raciocínio, dossiê |
-| Right rail (inspetor) | 360px, `border-left: 1px` | tokens, status, fontes, escopo |
-| Composer | largura da coluna central, `position: sticky bottom` em ≤640px | input + parâmetros |
+| Right rail (painel de contexto) | 360px (320px ≤1280px), `border-left: 1px` | cabeçalho + alternador Raciocínio/Fontes, tokens sempre visíveis |
+| Composer | largura da coluna central, `position: sticky bottom` em ≤640px | input + acessórios na própria barra |
 
 `workspace-grid` = `minmax(0,1fr) 360px`, `gap: 0`, separação por hairline. A
 coluna central reserva `padding-right: 24px` para não encostar no hairline do
 inspetor.
 Right rail: `position: sticky; top: 58px + 16px`, rolagem própria quando
 exceder a viewport, **nunca** criar segunda barra de rolagem na página.
+
+Sidebar de navegação: abaixo dos destinos, um grupo **Conversas** com as
+pesquisas salvas no navegador (máximo 6, mais recente primeiro): título em 12,5px
+truncado em 1 linha, meta `Status · data relativa` em 11px, item ativo com
+`aria-current="page"` e fundo `--color-surface-hover`, e um link "Ver histórico".
+Sem registros: uma linha "Nenhuma pesquisa ainda". O rodapé guarda apenas o
+alternador de tema (o aviso "dados ficam neste navegador" sai da sidebar e vive
+na Documentação).
 
 ## 3. Tipografia
 
@@ -93,9 +101,12 @@ Uma linha de rail vertical de 1px percorre a timeline. Cada passo:
               chips de fonte (favicon 14px + domínio mono truncado)
 ```
 
-- Altura da linha de uma linha só: 40–48px. Com título + resumo (o caso real):
-  72–96px, porque o conteúdo empilha duas linhas de texto. Altura vem do
-  conteúdo, nunca de padding: `padding: 4px 0` na linha.
+- Altura da linha fechada: **40–48px**, uma linha só. A linha fechada tem
+  exatamente **um rótulo denso**: `Persona — o que está fazendo` (persona inline,
+  sem chip, sem hora, sem parágrafo de resumo, sem "ver reasoning" textual; o
+  affordance é só o chevron). Hora, contagem de páginas, queries, reasoning e
+  chips de fonte vivem **apenas no corpo expandido**. Altura vem do conteúdo,
+  nunca de padding: `padding: 4px 0` na linha.
 - Divisor de estágio: micro-label mono 11px maiúsculo + hairline, não uma caixa.
 - Callout de chave: fundo `--color-surface-subtle`, `border-left: 0`,
   `padding: 8px 12px`, raio 8px, sem ícone decorativo. Usado para a conclusão do
@@ -105,28 +116,52 @@ Uma linha de rail vertical de 1px percorre a timeline. Cada passo:
 - Live: item em streaming mostra o logo da fase (`stream`) e cursor de texto;
   ao concluir, recolhe sozinho e troca o ícone para o da persona.
 
-## 7. Right rail
+## 7. Right rail — painel de contexto com modo
 
-Ordem fixa, cada seção com hairline inferior e cabeçalho mono 11px maiúsculo:
+A referência do gabarito (`13-21-45`, `13-22-52`, `13-23-03`) não é uma coluna de
+seções empilhadas: é **um painel com cabeçalho próprio e um modo por vez**.
+O rail do produto mantém a posição de coluna (o produto precisa do medidor
+sempre visível), mas adota o cromo da referência:
 
-1. **Tokens da sessão** — total grande (22px, mono), barra entrada/saída com
-   `transform: scaleX()`, linhas Entrada/Saída/Total, modelo em mono truncado
-   com `title`. Sem telemetria: estado honesto ("telemetria indisponível"),
-   nunca zero inventado.
-2. **Status** — estágio atual, ciclo `n/4`, pontos coletados, ID curto copiável.
-3. **Fontes exploradas (N)** — chips compactos: favicon 14px (cor original),
-   título/domínio truncado com `title`, badge de estado. Grupo por ponto quando
-   houver `ponto_n`. Vazio: linha única explicando o estado, sem card fantasma.
-4. **Escopo** — público, recorte temporal, entregável, em 12px.
+```
+┌ painel (superfície, raio 16px, hairline 1px, sticky top) ──────────┐
+│ Título da pesquisa (1 linha, truncado)                 [recolher] │
+│ [ Raciocínio ]  [ Fontes · N ]        ← abas de texto, sublinhado  │
+│ ── faixa de tokens (sempre visível nos dois modos) ──              │
+│  12,4k total · Entrada 8,1k · Saída 4,3k · modelo em mono          │
+│  barra entrada/saída com transform: scaleX()                       │
+│ ────────────────────────────────────────────────────────────────── │
+│ corpo do modo ativo, rolagem própria (máx. 60vh)                   │
+└────────────────────────────────────────────────────────────────────┘
+```
 
-Cada seção ≤ 220px de altura antes de rolar internamente; a lista de fontes é o
-único bloco com rolagem própria (máx. 40vh).
+- **Abas**: `role="tablist"`, `role="tab"` com `aria-selected`,
+  `aria-controls`, setas ← → e Home/End; painel `role="tabpanel"`.
+  Estado persistido em `localStorage` (`deepResearch.railMode`).
+- **Modo Raciocínio**: estágio atual, ciclo `n/4`, pontos coletados, ID curto
+  copiável, escopo em uma linha — lista aberta de pares rótulo/valor, sem caixas
+  e sem cabeçalhos de seção empilhados.
+- **Modo Fontes**: lista de fontes com favicon 16px (**cor original**), título
+  truncado em 1 linha com `title`, domínio em mono 11px e badge de estado;
+  agrupada por ponto quando houver `ponto_n`. Vazio: uma linha de estado.
+- **Recolher**: botão no cabeçalho colapsa para um trilho de 44px com ícone
+  (`aria-expanded`, `aria-controls`); reabrir restaura o modo anterior.
+- Sem telemetria: estado honesto ("telemetria indisponível"), nunca zero
+  inventado. Nenhum card aninhado dentro do painel; separação por hairline.
 
 ## 8. Formulários / composer / pré-voo
 
 - Prompt bar: superfície branca, raio 26px (a casca existente), hairline 1px,
   anel de foco violeta via `:focus-within`, altura mínima 52px, `Enter` planeja / `Shift+Enter` nova linha, contador
   `n/500` em mono 11px.
+- **Uma barra só.** Acessórios (parâmetros, pill de modelo, ferramentas) vivem
+  dentro da caixa do composer, na linha superior; abaixo dele ficam apenas o
+  aviso legal em 11px e a mensagem de validação, visível só quando o tema é
+  inválido. Proibida faixa de status duplicando os mesmos dados
+  (`1 ponto • 4 personas • Rigor`) e proibida segunda barra fixa de ferramentas.
+  `BottomDock` deixa de ser barra própria: seus quatro gatilhos são portados para
+  o slot do composer (`[data-composer-tools]`) e abrem os mesmos painéis em
+  fluxo, sob a barra, nunca por cima do input.
 - Card de pré-voo do plano: resumo de 1 linha + 4 chips de fase (Mapeamento,
   Busca, Auditoria, Dossiê) em linha, ações "Editar parâmetros" (outline) e
   "Aprovar e iniciar" (primária). Nada de caixa dentro de caixa.
