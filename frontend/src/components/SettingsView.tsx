@@ -358,7 +358,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
             <Server size={18} aria-hidden="true" color="var(--color-text-muted)" />
-            <h2 id="auth-heading" className="card-title" style={{ fontSize: '1.05rem' }}>
+            <h2 id="auth-heading" className="card-title" style={{ fontSize: '16px' }}>
               Comunicação com o Backend e Sessão
             </h2>
           </div>
@@ -369,7 +369,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+        <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
           O workspace opera integrado ao backend FastAPI com cookies seguros HttpOnly SameSite=Strict. As credenciais dos provedores (OpenAI, Jina, Webhooks) permanecem no servidor e nunca são expostas ao navegador.
         </p>
 
@@ -421,7 +421,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <section className="card" aria-labelledby="creds-heading">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <Shield size={18} aria-hidden="true" color="var(--color-text-muted)" />
-          <h2 id="creds-heading" className="card-title" style={{ fontSize: '1.05rem' }}>
+          <h2 id="creds-heading" className="card-title" style={{ fontSize: '16px' }}>
             Parâmetros dos Provedores e Banco Cifrado (AES-128-CBC)
           </h2>
         </div>
@@ -429,7 +429,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Aviso de Precedência RN-10 (Adendo 002) */}
         <div className="alert-banner info" style={{ marginBottom: '16px' }}>
           <Info size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
-          <div style={{ fontSize: '0.84rem' }}>
+          <div style={{ fontSize: '14px' }}>
             <strong>Regra de Precedência RN-10 (Adendo 002):</strong> O Banco Cifrado possui prioridade sobre o ambiente (.env).
             Se cadastrado no banco, o valor tem prevalência; caso contrário, as variáveis de ambiente atuam como fallback seguro (a chave-mestra CREDENTIALS_MASTER_KEY permanece restrita ao ambiente para bootstrap seguro).
             Valores mascarados listados abaixo refletem a origem ativa. Preencha apenas os campos que deseja atualizar no banco.
@@ -713,7 +713,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
             <Server size={18} aria-hidden="true" color="var(--color-text-muted)" />
-            <h2 id="creds-list-heading" className="card-title" style={{ fontSize: '1.05rem' }}>
+            <h2 id="creds-list-heading" className="card-title" style={{ fontSize: '16px' }}>
               Parâmetros Registrados e Origem Ativa
             </h2>
           </div>

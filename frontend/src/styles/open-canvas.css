@@ -62,7 +62,8 @@
 }
 
 .reasoning-feed-title {
-  font-size: 14px;
+  /* Degrau 1,25 sobre o corpo de 12px do feed (hierarquia plana no detector). */
+  font-size: 15px;
   letter-spacing: -0.01em;
 }
 
@@ -633,6 +634,67 @@
     margin-bottom: 10px !important;
   }
 }
+
+/* ---------- Configurações: medida de leitura e hierarquia ---------- */
+
+/* Rampa do app: 14 corpo / 16 h2 / 22 h1 — passo h1→h2 = 1.375 (>1.25). */
+.settings-container .card-header .card-title {
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.settings-container h1,
+.settings-container h2,
+.settings-container h3 {
+  text-wrap: balance;
+}
+
+.settings-container section.card > p,
+.settings-container .alert-banner.info > div {
+  max-width: 490px;
+  text-align: left;
+}
+
+/* A chamada do cabeçalho corria a 1060px (144 caracteres por linha em 1440). */
+.settings-container .card-header p {
+  max-width: 480px;
+}
+
+.settings-container section.card > p {
+  line-height: 1.45;
+}
+
+/* Fecha órfãs nos blocos de texto de configurações. */
+.settings-container .card-header p,
+.settings-container section.card > p,
+.settings-container .alert-banner > div {
+  text-wrap: pretty;
+}
+
+/* ---------- Documentação: medida de leitura ---------- */
+
+/* O grid .docs-steps ocupa a coluna inteira; só o texto corrido recebe a
+   medida de leitura (500px ≈ 72 caracteres com espaços a 15px). */
+.docs-view .markdown-body > p,
+.docs-view .markdown-body > ul,
+.docs-view .markdown-body > ol {
+  max-width: 500px;
+}
+
+.docs-view .markdown-body {
+  text-wrap: pretty;
+}
+
+.docs-view .markdown-body li {
+  text-wrap: pretty;
+}
+
+/* Copy da própria tela (não o conteúdo técnico): mesma regra de órfãs. */
+.docs-view > header p,
+.docs-view .arch-detail p {
+  text-wrap: pretty;
+}
+
 
 /* ---------- Documentação: 4 passos em colunas abertas ---------- */
 
