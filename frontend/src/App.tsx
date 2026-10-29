@@ -174,6 +174,8 @@ export const App: React.FC = () => {
 
   // Histórico local do navegador
   const [historyRecords, setHistoryRecords] = useState<ResearchHistoryRecord[]>([]);
+  // Pesquisa aberta no workspace (espelha activeResearchIdRef para a navegação lateral)
+  const [activeResearchId, setActiveResearchId] = useState<string | null>(null);
 
   // Referências para foco e animação GSAP
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -400,6 +402,7 @@ export const App: React.FC = () => {
         const status = (await resp.json()) as PipelineStatusResumo;
         const registro = historyService.get(idAtivo);
         if (!registro?.planResponse) return;
+        setActiveResearchId(idAtivo);
         const estagio = status.status_pipeline ? STAGE_POR_STATUS[status.status_pipeline] : undefined;
         if (estagio) {
           setCurrentPlan(registro.planResponse);
@@ -619,6 +622,7 @@ export const App: React.FC = () => {
 
     const id_pesquisa = currentPlan.id_pesquisa;
     activeResearchIdRef.current = id_pesquisa;
+    setActiveResearchId(id_pesquisa);
     try {
       localStorage.setItem(ACTIVE_RESEARCH_KEY, id_pesquisa);
     } catch {
@@ -975,6 +979,7 @@ export const App: React.FC = () => {
       }
     }
     activeResearchIdRef.current = record.id_pesquisa;
+    setActiveResearchId(record.id_pesquisa);
     activeExecutionTokenRef.current = null;
     isExecutingRef.current = false;
     setIsRetrying(false);
@@ -1067,6 +1072,7 @@ export const App: React.FC = () => {
       }
     }
     activeResearchIdRef.current = null;
+    setActiveResearchId(null);
     activeExecutionTokenRef.current = null;
     isExecutingRef.current = false;
     setIsRetrying(false);
