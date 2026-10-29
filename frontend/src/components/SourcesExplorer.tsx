@@ -1,5 +1,6 @@
 import React from 'react';
 import { Globe } from 'lucide-react';
+import { Favicon } from './Favicon';
 
 export type FonteExplorerStatus = 'lendo' | 'processado' | 'invalidado';
 
@@ -95,26 +96,7 @@ export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
                   <>
                     <span className="rr-sources__favicon-wrap" aria-hidden="true">
                       <span className="rr-sources__favicon-fallback">{init}</span>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(dominio)}&sz=64`}
-                        alt=""
-                        width={14}
-                        height={14}
-                        loading="lazy"
-                        className="rr-sources__favicon"
-                        onLoad={(event) => {
-                          const img = event.currentTarget;
-                          if (img.naturalWidth > 0) {
-                            img.classList.add('is-loaded');
-                          } else {
-                            img.style.display = 'none';
-                          }
-                        }}
-                        onError={(event) => {
-                          event.currentTarget.style.display = 'none';
-                        }}
-                      />
+                      <Favicon dominio={dominio} size={64} className="rr-sources__favicon" />
                     </span>
                     <span className="rr-sources__title" title={titulo}>
                       {titulo}

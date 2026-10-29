@@ -11,6 +11,7 @@ import type { AuditItem, AuditResponse, PlanResponse, SearchResponse } from '../
 import type { ReasoningFeedItem } from '../types/stream';
 import '../styles/linear-timeline.css';
 import { PersonaIcon } from './ResearchIcons';
+import { Favicon } from './Favicon';
 
 
 const MarkdownBody = React.lazy(() => import('./ReasoningMarkdownBody'));
@@ -402,15 +403,7 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
                         <ul className="tl-fontes" aria-label={`${doms.length} domínios lidos`}>
                           {doms.map(({ dominio, paginas }) => (
                             <li key={dominio} className="tl-fonte">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(dominio)}&sz=32`}
-                                alt=""
-                                width={14}
-                                height={14}
-                                loading="lazy"
-                                className="tl-fonte-icone"
-                              />
+                              <Favicon dominio={dominio} size={32} className="tl-fonte-icone" />
                               <span className="tl-fonte-dominio">{dominio}</span>
                               <span className="tl-fonte-paginas">
                                 {paginas} {paginas === 1 ? 'página lida' : 'páginas lidas'}
