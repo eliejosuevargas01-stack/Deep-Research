@@ -262,16 +262,6 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
 
       {aberto && (
         <div id={corpoId} className="reasoning-card-body">
-          {(() => {
-            const takeaway = extrairTakeaway(item.reasoning);
-            if (!takeaway || item.streaming) return null;
-            return (
-              <aside className="reasoning-takeaway">
-                <strong>Key takeaway</strong>
-                <p>{takeaway.length > 280 ? `${takeaway.slice(0, 277)}…` : takeaway}</p>
-              </aside>
-            );
-          })()}
           {item.streaming ? (
             <div className="reasoning-streaming-text">
               <InlineMarkdown text={normalizarTelemetria(item.reasoning)} />
