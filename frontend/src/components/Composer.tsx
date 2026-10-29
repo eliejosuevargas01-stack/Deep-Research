@@ -21,6 +21,14 @@ interface ComposerProps {
   modelLabel?: string;
 }
 
+/**
+ * Composer — uma barra só (DESIGN.md §8).
+ *
+ * Linhas dentro da caixa: (1) acessórios — parâmetros, pill de modelo, ferramentas
+ * portadas pelo BottomDock e contador; (2) textarea; (3) atalhos + enviar.
+ * Abaixo da caixa: slot em fluxo para o painel de ferramentas, aviso legal e a
+ * mensagem de validação (visível apenas quando o tema é inválido).
+ */
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
   value,
   onChange,
@@ -38,7 +46,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
 
   // Copy do prompt: estado vazio explica o formato; estados de erro dizem
   // exatamente quanto falta ou quanto sobra, sem repetir a mesma frase.
-  let helperMessage = 'Do tema ao plano em um passo. Enter envia; Shift+Enter abre nova linha; 5 a 500 caracteres.';
+  let helperMessage = 'Do tema ao plano em um passo. Enter planeja; Shift+Enter abre nova linha; 5 a 500 caracteres.';
   let helperClass = 'helper-info';
   if (length > 0 && length < 5) {
     helperMessage = `Faltam ${5 - length} ${5 - length === 1 ? 'caractere' : 'caracteres'} para o mínimo de 5 (limite: 500). Shift+Enter abre nova linha.`;
@@ -110,15 +118,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
 
   return (
     <div className="composer-anchor" role="region" aria-label="Entrada de tema de pesquisa">
-      {/* Aviso de plano ativo permanece fora da caixa; as ferramentas da
-          investigação agora vivem dentro da linha de acessórios. */}
+      {/* Nota de plano ativo: 11px, sem números que os controles já mostram. */}
       {currentPlanActive && (
-        <div className="composer-toolbar" role="note">
+        <p className="composer-toolbar" role="note">
           <span className="composer-plan-indicator">
-            <Sparkles size={13} className="composer-plan-icon" aria-hidden="true" />
-            Plano formulado — submeter novo tema elaborará outro plano
+            <Sparkles size={12} className="composer-plan-icon" aria-hidden="true" />
+            Plano formulado — novo tema elabora outro plano
           </span>
-        </div>
+        </p>
       )}
 
       <div className={`composer-box ${disabled || isSubmitting ? 'disabled' : ''}`}>
@@ -133,20 +140,23 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
             {preferencesProps && <ResearchPreferences {...preferencesProps} />}
           </div>
 
-          <span className="composer-model-pill" title="Modelo em uso: roteamento automático">
+          <span
+            className="composer-model-pill"
+            title={`Modelo em uso: ${modelLabel} (roteamento automático)`}
+          >
             {modelLabel}
           </span>
 
-          {/* BottomDock (App) transporta os quatro painéis para este slot. */}
+          {/* BottomDock transporta os quatro gatilhos para este slot. */}
           <div className="composer-tools" data-composer-tools />
 
-          <div
-            className={`composer-counter ${length > 0 && !isValid ? 'invalid' : ''} ${isValid ? 'is-valid' : ''}`}
+          <span
+            className={`composer-counter ${length > 500 || (length > 0 && length < 5) ? 'invalid' : ''}`}
             title="O tema deve conter entre 5 e 500 caracteres"
             aria-hidden="true"
           >
             {length}/500
-          </div>
+          </span>
         </div>
 
         {/* Linha 2: campo de tema */}
@@ -211,6 +221,10 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
           </button>
         </div>
       </div>
+
+      {/* Slot em fluxo: o painel do BottomDock abre AQUI, abaixo da caixa,
+          nunca como popover sobre o input. */}
+      <div className="composer-panel-slot" data-composer-panel />
 
       <p className="composer-legal">
         A IA pode cometer erros. Verifique as fontes citadas antes de decidir.
