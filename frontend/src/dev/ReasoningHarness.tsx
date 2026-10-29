@@ -66,7 +66,7 @@ export const ReasoningHarness: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: 24 }}>
-      <h1 style={{ fontSize: '1.1rem', marginBottom: 12 }}>Harness — feed de raciocínio</h1>
+      <h1 style={{ fontSize: '20px', marginBottom: 12 }}>Harness — feed de raciocínio</h1>
       <ReasoningFeed items={itens} isActive activeAgentName="Futurista" activeStageType="busca" />
     </div>
   );
