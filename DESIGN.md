@@ -113,8 +113,10 @@ Uma linha de rail vertical de 1px percorre a timeline. Cada passo:
   ponto (aprovado/reprovado) e para o score do auditor.
 - Accordion: `aria-expanded` no botão da linha, corpo com `id` referenciado por
   `aria-controls`; clique em qualquer parte da linha alterna.
-- Live: item em streaming mostra o logo da fase (`stream`) e cursor de texto;
-  ao concluir, recolhe sozinho e troca o ícone para o da persona.
+- Live: item em streaming mostra o logo da fase (`stream`), o texto crescendo e
+  um rótulo de estado (`ao vivo`); **sem cursor piscante falso** — o detector
+  `blinking-cursor` reprova caret decorativo e ele não existe na referência.
+  Ao concluir, recolhe sozinho e troca o ícone para o da persona.
 
 ## 7. Right rail — painel de contexto com modo
 
