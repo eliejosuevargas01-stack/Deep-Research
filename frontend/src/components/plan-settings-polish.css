@@ -1,0 +1,110 @@
+/* ==========================================================================
+   Scoped Polish for PlanView and SettingsView
+   Craft-floor polish without modifying shared CSS files.
+   ========================================================================== */
+
+/* --- PlanView: Compact Header & Immediate Primary Action Visibility --- */
+.plan-header--compact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.plan-header-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4, 16px);
+  flex-wrap: wrap;
+}
+
+.plan-header-text {
+  flex: 1 1 540px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+}
+
+.plan-header-primary-action {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.plan-header-primary-action .btn-start-research {
+  min-height: 44px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+}
+
+/* Query Banner: Safe Reset Confirmation dialog */
+.query-confirm-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background-color: var(--color-surface);
+  padding: 4px 10px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--violet-line);
+  box-shadow: var(--shadow-sm);
+}
+
+.confirm-reset-text {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.confirm-reset-buttons {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.query-action-btn.danger {
+  color: var(--color-danger-text);
+  border-color: var(--color-danger-border);
+  background-color: var(--color-danger-bg);
+}
+
+.query-action-btn.danger:hover:not(:disabled) {
+  background-color: var(--color-danger-border);
+  border-color: var(--color-danger-text);
+}
+
+/* Responsive adjustment for short/narrow screens */
+@media (max-width: 768px) {
+  .plan-header-main-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3, 12px);
+  }
+
+  .plan-header-primary-action {
+    width: 100%;
+  }
+
+  .plan-header-primary-action .btn-start-research {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* --- SettingsView: Accessible Focus & Validation Polish --- */
+.form-input.error {
+  border-color: var(--color-danger-text) !important;
+  background-color: var(--color-danger-bg) !important;
+}
+
+.form-input.error:focus {
+  outline: 2px solid var(--color-danger-text) !important;
+  box-shadow: 0 0 0 3px var(--color-danger-border) !important;
+}
+
+.form-field-error {
+  color: var(--color-danger-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 4px;
+  display: block;
+}

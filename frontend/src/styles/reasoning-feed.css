@@ -1,0 +1,652 @@
+/* =========================================================================
+   Reasoning Feed — raciocínio dos agentes (Deep Research)
+   Padrão "thinking block": cartão recolhido por padrão, expandido só enquanto
+   transmite; linha densa com agente, título, resumo, tamanho e horário.
+   ========================================================================= */
+
+/* Sem caixa própria: os cartões são a única camada com contorno. */
+.reasoning-feed-container {
+  background: transparent;
+  border: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.reasoning-feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  background: var(--color-surface-subtle);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.reasoning-feed-title-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+}
+
+.reasoning-feed-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.reasoning-feed-title-icon {
+  color: var(--color-accent-text);
+}
+
+.reasoning-feed-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full, 9999px);
+  padding: 1px 8px;
+}
+
+.reasoning-feed-active-agent {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-accent-text);
+}
+
+/* ---------- Pulso (composto, sem repintura) ---------- */
+.live-pulse-dot {
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full, 9999px);
+  background-color: var(--color-success-text);
+  color: var(--color-success-text);
+}
+
+.live-pulse-dot.pulse-violet {
+  background-color: var(--color-accent-text);
+  color: var(--color-accent-text);
+}
+
+.live-pulse-dot.idle {
+  background-color: var(--color-text-muted);
+  color: var(--color-text-muted);
+}
+
+.live-pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px currentColor;
+  opacity: 0;
+  animation: live-pulse-ring 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes live-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  70% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* ---------- Barra de ferramentas ---------- */
+.reasoning-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-surface);
+}
+
+.reasoning-filter-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.reasoning-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+}
+
+.reasoning-filter-bar:focus-within {
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+.reasoning-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.reasoning-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-height: 24px;
+  box-sizing: border-box;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full, 9999px);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.reasoning-chip:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-text);
+}
+
+.reasoning-chip-live {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--color-primary);
+}
+
+.reasoning-chip-live::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--color-primary);
+  opacity: 0;
+  animation: live-pulse-ring 1.6s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.reasoning-chip[data-empty='true'] {
+  border-style: dashed;
+  color: var(--color-text-secondary);
+}
+
+.reasoning-chip.selected {
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-text);
+  font-weight: 600;
+}
+
+.reasoning-chip:focus-visible,
+.reasoning-feed-btn:focus-visible,
+.reasoning-card-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.reasoning-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.reasoning-toolbar-actions .reasoning-search {
+  flex: 1;
+  min-width: 140px;
+}
+
+.reasoning-toolbar-actions .reasoning-search input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.reasoning-search input {
+  width: 100%;
+}
+
+.reasoning-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full, 9999px);
+  color: var(--color-text-muted);
+  min-height: 26px;
+  box-sizing: border-box;
+}
+
+.reasoning-search input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.reasoning-search input {
+  border: 0;
+  background: transparent;
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+  width: 100%;
+}
+
+.reasoning-search input:focus {
+  outline: none;
+}
+
+.reasoning-search:focus-within {
+  border-color: var(--color-accent-border);
+  box-shadow: 0 0 0 2px var(--color-accent-border);
+}
+
+.reasoning-feed-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 3px 9px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+}
+
+.reasoning-feed-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-text);
+}
+
+/* ---------- Área rolável ---------- */
+.reasoning-stream-wrap {
+  position: relative;
+}
+
+.reasoning-feed-stream {
+  position: relative;
+  /* O feed é o palco da tela: ocupa o que sobra da viewport sem empurrar a
+     página, e nunca fica menor que 5 cartões recolhidos. */
+  max-height: clamp(300px, calc(100vh - 420px), 520px);
+  overflow-y: auto;
+  padding: var(--space-2, 8px) var(--space-3, 12px) var(--space-3, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reasoning-jump-latest {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-accent-text);
+  background: var(--color-accent-subtle);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-full, 9999px);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.reasoning-jump-latest:hover {
+  background: var(--color-surface-hover);
+}
+
+/* ---------- Divisor de estágio ---------- */
+.reasoning-stage-divider {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  margin-top: 2px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.reasoning-stage-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+/* ---------- Cartão ---------- */
+.reasoning-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-surface);
+}
+
+.reasoning-card.is-open {
+  border-color: var(--color-border-strong);
+}
+
+.reasoning-card.is-failed {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+}
+
+.reasoning-card.is-streaming {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-subtle);
+  box-shadow: inset 2px 0 0 0 var(--color-primary);
+  animation: streaming-breathe 2.2s ease-in-out infinite;
+}
+
+@keyframes streaming-breathe {
+  0%, 100% { box-shadow: inset 2px 0 0 0 var(--color-primary); }
+  50% { box-shadow: inset 2px 0 0 0 var(--color-accent-border); }
+}
+
+.reasoning-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: 4px 6px;
+}
+
+.reasoning-card-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  border-radius: var(--radius-sm, 6px);
+}
+
+.reasoning-card-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  min-width: 0;
+}
+
+.reasoning-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid transparent;
+}
+
+.agent-badge-planejador {
+  color: var(--color-accent-text);
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent-border);
+}
+
+.agent-badge-busca {
+  color: var(--color-info-text);
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+}
+
+.agent-badge-auditor {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+.agent-badge-redator {
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+
+.reasoning-card-title {
+  flex: 1 1 auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reasoning-card-preview {
+  min-height: 1.4em;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.reasoning-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.reasoning-live-tag {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-accent-text);
+}
+
+.reasoning-status-icon {
+  flex-shrink: 0;
+}
+
+.reasoning-status-icon.is-done {
+  color: var(--color-success-text);
+}
+
+.reasoning-status-icon.is-fail {
+  color: var(--color-danger-text);
+}
+
+.reasoning-copy-btn {
+  flex-shrink: 0;
+}
+
+.reasoning-card-alert {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 10px 6px;
+  font-size: 0.8rem;
+  color: var(--color-danger-text);
+}
+
+.reasoning-card-body {
+  padding: 6px 10px 10px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.reasoning-streaming-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.reasoning-markdown-content {
+  border-left: 2px solid var(--color-border);
+  padding-left: 10px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.reasoning-markdown-content p {
+  margin: 0 0 6px;
+}
+
+.reasoning-markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.reasoning-markdown-content code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  background: var(--color-surface-subtle);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.reasoning-markdown-content pre {
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 6px);
+  overflow-x: auto;
+}
+
+.reasoning-feed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-4, 16px);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.reasoning-feed-empty-icon {
+  color: var(--color-text-muted);
+}
+
+.reasoning-feed-empty-title {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-pulse-dot,
+  .live-pulse-dot.pulse-violet,
+  .live-pulse-dot::after,
+  .reasoning-chip-live,
+  .reasoning-chip-live::after,
+  .reasoning-card.is-streaming {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .reasoning-feed-stream {
+    max-height: 60vh;
+    padding: var(--space-2, 8px);
+  }
+
+  .reasoning-chip,
+  .reasoning-feed-btn {
+    min-height: 36px;
+  }
+
+  .reasoning-card-toggle {
+    min-height: 44px;
+  }
+
+  .reasoning-search {
+    min-height: 36px;
+  }
+
+  .reasoning-card-stats {
+    gap: 6px;
+  }
+}
+
+/* Em telas estreitas a linha do cartão não pode estourar: métricas saem,
+   o título trunca e o toggle respeita a largura do container. */
+@media (max-width: 640px) {
+  .reasoning-card-toggle {
+    min-width: 0;
+  }
+  .reasoning-card-line {
+    width: 100%;
+  }
+  .reasoning-card-stats {
+    display: none;
+  }
+  .reasoning-card-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Alvo de toque do campo e do copiar (WCAG 2.5.8: >=24px). */
+.reasoning-search input {
+  min-height: 28px;
+}
+
+@media (max-width: 640px) {
+  .reasoning-search input {
+    min-height: 40px;
+  }
+  .reasoning-copy-btn {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+}
+
+
+@media (pointer: coarse) {
+  .reasoning-chip {
+    min-height: 44px;
+  }
+}

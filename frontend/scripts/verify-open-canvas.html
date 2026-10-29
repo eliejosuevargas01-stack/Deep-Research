@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+  <body style="background:#fafafc;padding:40px;max-width:820px">
+    <div id="root"></div>
+    <script type="module">
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import '/src/styles/components.css';
+      import '/src/styles/reasoning-feed.css';
+      import '/src/styles/open-canvas.css';
+      import { ReasoningCardItem } from '/src/components/ReasoningCardItem.tsx';
+      import { calcularTerminados } from '/src/components/ReasoningFeed.tsx';
+
+      const item = {
+        id: 'teste-1', agentType: 'busca', agentName: 'Historiador',
+        title: 'Varredura Web — Historiador', status: 'concluido', streaming: false,
+        timestamp: Date.now(),
+        reasoning: '**Defining the Primary Source**\nLevantando cronologia oficial.\n**Ferramenta · SERP** `Euclid ESA 2026 resultados` → 5 resultados\nEuclid ESA 2026 resultados\nThis whole caveman thing makes this request a brain buster!\n**Ferramenta · Reader** 3 páginas lidas · `esa.int` `nature.com` `arxiv.org`',
+      };
+      createRoot(document.getElementById('root')).render(
+        React.createElement(ReasoningCardItem, { item, aberto: true, onToggle: () => {}, registrarToggle: () => {} })
+      );
+      window.__item = item;
+      setTimeout(() => { window.__result = {
+        pilulas: [...document.querySelectorAll('.reasoning-source-pill')].map((e) => e.textContent.trim()),
+        terminados: calcularTerminados(new Set(['a','b','c']), new Set(['b'])),
+        ativoPermanece: calcularTerminados(new Set(['a']), new Set(['a'])),
+        aberto: document.querySelector('.reasoning-card-toggle')?.getAttribute('aria-expanded'),
+        corpo: document.querySelector('.reasoning-card-body')?.innerText || '',
+        asteriscosCrus: (document.querySelector('.reasoning-card-body')?.innerText || '').includes('**'),
+        queryDuplicada: (document.querySelector('.reasoning-card-body')?.innerText || '').split('Euclid ESA 2026 resultados').length - 1,
+        metaVazada: /caveman|brain buster/i.test(document.querySelector('.reasoning-card-body')?.innerText || ''),
+        }; }, 0);
+    </script>
+  </body>
+</html>

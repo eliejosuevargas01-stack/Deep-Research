@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Deep Research">
+  <title>Deep Research</title>
+  <g fill="none" stroke="#2F3737" stroke-width="1.5" stroke-linecap="round">
+    <path d="M6 3.5V10.5" stroke-opacity="0.55" />
+    <path d="M12 3.5V10.5" />
+    <path d="M18 3.5V10.5" stroke-opacity="0.55" />
+    <line x1="3.5" y1="10.5" x2="20.5" y2="10.5" stroke-opacity="0.7" />
+    <path d="M6 10.5L12 16.5M18 10.5L12 16.5M12 10.5V19.5" stroke-linejoin="round" />
+  </g>
+  <circle cx="6" cy="3.5" r="0.98" fill="#2F3737" fill-opacity="0.55" />
+  <circle cx="12" cy="3.5" r="0.98" fill="#2F3737" />
+  <circle cx="18" cy="3.5" r="0.98" fill="#2F3737" fill-opacity="0.55" />
+  <circle cx="12" cy="20" r="1.72" fill="#6D28D9" />
+</svg>

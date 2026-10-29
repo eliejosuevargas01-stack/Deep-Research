@@ -1,0 +1,842 @@
+/* "Open Canvas": estrutura por linhas de 1px, nunca por caixas fechadas. */
+
+/* ---------- Grade de trabalho: inspetor como coluna aberta ---------- */
+
+.workspace-grid {
+  align-items: start;
+  gap: 0;
+}
+
+.workspace-grid > .sidebar-container {
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  padding: 4px 0 4px 26px;
+  min-height: 100%;
+  gap: 0;
+}
+
+.workspace-grid > .sidebar-container .card {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+/* Uma única rolagem: a página. Sem altura fixa + overflow interno. */
+@media (min-width: 1281px) {
+  .workspace-main:has(.execution-card) {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .workspace-main:has(.execution-card) .execution-card {
+    height: auto;
+    overflow: visible;
+  }
+
+  .workspace-main:has(.execution-card) .workspace-grid > .sidebar-container {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* ---------- Feed de raciocínio: árvore, não console ---------- */
+
+.reasoning-feed-container {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.reasoning-feed-header {
+  border-bottom: 0;
+  padding: 0 0 6px;
+}
+
+.reasoning-feed-title {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.reasoning-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  min-width: 0;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.reasoning-tab {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 30px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.reasoning-tab:hover {
+  color: var(--color-text-primary);
+}
+
+.reasoning-tab.is-active {
+  color: var(--color-text-primary);
+  font-weight: 650;
+}
+
+.reasoning-tab-count {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.reasoning-tab-live {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--violet);
+  align-self: center;
+}
+
+.reasoning-tab:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.reasoning-toolbar {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.reasoning-feed-stream {
+  border-left: 1px solid var(--color-border);
+  padding-left: 34px;
+  margin-left: 6px;
+}
+
+.reasoning-card {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 14px 0;
+}
+
+.reasoning-card.is-streaming {
+  background: transparent;
+}
+
+.reasoning-card-header {
+  gap: 8px;
+}
+
+.reasoning-card-toggle {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.reasoning-card-title {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.reasoning-card-preview,
+.reasoning-streaming-text,
+.reasoning-markdown-content {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+}
+
+.reasoning-card-body {
+  border: 0;
+  background: transparent;
+  padding: 10px 0 0;
+}
+
+.reasoning-avatar {
+  left: -45px;
+  top: 13px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 4px solid var(--color-canvas);
+  font-size: 10px;
+}
+
+.reasoning-copy-btn,
+.reasoning-search,
+.reasoning-feed-btn {
+  box-shadow: none;
+  min-height: 30px;
+}
+
+/* ---------- Auditoria: checklist editorial ---------- */
+
+.audit-breakdown {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+.audit-breakdown .execution-heading-title {
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.execution-heading-status {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.audit-item-box {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  margin: 0;
+}
+
+.audit-item-box + .audit-item-box {
+  border-top: 1px solid var(--color-border);
+}
+
+.audit-item-toggle {
+  background: transparent;
+  border: 0;
+  padding: 16px 0;
+  border-radius: 0;
+}
+
+.audit-item-toggle:hover {
+  background: transparent;
+}
+
+.audit-item-score {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.audit-item-counts {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.audit-item-box .status-badge-chip {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.audit-item-box .status-badge-chip.concluido {
+  color: var(--color-success-text);
+}
+
+.audit-item-box .status-badge-chip.reprovado {
+  color: var(--color-warning-text);
+}
+
+.audit-item-body {
+  padding: 0 0 18px;
+  border: 0;
+  background: transparent;
+}
+
+/* Diagnóstico: faixa lateral, sem caixa colorida */
+.audit-diagnostics-disclosure {
+  background: transparent;
+  border: 0;
+  border-left: 2px solid var(--color-warning-text);
+  border-radius: 0;
+  padding: 2px 0 2px 16px;
+  margin: 4px 0 18px;
+}
+
+.audit-diagnostics-summary {
+  background: transparent;
+  padding: 2px 0 6px;
+}
+
+.audit-diagnostics-title-text {
+  color: var(--color-text-primary);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.audit-diagnostics-hint,
+.audit-diagnostics-summary-text {
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+}
+
+.audit-diagnostics-container {
+  padding: 0;
+}
+
+.failed-criterion-card {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  border-radius: 0;
+  padding: 10px 0;
+  box-shadow: none;
+}
+
+.failed-criterion-badge {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--color-warning-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Checklist dos 12 critérios em duas colunas de linhas */
+.audit-criteria-title {
+  margin: 8px 0 2px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--color-text-secondary);
+}
+
+.audit-criteria-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 44px;
+  border-top: 1px solid var(--color-border);
+  margin-top: 8px;
+}
+
+.criterion-disclosure {
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.criterion-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.criterion-summary span {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.criterion-summary.failed span {
+  color: var(--color-text-primary);
+}
+
+.criterion-status-icon {
+  flex: 0 0 auto;
+}
+
+.criterion-summary.passed .criterion-status-icon {
+  color: var(--color-success-text);
+}
+
+.criterion-summary.failed .criterion-status-icon {
+  color: var(--color-warning-text);
+}
+
+.criterion-status-badge {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.criterion-summary.passed .criterion-status-badge {
+  color: var(--color-success-text);
+}
+
+.criterion-summary.failed .criterion-status-badge {
+  color: var(--color-warning-text);
+}
+
+.criterion-disclosure-content {
+  border: 0;
+  background: transparent;
+  padding: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 900px) {
+  .audit-criteria-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Histórico: lista contínua ---------- */
+
+.history-container .card,
+.history-container .card-header {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.history-item-card {
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  padding: 16px 4px;
+  box-shadow: none;
+}
+
+.history-item-card:hover {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+.history-actions {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.history-item-card:hover .history-actions,
+.history-item-card:focus-within .history-actions {
+  opacity: 1;
+}
+
+.history-actions .btn-secondary {
+  border: 0;
+  background: transparent;
+  padding: 4px 6px;
+  min-height: 0;
+  color: var(--color-text-secondary);
+  box-shadow: none;
+}
+
+.history-actions .btn-secondary:hover {
+  color: var(--color-text-primary);
+  background: transparent;
+}
+
+.history-filters .chip,
+.history-filters button {
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  border-radius: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.history-filters .chip.is-active,
+.history-filters button[aria-pressed='true'] {
+  color: var(--color-text-primary);
+  font-weight: 650;
+  box-shadow: inset 0 -2px 0 var(--violet);
+}
+
+/* ---------- Documentação e Configurações ---------- */
+
+.docs-view,
+.settings-container {
+  max-width: 1060px;
+}
+
+.docs-view > .card,
+.settings-container > .card {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 24px 0;
+}
+
+.docs-view .markdown-body .card {
+  background: transparent !important;
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+  padding: 0 0 0 16px !important;
+  box-shadow: none;
+}
+
+.settings-container .alert-banner {
+  border-radius: 0;
+  border: 0;
+  border-left: 2px solid var(--violet);
+  background: transparent;
+  padding: 4px 0 4px 16px;
+}
+
+.settings-grid-form {
+  background: transparent;
+}
+
+@media (max-width: 900px) {
+  .workspace-grid {
+    gap: 0;
+  }
+
+  .workspace-grid > .sidebar-container {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+    padding: 20px 0 0;
+  }
+
+  .history-actions {
+    opacity: 1;
+  }
+}
+
+/* ---------- Terceira passada: formulários, histórico e callouts ---------- */
+
+.settings-container .alert-banner,
+.settings-container .alert-banner.info,
+.settings-container .alert-banner.warning {
+  background: transparent !important;
+  border: 0 !important;
+  border-left: 2px solid var(--color-primary) !important;
+  border-radius: 0 !important;
+  padding: 2px 0 2px 16px !important;
+  color: var(--color-text-secondary);
+}
+
+.settings-container .form-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.settings-container .form-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  text-align: left;
+}
+
+.settings-container .form-label-hint {
+  color: var(--color-text-muted);
+  font-size: 11.5px;
+}
+
+.settings-container .settings-grid-form {
+  gap: 18px 28px;
+}
+
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+}
+
+.history-search {
+  flex: 0 0 260px;
+  max-width: 260px;
+}
+
+.history-filters {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.docs-view {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.history-item-card {
+  cursor: pointer;
+}
+
+/* ---------- Configurações: split 1/3–2/3 ---------- */
+
+.settings-container > .card {
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) minmax(0, 1fr);
+  column-gap: 40px;
+  align-items: start;
+}
+
+.settings-container > .card > * {
+  grid-column: 2;
+}
+
+.settings-container > .card > :first-child {
+  grid-column: 1;
+  grid-row: 1 / span 40;
+  align-self: start;
+  margin-bottom: 0 !important;
+}
+
+.settings-container > .card > :first-child h2 {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.settings-container > .card > p:first-of-type {
+  margin-bottom: 14px;
+}
+
+.settings-container > .card .settings-grid-form,
+.settings-container > .card table {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .settings-container > .card {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+  }
+
+  .settings-container > .card > *,
+  .settings-container > .card > :first-child {
+    grid-column: 1;
+    grid-row: auto;
+    margin-bottom: 10px !important;
+  }
+}
+
+/* ---------- Documentação: 4 passos em colunas abertas ---------- */
+
+.docs-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 22px 0 28px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.docs-step {
+  padding: 18px 18px 20px;
+  border-left: 1px solid var(--color-border);
+  background: transparent;
+  min-width: 0;
+}
+
+.docs-step:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.docs-step h3 {
+  margin: 8px 0 6px;
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+
+.docs-step p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.docs-step svg {
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 900px) {
+  .docs-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .docs-step:nth-child(3) {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .docs-step:nth-child(n + 3) {
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+@media (max-width: 560px) {
+  .docs-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .docs-step,
+  .docs-step:nth-child(3) {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .docs-step + .docs-step {
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/* ---------- Barra global de progresso ---------- */
+
+.exec-progress {
+  height: 2px;
+  background: var(--color-border);
+  border-radius: 0;
+  overflow: hidden;
+  margin: 0 0 16px;
+}
+
+.exec-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--violet);
+  transform-origin: left center;
+  transition: transform 400ms ease;
+}
+
+/* ---------- Pílulas de consulta e domínio no feed ---------- */
+
+.reasoning-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--color-border-subtle);
+}
+
+.reasoning-source-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reasoning-source-pill span[aria-hidden='true'] {
+  color: var(--color-text-muted);
+}
+
+.reasoning-source-pill.is-query {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.reasoning-source-pill.is-count {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Rolagem: nada de cartão decepado sob o divisor fixo ---------- */
+
+.reasoning-feed-stream {
+  padding-top: 12px;
+}
+
+.reasoning-stage-divider {
+  background: var(--color-canvas);
+  padding: 8px 2px;
+}
+
+.reasoning-streaming-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reasoning-streaming-text strong,
+.reasoning-markdown-content strong {
+  color: var(--color-text-primary);
+  font-weight: 650;
+}
+
+.reasoning-streaming-text code,
+.reasoning-markdown-content code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--color-surface-subtle);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+
+/* Measure de leitura: bloco de texto para em ~72ch; tabelas e código seguem largos. */
+.docs-view p,
+.docs-view li {
+  max-width: 72ch;
+}
+
+.history-empty-cta {
+  margin-top: 16px;
+}
+
+
+/* Toque no telefone: abas, chip e botão de copiar crescem para 36/32 px. */
+@media (max-width: 640px) {
+  .reasoning-tab,
+  .preferences-toggle-btn,
+  .composer-meta .preferences-toggle-btn {
+    min-height: 36px;
+  }
+
+  .meta-item-subtext .icon-button {
+    min-width: 32px;
+    min-height: 32px;
+  }
+}
+
+
+/* Foco no composer não deixa a caixa colada na borda inferior. */
+.composer-anchor {
+  scroll-margin-bottom: 16px;
+}
+
+/* No telefone o composer fica preso ao rodapé da viewport enquanto a lista
+   rola por trás: nunca sai de alcance do polegar. */
+@media (max-width: 640px) {
+  .composer-anchor {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+    padding-top: 10px;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    background: var(--color-canvas);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+
+  /* Dentro da barra o composer não projeta sombra: evita cartão flutuando
+     sobre uma faixa opaca. */
+  .composer-anchor .composer-box {
+    box-shadow: none;
+  }
+}

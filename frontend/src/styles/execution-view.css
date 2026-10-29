@@ -1,0 +1,278 @@
+/* =========================================================================
+   Execution View Scoped Stylesheet (Deep Research - DominusLabs Aesthetic)
+   Avoids touching or mutating components.css/main.css directly.
+   ========================================================================= */
+
+/* Accessibility Utility: Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Research Theme Header Banner */
+.execution-theme-banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  background-color: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 10px);
+}
+
+.execution-theme-meta {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  /* muted (var(--color-text-muted)) sobre surface-subtle dava 4,39:1; secondary passa AA */
+  color: var(--color-text-secondary);
+}
+
+.execution-theme-title {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+
+/* =========================================================================
+   Banner de recuperação e cabeçalhos (classes no lugar de style inline)
+   ========================================================================= */
+.execution-banner-icon {
+  flex-shrink: 0;
+}
+
+.execution-banner-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.execution-banner-copy {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.execution-banner-copy--break {
+  word-break: break-word;
+}
+
+.execution-banner-actions {
+  margin-top: var(--space-3, 12px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+/* Banner de erro da execução (item 2 da crítica): respiro generoso,
+   cantos xl, borda crítica. Herda o layout do alert-banner global. */
+.exec-error-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 24px;
+  border-radius: var(--radius-xl, 20px);
+  border: 1px solid var(--color-danger-border);
+  box-shadow: none;
+}
+
+.exec-error-card .execution-banner-actions {
+  margin-top: 16px;
+  gap: 10px;
+}
+
+/* Ações de correção como botões outline: contorno visível, sem texto miúdo. */
+.exec-error-card .btn-secondary,
+.exec-error-card .btn-start-research {
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md, 10px);
+  background: transparent;
+  color: var(--color-danger-text);
+  font-weight: 600;
+  min-height: 40px;
+}
+
+.exec-error-card .btn-secondary:hover:not(:disabled),
+.exec-error-card .btn-start-research:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-text);
+  color: var(--color-danger-text);
+}
+
+.btn-compact {
+  min-height: 38px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+
+.execution-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+/* H1 da tela e H2 das seções compartilham a classe: a escala é fixada pelo
+   contexto para manter degraus visíveis (22px -> 16px). */
+.execution-heading-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.execution-heading-main .execution-heading-title {
+  font-size: 1.375rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.execution-heading-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.execution-heading-status.is-success {
+  color: var(--color-success-text);
+}
+
+.execution-heading-status.is-warning {
+  color: var(--color-warning-text);
+}
+
+.execution-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.execution-subheading {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.execution-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3, 12px);
+  font-size: 0.85rem;
+}
+
+.point-tag--danger {
+  color: var(--color-danger-text);
+}
+
+.execution-point-title {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 640px) {
+  .btn-compact {
+    min-height: 44px;
+  }
+}
+
+
+/* Linha de estágios: texto corrido, sem caixas. */
+.stage-line {
+  margin: 0;
+  padding: 2px 0 10px;
+  font-size: 0.78rem;
+  color: var(--color-text-tertiary);
+}
+
+.stage-line-item.ativo {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.stage-line-item.falhou {
+  color: var(--color-danger-text);
+  font-weight: 600;
+}
+
+.stage-line-item.concluido {
+  color: var(--color-text-secondary);
+}
+
+/* Cabeçalho compacto: título + tema em uma linha, sem banner separado. */
+.execution-heading-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.execution-theme-inline {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Passo 2: ações por ponto — discretas, à direita do cabeçalho. Aparecem no
+   hover/foco do item; ponto reprovado ou em reprocesso mostra sempre. */
+.tl-no-cabecalho .ponto-acoes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding-right: 8px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.tl-no-cabecalho:hover .ponto-acoes,
+.tl-no-cabecalho:focus-within .ponto-acoes,
+.ponto-acoes.sempre-visivel {
+  opacity: 1;
+}
+
+.ponto-acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  min-height: 28px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ponto-acao:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: var(--color-surface-hover);
+  border-color: var(--color-border);
+}
+
+.ponto-acao:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.ponto-acao:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  opacity: 1;
+}

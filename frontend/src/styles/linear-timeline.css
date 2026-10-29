@@ -1,0 +1,380 @@
+/* Linear Timeline: trilho único, sem box-in-box. Nós são linhas com recuo,
+   detalhe sob demanda com borda lateral simples. */
+
+.tl-linear {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tl-no {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 0 10px;
+  padding-bottom: 14px;
+}
+
+.tl-no.ultimo {
+  padding-bottom: 0;
+}
+
+.tl-trilho {
+  position: relative;
+  grid-column: 1;
+}
+
+.tl-trilho::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 22px;
+  bottom: -14px;
+  width: 2px;
+  background: var(--color-border);
+}
+
+.tl-no.ultimo .tl-trilho::before {
+  display: none;
+}
+
+.tl-conteudo {
+  grid-column: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tl-no-cabecalho {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tl-frase {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  background: none;
+  border: 0;
+  text-align: left;
+}
+
+button.tl-frase {
+  cursor: pointer;
+}
+
+button.tl-frase:hover .tl-linha {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+button.tl-frase:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.tl-estatica {
+  cursor: default;
+}
+
+.tl-icone {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  transform: translateY(3px);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.tl-icone.tl-ok {
+  color: var(--color-success-text);
+  border-color: var(--color-success-border);
+}
+
+.tl-icone.tl-falha {
+  color: var(--color-danger-text);
+  border-color: var(--color-danger-border);
+}
+
+.tl-icone.tl-ativo {
+  color: var(--color-accent-text);
+  border-color: var(--color-accent-border);
+}
+
+.tl-linha {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tl-ver {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.tl-chevron {
+  flex-shrink: 0;
+  transform: translateY(2px);
+  color: var(--color-text-secondary);
+  transition: transform 120ms ease;
+}
+
+.tl-chevron.aberto {
+  transform: translateY(2px) rotate(180deg);
+}
+
+.tl-detalhe {
+  margin: 2px 0 6px 28px;
+  padding-left: 10px;
+  border-left: 2px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.tl-query {
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.tl-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+}
+
+.tl-criterio {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.tl-criterio strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.tl-acoes {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.tl-no-cabecalho:hover .tl-acoes,
+.tl-no-cabecalho:focus-within .tl-acoes,
+.tl-acoes.sempre {
+  opacity: 1;
+}
+
+.tl-acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  min-height: 26px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 0.73rem;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tl-acao:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+.tl-acao:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.tl-acao:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.tl-reasoning {
+  margin: 0 0 4px 28px;
+  font-size: 0.78rem;
+}
+
+.tl-reasoning-toggle {
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+  padding: 2px 0;
+}
+
+.tl-reasoning-toggle:hover {
+  color: var(--color-text-primary);
+}
+
+.tl-reasoning-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Item 1 da crítica: pílula cromática por persona + corpo mono. */
+.tl-meta-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tl-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--radius-full, 999px);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.tl-pill-historiador {
+  color: #a855f7;
+  border-color: color-mix(in srgb, #a855f7 40%, transparent);
+  background: color-mix(in srgb, #a855f7 12%, transparent);
+}
+
+.tl-pill-visionario {
+  color: #0ea5e9;
+  border-color: color-mix(in srgb, #0ea5e9 40%, transparent);
+  background: color-mix(in srgb, #0ea5e9 12%, transparent);
+}
+
+.tl-pill-cetico {
+  color: #f97316;
+  border-color: color-mix(in srgb, #f97316 40%, transparent);
+  background: color-mix(in srgb, #f97316 12%, transparent);
+}
+
+.tl-pill-futurista {
+  color: #10b981;
+  border-color: color-mix(in srgb, #10b981 40%, transparent);
+  background: color-mix(in srgb, #10b981 12%, transparent);
+}
+
+.tl-pill-auditor {
+  color: #eab308;
+  border-color: color-mix(in srgb, #eab308 40%, transparent);
+  background: color-mix(in srgb, #eab308 12%, transparent);
+}
+
+.tl-pill-sistema {
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+.tl-reasoning-corpo {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+.tl-tool {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.tl-tool-tag {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.68rem;
+}
+
+.tl-tool-serp .tl-tool-tag {
+  color: #0ea5e9;
+  background: color-mix(in srgb, #0ea5e9 15%, transparent);
+}
+
+.tl-tool-reader .tl-tool-tag {
+  color: #10b981;
+  background: color-mix(in srgb, #10b981 15%, transparent);
+}
+
+.tl-tool-resto {
+  color: var(--color-text-primary);
+}
+
+/* Item 3 da crítica: domínios lidos com favicon + contagem de páginas. */
+.tl-fontes {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tl-fonte {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 0.76rem;
+}
+
+.tl-fonte-icone {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.tl-fonte-dominio {
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-fonte-paginas {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--color-text-tertiary);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .tl-detalhe,
+  .tl-reasoning {
+    margin-left: 28px;
+  }
+}
