@@ -33,7 +33,7 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
     const rail = document.querySelector('.context-sidebar, .right-rail');
     const tabs = [...document.querySelectorAll('[role="tab"]')].filter(isVisible);
     const panels = [...document.querySelectorAll('[role="tabpanel"]')].filter(isVisible);
-    const tokenEls = [...document.querySelectorAll('.rr-rail__tokens, .token-usage-meter, [data-rail-tokens]')].filter(isVisible);
+    const tokenEls = [...document.querySelectorAll('.rr-rail__tokens, .rr-tokens, .token-usage-meter, [data-rail-tokens]')].filter(isVisible);
     const strip = tokenEls.map((el) => el.getBoundingClientRect()).sort((a, b) => b.height - a.height)[0];
     const rows = [...document.querySelectorAll('.tl-entrada')].filter(isVisible);
     const rowHeights = rows.map((r) => Math.round(r.getBoundingClientRect().height));
