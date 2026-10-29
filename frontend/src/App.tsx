@@ -372,7 +372,14 @@ export const App: React.FC = () => {
     if (!idAtivo) {
       try {
         const rascunho = sessionStorage.getItem(DRAFT_PLAN_KEY);
-        if (rascunho) setCurrentPlan(JSON.parse(rascunho) as PlanResponse);
+        if (rascunho) {
+          const planoRascunho = JSON.parse(rascunho) as PlanResponse;
+          setCurrentPlan(planoRascunho);
+          if (planoRascunho?.id_pesquisa) {
+            activeResearchIdRef.current = planoRascunho.id_pesquisa;
+            setActiveResearchId(planoRascunho.id_pesquisa);
+          }
+        }
       } catch {
         /* rascunho inválido: ignora */
       }
@@ -537,6 +544,10 @@ export const App: React.FC = () => {
         };
       }
       setCurrentPlan(plan);
+      // Plano recém-criado é a pesquisa aberta no workspace: o item da sidebar
+      // precisa nascer ativo, antes de qualquer execução.
+      activeResearchIdRef.current = plan.id_pesquisa;
+      setActiveResearchId(plan.id_pesquisa);
       // Registra raciocínio inicial do Planejador
       if (plan.plano_estruturado || plan.reasoning_planejamento) {
         addReasoningItem({
@@ -1149,6 +1160,10 @@ export const App: React.FC = () => {
           });
         }}
         onToggleTheme={() => setTema((atual) => (atual === 'dark' ? 'light' : 'dark'))}
+        history={historyRecords}
+        activeResearchId={activeResearchId}
+        onOpenRecord={handleSelectRecord}
+        onOpenHistory={() => navigateTo('history')}
       />
       <div className="app-main">
       <div className="app-container">

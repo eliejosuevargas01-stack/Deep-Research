@@ -321,7 +321,7 @@
   max-width: 100%;
   font-size: 11px;
   line-height: 1.15;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -331,7 +331,10 @@
   margin: 2px 8px 4px;
   font-size: 11.5px;
   line-height: 1.3;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-history-link {
