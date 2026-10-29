@@ -166,7 +166,7 @@
 
 .rr-rail__tab-count {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
@@ -178,7 +178,7 @@
 
 .rr-rail__tab-sep {
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* ---------- Faixa de tokens (sempre visível) ---------- */
@@ -211,7 +211,7 @@
 
 .rr-tokens__unit {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--color-text-secondary);
 }
@@ -221,7 +221,7 @@
   min-width: 0;
   max-width: 55%;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.3;
   color: var(--color-text-secondary);
   white-space: nowrap;
@@ -263,7 +263,7 @@
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--color-text-secondary);
 }
@@ -358,7 +358,7 @@
 
 .rr-rail__status-meta {
   min-width: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--color-text-secondary);
   white-space: nowrap;
@@ -500,7 +500,7 @@
   margin: 0;
   padding: 8px 16px 4px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: 0.04em;
@@ -604,7 +604,7 @@ a.rr-source:focus-visible {
 
 .rr-source__domain {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.3;
   color: var(--color-text-secondary);
   white-space: nowrap;
@@ -617,7 +617,7 @@ a.rr-source:focus-visible {
   padding: 1px 6px;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.45;
   white-space: nowrap;

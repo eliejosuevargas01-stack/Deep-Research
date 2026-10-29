@@ -630,7 +630,7 @@
   background: transparent;
   color: var(--color-text-muted);
   font-family: var(--font-sans);
-  font-size: 0.74rem;
+  font-size: 12px;
   letter-spacing: 0.005em;
   cursor: pointer;
 }
