@@ -251,7 +251,7 @@ button.tl-frase:focus-visible {
   align-items: center;
   padding: 1px 8px;
   border-radius: var(--radius-full, 999px);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   border: 1px solid transparent;
@@ -259,33 +259,33 @@ button.tl-frase:focus-visible {
 }
 
 .tl-pill-historiador {
-  color: #a855f7;
-  border-color: color-mix(in srgb, #a855f7 40%, transparent);
-  background: color-mix(in srgb, #a855f7 12%, transparent);
+  color: #7c3aed;
+  border-color: color-mix(in srgb, #7c3aed 50%, transparent);
+  background: color-mix(in srgb, #7c3aed 14%, transparent);
 }
 
 .tl-pill-visionario {
-  color: #0ea5e9;
-  border-color: color-mix(in srgb, #0ea5e9 40%, transparent);
-  background: color-mix(in srgb, #0ea5e9 12%, transparent);
+  color: #0369a1;
+  border-color: color-mix(in srgb, #0369a1 50%, transparent);
+  background: color-mix(in srgb, #0369a1 14%, transparent);
 }
 
 .tl-pill-cetico {
-  color: #f97316;
-  border-color: color-mix(in srgb, #f97316 40%, transparent);
-  background: color-mix(in srgb, #f97316 12%, transparent);
+  color: #c2410c;
+  border-color: color-mix(in srgb, #c2410c 50%, transparent);
+  background: color-mix(in srgb, #c2410c 14%, transparent);
 }
 
 .tl-pill-futurista {
-  color: #10b981;
-  border-color: color-mix(in srgb, #10b981 40%, transparent);
-  background: color-mix(in srgb, #10b981 12%, transparent);
+  color: #047857;
+  border-color: color-mix(in srgb, #047857 50%, transparent);
+  background: color-mix(in srgb, #047857 14%, transparent);
 }
 
 .tl-pill-auditor {
-  color: #eab308;
-  border-color: color-mix(in srgb, #eab308 40%, transparent);
-  background: color-mix(in srgb, #eab308 12%, transparent);
+  color: #92400e;
+  border-color: color-mix(in srgb, #92400e 50%, transparent);
+  background: color-mix(in srgb, #92400e 14%, transparent);
 }
 
 .tl-pill-sistema {
@@ -372,9 +372,12 @@ button.tl-frase:focus-visible {
   white-space: nowrap;
 }
 
-@media (max-width: 640px) {
-  .tl-detalhe,
-  .tl-reasoning {
-    margin-left: 28px;
+@media (prefers-reduced-motion: reduce) {
+  .tl-reasoning-toggle {
+    transition: none;
+  }
+  svg [animate], svg animate {
+    display: none !important;
   }
 }
+

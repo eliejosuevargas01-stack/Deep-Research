@@ -3,6 +3,7 @@ import { Brain, ChevronDown, ChevronUp } from 'lucide-react';
 import { AgentRoleType, ReasoningFeedItem } from '../types/stream';
 import { ReasoningCardItem } from './ReasoningCardItem';
 import '../styles/reasoning-feed.css';
+import '../styles/reasoning-step.css';
 
 interface ReasoningFeedProps {
   items: ReasoningFeedItem[];

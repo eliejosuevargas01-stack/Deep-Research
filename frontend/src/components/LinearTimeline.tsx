@@ -4,13 +4,14 @@ import {
   CheckCircle2,
   PenTool,
   RefreshCw,
-  Search,
   ShieldCheck,
   XCircle,
 } from 'lucide-react';
 import type { AuditItem, AuditResponse, PlanResponse, SearchResponse } from '../types/api';
 import type { ReasoningFeedItem } from '../types/stream';
 import '../styles/linear-timeline.css';
+import { PersonaIcon } from './ResearchIcons';
+
 
 const MarkdownBody = React.lazy(() => import('./ReasoningMarkdownBody'));
 
@@ -54,13 +55,16 @@ function classePersona(agentName: string): string {
   return 'tl-pill-sistema';
 }
 
-/** Normaliza para casar persona do resumo de coleta com agentName do feed. */
-function normalizar(valor: string): string {
-  return valor
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
+function mapearPersonaParaTipo(persona: string): string {
+  const p = persona.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (p.includes('planejador')) return 'planejador';
+  if (p.includes('historiador')) return 'historiador';
+  if (p.includes('cetico')) return 'cetico';
+  if (p.includes('visionario')) return 'visionario';
+  if (p.includes('futurista')) return 'futurista';
+  if (p.includes('auditor')) return 'auditor';
+  if (p.includes('redator')) return 'redator';
+  return 'cetico';
 }
 
 /**
@@ -204,13 +208,12 @@ const No: React.FC<NoProps> = ({ ultimo = false, children }) => (
   </li>
 );
 
-/** Eventos do feed cujo agentName corresponde à persona da coleta. */
 function eventosDaPersona(nome: string, eventos: ReasoningFeedItem[]): ReasoningFeedItem[] {
-  const alvo = normalizar(nome);
+  const alvo = mapearPersonaParaTipo(nome).toLowerCase();
   if (!alvo) return [];
   return eventos.filter((evento) => {
-    const nomeEvento = normalizar(evento.agentName);
-    return nomeEvento.includes(alvo) || alvo.includes(nomeEvento);
+    const nomeEvento = mapearPersonaParaTipo(evento.agentName).toLowerCase();
+    return nomeEvento === alvo;
   });
 }
 
@@ -375,7 +378,7 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
                     {horaDe(evento) || '--:--:--'}
                   </time>
                   <span className={`tl-icone tl-${persona.falha_coleta ? 'falha' : 'ok'}`} aria-hidden="true">
-                    <Search size={13} aria-hidden="true" />
+                    <PersonaIcon persona={mapearPersonaParaTipo(persona.persona) as any} size={16} />
                   </span>
                   <div className="tl-entrada-corpo">
                     <div className="tl-entrada-topo">
@@ -429,7 +432,7 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
                     {horaDe(evento) || '--:--:--'}
                   </time>
                   <span className="tl-icone tl-ok" aria-hidden="true">
-                    <Search size={13} aria-hidden="true" />
+                    <PersonaIcon persona={mapearPersonaParaTipo(evento.agentName) as any} size={16} />
                   </span>
                   <div className="tl-entrada-corpo">
                     <div className="tl-entrada-topo">
@@ -453,7 +456,7 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
                   {horaDe(auditorEvento) || ultimaHora || '--:--:--'}
                 </time>
                 <span className="tl-icone tl-ativo" aria-hidden="true">
-                  <Search size={13} aria-hidden="true" />
+                  <PersonaIcon persona='planejador' size={16} />
                 </span>
                 <div className="tl-entrada-corpo">
                   <div className="tl-entrada-topo">
@@ -515,9 +518,9 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
                         <time className="tl-hora" dateTime={item.timestamp}>
                           {formatarHoraTimelog(item.timestamp) || '--:--:--'}
                         </time>
-                        <span className="tl-icone tl-neutro" aria-hidden="true">
-                          <Search size={13} aria-hidden="true" />
-                        </span>
+                      <span className={`tl-icone tl-neutro`} aria-hidden="true">
+                        <PersonaIcon persona={mapearPersonaParaTipo(item.agentName) as any} size={16} />
+                      </span>
                         <div className="tl-entrada-corpo">
                           <p className="tl-meta tl-meta-pill">
                             <span className={`tl-pill ${classePersona(item.agentName)}`}>{item.agentName}</span>

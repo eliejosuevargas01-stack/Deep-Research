@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { AgentRoleType, ReasoningFeedItem } from '../types/stream';
+import { PersonaIcon, PersonaType } from './ResearchIcons';
 
 /**
  * Corpo markdown sob demanda: react-markdown + remark-gfm pesam ~35 KB gzip e
@@ -65,17 +66,17 @@ function extrairTakeaway(texto: string): string | null {
   return null;
 }
 
-/** Glifo e cor pastel por persona, usados no marcador da linha do tempo. */
-const GLIFO: Record<string, string> = {
-  planejador: '◈',
-  historiador: '⌕',
-  visionario: '◎',
-  cetico: '!',
-  futurista: '↗',
-  auditor: '⛨',
-  redator: '✎',
-  busca: '⌕',
-};
+function mapearPersonaParaTipo(persona: string): PersonaType {
+  const p = persona.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (p.includes('planejador')) return 'planejador';
+  if (p.includes('historiador')) return 'historiador';
+  if (p.includes('cetico')) return 'cetico';
+  if (p.includes('visionario')) return 'visionario';
+  if (p.includes('futurista')) return 'futurista';
+  if (p.includes('auditor')) return 'auditor';
+  if (p.includes('redator')) return 'redator';
+  return 'cetico';
+}
 
 /** Resumo do cartão recolhido. Em streaming mostra a cauda: é o progresso. */
 function resumo(texto: string, limite = 120, cauda = false): string {
@@ -164,7 +165,6 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
   const duracao = formatDuration(
     typeof detalhes.duration_ms === 'number' ? (detalhes.duration_ms as number) : null
   );
-  // Persona real (o agente de busca é rotulado pelo nome da persona no título).
   const rolBruto = `${item.agentName} ${item.title}`.toLowerCase();
   const persona: string = item.agentType === 'busca'
     ? rolBruto.includes('cético') || rolBruto.includes('cetico') ? 'cetico'
@@ -172,6 +172,9 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
         : rolBruto.includes('visionário') || rolBruto.includes('visionario') ? 'visionario'
           : rolBruto.includes('historiador') ? 'historiador' : 'busca'
     : item.agentType;
+  const personaTipo = item.agentType === 'busca' || item.agentType === 'planejador' || item.agentType === 'auditor' || item.agentType === 'redator'
+    ? mapearPersonaParaTipo(`${item.agentName} ${item.title}`)
+    : mapearPersonaParaTipo(item.agentName);
   // Pílulas de domínio/consulta extraídas da telemetria real do agente
   // (`Ferramenta · SERP` e URLs citadas no raciocínio). Sem fabricar fontes.
   const consultas = Array.from(item.reasoning.matchAll(/Ferramenta · SERP\*\*\s*`([^`]+)`/g))
@@ -210,7 +213,7 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
           ref={(el) => registrarToggle(item.id, el)}
         >
           <span className={`reasoning-avatar role-${persona}`} aria-hidden="true">
-            {GLIFO[persona]}
+            <PersonaIcon persona={personaTipo} size={16} />
           </span>
           <span className="reasoning-card-line">
             <span className="sr-only">
