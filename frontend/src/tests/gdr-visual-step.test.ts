@@ -120,7 +120,8 @@ assert.ok(tail.includes('.composer-box:focus-within .composer-send-btn:not(:disa
 assert.ok(tail.includes('.preferences-panel'), 'painel de preferências entra no tratamento de vidro');
 assert.ok(tail.includes('backdrop-filter: blur(14px) saturate(115%)'), 'blur do painel flutuante declarado');
 assert.ok(tail.includes('-webkit-backdrop-filter'), 'prefixo Safari presente');
-assert.ok(tail.includes('@supports not'), 'fallback sólido quando backdrop-filter não existe');
+assert.ok(tail.includes('@supports (('), 'realce com backdrop-filter declarado via @supports positivo');
+assert.ok(tail.includes('background-color: var(--color-surface)'), 'base sólida do painel preservada (contraste integral)');
 assert.ok(tail.includes('transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)'), 'transição suave de entrada');
 
 /* Guarda de reduced motion */
