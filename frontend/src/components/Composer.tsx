@@ -36,7 +36,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
   let helperMessage = 'Do tema ao plano em um passo. Enter envia; Shift+Enter abre nova linha; 5 a 500 caracteres.';
   let helperClass = 'helper-info';
   if (length > 0 && length < 5) {
-    helperMessage = `Faltam ${5 - length} ${5 - length === 1 ? 'caractere' : 'caracteres'} para o mínimo de 5. Shift+Enter abre nova linha.`;
+    helperMessage = `Faltam ${5 - length} ${5 - length === 1 ? 'caractere' : 'caracteres'} para o mínimo de 5 (limite: 500). Shift+Enter abre nova linha.`;
     helperClass = 'helper-warning';
   } else if (length > 500) {
     helperMessage = `Excede o máximo de 500 em ${length - 500} ${length - 500 === 1 ? 'caractere' : 'caracteres'}. Encurte o tema para planejar.`;
