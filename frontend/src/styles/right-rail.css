@@ -1,0 +1,417 @@
+/* Right rail anatomy — Google Deep Research parity */
+.right-rail {
+  display: flex;
+  flex-direction: column;
+}
+
+.right-rail__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.right-rail__section:first-child {
+  padding-top: 0;
+}
+
+.right-rail__section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.right-rail__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  line-height: 1.25;
+  min-height: 16px;
+}
+
+.right-rail__header-icon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.right-rail__header-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.right-rail--sticky {
+  position: sticky;
+  top: calc(58px + 16px);
+}
+
+@media (min-width: 1081px) {
+  .right-rail--sticky {
+    max-height: calc(100vh - 58px - 16px - 80px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}
+
+.right-rail .card {
+  padding: var(--space-5);
+}
+
+/* TokenUsageMeter */
+.rr-token {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rr-token__total {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.rr-token__total-unit {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  color: var(--color-text-secondary);
+  margin-left: 4px;
+}
+
+.rr-token__bar {
+  position: relative;
+  display: flex;
+  height: 6px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--color-surface-inset);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.rr-token__bar-prompt,
+.rr-token__bar-completion {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  transform-origin: left center;
+}
+
+.rr-token__bar-prompt {
+  background: linear-gradient(90deg, var(--violet), var(--violet-2));
+  z-index: 2;
+}
+
+.rr-token__bar-completion {
+  background: var(--indigo);
+  opacity: 0.55;
+  z-index: 1;
+}
+
+.rr-token__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rr-token__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.rr-token__row-label {
+  color: var(--color-text-secondary);
+}
+
+.rr-token__row-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.rr-token__model {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.rr-token__note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.rr-token__empty {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+/* SourcesExplorer */
+.rr-sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rr-sources__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 40vh;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.rr-sources__item {
+  min-width: 0;
+}
+
+.rr-sources__chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+a.rr-sources__chip:hover {
+  border-color: var(--color-accent-border);
+  background: var(--color-surface-hover);
+}
+
+.rr-sources__chip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.rr-sources__favicon-wrap {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.rr-sources__favicon-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-inset);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  border-radius: 2px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.rr-sources__favicon {
+  position: absolute;
+  inset: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  display: none;
+}
+
+.rr-sources__favicon.is-loaded {
+  display: block;
+}
+
+.rr-sources__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.45;
+}
+
+.rr-sources__badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 6px;
+  height: 16px;
+  line-height: 16px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+}
+
+.rr-sources__badge.is-lendo {
+  color: var(--color-accent-text);
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent-border);
+}
+
+.rr-sources__badge.is-processado {
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+
+.rr-sources__badge.is-invalidado {
+  color: var(--color-danger-text);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+.rr-sources__empty {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+/* Status section */
+.rr-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rr-status__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  width: fit-content;
+  line-height: 1.45;
+}
+
+.rr-status__badge.planejado,
+.rr-status__badge.aguardando {
+  background-color: var(--color-accent-subtle);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-accent-text);
+}
+
+.rr-status__badge.buscando,
+.rr-status__badge.auditando,
+.rr-status__badge.redigindo {
+  background-color: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  color: var(--color-info-text);
+}
+
+.rr-status__badge.concluido {
+  background-color: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success-text);
+}
+
+.rr-status__badge.reprovado,
+.rr-status__badge.falha {
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger-text);
+}
+
+.rr-status__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rr-status__meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.rr-status__meta-label {
+  color: var(--color-text-secondary);
+}
+
+.rr-status__meta-value {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.rr-status__meta-value.mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* Scope section */
+.rr-scope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rr-scope__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rr-scope__label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.rr-scope__value {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-primary);
+}
+
+/* Responsive */
+@media (max-width: 1080px) {
+  .right-rail--sticky {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+@media (max-width: 640px) {
+  .rr-sources__list {
+    max-height: 40vh;
+  }
+}
