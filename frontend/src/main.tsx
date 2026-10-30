@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles/main.css';
 import './styles/components.css';
 import './styles/planning-view.css';
+import './styles/icons-scale.css';
 import './styles/clean-theme.css';
 import './styles/open-canvas.css';
 import './styles/world.css';

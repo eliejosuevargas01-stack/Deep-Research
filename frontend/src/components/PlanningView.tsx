@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ErrorNotice } from './ErrorNotice';
 import { apresentarErro } from '../utils/erros';
 import { formatarTitulo } from '../utils/texto';
+import { PersonaIcon } from './ResearchIcons';
 
 export interface PlanningViewProps {
   tema: string;
@@ -45,7 +46,9 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, ra
   return (
     <section className="planning-view" aria-labelledby="planning-title" aria-busy={!erro}>
       <div className="planning-status">
-        <span className="planning-dot" aria-hidden="true" />
+        <span className="planning-header-icon" aria-hidden="true">
+          <PersonaIcon persona="planejador" size={28} />
+        </span>
         <span className="planning-status-text">
           {erro ? 'O planejador parou' : 'Planejador em ação'}
         </span>

@@ -66,16 +66,23 @@ function extrairTakeaway(texto: string): string | null {
   return null;
 }
 
-function mapearPersonaParaTipo(persona: string): PersonaType {
-  const p = persona.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function normalizarTexto(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function derivarPersonaDeTexto(texto: string): PersonaType | null {
+  const p = normalizarTexto(texto);
   if (p.includes('planejador')) return 'planejador';
   if (p.includes('historiador')) return 'historiador';
-  if (p.includes('cetico')) return 'cetico';
-  if (p.includes('visionario')) return 'visionario';
+  if (p.includes('cetico') || p.includes('cético')) return 'cetico';
+  if (p.includes('visionario') || p.includes('visionário')) return 'visionario';
   if (p.includes('futurista')) return 'futurista';
   if (p.includes('auditor')) return 'auditor';
   if (p.includes('redator')) return 'redator';
-  return 'cetico';
+  return null;
 }
 
 /** Resumo do cartão recolhido. Em streaming mostra a cauda: é o progresso. */
@@ -153,30 +160,32 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
   registrarToggle,
 }: ReasoningCardItemProps) {
   const corpoId = `reasoning-body-${item.id}`;
+  // O backend usa 'concluido'/'falha' na busca e 'aprovado'/'reprovado' na
+  // auditoria: sem normalizar, cartão de auditoria nunca mostra desfecho.
   const falhou = item.status === 'falha' || item.status === 'reprovado';
   const concluiu = !item.streaming && (item.status === 'concluido' || item.status === 'aprovado');
-  const sufixo = new RegExp(`\s*[—–-]\s*${item.agentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\s*$`, 'i');
+  // O título do SSE já repete o nome do agente ("Varredura Web — Cético").
+  // O badge ao lado diz o mesmo; repetir polui a linha.
+  const sufixo = new RegExp(`\\s*[—–-]\\s*${item.agentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i');
   const titulo = item.title.replace(sufixo, '').trim() || item.title;
   const detalhes = (item.details || {}) as Record<string, unknown>;
   const duracao = formatDuration(
     typeof detalhes.duration_ms === 'number' ? (detalhes.duration_ms as number) : null
   );
-  const rolBruto = `${item.agentName} ${item.title}`.toLowerCase();
-  const persona: string = item.agentType === 'busca'
-    ? rolBruto.includes('cético') || rolBruto.includes('cetico') ? 'cetico'
-      : rolBruto.includes('futurista') ? 'futurista'
-        : rolBruto.includes('visionário') || rolBruto.includes('visionario') ? 'visionario'
-          : rolBruto.includes('historiador') ? 'historiador' : 'busca'
-    : item.agentType;
-  const personaTipo = item.agentType === 'busca' || item.agentType === 'planejador' || item.agentType === 'auditor' || item.agentType === 'redator'
-    ? mapearPersonaParaTipo(`${item.agentName} ${item.title}`)
-    : mapearPersonaParaTipo(item.agentName);
+  const personaExplicita = (detalhes.persona as string) || (item as unknown as { persona?: string }).persona;
+  const fontePersona = `${personaExplicita || ''} ${item.agentName} ${item.title}`;
+  const personaTipo: PersonaType =
+    derivarPersonaDeTexto(fontePersona) ??
+    derivarPersonaDeTexto(item.agentType) ??
+    (item.agentType === 'auditor' ? 'auditor' : item.agentType === 'redator' ? 'redator' : 'planejador');
+  // Pílulas de domínio/consulta extraídas da telemetria real do agente
+  // (`Ferramenta · SERP` e URLs citadas no raciocínio). Sem fabricar fontes.
   const consultas = Array.from(item.reasoning.matchAll(/Ferramenta · SERP\*\*\s*`([^`]+)`/g))
     .map((m) => m[1])
     .slice(0, 3);
   const dominios = Array.from(
     new Set([
-      ...Array.from(item.reasoning.matchAll(/https?:\/\/([^\s/"')\]>]+)/g)).map((m) =>
+      ...Array.from(item.reasoning.matchAll(/https?:\/\/([^\s"')\]>]+)/g)).map((m) =>
         m[1].replace(/^www\./, '').replace(/\/.*$/, '')
       ),
       ...Array.from(item.reasoning.matchAll(/`([a-z0-9.-]+\.[a-z]{2,})`/gi)).map((m) =>
@@ -197,17 +206,10 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
 
   useEffect(() => {
     const el = bodyRef.current;
-    if (!el) return;
-    if (!item.streaming || !aberto) return;
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
+    if (!el || !item.streaming || !aberto) return;
     const onScroll = () => {
-      if (el.scrollTop < lastScrollTopRef.current) {
-        userScrolledRef.current = true;
-      } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
-        userScrolledRef.current = false;
-      }
+      if (el.scrollTop < lastScrollTopRef.current) userScrolledRef.current = true;
+      else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) userScrolledRef.current = false;
       lastScrollTopRef.current = el.scrollTop;
     };
     el.addEventListener('scroll', onScroll, { passive: true });
@@ -216,22 +218,18 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
 
   useEffect(() => {
     const el = bodyRef.current;
-    if (!el) return;
-    if (!item.streaming || !aberto) return;
-    if (userScrolledRef.current) return;
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
+    if (!el || !item.streaming || !aberto || userScrolledRef.current) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     try {
       el.scrollTop = el.scrollHeight;
     } catch {
       /* ignore */
     }
-  }, [item.reasoning, item.streaming, aberto]);
+  });
 
   return (
     <article
-      className={`reasoning-card role-${persona} ${aberto ? 'is-open' : 'is-collapsed'} ${
+      className={`reasoning-card role-${personaTipo} ${aberto ? 'is-open' : 'is-collapsed'} ${
         item.streaming ? 'is-streaming' : ''
       } ${falhou ? 'is-failed' : ''}`}
     >
@@ -244,7 +242,7 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
           onClick={() => onToggle(item)}
           ref={(el) => registrarToggle(item.id, el)}
         >
-          <span className={`reasoning-avatar role-${persona}`} aria-hidden="true">
+          <span className={`reasoning-avatar role-${personaTipo}`} aria-hidden="true">
             <PersonaIcon persona={personaTipo} size={16} />
           </span>
           <span className="reasoning-card-line">
@@ -279,14 +277,13 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
                 <ChevronDown size={13} aria-hidden="true" />
               )}
             </span>
+            {!aberto && (
+              <span className="reasoning-card-preview">
+                {resumo(item.reasoning, 120, Boolean(item.streaming))}
+              </span>
+            )}
           </span>
-          {!aberto && (
-            <span className="reasoning-card-preview">
-              {resumo(item.reasoning, 120, Boolean(item.streaming))}
-            </span>
-          )}
         </button>
-
       </div>
 
       {falhou && (
@@ -320,25 +317,25 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
         </div>
       )}
 
-          {(consultas.length > 0 || dominios.length > 0 || paginasLidas) && (
-            <div className="reasoning-sources" aria-label="Ferramentas e fontes desta etapa">
-              {consultas.map((consulta) => (
-                <span key={`q-${consulta}`} className="reasoning-source-pill is-query">
-                  <span aria-hidden="true">⌕</span> {consulta}
-                </span>
-              ))}
-              {paginasLidas && (
-                <span className="reasoning-source-pill is-count">
-                  {paginasLidas[1]} páginas lidas
-                </span>
-              )}
-              {dominios.map((dominio) => (
-                <span key={`d-${dominio}`} className="reasoning-source-pill">
-                  <span aria-hidden="true">◍</span> {dominio}
-                </span>
-              ))}
-            </div>
+      {(consultas.length > 0 || dominios.length > 0 || paginasLidas) && (
+        <div className="reasoning-sources" aria-label="Ferramentas e fontes desta etapa">
+          {consultas.map((consulta) => (
+            <span key={`q-${consulta}`} className="reasoning-source-pill is-query">
+              <span aria-hidden="true">⌕</span> {consulta}
+            </span>
+          ))}
+          {paginasLidas && (
+            <span className="reasoning-source-pill is-count">
+              {paginasLidas[1]} páginas lidas
+            </span>
           )}
+          {dominios.map((dominio) => (
+            <span key={`d-${dominio}`} className="reasoning-source-pill">
+              <span aria-hidden="true">◍</span> {dominio}
+            </span>
+          ))}
+        </div>
+      )}
     </article>
   );
 });

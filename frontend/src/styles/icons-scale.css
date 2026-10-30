@@ -1,0 +1,49 @@
+/* W3: escala +50% ícones persona + containers */
+.reasoning-avatar {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.reasoning-avatar svg {
+  width: 24px;
+  height: 24px;
+}
+
+.reasoning-agent-badge svg {
+  width: 18px;
+  height: 18px;
+}
+
+.planning-status-icon,
+.planning-header-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.planning-header-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* badges cabeçalho maiores */
+.reasoning-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reasoning-agent-badge svg {
+  width: 18px;
+  height: 18px;
+}
