@@ -61,6 +61,11 @@ interface SettingsViewProps {
   /** Falha global de sessão: evita repetir o mesmo 500 neste cartão. */
   sessionError?: string | null;
   onRetrySession?: () => void;
+  /** Aparência: tema e ambientação, antes exclusivos da folha rápida mobile. */
+  theme?: 'light' | 'dark';
+  onToggleTheme?: () => void;
+  ambientOn?: boolean;
+  onToggleAmbient?: () => void;
 }
 
 function safeClientMask(chave: string, mascarado: string, tipo?: string): string {
@@ -87,6 +92,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDiscardDraft,
   sessionError = null,
   onRetrySession,
+  theme = 'light',
+  onToggleTheme,
+  ambientOn = false,
+  onToggleAmbient,
 }) => {
   // Status de conexão e verificação
   const [connectionStatus, setConnectionStatus] = useState<
@@ -379,6 +388,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </p>
         </div>
       </header>
+
+      {/* Aparência: tema e ambientação. No mobile a aba Ajustes abre esta tela. */}
+      {(onToggleTheme || onToggleAmbient) && (
+        <section className="card" aria-labelledby="appearance-heading">
+          <h2 id="appearance-heading" className="card-title" style={{ fontSize: '16px' }}>
+            Aparência
+          </h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
+            {onToggleTheme && (
+              <button type="button" className="btn-secondary" aria-pressed={theme === 'dark'} onClick={onToggleTheme}>
+                {theme === 'dark' ? 'Tema escuro' : 'Tema claro'}
+              </button>
+            )}
+            {onToggleAmbient && (
+              <button type="button" className="btn-secondary" aria-pressed={ambientOn} onClick={onToggleAmbient}>
+                Ambientação {ambientOn ? 'ligada' : 'desligada'}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Cartão 1: Conexão e Sessão Integrada */}
       <section className="card" aria-labelledby="auth-heading">
@@ -760,7 +790,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             onClick={loadCredentials}
             disabled={isLoadingCreds}
             title="Atualizar lista de parâmetros"
-            style={{ minHeight: '40px' }}
           >
             <RefreshCw size={14} className={isLoadingCreds ? 'spinner' : ''} aria-hidden="true" />
             <span>Atualizar lista</span>

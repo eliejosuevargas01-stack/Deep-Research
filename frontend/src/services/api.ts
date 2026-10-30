@@ -10,6 +10,7 @@ import {
   PlanRequest,
   PlanResponse,
   RecenciaPolitica,
+  ResearchDetail,
   SearchRequest,
   SearchResponse,
   SessionResponse,
@@ -348,6 +349,23 @@ export const api = {
     const data = (await res.json()) as PipelineStatusResumo;
     if (!data || typeof data.id_pesquisa !== 'string' || !Array.isArray(data.pontos)) {
       throw new Error('Resposta inválida do backend: status do pipeline incompleto');
+    }
+    return data;
+  },
+
+  async getResearch(id_pesquisa: string): Promise<ResearchDetail> {
+    const res = await fetch(`/api/v1/research/${encodeURIComponent(id_pesquisa)}`, {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: buildHeaders(),
+    });
+
+    if (!res.ok) {
+      throw await apiError(res);
+    }
+    const data = (await res.json()) as ResearchDetail;
+    if (!data || typeof data.id_pesquisa !== 'string' || !Array.isArray(data.pontos)) {
+      throw new Error('Resposta inválida do backend: pesquisa incompleta');
     }
     return data;
   },

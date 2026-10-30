@@ -747,3 +747,13 @@ a.rr-source:focus-visible {
     transition: none;
   }
 }
+
+@media (max-width: 899px) {
+  .rr-rail__collapse,
+  .rr-rail__reopen,
+  .rr-rail--collapsed .rr-rail__reopen {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+  }
+}

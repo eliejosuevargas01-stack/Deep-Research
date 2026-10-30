@@ -5,8 +5,6 @@ interface MobileTabBarProps {
   currentRoute: string;
   onNavigate: (route: string) => void;
   onNewResearch: () => void;
-  onOpenSheet: () => void;
-  sheetOpen: boolean;
   hasPlan?: boolean;
 }
 
@@ -21,7 +19,7 @@ const TABS = [
  * Navegação de polegar: quatro destinos fixos no rodapé e uma ação primária
  * central. Some no desktop, onde a sidebar assume.
  */
-export const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentRoute, onNavigate, onNewResearch, onOpenSheet, sheetOpen }) => (
+export const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentRoute, onNavigate, onNewResearch }) => (
   <nav className="mobile-tabbar" aria-label="Navegação principal (mobile)">
     {TABS.slice(0, 2).map((t) => {
       const Icon = t.icon;
@@ -63,10 +61,9 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentRoute, onNavi
 
     <button
       type="button"
-      className={`mobile-tab ${sheetOpen ? 'is-active' : ''}`}
-      aria-expanded={sheetOpen}
-      aria-haspopup="dialog"
-      onClick={onOpenSheet}
+      className={`mobile-tab ${currentRoute === 'settings' ? 'is-active' : ''}`}
+      aria-current={currentRoute === 'settings' ? 'page' : undefined}
+      onClick={() => onNavigate('settings')}
     >
       <Settings size={19} aria-hidden="true" />
       <span>Ajustes</span>

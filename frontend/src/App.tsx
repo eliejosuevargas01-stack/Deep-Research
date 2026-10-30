@@ -1,10 +1,9 @@
-import React, { Suspense, useState, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { HorizonBackground } from './components/HorizonBackground';
 import { BottomDock } from './components/BottomDock';
 import { MobileTabBar } from './components/MobileTabBar';
-import { QuickSheet } from './components/QuickSheet';
 import { Composer, ComposerHandle } from './components/Composer';
 import { EmptyState, TopicPills } from './components/EmptyState';
 import { PlanningView } from './components/PlanningView';
@@ -84,7 +83,6 @@ export const App: React.FC = () => {
   const [criteriosMinimos, setCriteriosMinimos] = useState<number>(RIGOR_PADRAO);
   const [asyncExecute, setAsyncExecute] = useState<boolean>(false);
   const [callbackUrl, setCallbackUrl] = useState<string>('');
-  const [quickSheetOpen, setQuickSheetOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('deepResearch.sidebar') === 'collapsed';
@@ -407,6 +405,99 @@ export const App: React.FC = () => {
     bootstrapPromiseRef.current = bootstrapSession();
   };
 
+  // Deep link `#research/<id>`: o servidor é a fonte da verdade. Reidrata plano,
+  // pontos, dossiê e auditoria sem depender do histórico local deste navegador.
+  const deepLinkCarregadoRef = useRef<string | null>(null);
+  const handleOpenResearchById = useCallback(async (id: string) => {
+    if (!id || deepLinkCarregadoRef.current === id) return;
+    deepLinkCarregadoRef.current = id;
+    try {
+      // A sessão (cookie) nasce em /app/session; sem esperar, o deep link toma 401.
+      await bootstrapPromiseRef.current;
+      const detalhe = await api.getResearch(id);
+      const pontos = (detalhe.pontos ?? []).map((p) => ({
+        ponto_id: String(p.ponto_id),
+        ponto_n: Number(p.ponto_n),
+        ponto: String(p.ponto ?? ''),
+        status: p.status ?? 'pendente',
+        eixo_estruturado: p.eixo_estruturado ?? null,
+      }));
+      const plano: PlanResponse = {
+        id_pesquisa: detalhe.id_pesquisa,
+        tema: detalhe.tema,
+        n_pontos: pontos.length,
+        criado_em: detalhe.criado_em,
+        pontos,
+        status_pipeline: detalhe.status_pipeline,
+        plano_estruturado: detalhe.plano_estruturado ?? null,
+        preferencias: detalhe.preferencias ?? undefined,
+      };
+      const dossie = detalhe.dossier_final ?? null;
+      const writer: WriterResponse | null = dossie
+        ? {
+            id_pesquisa: detalhe.id_pesquisa,
+            tema: detalhe.tema,
+            status: 'concluido',
+            total_caracteres_dossier: dossie.length,
+            concluido_em: detalhe.concluido_em ?? null,
+            dossier_final: dossie,
+            fontes: detalhe.fontes ?? null,
+          }
+        : null;
+      const auditoria = (detalhe.auditoria ?? null) as AuditResponse | null;
+
+      setCurrentPlan(plano);
+      setWriterResult(writer);
+      setAuditResult(auditoria);
+      setExecutionError(null);
+      activeResearchIdRef.current = id;
+      setActiveResearchId(id);
+
+      const status = detalhe.status_pipeline ?? '';
+      const estagio: PipelineStage = writer
+        ? 'completed'
+        : STAGE_POR_STATUS[status] ??
+          (status === 'concluido' ? 'completed' : status === 'falha' ? 'failed' : status === 'reprovado' ? 'rejected' : 'idle');
+      setPipelineStage(estagio);
+      setFailedStage(null);
+
+      try {
+        localStorage.setItem(ACTIVE_RESEARCH_KEY, id);
+      } catch {
+        /* storage bloqueado: a tela já está hidratada */
+      }
+
+      historyService.save({
+        id_pesquisa: detalhe.id_pesquisa,
+        tema: detalhe.tema,
+        criado_em: detalhe.criado_em,
+        concluido_em: detalhe.concluido_em ?? null,
+        status: writer
+          ? 'concluido'
+          : status === 'reprovado'
+            ? 'reprovado'
+            : status === 'falha'
+              ? 'falha'
+              : 'buscando',
+        total_pontos: pontos.length,
+        planResponse: plano,
+        writerResponse: writer ?? undefined,
+        auditResponse: auditoria ?? undefined,
+      });
+      setHistoryRecords(historyService.list());
+    } catch (erro) {
+      deepLinkCarregadoRef.current = null;
+      setCurrentPlan(null);
+      setWriterResult(null);
+      setExecutionError(
+        `Não foi possível abrir a pesquisa ${id.slice(0, 8)}…: ${
+          erro instanceof Error ? erro.message : 'pesquisa não encontrada no servidor.'
+        }`
+      );
+      setPipelineStage('failed');
+    }
+  }, []);
+
   // Carrega histórico e inicializa sessão ao montar
   useEffect(() => {
     setHistoryRecords(historyService.list());
@@ -417,6 +508,17 @@ export const App: React.FC = () => {
       const hash = window.location.hash.replace('#', '') || 'research';
       const rotas = ['research', 'history', 'settings', 'docs'];
       if (import.meta.env.DEV) rotas.push('harness', 'plan', 'execution-search', 'execution-audit', 'execution-rejected', 'execution-failed', 'research-sim');
+
+      // Deep link: #research/<id_pesquisa>
+      if (hash.startsWith('research/')) {
+        const id = hash.slice('research/'.length).trim();
+        if (id) {
+          setCurrentRoute('research');
+          void handleOpenResearchById(id);
+          return;
+        }
+      }
+
       if (rotas.includes(hash)) {
         setCurrentRoute(hash);
       }
@@ -428,7 +530,7 @@ export const App: React.FC = () => {
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
     };
-  }, []);
+  }, [handleOpenResearchById]);
 
   // Raciocínio do Planejador ao vivo: assina o canal do id recém-criado antes de
   // `POST /plan` responder, para a tela intermediária nunca ficar vazia.
@@ -1616,6 +1718,20 @@ export const App: React.FC = () => {
             onDiscardDraft={handleDiscardSettingsDraft}
             sessionError={sessionBootstrapError}
             onRetrySession={handleRetryBootstrap}
+            theme={tema}
+            onToggleTheme={() => setTema((atual) => (atual === 'dark' ? 'light' : 'dark'))}
+            ambientOn={ambientOn}
+            onToggleAmbient={() =>
+              setAmbientOn((on) => {
+                const next = !on;
+                try {
+                  localStorage.setItem('deepResearch.ambient', next ? 'on' : 'off');
+                } catch {
+                  /* storage bloqueado */
+                }
+                return next;
+              })
+            }
           />
         )}
 
@@ -1651,25 +1767,10 @@ export const App: React.FC = () => {
       </main>
       </div>
     </div>
-      <QuickSheet
-        open={quickSheetOpen}
-        onClose={() => setQuickSheetOpen(false)}
-        theme={tema}
-        onToggleTheme={() => setTema((atual) => (atual === 'dark' ? 'light' : 'dark'))}
-        ambientOn={ambientOn}
-        onToggleAmbient={() => setAmbientOn((on) => {
-          const next = !on;
-          try { localStorage.setItem('deepResearch.ambient', next ? 'on' : 'off'); } catch { /* storage bloqueado */ }
-          return next;
-        })}
-        onOpenSettings={() => navigateTo('settings')}
-      />
       <MobileTabBar
         currentRoute={currentRoute}
         onNavigate={navigateTo}
         onNewResearch={handleResetResearch}
-        onOpenSheet={() => setQuickSheetOpen(true)}
-        sheetOpen={quickSheetOpen}
       />
     </div>
   );

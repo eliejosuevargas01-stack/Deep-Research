@@ -224,7 +224,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                   </div>
 
                   <h2 className="history-title" title={record.tema}>
-                    {formatarTitulo(record.tema)}
+                    <a className="history-title-link" href={`#research/${record.id_pesquisa}`}>
+                      {formatarTitulo(record.tema)}
+                    </a>
                   </h2>
 
                   <div className="history-meta">

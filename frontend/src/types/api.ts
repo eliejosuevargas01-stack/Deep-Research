@@ -318,6 +318,21 @@ export interface PipelineStatusResumo {
   tokens_total?: number | null;
 }
 
+export interface ResearchDetail {
+  id_pesquisa: string;
+  tema: string;
+  status_pipeline: string | null;
+  criado_em: string;
+  concluido_em?: string | null;
+  plano_estruturado?: PlanoInvestigacao | null;
+  pontos: PlanPontoItem[];
+  preferencias?: PlanPreferencias | null;
+  dossier_final?: string | null;
+  metadados_redacao?: Record<string, unknown> | null;
+  fontes?: FontesResumo | null;
+  auditoria?: AuditResponse | null;
+}
+
 export interface ResearchHistoryRecord {
   id_pesquisa: string;
   tema: string;
