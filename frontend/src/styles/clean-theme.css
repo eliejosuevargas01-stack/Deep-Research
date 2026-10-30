@@ -405,13 +405,13 @@
 
 .workspace-main {
   width: 100%;
-  max-width: 1500px;
+  max-width: min(1800px, calc(100vw - 520px));
   margin: 0 auto;
-  padding: 28px 36px 150px;
-}
-
-.workspace-grid {
-  gap: 32px;
+  padding: 28px 40px 160px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
 /* Títulos editoriais */
@@ -607,17 +607,19 @@
 /* ---------- Ajustes da primeira passada visual ---------- */
 
 /* Marcador da linha do tempo centrado no fio vertical, sem recorte */
-.reasoning-feed-stream {
-  margin-left: 0;
-  padding-left: 44px;
-}
-
 .reasoning-avatar {
+  position: absolute;
   left: -13px;
   top: 11px;
   width: 26px;
   height: 26px;
   border-width: 3px;
+  font-size: 13px;
+}
+
+.reasoning-feed-stream {
+  padding-left: 52px;
+  margin-left: 0;
 }
 
 /* Stepper: concluído não compete com a etapa ativa */
@@ -679,12 +681,31 @@
   border-bottom: 0;
 }
 
-/* Estado vazio: menos vazio entre sugestões e compositor */
 .empty-state {
-  padding: 20px 8px 8px;
-  gap: 18px;
+  padding: 8px 0 0;
+  gap: 16px;
   align-items: flex-start;
   text-align: left;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.empty-state-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-state-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 .empty-state-title,
@@ -697,8 +718,60 @@
   margin-top: 10px;
 }
 
-.composer-anchor {
-  margin-top: 18px;
+.empty-state-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.empty-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  max-width: 390px;
+}
+
+.empty-state-pill:hover {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border-strong);
+}
+
+.empty-state-pill:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+
+.empty-state-pill-title {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.empty-state-pill-desc {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .empty-state-pill {
+    max-width: 100%;
+    flex: 1 1 100%;
+  }
+  .empty-state-pill-desc {
+    white-space: normal;
+  }
 }
 
 /* ---------- Segunda passada: sugestões em linhas, coluna sem redundância ---------- */
@@ -911,7 +984,7 @@
 
 .workspace-main {
   flex: 0 0 auto;
-  max-width: 1500px;
+  max-width: none;
 }
 
 .workspace-main:has(.execution-card) {

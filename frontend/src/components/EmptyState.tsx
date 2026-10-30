@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, Sparkles, ArrowRight } from 'lucide-react';
+import { Compass } from 'lucide-react';
 
 interface EmptyStateProps {
   onSelectTopic: (topic: string) => void;
@@ -7,77 +7,50 @@ interface EmptyStateProps {
 
 const SAMPLE_TOPICS = [
   {
-    title: 'O futuro da matriz energética no Brasil',
-    description: 'Transição para fontes renováveis, hidrogênio verde, segurança energética e investimentos até 2035.',
+    title: 'Matriz energética Brasil',
+    description: 'Renováveis, hidrogênio verde e segurança energética.',
   },
   {
-    title: 'Impacto da IA generativa no mercado de trabalho de TI',
-    description: 'Produtividade de desenvolvedores, demanda por novas competências e automação de código no cenário global.',
+    title: 'IA generativa no trabalho de TI',
+    description: 'Produtividade, competências e automação de código.',
   },
   {
-    title: 'Avanços e viabilidade comercial da fusão nuclear',
-    description: 'Confinamento magnético, projetos ITER e SPARC, marcos científicos recentes e cronogramas de operação.',
+    title: 'Fusão nuclear comercial',
+    description: 'ITER/SPARC, marcos e cronogramas operacionais.',
   },
   {
-    title: 'Regulação global de Inteligência Artificial',
-    description: 'Comparativo entre AI Act da União Europeia, diretrizes dos EUA e o marco regulatório brasileiro (PL 2338).',
+    title: 'Regulação global de IA',
+    description: 'AI Act, EUA e marco brasileiro PL 2338.',
   },
 ];
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectTopic }) => {
   return (
     <section className="empty-state" aria-labelledby="empty-state-title">
-      <div className="empty-state-badge" aria-hidden="true">
-        <Compass size={24} />
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <h1 id="empty-state-title" className="empty-state-title">
-          Investigue a fundo. Audite cada ponto.
-        </h1>
-        <p className="empty-state-text">
-          Plano, evidência auditada, dossiê: cada frase com sua fonte.
-        </p>
-      </div>
-
-      <div style={{ width: '100%', marginTop: '8px' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            marginBottom: '12px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            color: 'var(--color-text-muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-          }}
-        >
-          <Sparkles size={14} aria-hidden="true" />
-          <span>Comece por um tema</span>
+      <div className="empty-state-header">
+        <div className="empty-state-badge" aria-hidden="true">
+          <Compass size={20} />
         </div>
+        <div>
+          <h1 id="empty-state-title" className="empty-state-title">
+            Investigue a fundo. Audite cada ponto.
+          </h1>
+        </div>
+      </div>
 
-        {/* Lista semântica: ul -> li -> button acessível */}
-        <ul className="sample-topics-grid" role="list" aria-label="Sugestões de temas investigativos">
-          {SAMPLE_TOPICS.map((item, idx) => (
-            <li key={idx} className="sample-topic-item">
-              <button
-                type="button"
-                className="sample-topic-card"
-                onClick={() => onSelectTopic(item.title)}
-                title={`Preencher tema: ${item.title}`}
-              >
-                <span className="sample-topic-index" aria-hidden="true">{String(idx + 1).padStart(2, '0')}</span>
-                <span className="sample-topic-body">
-                  <span className="sample-topic-title">{item.title}</span>
-                  <span className="sample-topic-desc">{item.description}</span>
-                </span>
-                <ArrowRight className="sample-topic-arrow" size={15} aria-hidden="true" />
-              </button>
-            </li>
-          ))}
-        </ul>
+      <div className="empty-state-pills" aria-label="Sugestões de temas investigativos">
+        {SAMPLE_TOPICS.map((item, idx) => (
+          <button
+            key={idx}
+            type="button"
+            className="empty-state-pill"
+            onClick={() => onSelectTopic(item.title)}
+            title={`Preencher tema: ${item.title}`}
+          >
+            <span className="empty-state-pill-title">{item.title}</span>
+            <span className="empty-state-pill-desc">{item.description}</span>
+          </button>
+        ))}
       </div>
     </section>
   );

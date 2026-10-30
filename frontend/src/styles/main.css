@@ -27,65 +27,60 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   max-width: 100vw;
+  height: 100vh;
+  overflow: hidden !important;
 }
 
 body {
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: var(--color-canvas);
   max-width: 100vw;
+  overflow: hidden !important;
 }
 
 #root {
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
-  /* `clip` não cria contexto de rolagem: preserva `position: sticky`. */
-  overflow-x: clip;
+  overflow: hidden !important;
 }
 
-/* Foco visível acessível em todos os controles interativos */
-:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+.app-shell {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden !important;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
-  border-radius: var(--radius-full);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+.app-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
 }
 
-/* Seleção de texto temática */
-::selection {
-  background-color: var(--color-accent-subtle);
-  color: var(--color-accent-text);
-}
-
-/* Layout Estrutural Principal */
 .app-container {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden !important;
 }
 
 .workspace-main {
-  flex: 1;
-  max-width: 1400px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-width: min(1800px, calc(100vw - 520px));
   width: 100%;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-6) var(--space-8) var(--space-6);
+  padding: 28px 40px 160px;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
 /* Grid Topology de Comp C (Coluna Principal 72% + Lateral 28%) */
@@ -94,7 +89,7 @@ body {
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: var(--space-6);
   align-items: start;
-  max-width: 1280px;
+  max-width: none;
   margin: 0 auto;
 }
 

@@ -288,14 +288,14 @@
 
 .reasoning-feed-stream {
   position: relative;
-  /* O feed é o palco da tela: ocupa o que sobra da viewport sem empurrar a
-     página, e nunca fica menor que 5 cartões recolhidos. */
-  max-height: clamp(300px, calc(100vh - 420px), 520px);
+  /* Feed scrolls inside container with limits */
+  max-height: clamp(340px, calc(100vh - 380px), 640px);
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--space-2, 8px) var(--space-3, 12px) var(--space-3, 12px);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .reasoning-jump-latest {
@@ -349,10 +349,74 @@
 }
 
 /* ---------- Cartão ---------- */
+/* Scale up reasoning cards for W2 */
 .reasoning-card {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm, 6px);
   background: var(--color-surface);
+}
+
+.reasoning-card-header {
+  padding: 6px 8px;
+}
+
+.reasoning-card-toggle {
+  gap: 2px;
+  padding: 4px 6px;
+}
+
+.reasoning-card-line {
+  gap: 4px 10px;
+}
+
+.reasoning-agent-badge {
+  padding: 2px 8px;
+  font-size: 0.8125rem;
+  gap: 4px;
+}
+
+.reasoning-card-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.reasoning-card-preview {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  min-height: 1.6em;
+}
+
+.reasoning-card-stats {
+  font-size: 0.875rem;
+  gap: 6px 10px;
+}
+
+.reasoning-card-body {
+  padding: 10px 14px 14px;
+}
+
+.reasoning-streaming-text {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.reasoning-markdown-content {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  padding-left: 14px;
+}
+
+/* Limit reasoning card height when open/closed */
+.reasoning-card.is-open .reasoning-card-body,
+.reasoning-card.is-collapsed .reasoning-streaming-text {
+  max-height: clamp(320px, calc(100vh - 420px), 560px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.reasoning-card.is-collapsed .reasoning-card-preview {
+  max-height: 4.8em;
+  overflow: hidden;
 }
 
 .reasoning-card.is-open {
