@@ -130,6 +130,13 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [copiado, setCopiado] = useState(false);
+
+  useEffect(() => {
+    const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
+    if (isMobile) {
+      setCollapsed(true);
+    }
+  }, []);
   const tabRefs = useRef<Record<RailMode, HTMLButtonElement | null>>({
     contexto: null,
     fontes: null,
@@ -285,6 +292,26 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
         >
           <PanelRightOpen size={18} aria-hidden="true" />
         </button>
+        {(() => {
+          const count = Array.isArray(itensFontes) ? itensFontes.length : 0;
+          if (count === 0) return null;
+          return (
+            <button
+              type="button"
+              className="rr-rail__pill"
+              aria-label={`Ver fontes (${count})`}
+              title={`Fontes: ${count}`}
+              onClick={() => {
+                userChangedModeRef.current = true;
+                setMode('fontes');
+                setCollapsed(false);
+              }}
+            >
+              <span className="rr-rail__pill-count">{count}</span>
+              <span className="rr-rail__pill-label">fontes</span>
+            </button>
+          );
+        })()}
       </aside>
     );
   }

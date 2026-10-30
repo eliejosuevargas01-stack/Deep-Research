@@ -2131,8 +2131,31 @@
   .history-filter,
   .btn-toggle-all-details,
   .stepper-point-toggle,
-  .history-actions .btn-secondary {
+  .history-actions .btn-secondary,
+  .btn-start-research,
+  .btn-secondary,
+  .preferences-toggle-btn,
+  .dock-btn,
+  .topic-pill,
+  .history-item-card .btn-secondary,
+  .mobile-tab,
+  .mobile-fab,
+  .rr-rail__tab,
+  .rr-rail__collapse,
+  .rr-rail__reopen,
+  .form-input,
+  .search-input {
     min-height: 44px;
+  }
+
+  .query-action-btn,
+  .history-filter,
+  .btn-toggle-all-details,
+  .stepper-point-toggle,
+  .history-actions .btn-secondary,
+  .mobile-fab,
+  .rr-rail__collapse,
+  .rr-rail__reopen {
     min-width: 44px;
   }
 
@@ -2142,9 +2165,20 @@
 }
 
 
+/* Sidebar esquerda já oculta ≤900 — sem consumo de largura */
+@media (max-width: 900px) {
+  .sidebar,
+  .app-sidebar {
+    display: none !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    min-width: 0 !important;
+    flex: 0 0 0 !important;
+  }
+}
+
 /* Alternador de tema (os tokens escuros existem, faltava o controle) */
 .theme-toggle {
-  display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 36px;

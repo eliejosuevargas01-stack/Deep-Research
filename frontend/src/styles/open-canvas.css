@@ -436,13 +436,12 @@
   opacity: 1;
 }
 
-.history-actions .btn-secondary {
-  border: 0;
-  background: transparent;
-  padding: 4px 6px;
-  min-height: 0;
-  color: var(--color-text-secondary);
-  box-shadow: none;
+/* Alvos de toque confortáveis em telas com ponteiro grosso (mobile/tablet). */
+@media (pointer: coarse) {
+  .history-actions .btn-secondary {
+    min-height: 44px;
+    padding: 6px 10px;
+  }
 }
 
 .history-actions .btn-secondary:hover {

@@ -1025,7 +1025,7 @@
 }
 
 .workspace-main {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   max-width: none;
 }
 
@@ -1130,7 +1130,16 @@
 
 @media (max-width: 899px) {
   .workspace-main {
-    overflow-y: auto;
+    overflow: visible !important;
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+  }
+
+  html,
+  body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: auto !important;
   }
 }
 

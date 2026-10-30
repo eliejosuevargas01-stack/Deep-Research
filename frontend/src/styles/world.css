@@ -663,17 +663,17 @@
   transform: scale(0.94);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 899px) {
   .mobile-tabbar {
     display: grid;
   }
 
   .app-main {
-    padding-bottom: calc(236px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(200px + env(safe-area-inset-bottom, 0px));
   }
 
   .composer-anchor {
-    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
   }
 
   .mobile-nav-toggle {
