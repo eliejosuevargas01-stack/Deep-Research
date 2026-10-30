@@ -224,7 +224,7 @@ const Passo: React.FC<PassoProps> = ({
   const rotuloInterno = (
     <>
       <span className={`tl-icone${falha ? ' tl-falha' : ''}`} aria-hidden="true">
-        <PersonaIcon persona={persona} size={aoVivo ? 18 : 16} />
+        <PersonaIcon persona={persona} size={aoVivo ? 18 : 16} ativo={aoVivo} />
       </span>
       <span className="tl-texto">
         <span className="tl-persona">{rotulo}</span>

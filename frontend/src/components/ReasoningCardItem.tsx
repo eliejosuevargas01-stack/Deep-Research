@@ -243,7 +243,7 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
           ref={(el) => registrarToggle(item.id, el)}
         >
           <span className={`reasoning-avatar role-${personaTipo}`} aria-hidden="true">
-            <PersonaIcon persona={personaTipo} size={16} />
+            <PersonaIcon persona={personaTipo} size={16} ativo={item.streaming || item.status === 'em_andamento'} />
           </span>
           <span className="reasoning-card-line">
             <span className="sr-only">

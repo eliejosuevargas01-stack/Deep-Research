@@ -137,11 +137,14 @@ export function ConvergenceLogo({
 export function PersonaIcon({
   persona,
   size = 16,
-  className = ''
+  className = '',
+  ativo = false,
 }: {
   persona: PersonaType;
   size?: number;
   className?: string;
+  /** Colore e destaca só enquanto a persona está trabalhando. */
+  ativo?: boolean;
 }) {
   return (
     <svg
@@ -150,7 +153,7 @@ export function PersonaIcon({
       viewBox="0 0 24 24"
       fill="none"
       data-persona={persona}
-      className={`persona-icon${className ? ` ${className}` : ''}`}
+      className={`persona-icon${ativo ? ' persona-icon--ativo' : ''}${className ? ` ${className}` : ''}`}
       dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG[persona] }}
     />
   );

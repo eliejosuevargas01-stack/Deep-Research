@@ -1482,6 +1482,7 @@ export const App: React.FC = () => {
                     collectedPoints={
                       searchResult?.resumo_coletas?.filter((c) => c.status !== 'em_andamento').length
                     }
+                    auditAoVivo={pipelineStage === 'auditing' && !auditResult}
                     auditSummary={
                       auditResult
                         ? {

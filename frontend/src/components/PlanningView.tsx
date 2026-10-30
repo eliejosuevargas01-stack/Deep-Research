@@ -152,7 +152,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
     <section className="planning-view" aria-labelledby={tituloId} aria-busy={!erro}>
       <div className="planning-status">
         <span className="planning-header-icon" aria-hidden="true">
-          <PersonaIcon persona="planejador" size={28} />
+          <PersonaIcon persona="planejador" size={28} ativo={!erro} />
         </span>
         <span className="planning-status-text">
           {erro ? 'O planejador parou' : 'Planejador em ação'}

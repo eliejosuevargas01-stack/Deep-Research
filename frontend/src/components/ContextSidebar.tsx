@@ -11,6 +11,7 @@ interface ContextSidebarProps {
   cycleNumber?: number;
   maxCycles?: number;
   collectedPoints?: number;
+  auditAoVivo?: boolean;
   auditSummary?: {
     aprovados: number;
     total: number;
@@ -119,6 +120,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   maxCycles,
   collectedPoints,
   auditSummary,
+  auditAoVivo = false,
   metadadosModelo,
   tokensAoVivo,
   fontes,
@@ -186,7 +188,11 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
     typeof cycleNumber === 'number' ? `${cycleNumber}/${maxCycles ?? 4}` : '—';
   const coletadosTexto =
     typeof collectedPoints === 'number' && nPontos !== null ? `${collectedPoints}/${nPontos}` : '—';
-  const auditoriaTexto = auditSummary ? `${auditSummary.aprovados}/${auditSummary.total}` : 'Aguardando';
+  const auditoriaTexto = auditSummary
+    ? `${auditSummary.aprovados}/${auditSummary.total}`
+    : auditAoVivo
+    ? 'Em auditoria'
+    : 'Aguardando';
 
   const idPesquisa = plan?.id_pesquisa ? String(plan.id_pesquisa) : null;
   const idCurto = idPesquisa ? (idPesquisa.length > 8 ? idPesquisa.slice(0, 8) : idPesquisa) : '—';
