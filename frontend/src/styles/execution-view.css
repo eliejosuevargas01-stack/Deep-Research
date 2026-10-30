@@ -82,9 +82,10 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  align-self: flex-start;
   align-items: stretch;
   width: 100%;
-  padding: 20px 22px;
+  padding: 20px 22px 24px;
   position: relative;
   z-index: 2;
   overflow: visible;
@@ -97,6 +98,22 @@
 .exec-error-card .execution-banner-actions {
   margin-top: 16px;
   gap: 10px;
+}
+
+/* Dois blocos empilhados (aviso + corpo do banner) repetiam o mesmo texto
+   do erro. O card agora hospeda só o aviso. */
+.exec-error-card .execution-banner-body {
+  display: none;
+}
+
+/* O aviso é do componente ErrorNotice: sem margem extra entre texto e ações. */
+.exec-error-card .error-notice__actions {
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+.exec-error-card .error-notice__details {
+  margin-bottom: 2px;
 }
 
 /* Medida de leitura: o corpo do aviso ocupava a largura inteira do card
