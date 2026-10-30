@@ -1,0 +1,92 @@
+/*
+ * W4: contraste + conforto tema claro
+ * Escopo: elevar contraste reasoning e suavizar superfícies claras.
+ * Só tokens existentes / ajustes direcionados.
+ */
+
+:root {
+  /* tema claro mais confortável, sem branco estourado */
+  --color-canvas: #fbfaf7;
+  --color-surface: #f7f5f1;
+  --color-surface-2: #f2efe9;
+  --color-border: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  --color-border-subtle: color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+}
+
+:root[data-theme='light'] {
+  --color-canvas: #fbfaf7;
+  --color-surface: #f7f5f1;
+  --color-surface-2: #f2efe9;
+  --color-border: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  --color-border-subtle: color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+}
+
+[data-theme='dark'] {
+  /* manter escuro, só garantir legibilidade de elementos afetados */
+  --color-border: color-mix(in srgb, var(--color-text-primary) 16%, transparent);
+  --color-border-subtle: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+}
+
+/* Corpo reasoning */
+.reasoning-card .reasoning-card-body,
+.reasoning-card-body {
+  color: var(--color-text-primary);
+}
+
+.reasoning-card-body p,
+.reasoning-card-body li,
+.reasoning-card-body div {
+  color: var(--color-text-primary);
+}
+
+.reasoning-card-body pre,
+.reasoning-card-body code {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface-2) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 14%, transparent);
+}
+
+.reasoning-card-body a {
+  color: var(--color-accent, var(--violet));
+}
+
+/* Títulos */
+.reasoning-card-line {
+  color: var(--color-text-primary);
+}
+
+/* Metadados / badges */
+.reasoning-card .reasoning-meta,
+.reasoning-meta,
+.reasoning-card-badge,
+.badge,
+.chip {
+  color: var(--color-text-secondary);
+}
+
+/* Divisórias / bordas */
+.reasoning-card,
+.reasoning-item,
+.reasoning-feed .reasoning-card {
+  border-color: color-mix(in srgb, var(--color-text-primary) 14%, transparent);
+}
+
+.reasoning-card-header,
+.reasoning-card-divider,
+hr.divider {
+  border-color: color-mix(in srgb, var(--color-text-primary) 14%, transparent);
+}
+
+/* Pill de tool call */
+.tool-call-pill,
+.tool-pill,
+.reasoning-tool-pill {
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-surface-2) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 16%, transparent);
+}
+
+.tool-call-pill .tool-name,
+.tool-call-pill span {
+  color: var(--color-text-primary);
+}
