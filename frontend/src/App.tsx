@@ -140,6 +140,7 @@ export const App: React.FC = () => {
   const [planningText, setPlanningText] = useState('');
   const [planningStartedAt, setPlanningStartedAt] = useState(0);
   const [planningError, setPlanningError] = useState<string | null>(null);
+  const [storageError, setStorageError] = useState<string | null>(null);
 
   // Estado da pesquisa ativa
   const [currentPlan, setCurrentPlan] = useState<PlanResponse | null>(null);
@@ -321,6 +322,7 @@ export const App: React.FC = () => {
   // Carrega histórico e inicializa sessão ao montar
   useEffect(() => {
     setHistoryRecords(historyService.list());
+    historyService.setFalhaHandler(setStorageError);
     bootstrapPromiseRef.current = bootstrapSession();
 
     const handleHashChange = () => {
@@ -1191,6 +1193,20 @@ export const App: React.FC = () => {
             onRetry={handleRetryBootstrap}
             retrying={isBootstrapping}
             acaoExtra={{ rotulo: 'Abrir Configurações', onClick: () => navigateTo('settings') }}
+          />
+        </div>
+      )}
+
+      {/* Histórico local indisponível: a lista some ao recarregar, avise antes */}
+      {storageError && (
+        <div className="app-error-slot">
+          <ErrorNotice
+            falha={{
+              titulo: 'O histórico deste navegador não está funcionando',
+              mensagem: `${storageError} O armazenamento local pode estar bloqueado ou cheio. A pesquisa continua no servidor.`,
+              tom: 'aviso',
+            }}
+            onDismiss={() => setStorageError(null)}
           />
         </div>
       )}

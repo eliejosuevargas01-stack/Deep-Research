@@ -11,6 +11,15 @@ import {
 const STORAGE_KEY = 'deep_research_local_history_v1';
 
 /**
+ * Canal de falha de armazenamento local. O histórico vive no navegador; quando
+ * o storage está bloqueado ou cheio, a lista some ao recarregar e a pessoa
+ * precisa saber disso em vez de descobrir depois.
+ */
+type FalhaStorage = (mensagem: string) => void;
+let aoFalharStorage: FalhaStorage | null = null;
+
+
+/**
  * Valida se um número representa uma contagem inteira finita não-negativa.
  * Qualquer valor inválido, indefinido ou negativo é convertido estritamente em null.
  */
@@ -267,6 +276,7 @@ export const historyService = {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
     } catch (e) {
       console.warn('Falha ao persistir histórico local no navegador:', e);
+      aoFalharStorage?.('Não foi possível salvar esta pesquisa no histórico do navegador.');
     }
   },
 
@@ -280,6 +290,7 @@ export const historyService = {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
     } catch (e) {
       console.warn('Falha ao remover item do histórico:', e);
+      aoFalharStorage?.('Não foi possível remover a pesquisa do histórico.');
     }
   },
 
@@ -288,6 +299,12 @@ export const historyService = {
       localStorage.removeItem(STORAGE_KEY);
     } catch (e) {
       console.warn('Falha ao limpar histórico local:', e);
+      aoFalharStorage?.('Não foi possível limpar o histórico deste navegador.');
     }
+  },
+
+  /** Registra quem mostra a falha de storage (a UI). */
+  setFalhaHandler(handler: FalhaStorage | null): void {
+    aoFalharStorage = handler;
   },
 };

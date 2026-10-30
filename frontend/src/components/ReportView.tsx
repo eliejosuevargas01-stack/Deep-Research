@@ -336,8 +336,14 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
       textarea.value = markdownText;
       document.body.appendChild(textarea);
       textarea.select();
-      document.execCommand('copy');
+      const copiou = document.execCommand('copy');
       document.body.removeChild(textarea);
+      if (!copiou) {
+        setCopied(false);
+        setActionFeedback('Não foi possível copiar. Selecione o texto e use Ctrl+C.');
+        setTimeout(() => setActionFeedback(null), 4000);
+        return;
+      }
       setCopied(true);
       setActionFeedback('Texto do dossiê copiado para a área de transferência.');
       setTimeout(() => {
