@@ -188,6 +188,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           {filtrados.length === 0 && (
             <p className="history-empty-filter">Nenhuma pesquisa corresponde a este filtro.</p>
           )}
+          <div role="status" aria-live="polite" className="sr-only">
+            {filtrados.length} {filtrados.length === 1 ? 'pesquisa' : 'pesquisas'}
+          </div>
 
           {filtrados.map((record) => {
             const hasDossier = Boolean(record.writerResponse?.dossier_final);
@@ -220,9 +223,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                     </span>
                   </div>
 
-                  <h3 className="history-title" title={record.tema}>
+                  <h2 className="history-title" title={record.tema}>
                     {formatarTitulo(record.tema)}
-                  </h3>
+                  </h2>
 
                   <div className="history-meta">
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
