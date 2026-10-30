@@ -372,10 +372,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <header className="card-header">
         <div>
           <h1 id="settings-heading" className="card-title">
-            Configurações e Conexão do Workspace
+            Configurações
           </h1>
           <p style={{ marginTop: '4px', fontSize: '0.88rem', color: 'var(--color-text-secondary)' }}>
-            Gerencie parâmetros dos provedores de IA, busca web e credenciais cifradas no backend. A aplicação utiliza sessão automática no mesmo endereço sem exigir chave manual no cliente.
+            Chaves dos provedores e da busca ficam no servidor. A sessão abre sozinha, sem chave manual no navegador.
           </p>
         </div>
       </header>
@@ -386,7 +386,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
             <Server size={18} aria-hidden="true" color="var(--color-text-muted)" />
             <h2 id="auth-heading" className="card-title" style={{ fontSize: '16px' }}>
-              Comunicação com o Backend e Sessão
+              Conexão e sessão
             </h2>
           </div>
 
@@ -397,7 +397,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
-          O workspace opera integrado ao backend FastAPI com cookies seguros HttpOnly SameSite=Strict. As credenciais dos provedores (OpenAI, Jina, Webhooks) permanecem no servidor e nunca são expostas ao navegador.
+          As chaves ficam no servidor e não chegam ao navegador.
         </p>
 
         {/* Teste de Conexão */}
@@ -416,7 +416,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             ) : (
               <>
                 <Server size={16} aria-hidden="true" />
-                <span>Testar Conexão com API</span>
+                <span>Testar conexão</span>
               </>
             )}
           </button>
@@ -449,7 +449,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <Shield size={18} aria-hidden="true" color="var(--color-text-muted)" />
           <h2 id="creds-heading" className="card-title" style={{ fontSize: '16px' }}>
-            Parâmetros dos Provedores e Banco Cifrado (AES-128-CBC)
+            Chaves dos provedores
           </h2>
         </div>
 
@@ -457,9 +457,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="alert-banner info" style={{ marginBottom: '16px' }}>
           <Info size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
           <div style={{ fontSize: '14px' }}>
-            <strong>Regra de Precedência RN-10 (Adendo 002):</strong> O Banco Cifrado possui prioridade sobre o ambiente (.env).
-            Se cadastrado no banco, o valor tem prevalência; caso contrário, as variáveis de ambiente atuam como fallback seguro (a chave-mestra CREDENTIALS_MASTER_KEY permanece restrita ao ambiente para bootstrap seguro).
-            Valores mascarados listados abaixo refletem a origem ativa. Preencha apenas os campos que deseja atualizar no banco.
+            <strong>Qual valor vale:</strong> o que está salvo aqui vence o .env. Sem valor salvo, vale o .env. A
+            chave-mestra <code>CREDENTIALS_MASTER_KEY</code> fica só no ambiente.
           </div>
         </div>
 
@@ -737,7 +736,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               ) : (
                 <>
                   <Save size={16} aria-hidden="true" />
-                  <span>Salvar alterações no banco cifrado</span>
+                  <span>Salvar credenciais</span>
                 </>
               )}
             </button>
@@ -751,7 +750,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
             <Server size={18} aria-hidden="true" color="var(--color-text-muted)" />
             <h2 id="creds-list-heading" className="card-title" style={{ fontSize: '16px' }}>
-              Parâmetros Registrados e Origem Ativa
+              Credenciais salvas
             </h2>
           </div>
 
@@ -792,7 +791,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )
         ) : credentialsList.length === 0 ? (
           <p style={{ fontSize: '0.88rem', color: 'var(--color-text-muted)', padding: '16px 0' }}>
-            Nenhum parâmetro customizado cadastrado ainda no banco cifrado. As variáveis do ambiente (.env) permanecem ativas como padrão do servidor.
+            Nenhuma credencial salva. Enquanto isso, valem as variáveis do .env.
           </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -801,9 +800,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <tr>
                   <th>Chave</th>
                   <th>Tipo</th>
-                  <th>Origem Ativa</th>
-                  <th>Valor Sanitizado</th>
-                  <th>Atualizado Em</th>
+                  <th>Origem</th>
+                  <th>Valor</th>
+                  <th>Atualizado em</th>
                 </tr>
               </thead>
               <tbody>
@@ -813,7 +812,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <td>{cred.tipo}</td>
                     <td>
                       <span className={`origin-badge ${cred.origem_ativa}`}>
-                        {cred.origem_ativa === 'ambiente' ? 'Ambiente (.env)' : 'Banco Cifrado'}
+                        {cred.origem_ativa === 'ambiente' ? 'Ambiente (.env)' : 'Banco cifrado'}
                       </span>
                     </td>
                     <td style={{ fontFamily: 'var(--font-mono)' }}>

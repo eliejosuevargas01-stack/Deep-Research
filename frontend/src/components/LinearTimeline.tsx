@@ -337,7 +337,7 @@ const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
   const motivo = reprovados[0]?.justificativa?.trim() || 'critérios não atendidos';
   const percentual = Math.round(auditoria.pontuacao_percentual ?? 0);
   const frase = reprovado
-    ? `reprovou o ponto número ${pontoN} por ${motivo} (${percentual}% × ${auditoria.criterios_aprovados}/${minimos}) — reenviado`
+    ? `reprovou o ponto ${pontoN}: ${motivo} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos}). Reenviado.`
     : `aprovou o ponto número ${pontoN} (${percentual}% × ${auditoria.criterios_aprovados}/${minimos})`;
 
   const acoes =
@@ -583,7 +583,7 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
               resumo={
                 auditResult.pronto_para_writer
                   ? 'pesquisa aprovada, gerando o relatório final'
-                  : `${auditResult.aprovados}/${auditResult.total_pontos} pontos aprovados — redação bloqueada até aprovação total`
+                  : `${auditResult.aprovados} de ${auditResult.total_pontos} pontos aprovados. A redação espera os demais.`
               }
             />
           </div>

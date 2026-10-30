@@ -869,7 +869,7 @@ export const App: React.FC = () => {
       timestamp: new Date().toISOString(),
       agentType: 'planejador',
       agentName: 'Planejador',
-      title: 'Planejador — abrindo a varredura',
+      title: 'Planejador: abrindo a varredura',
       reasoning:
         'Distribuindo os pontos analíticos entre as personas ativas e preparando as consultas web. O primeiro evento de cada persona aparece aqui assim que a coleta começa.',
       status: 'streaming',
@@ -1016,7 +1016,7 @@ export const App: React.FC = () => {
       if (!isConcluido) {
         setExecutionError(
           record.writerResponse.diagnostico ||
-            'A redação deste relatório histórico não foi concluída com sucesso.'
+            'A redação deste relatório não terminou. O plano e as fontes continuam salvos.'
         );
         setFailedStage('writing');
       } else {
@@ -1251,8 +1251,8 @@ export const App: React.FC = () => {
                         <h2 className="card-title">Job agendado no servidor</h2>
                       </div>
                       <p className="card-copy">
-                        O plano foi criado e o pipeline já está rodando em background. O dossiê será
-                        entregue no webhook configurado — esta tela não acompanha o progresso ao vivo.
+                        O plano foi criado e a pesquisa roda no servidor. O dossiê vai para o webhook
+                        configurado. Esta tela não acompanha o progresso ao vivo.
                       </p>
                       <dl className="async-confirm-list">
                         <div>

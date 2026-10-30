@@ -10,20 +10,19 @@ export const DocsView: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <BookOpen size={24} color="var(--color-primary)" aria-hidden="true" />
           <h1 className="card-title" style={{ fontSize: '1.6rem' }}>
-            Guia Operacional e Documentação do Deep Research
+            Como o Deep Research funciona
           </h1>
         </div>
         <p style={{ marginTop: '8px', color: 'var(--color-text-secondary)', fontSize: '0.95rem' }}>
-          Manual de referência técnica para operação do workspace de pesquisa profunda autônoma (Checkpoint 1).
+          As quatro etapas, do plano ao dossiê.
         </p>
       </header>
 
       <div className="markdown-body">
         <h2>1. Visão Geral da Arquitetura</h2>
         <p>
-          O <strong>Deep Research</strong> é um pipeline autônomo e modular desenhado para investigar temas
-          complexos na web, estruturar planos analíticos falseáveis, auditar rigorosamente o material recolhido e
-          redigir dossiês analíticos fundamentados exclusivamente em fontes públicas canônicas.
+          O <strong>Deep Research</strong> pega um tema, divide em pontos, busca fontes públicas e audita cada
+          ponto nos 12 critérios. O dossiê só cita o que passou.
         </p>
 
         <div className="docs-steps">
@@ -31,7 +30,7 @@ export const DocsView: React.FC = () => {
             <Compass size={20} style={{ marginBottom: '6px' }} />
             <h3 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>1. Planejamento (Plan)</h3>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
-              Formula eixos investigativos estruturados, hipóteses falseáveis e critérios de conclusão.
+              Divide o tema em pontos e define o que cada um precisa provar.
             </p>
           </div>
 
@@ -39,7 +38,7 @@ export const DocsView: React.FC = () => {
             <Search size={20} style={{ marginBottom: '6px' }} />
             <h3 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>2. Busca Agêntica (Search)</h3>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
-              Varredura concorrente com subconjunto selecionável de até 4 personas analíticas (Historiador, Visionário, Cético e Futurista) capturado no plano via Jina AI.
+              Quatro personas varrem a web em paralelo: Historiador, Visionário, Cético e Futurista.
             </p>
           </div>
 
@@ -47,7 +46,7 @@ export const DocsView: React.FC = () => {
             <ShieldCheck size={20} style={{ marginBottom: '6px' }} />
             <h3 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>3. Auditoria (Audit)</h3>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
-              Avaliação cumulativa ponto a ponto contra o vetor estrito de 12 critérios formais de qualidade.
+              Cada ponto é julgado nos 12 critérios. Se não atingir o limiar, volta para a busca com o motivo.
             </p>
           </div>
 
@@ -55,15 +54,15 @@ export const DocsView: React.FC = () => {
             <PenTool size={20} style={{ marginBottom: '6px' }} />
             <h3 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>4. Redação (Writer)</h3>
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
-              Consolidação de evidências em dossiê Markdown com citações canônicas verificáveis.
+              Escreve o dossiê em Markdown com a fonte de cada trecho.
             </p>
           </div>
         </div>
 
         <h2>2. Como Formular Temas de Pesquisa</h2>
         <p>
-          O campo de entrada aceita temas entre <strong>5 e 500 caracteres</strong>. Para obter o máximo proveito da
-          varredura analítica, formule temas que explicitem o escopo, recorte temporal ou dilema central:
+          O campo aceita de <strong>5 a 500 caracteres</strong>. Quanto mais claro o recorte, melhor o plano: diga o
+          período, o lugar ou a decisão que o tema precisa responder.
         </p>
         <ul>
           <li><strong>Bom:</strong> "O futuro da matriz de energia limpa no Brasil até 2035: viabilidade de hidrogênio verde, energia eólica offshore e gargalos de transmissão."</li>
@@ -133,20 +132,20 @@ export const DocsView: React.FC = () => {
 
         <h2>6. Contabilidade e Categorias de Fontes</h2>
         <p>
-          O sistema realiza a conciliação pública e contábil rigorosa de todas as referências tratadas durante o ciclo investigativo:
+          Toda referência do ciclo entra nesta conta:
         </p>
         <ul>
           <li>
-            <strong>Fontes Consultadas (<code>consultadas</code>):</strong> Páginas e documentos com leitura efetiva confirmada (status <code>read_ok</code> / corpus textual obtido com sucesso via Jina Web Reader).
+            <strong>Fontes Consultadas (<code>consultadas</code>):</strong> Páginas e documentos com leitura confirmada (status <code>read_ok</code>, texto obtido pelo Jina Web Reader).
           </li>
           <li>
             <strong>Fontes Utilizadas (<code>utilizadas</code>):</strong> Fontes explicitamente citadas no dossiê final publicado e rastreáveis às evidências comprovadas da pesquisa.
           </li>
           <li>
-            <strong>Fontes Não Utilizadas (<code>nao_utilizadas</code>):</strong> Fontes consultadas com sucesso durante a varredura, mas não citadas no texto final (calculadas estritamente como <code>consultadas - utilizadas</code>).
+            <strong>Fontes Não Utilizadas (<code>nao_utilizadas</code>):</strong> Fontes lidas na varredura que não entraram no texto final (<code>consultadas</code> menos <code>utilizadas</code>).
           </li>
           <li>
-            <strong>Registros Legados e Valores Desconhecidos:</strong> Quando a contabilidade de fontes for indisponível ou parcial (como em pesquisas legadas anteriores ao rastreamento estrito de versão por <code>artifact_hash</code>), o sistema exibe estado não disponível/desconhecido (<code>—</code>), nunca apresentando zero (<code>0</code>) fictício.
+            <strong>Pesquisas antigas e valores desconhecidos:</strong> quando a contagem não existe, a tela mostra <code>não disponível</code> em vez de zero.
           </li>
           <li>
             <strong>Isolamento Operacional:</strong> O carregamento e visualização da contabilidade de fontes consultam exclusivamente os registros analíticos já persistidos da pesquisa. Carregar fontes não executa novamente a pesquisa nem gera novos custos ou requisições adicionais de busca.

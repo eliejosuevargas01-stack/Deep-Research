@@ -123,7 +123,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
         <p className="composer-toolbar" role="note">
           <span className="composer-plan-indicator">
             <Sparkles size={12} className="composer-plan-icon" aria-hidden="true" />
-            Plano formulado — novo tema elabora outro plano
+            Plano formulado. Um novo tema cria outro plano.
           </span>
         </p>
       )}
