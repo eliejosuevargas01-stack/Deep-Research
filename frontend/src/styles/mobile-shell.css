@@ -40,6 +40,13 @@
     overflow: visible !important;
   }
 
+  /* world.css reserva 236px para um composer fixo que não existe mais em
+     nenhuma rota (home usa composer no fluxo; dossiê o oculta). Era rolagem
+     morta de ~160px no fim de toda tela. */
+  .app-main {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+
   .mobile-tabbar {
     position: fixed;
   }
@@ -158,16 +165,25 @@
 }
 
 @media (max-width: 899px) {
-  /* O pill do rail é fixo sobre a coluna: reserva a faixa que ele ocupa,
-     senão ele cobre os últimos 16px de duas linhas de texto. */
-  .report-card .markdown-body,
-  .report-card .markdown-content {
-    padding-right: 28px;
+  /* Dossiê é leitura: 20px de gutter em cada lado, sem o pill flutuante
+     disputando a margem direita (a lista de fontes já vive no texto). */
+  .report-card {
+    padding-inline: 20px;
   }
 
-  .report-card .markdown-body > :last-child,
-  .report-card .markdown-content > :last-child {
-    margin-bottom: 0;
+  .workspace-main:has(.report-card) .rr-rail {
+    display: none;
+  }
+
+  /* O wrapper da coluna ainda reservava 24px para o rail oculto. */
+  .workspace-grid:has(.report-card) > div:first-child {
+    padding-right: 0;
+  }
+
+  .source-group-details,
+  .source-group-details > summary {
+    min-width: 0;
+    max-width: 100%;
   }
 
   /* Linhas de fonte no dossiê: nada de estourar 4px a 320px. */
