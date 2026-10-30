@@ -156,3 +156,58 @@
     padding-bottom: 0;
   }
 }
+
+@media (max-width: 899px) {
+  /* O pill do rail é fixo sobre a coluna: reserva a faixa que ele ocupa,
+     senão ele cobre os últimos 16px de duas linhas de texto. */
+  .report-card .markdown-body,
+  .report-card .markdown-content {
+    padding-right: 28px;
+  }
+
+  .report-card .markdown-body > :last-child,
+  .report-card .markdown-content > :last-child {
+    margin-bottom: 0;
+  }
+
+  /* Linhas de fonte no dossiê: nada de estourar 4px a 320px. */
+  .source-item-row,
+  .source-item-top,
+  .source-item-domain,
+  .source-item-url-link {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .source-item-row > * {
+    min-width: 0;
+  }
+
+  /* Botões do rail mantêm 44px mesmo recolhidos. */
+  .workspace-grid > .sidebar-container.rr-rail .rr-rail__reopen,
+  .workspace-grid > .sidebar-container.rr-rail .rr-rail__collapse {
+    width: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Rail recolhido no mobile: hoje é um ícone solto sem superfície, lendo como
+   elemento quebrado sobre o texto. Dá base opaca + hairline + sombra curta. */
+@media (max-width: 899px) {
+  .workspace-grid > .sidebar-container.rr-rail--collapsed {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    box-shadow: 0 6px 20px rgb(16 24 40 / 10%);
+    overflow: hidden;
+  }
+
+  .workspace-grid > .sidebar-container.rr-rail--collapsed .rr-rail__reopen {
+    color: var(--color-text-primary);
+    background: transparent;
+  }
+
+  .workspace-grid > .sidebar-container.rr-rail--collapsed .rr-rail__reopen:hover {
+    background: var(--color-surface-hover);
+  }
+}

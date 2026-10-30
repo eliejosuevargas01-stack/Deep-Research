@@ -454,7 +454,11 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
                 : 'Conclusão registrada'}
             </span>
           </div>
-          <h1 id="dossier-heading" className="card-title" style={{ fontSize: '1.4rem' }}>
+          <h1
+            id="dossier-heading"
+            className="card-title"
+            style={{ fontSize: 'clamp(1.5rem, 6vw, 1.75rem)', lineHeight: 1.2 }}
+          >
             {formatarTitulo(report.tema)}
           </h1>
         </div>
