@@ -2,7 +2,7 @@ import React from 'react';
 import { Compass } from 'lucide-react';
 
 interface EmptyStateProps {
-  onSelectTopic: (topic: string) => void;
+  onSelect: (topic: string) => void;
 }
 
 const SAMPLE_TOPICS = [
@@ -24,7 +24,7 @@ const SAMPLE_TOPICS = [
   },
 ];
 
-export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectTopic }) => {
+export const EmptyState: React.FC = () => {
   return (
     <section className="empty-state" aria-labelledby="empty-state-title">
       <div className="empty-state-header">
@@ -38,20 +38,23 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onSelectTopic }) => {
         </div>
       </div>
 
-      <div className="empty-state-pills" aria-label="Sugestões de temas investigativos">
-        {SAMPLE_TOPICS.map((item, idx) => (
-          <button
-            key={idx}
-            type="button"
-            className="empty-state-pill"
-            onClick={() => onSelectTopic(item.title)}
-            title={`Preencher tema: ${item.title}`}
-          >
-            <span className="empty-state-pill-title">{item.title}</span>
-            <span className="empty-state-pill-desc">{item.description}</span>
-          </button>
-        ))}
-      </div>
     </section>
   );
 };
+
+/** Pílulas compactas: ficam abaixo do compositor, não ocupam a área central. */
+export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => (
+  <div className="topic-pills" aria-label="Sugestões de temas investigativos">
+    {SAMPLE_TOPICS.map((item, idx) => (
+      <button
+        key={idx}
+        type="button"
+        className="topic-pill"
+        onClick={() => onSelect(item.title)}
+        title={item.description}
+      >
+        {item.title}
+      </button>
+    ))}
+  </div>
+);

@@ -313,6 +313,9 @@ export interface PipelineStatusResumo {
   total_pontos: number;
   pontos: PipelinePontoResumo[];
   tem_dossier: boolean;
+  tokens_prompt?: number | null;
+  tokens_completion?: number | null;
+  tokens_total?: number | null;
 }
 
 export interface ResearchHistoryRecord {

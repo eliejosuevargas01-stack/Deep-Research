@@ -718,6 +718,48 @@
   margin-top: 10px;
 }
 
+/* Pílulas de tema: abaixo do compositor, compactas e alinhadas ao centro. */
+.topic-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 760px;
+  margin: 10px auto 0;
+  padding: 0 16px;
+}
+
+.topic-pill {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 18%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  color: var(--color-text-secondary);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.topic-pill:hover,
+.topic-pill:focus-visible {
+  color: var(--color-text-primary);
+  border-color: color-mix(in srgb, var(--color-accent, var(--violet)) 55%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+}
+
+@media (max-width: 640px) {
+  .topic-pills {
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .topic-pill {
+    padding: 6px 11px;
+    font-size: 0.78125rem;
+  }
+}
+
 .empty-state-pills {
   display: flex;
   flex-wrap: wrap;
@@ -1011,4 +1053,16 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+}
+
+/* Home: o compositor fica na base da janela e o topo permanece livre. */
+.workspace-main:has(.empty-state) {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.workspace-main:has(.empty-state) .composer-anchor {
+  margin-top: auto;
 }

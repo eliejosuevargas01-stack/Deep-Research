@@ -18,6 +18,7 @@ interface ContextSidebarProps {
     criteriosMinimos?: number | null;
   } | null;
   metadadosModelo?: ModeloMetadados | null;
+  tokensAoVivo?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null;
   fontes?: FonteExplorerItem[] | null;
   searchResult?: SearchResponse | null;
   fontesAtivas?: boolean;
@@ -119,6 +120,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   collectedPoints,
   auditSummary,
   metadadosModelo,
+  tokensAoVivo,
   fontes,
   searchResult,
   fontesAtivas,
@@ -315,7 +317,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
           {renderTab('fontes', 'Fontes', itensFontes.length)}
         </div>
 
-        <TokenUsageMeter metadados={metadadosModelo ?? plan?.metadados_modelo ?? null} />
+        <TokenUsageMeter metadados={metadadosModelo ?? plan?.metadados_modelo ?? null} aoVivo={tokensAoVivo ?? null} />
 
         {/* Contrato E2E: `.context-sidebar .status-badge-container > .status-badge-chip`
             precisa existir e estar visível nos dois modos. */}

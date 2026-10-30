@@ -90,3 +90,41 @@ hr.divider {
 .tool-call-pill span {
   color: var(--color-text-primary);
 }
+
+/* Placeholder do tema claro: #757575 sobre #f7f5f1 dava 4.2:1. */
+:root[data-theme='light'] input::placeholder,
+:root[data-theme='light'] textarea::placeholder,
+:root:not([data-theme='dark']) input::placeholder,
+:root:not([data-theme='dark']) textarea::placeholder {
+  color: #5c5c5c;
+  opacity: 1;
+}
+
+/* Escala final dos cards de raciocínio: o refit encolhia título e metadados. */
+.reasoning-card-title {
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.reasoning-card-preview {
+  font-size: 1rem;
+}
+
+.reasoning-card-stats,
+.reasoning-agent-badge,
+.reasoning-card-meta {
+  font-size: 0.8125rem;
+}
+
+.reasoning-card-body {
+  padding: 14px 18px 18px;
+}
+
+.reasoning-card .reasoning-card-title {
+  font-size: 20px;
+}
+
+.reasoning-card .reasoning-agent-badge,
+.reasoning-card .reasoning-card-stats {
+  font-size: 13px;
+}

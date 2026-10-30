@@ -6,7 +6,7 @@ import { BottomDock } from './components/BottomDock';
 import { MobileTabBar } from './components/MobileTabBar';
 import { QuickSheet } from './components/QuickSheet';
 import { Composer, ComposerHandle } from './components/Composer';
-import { EmptyState } from './components/EmptyState';
+import { EmptyState, TopicPills } from './components/EmptyState';
 import { PlanningView } from './components/PlanningView';
 import { PlanView } from './components/PlanView';
 import { ExecutionView, PipelineStage } from './components/ExecutionView';
@@ -1053,6 +1053,41 @@ export const App: React.FC = () => {
 
   // Passo 5: consulta sob demanda do job assíncrono — sem abrir SSE.
   const [asyncStatus, setAsyncStatus] = useState<PipelineStatusResumo | null>(null);
+
+  // Telemetria ao vivo: o SSE não carrega tokens, então consultamos o status
+  // enquanto o pipeline roda. 3s basta para o número parecer contínuo.
+  const [tokensAoVivo, setTokensAoVivo] = useState<{
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!activeResearchId || !isExecuting) return;
+    let cancelado = false;
+    const consultar = async () => {
+      try {
+        const s = await api.getPipelineStatus(activeResearchId);
+        if (cancelado) return;
+        const total = Number(s.tokens_total ?? 0);
+        if (total > 0) {
+          setTokensAoVivo({
+            prompt_tokens: Number(s.tokens_prompt ?? 0),
+            completion_tokens: Number(s.tokens_completion ?? 0),
+            total_tokens: total,
+          });
+        }
+      } catch {
+        /* status é acessório: falhar aqui não muda a tela */
+      }
+    };
+    void consultar();
+    const timer = setInterval(consultar, 3000);
+    return () => {
+      cancelado = true;
+      clearInterval(timer);
+    };
+  }, [activeResearchId, isExecuting]);
   const [asyncConsultando, setAsyncConsultando] = useState(false);
   const [asyncStatusErro, setAsyncStatusErro] = useState<string | null>(null);
 
@@ -1324,7 +1359,7 @@ export const App: React.FC = () => {
               />
             ) : !currentPlan && !writerResult && pipelineStage === 'idle' ? (
               /* Estado Vazio de Nova Pesquisa */
-              <EmptyState onSelectTopic={handleSelectTopicSuggestion} />
+              <EmptyState />
             ) : (
               /* Grid de Trabalho: 2 colunas com Sidebar quando há plano real; 1 coluna quando sem plano */
               <div className={`workspace-grid ${!currentPlan ? 'single-column' : ''}`} ref={workspaceRef}>
@@ -1456,6 +1491,7 @@ export const App: React.FC = () => {
                         : null
                     }
                     metadadosModelo={currentPlan.metadados_modelo ?? null}
+                    tokensAoVivo={tokensAoVivo}
                     searchResult={searchResult}
                     fontesAtivas={pipelineStage === 'searching' || pipelineStage === 'auditing'}
                     pontosReprovados={
@@ -1511,6 +1547,9 @@ export const App: React.FC = () => {
                   : 'Descreva um novo tema de pesquisa (ex: O futuro da matriz energética no Brasil)...'
               }
             />
+            )}
+            {!isPlanning && !isExecuting && !currentPlan && !writerResult && pipelineStage === 'idle' && (
+              <TopicPills onSelect={handleSelectTopicSuggestion} />
             )}
 
             {!isPlanning && !isExecuting && (

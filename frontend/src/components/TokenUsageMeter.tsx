@@ -19,10 +19,14 @@ export function formatCompactTokens(n: unknown): string {
 
 interface TokenUsageMeterProps {
   metadados?: ModeloMetadados | null;
+  aoVivo?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null;
 }
 
-export const TokenUsageMeter: React.FC<TokenUsageMeterProps> = ({ metadados }) => {
-  const usage = metadados?.usage_total ?? null;
+export const TokenUsageMeter: React.FC<TokenUsageMeterProps> = ({ metadados, aoVivo }) => {
+  const usage =
+    aoVivo && aoVivo.total_tokens > 0
+      ? { prompt_tokens: aoVivo.prompt_tokens, completion_tokens: aoVivo.completion_tokens, total_tokens: aoVivo.total_tokens }
+      : metadados?.usage_total ?? null;
   const total = typeof usage?.total_tokens === 'number' ? usage.total_tokens : 0;
 
   if (!usage || !(total > 0)) {
