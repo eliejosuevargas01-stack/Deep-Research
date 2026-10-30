@@ -227,13 +227,20 @@ export function DeepResearchCharacters({
     time: 0
   });
 
-  // Loop de física 60fps
+  // Loop de física: ~30fps, sem redesenhar quando o alvo já foi alcançado.
+  const fisicaRef = useRef({ ultimo: 0, mx: 520, my: 140, start: performance.now() });
   useEffect(() => {
     let rafId;
-    const start = performance.now();
+    fisicaRef.current.start = performance.now();
 
     const tick = (now) => {
-      const elapsed = (now - start) / 1000;
+      const inicio = fisicaRef.current.start;
+      const elapsed = (now - inicio) / 1000;
+      if (now - fisicaRef.current.ultimo < 33) {
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+      fisicaRef.current.ultimo = now;
 
       let targetX = targetMouse.current.x;
       let targetY = targetMouse.current.y;
@@ -255,14 +262,20 @@ export function DeepResearchCharacters({
         targetY = 175;
       }
 
-      smoothMouse.current.x += (targetX - smoothMouse.current.x) * 0.14;
-      smoothMouse.current.y += (targetY - smoothMouse.current.y) * 0.14;
+      smoothMouse.current.x += (targetX - smoothMouse.current.x) * 0.18;
+      smoothMouse.current.y += (targetY - smoothMouse.current.y) * 0.18;
 
-      setRenderState({
-        mx: smoothMouse.current.x,
-        my: smoothMouse.current.y,
-        time: elapsed
-      });
+      const dx = Math.abs(smoothMouse.current.x - fisicaRef.current.mx);
+      const dy = Math.abs(smoothMouse.current.y - fisicaRef.current.my);
+      if (dx > 0.15 || dy > 0.15) {
+        fisicaRef.current.mx = smoothMouse.current.x;
+        fisicaRef.current.my = smoothMouse.current.y;
+        setRenderState({
+          mx: smoothMouse.current.x,
+          my: smoothMouse.current.y,
+          time: elapsed
+        });
+      }
 
       rafId = requestAnimationFrame(tick);
     };
@@ -271,17 +284,27 @@ export function DeepResearchCharacters({
     return () => cancelAnimationFrame(rafId);
   }, [isTyping, typingProgress, phase]);
 
-  const handlePointerMove = (e) => {
-    if (!svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const scaleX = 1020 / rect.width;
-    const scaleY = 290 / rect.height;
-    targetMouse.current = {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
-      inside: true
+  // A seta conta em qualquer ponto da tela: o olhar vai até a borda do desenho.
+  useEffect(() => {
+    const aoMover = (e) => {
+      if (!svgRef.current) return;
+      const rect = svgRef.current.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const x = (e.clientX - rect.left) * (1020 / rect.width);
+      const y = (e.clientY - rect.top) * (290 / rect.height);
+      const dentro = e.clientX >= rect.left && e.clientX <= rect.right
+        && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      targetMouse.current = {
+        x: clamp(x, -220, 1240),
+        y: clamp(y, -120, 410),
+        inside: dentro,
+      };
     };
-  };
+    window.addEventListener('pointermove', aoMover, { passive: true });
+    return () => window.removeEventListener('pointermove', aoMover);
+  }, []);
+
+  const handlePointerMove = () => undefined;
 
   const handlePointerLeave = () => {
     targetMouse.current.inside = false;
@@ -307,7 +330,7 @@ export function DeepResearchCharacters({
     const dx = renderState.mx - charX;
     const dy = renderState.my - charY;
     const dist = Math.hypot(dx, dy) || 1;
-    const factor = clamp(dist / 220, 0, 1);
+    const factor = clamp(dist / 150, 0, 1);
     return {
       ox: (dx / dist) * maxDx * factor,
       oy: (dy / dist) * maxDy * factor,
@@ -462,7 +485,7 @@ export function DeepResearchCharacters({
         const look = getLookVector(105, 138, 5, 3.5);
         const bob = Math.sin(time * 2.1) * 2.2;
         const isHovered = hoveredPersona === 'planejador';
-        const headTilt = clamp(look.ox * 1.2 - 4, -10, 8);
+        const headTilt = clamp(look.ox * 1.9 - 4, -13, 10);
         const hatLift = hatTipActive || isHovered ? -7 : 0;
         const hatRotate = hatTipActive ? -14 : isHovered ? -5 : -2;
 
@@ -566,7 +589,7 @@ export function DeepResearchCharacters({
                   strokeLinecap="round"
                 />
 
-                <g transform={`translate(${look.ox * 0.55}, ${look.oy * 0.45})`}>
+                <g transform={`translate(${look.ox * 0.55}, ${look.oy * 0.8})`}>
                   <circle
                     cx="-6.5"
                     cy="-2"
@@ -589,8 +612,8 @@ export function DeepResearchCharacters({
                   <line x1="-9" y1="-5" x2="-6" y2="-6" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
                   <line x1="5" y1="-5" x2="8" y2="-6" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
 
-                  <circle cx={-6.5 + look.ox * 0.45} cy={-2 + look.oy * 0.45} r="2.1" fill={ui.strokeMain} />
-                  <circle cx={7.5 + look.ox * 0.45} cy={-2 + look.oy * 0.45} r="2.1" fill={ui.strokeMain} />
+                  <circle cx={-6.5 + look.ox * 0.8} cy={-2 + look.oy * 0.8} r="2.1" fill={ui.strokeMain} />
+                  <circle cx={7.5 + look.ox * 0.8} cy={-2 + look.oy * 0.8} r="2.1" fill={ui.strokeMain} />
 
                   <line x1="-12" y1="-5.5" x2="-1" y2="-5.5" stroke={ui.headFill} strokeWidth="2.2" />
                 </g>
@@ -702,8 +725,8 @@ export function DeepResearchCharacters({
                 <circle cx="0" cy="0" r="20" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="3" />
                 <path d="M -18 -12 Q 0 -24 19 -11 Z" fill="#78350f" stroke="#451a03" strokeWidth="1.5" />
 
-                <circle cx={-6 + look.ox * 0.7} cy={-2 + look.oy * 0.7} r="2.1" fill={ui.strokeMain} />
-                <circle cx={6 + look.ox * 0.7} cy={-2 + look.oy * 0.7} r="2.3" fill={ui.strokeMain} />
+                <circle cx={-6 + look.ox * 0.9} cy={-2 + look.oy * 0.8} r="2.1" fill={ui.strokeMain} />
+                <circle cx={6 + look.ox * 0.9} cy={-2 + look.oy * 0.8} r="2.3" fill={ui.strokeMain} />
                 <circle cx={6 + look.ox * 0.5} cy={-2 + look.oy * 0.5} r="6.2" fill="none" stroke="#fbbf24" strokeWidth="1.8" />
                 <path d="M 11 2 Q 14 12 8 18" stroke="#fbbf24" strokeWidth="1.2" fill="none" strokeDasharray="1.5 1.5" />
 
@@ -1452,10 +1475,10 @@ export function DeepResearchCharacters({
                   strokeLinecap="round"
                 />
 
-                <circle cx={-6 + look.ox * 0.7} cy={-2 + look.oy * 0.7} r="2.6" fill={ui.strokeMain} />
-                <circle cx={6 + look.ox * 0.7} cy={-2 + look.oy * 0.7} r="2.6" fill={ui.strokeMain} />
-                <circle cx={-7 + look.ox * 0.7} cy={-3 + look.oy * 0.7} r="1" fill="#ffffff" />
-                <circle cx={5 + look.ox * 0.7} cy={-3 + look.oy * 0.7} r="1" fill="#ffffff" />
+                <circle cx={-6 + look.ox * 0.9} cy={-2 + look.oy * 0.8} r="2.6" fill={ui.strokeMain} />
+                <circle cx={6 + look.ox * 0.9} cy={-2 + look.oy * 0.8} r="2.6" fill={ui.strokeMain} />
+                <circle cx={-7 + look.ox * 0.9} cy={-3 + look.oy * 0.8} r="1" fill="#ffffff" />
+                <circle cx={5 + look.ox * 0.9} cy={-3 + look.oy * 0.8} r="1" fill="#ffffff" />
 
                 <circle cx="-12" cy="4" r="3" fill="#34d399" opacity="0.28" />
                 <circle cx="12" cy="4" r="3" fill="#34d399" opacity="0.28" />
