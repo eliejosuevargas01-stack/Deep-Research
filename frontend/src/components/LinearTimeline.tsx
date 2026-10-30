@@ -334,11 +334,11 @@ const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
 }) => {
   const reprovado = auditoria.status === 'reprovado';
   const reprovados: AuditCriterionDetail[] = auditoria.criterios?.filter((c) => !c.aprovado) ?? [];
-  const motivo = reprovados[0]?.justificativa?.trim() || 'critérios não atendidos';
+  const motivo = (reprovados[0]?.justificativa?.trim() || 'critérios não atendidos').replace(/[.;]+$/, '');
   const percentual = Math.round(auditoria.pontuacao_percentual ?? 0);
   const frase = reprovado
-    ? `reprovou o ponto ${pontoN}: ${motivo} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos}). Reenviado.`
-    : `aprovou o ponto número ${pontoN} (${percentual}% × ${auditoria.criterios_aprovados}/${minimos})`;
+    ? `reprovou o ponto ${pontoN} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos}). Motivo: ${motivo}. Nova busca em andamento.`
+    : `aprovou o ponto ${pontoN} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos})`;
 
   const acoes =
     reprovado && (onRefazerBuscaPonto || onReauditarPonto) ? (
@@ -583,7 +583,7 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
               resumo={
                 auditResult.pronto_para_writer
                   ? 'pesquisa aprovada, gerando o relatório final'
-                  : `${auditResult.aprovados} de ${auditResult.total_pontos} pontos aprovados. A redação espera os demais.`
+                  : `${auditResult.aprovados} de ${auditResult.total_pontos} pontos aprovados. A redação começa quando todos passarem.`
               }
             />
           </div>

@@ -28,6 +28,7 @@ import { PlanHarness } from './dev/PlanHarness';
 import { api, RIGOR_PADRAO, normalizarRigor, validarCallbackUrl } from './services/api';
 import { historyService } from './services/history';
 import { apresentarErro } from './utils/erros';
+import { rotuloStatus } from './utils/texto';
 import {
   AuditResponse,
   PipelineStatusResumo,
@@ -562,7 +563,7 @@ export const App: React.FC = () => {
           timestamp: plan.criado_em || new Date().toISOString(),
           agentType: 'planejador',
           agentName: 'Planejador',
-          title: 'Planejamento e Decomposição em Eixos Canônicos',
+          title: 'Planejamento: o tema vira pontos',
           reasoning:
             plan.reasoning_planejamento ||
             (plan.plano_estruturado
@@ -705,7 +706,7 @@ export const App: React.FC = () => {
                       timestamp: new Date().toISOString(),
                       agentType: 'busca',
                       agentName: formatPersonaTitle(p.persona),
-                      title: `Persona ${formatPersonaTitle(p.persona)} — Ponto ${rc.ponto_n}`,
+                      title: `Persona ${formatPersonaTitle(p.persona)} · Ponto ${rc.ponto_n}`,
                       reasoning: p.reasoning,
                       status: p.falha_coleta ? 'falha' : 'concluido',
                     });
@@ -745,7 +746,7 @@ export const App: React.FC = () => {
                   timestamp: new Date().toISOString(),
                   agentType: 'auditor',
                   agentName: 'Auditor Analítico',
-                  title: `Auditoria de 12 Critérios — Ponto ${aud.ponto_n} (Ciclo ${ciclo})`,
+                  title: `Auditoria · Ponto ${aud.ponto_n} (Ciclo ${ciclo})`,
                   reasoning: rText,
                   status: aud.status,
                   score: aud.pontuacao_percentual,
@@ -811,7 +812,7 @@ export const App: React.FC = () => {
             timestamp: new Date().toISOString(),
             agentType: 'redator',
             agentName: 'Redator Final',
-            title: 'Síntese Executiva e Redação do Dossiê',
+            title: 'Redação do dossiê',
             reasoning: wRes.reasoning_dossier,
             status: wRes.status,
           });
@@ -836,7 +837,7 @@ export const App: React.FC = () => {
         setFailedStage('writing');
         if (!hasDossier) {
           setExecutionError(
-            wRes.diagnostico || 'O redator retornou sem o conteúdo textual do dossiê final.'
+            wRes.diagnostico || 'O dossiê voltou vazio. Tente de novo.'
           );
         }
       }
@@ -871,7 +872,7 @@ export const App: React.FC = () => {
       agentName: 'Planejador',
       title: 'Planejador: abrindo a varredura',
       reasoning:
-        'Distribuindo os pontos analíticos entre as personas ativas e preparando as consultas web. O primeiro evento de cada persona aparece aqui assim que a coleta começa.',
+        'Distribuindo os pontos entre as personas e preparando as buscas. Cada persona aparece aqui assim que começa.',
       status: 'streaming',
     });
     setCycleNumber(1);
@@ -1026,7 +1027,7 @@ export const App: React.FC = () => {
       setWriterResult(null);
       if (record.status === 'reprovado') {
         setPipelineStage('rejected');
-        setExecutionError('Pesquisa reprovada na auditoria técnica de qualidade.');
+        setExecutionError('A auditoria reprovou esta pesquisa.');
       } else if (record.status === 'falha') {
         setPipelineStage('failed');
         setExecutionError('Falha registrada no histórico.');
@@ -1256,17 +1257,17 @@ export const App: React.FC = () => {
                       </p>
                       <dl className="async-confirm-list">
                         <div>
-                          <dt>pipeline_id</dt>
+                          <dt>ID da pesquisa</dt>
                           <dd><code>{currentPlan.id_pesquisa}</code></dd>
                         </div>
                         <div>
-                          <dt>callback</dt>
+                          <dt>Entrega</dt>
                           <dd><code>{currentPlan.preferencias?.callback_url || '—'}</code></dd>
                         </div>
                         {asyncStatus && (
                           <div>
-                            <dt>andamento</dt>
-                            <dd>{`● ${asyncStatus.status_pipeline} · ${asyncStatus.pontos.filter((p) => p.status === 'aprovado' || p.status === 'coletado').length}/${asyncStatus.total_pontos}`}</dd>
+                            <dt>Andamento</dt>
+                            <dd>{`● ${rotuloStatus(asyncStatus.status_pipeline)} · ${asyncStatus.pontos.filter((p) => p.status === 'aprovado' || p.status === 'coletado').length}/${asyncStatus.total_pontos}`}</dd>
                           </div>
                         )}
                       </dl>

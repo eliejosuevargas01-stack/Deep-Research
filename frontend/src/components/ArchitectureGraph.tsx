@@ -24,7 +24,7 @@ const NODES: GraphNode[] = [
     label: 'Plano',
     caption: 'N pontos',
     detail:
-      'O tema vira um plano com pontos analíticos e critérios de aprovação. Cada ponto é uma pergunta que pode ser reprovada — não um tópico decorativo.',
+      'O tema vira um plano com pontos e critérios de aprovação. Cada ponto é uma pergunta que pode ser reprovada, não um tópico decorativo.',
     metric: '1 endpoint · N pontos',
   },
   {
@@ -32,7 +32,7 @@ const NODES: GraphNode[] = [
     label: 'Busca',
     caption: 'personas',
     detail:
-      'As personas investigam em paralelo ou em sequência, cada uma com suas queries. O resultado é coletado por ponto, com a rodada de retries preservada para a auditoria.',
+      'As personas investigam em paralelo ou em sequência, cada uma com suas buscas. O resultado fica separado por ponto e as tentativas ficam registradas para a auditoria.',
     metric: '4 personas · rodadas de retry',
   },
   {
@@ -40,7 +40,7 @@ const NODES: GraphNode[] = [
     label: 'Auditoria',
     caption: '12 crit.',
     detail:
-      'Cada ponto é julgado contra critérios com nota. Abaixo do limiar, o ciclo volta para a busca com o motivo da reprovação; acima, segue para a redação.',
+      'Cada ponto é julgado nos 12 critérios. Abaixo do limiar, o ciclo volta para a busca com o motivo; acima, segue para a redação.',
     metric: 'limiar 11/12 · até 3 auditorias',
   },
   {
@@ -48,7 +48,7 @@ const NODES: GraphNode[] = [
     label: 'Redação',
     caption: 'fontes',
     detail:
-      'O redator escreve apenas com evidência aprovada, marcando a origem de cada afirmação e mantendo a rastreabilidade até a URL canônica.',
+      'O redator só usa evidência aprovada. Cada afirmação leva a fonte, até a URL original.',
     metric: '1 dossiê · fontes por afirmação',
   },
   {

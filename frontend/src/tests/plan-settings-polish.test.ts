@@ -166,12 +166,12 @@ async function runPlanSettingsPolishTests() {
   );
 
   assert.ok(
-    htmlSettings.includes('Adendo 002'),
-    'SettingsView deve referenciar explicitamente o Adendo 002'
+    htmlSettings.includes('Qual valor vale'),
+    'SettingsView deve explicar qual valor tem precedência'
   );
   assert.ok(
-    htmlSettings.includes('Banco Cifrado possui prioridade sobre o ambiente'),
-    'SettingsView deve informar que Banco Cifrado > Ambiente'
+    htmlSettings.includes('tem prioridade'),
+    'SettingsView deve informar que o valor salvo vence o ambiente'
   );
   assert.ok(
     htmlSettings.includes('CREDENTIALS_MASTER_KEY'),

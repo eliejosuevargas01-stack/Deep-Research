@@ -46,7 +46,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
 
   // Copy do prompt: estado vazio explica o formato; estados de erro dizem
   // exatamente quanto falta ou quanto sobra, sem repetir a mesma frase.
-  let helperMessage = 'Do tema ao plano em um passo. Enter planeja; Shift+Enter abre nova linha; 5 a 500 caracteres.';
+  let helperMessage = 'Enter planeja. Shift+Enter abre nova linha. De 5 a 500 caracteres.';
   let helperClass = 'helper-info';
   if (length > 0 && length < 5) {
     helperMessage = `Faltam ${5 - length} ${5 - length === 1 ? 'caractere' : 'caracteres'} para o mínimo de 5 (limite: 500). Shift+Enter abre nova linha.`;
@@ -152,7 +152,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
 
           <span
             className={`composer-counter ${length > 500 || (length > 0 && length < 5) ? 'invalid' : ''}`}
-            title="O tema deve conter entre 5 e 500 caracteres"
+            title="O tema precisa ter de 5 a 500 caracteres."
             aria-hidden="true"
           >
             {length}/500
@@ -207,7 +207,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
             aria-keyshortcuts="Enter"
             title={
               isSubmitting
-                ? 'Processando plano...'
+                ? 'Montando o plano…'
                 : !isValid
                 ? 'Digite entre 5 e 500 caracteres para planejar'
                 : 'Enviar tema para elaboração de plano (Enter)'

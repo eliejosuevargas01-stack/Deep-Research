@@ -3,7 +3,7 @@ import { History, Trash2, ExternalLink, Calendar, Hash, AlertCircle, FileText, P
 import { PipelineStatusResumo, ResearchHistoryRecord } from '../types/api';
 import { api } from '../services/api';
 import { ErrorNotice } from './ErrorNotice';
-import { formatarTitulo } from '../utils/texto';
+import { formatarTitulo, rotuloStatus } from '../utils/texto';
 
 interface HistoryViewProps {
   records: ResearchHistoryRecord[];
@@ -255,24 +255,15 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                       const concluidos = vivo.pontos.filter(
                         (p) => p.status === 'aprovado' || p.status === 'coletado'
                       ).length;
-                      const rotuloEtapa: Record<string, string> = {
-                        planejado: 'Planejado',
-                        buscando: 'Buscando',
-                        auditando: 'Auditando',
-                        redigindo: 'Redigindo',
-                        concluido: 'Concluído',
-                        reprovado: 'Reprovado',
-                        falha: 'Falhou',
-                      };
                       return (
                         <>
                           <span>•</span>
                           <span
                             style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                            title={`Estágio atual no servidor: ${vivo.status_pipeline} (${vivo.total_pontos} pontos)`}
+                            title={`Etapa no servidor: ${rotuloStatus(vivo.status_pipeline)} (${vivo.total_pontos} pontos)`}
                           >
                             <span aria-hidden="true">●</span>
-                            {`${rotuloEtapa[vivo.status_pipeline] ?? vivo.status_pipeline} · ${concluidos}/${vivo.total_pontos}`}
+                            {`${rotuloStatus(vivo.status_pipeline)} · ${concluidos}/${vivo.total_pontos}`}
                           </span>
                         </>
                       );

@@ -457,7 +457,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="alert-banner info" style={{ marginBottom: '16px' }}>
           <Info size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
           <div style={{ fontSize: '14px' }}>
-            <strong>Qual valor vale:</strong> o que está salvo aqui vence o .env. Sem valor salvo, vale o .env. A
+            <strong>Qual valor vale:</strong> o que está salvo aqui tem prioridade. Campo vazio usa o .env. A
             chave-mestra <code>CREDENTIALS_MASTER_KEY</code> fica só no ambiente.
           </div>
         </div>
@@ -677,7 +677,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 id="webhook-secret"
                 type="password"
                 className="form-input"
-                placeholder="Segredo HMAC-SHA256..."
+                placeholder="Cole o segredo do webhook…"
                 value={formData.WEBHOOK_HMAC_SECRET}
                 onChange={(e) => handleFieldChange('WEBHOOK_HMAC_SECRET', e.target.value)}
                 autoComplete="off"

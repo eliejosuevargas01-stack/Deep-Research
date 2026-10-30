@@ -79,7 +79,7 @@ export function getAuditContextualLabel(
       isPriorCycle: currentStage === 'searching',
       bannerText:
         currentStage === 'searching'
-          ? 'Exibindo parecer da última auditoria disponível enquanto a nova busca está em andamento.'
+          ? 'Mostrando a auditoria anterior enquanto a nova busca roda.'
           : undefined,
     };
   }
@@ -87,16 +87,16 @@ export function getAuditContextualLabel(
   if (currentCycle > auditCycle) {
     if (currentStage === 'searching') {
       return {
-        heading: `Auditoria do ciclo ${auditCycle} — revisão em andamento no ciclo ${currentCycle}`,
+        heading: `Auditoria do ciclo ${auditCycle}: revisão no ciclo ${currentCycle}`,
         isPriorCycle: true,
-        bannerText: `Auditoria do ciclo ${auditCycle} reprovada. Nova busca em andamento no ciclo ${currentCycle} para enriquecer evidências e superar os apontamentos abaixo.`,
+        bannerText: `Auditoria do ciclo ${auditCycle} reprovada. Nova busca no ciclo ${currentCycle} para reforçar as evidências e responder aos apontamentos abaixo.`,
       };
     }
     if (currentStage === 'auditing') {
       return {
-        heading: `Auditoria anterior (ciclo ${auditCycle}) — nova auditoria em andamento no ciclo ${currentCycle}`,
+        heading: `Auditoria anterior (ciclo ${auditCycle}): nova auditoria no ciclo ${currentCycle}`,
         isPriorCycle: true,
-        bannerText: `Avaliando novos dados do ciclo ${currentCycle}. O parecer abaixo refere-se ao ciclo anterior (${auditCycle}).`,
+        bannerText: `Avaliando os dados do ciclo ${currentCycle}. O parecer abaixo é do ciclo ${auditCycle}.`,
       };
     }
     return {
@@ -107,7 +107,7 @@ export function getAuditContextualLabel(
 
   if (currentStage === 'writing') {
     return {
-      heading: `Auditoria do ciclo ${auditCycle} (Aprovada)`,
+      heading: `Auditoria do ciclo ${auditCycle}: aprovada`,
       isPriorCycle: false,
     };
   }
@@ -127,15 +127,15 @@ export function getSuccinctStatus(
 ): string {
   switch (stage) {
     case 'searching':
-      return `Ciclo ${cycleNumber} de ${maxCycles}: Coleta e varredura web em andamento.`;
+      return `Ciclo ${cycleNumber} de ${maxCycles}: coletando e varrendo a web.`;
     case 'auditing':
-      return `Ciclo ${cycleNumber} de ${maxCycles}: Auditoria dos 12 critérios em andamento.`;
+      return `Ciclo ${cycleNumber} de ${maxCycles}: auditando os 12 critérios.`;
     case 'writing':
-      return 'Redigindo o dossiê analítico final.';
+      return 'Redigindo o dossiê final.';
     case 'completed':
       return 'Investigação concluída. Dossiê pronto.';
     case 'rejected':
-      return 'Investigação bloqueada na auditoria de qualidade: limiar mínimo de critérios não atendido.';
+      return 'A auditoria barrou a investigação: os pontos não atingiram o mínimo de critérios.';
     case 'failed': {
       const stageLabel =
         failedStage === 'searching'
@@ -291,7 +291,7 @@ const BannerPontosPendentes: React.FC<{
           <div key={ponto.ponto_id} className="exec-ponto-pendencia" data-ponto-id={ponto.ponto_id}>
             <p className="execution-subheading">
               {ponto.criterios_aprovados !== null && ponto.criterios_minimos !== null
-                ? `Ponto ${ponto.ponto_n} — ${ponto.criterios_aprovados}/${ponto.criterios_minimos} critérios atendidos`
+                ? `Ponto ${ponto.ponto_n} · ${ponto.criterios_aprovados}/${ponto.criterios_minimos} critérios`
                 : `Ponto ${ponto.ponto_n}`}
             </p>
             {ponto.naoCumpridos.length > 0 && (
@@ -592,8 +592,8 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
           <div className="execution-banner-body">
             <strong>A auditoria barrou o dossiê</strong>
             <p className="execution-banner-copy">
-              Nenhum ponto chegou a 11 de 12 critérios depois das tentativas. O dossiê não foi escrito porque os
-              dados não passaram no crivo. Refazer a busca dos pontos abaixo é o caminho mais curto para liberar.
+              Nenhum ponto chegou a 11 de 12 critérios depois das tentativas. O dossiê não foi escrito.
+              Refazer a busca dos pontos abaixo é o caminho mais curto para liberar.
             </p>
             {auditResult?.auditorias?.some((a) => (a.criterios ?? []).some((c) => !c.aprovado)) && (
               <BannerPontosPendentes

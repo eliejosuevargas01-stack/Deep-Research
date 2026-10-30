@@ -121,7 +121,7 @@ export const QuickSheet: React.FC<QuickSheetProps> = ({
             <Settings2 size={17} aria-hidden="true" />
             <span>
               Configurações completas
-              <small>Chaves, provedores e parâmetros do pipeline</small>
+              <small>Chaves e parâmetros da pesquisa</small>
             </span>
           </button>
 

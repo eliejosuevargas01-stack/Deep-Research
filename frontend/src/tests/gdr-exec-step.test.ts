@@ -93,9 +93,9 @@ const htmlRejected = renderToString(
   } as any)
 );
 assert.ok(htmlRejected.includes('exec-error-card'), 'rejected usa exec-error-card');
-assert.ok(htmlRejected.includes('Investigação bloqueada na auditoria de qualidade'), 'rejected preserva titulo do banner');
+assert.ok(htmlRejected.includes('A auditoria barrou a investigação'), 'rejected preserva titulo do banner');
 assert.ok(
-  htmlRejected.includes('Nem todos os pontos atingiram o limiar mínimo de 11/12 critérios'),
+  htmlRejected.includes('Nenhum ponto chegou a 11 de 12 critérios'),
   'rejected preserva texto explicativo'
 );
 assert.ok(htmlRejected.includes('gdr-criteria-pills'), 'rejected usa lista de pilulas existente');
@@ -130,14 +130,14 @@ const htmlFailed = renderToString(
   } as any)
 );
 assert.ok(htmlFailed.includes('exec-error-card'), 'failed usa exec-error-card');
-assert.ok(htmlFailed.includes('Tempo limite de execução excedido (Timeout):'), 'failed preserva titulo de timeout');
+assert.ok(htmlFailed.includes('A pesquisa passou do tempo limite'), 'failed mostra o titulo humano de timeout');
 assert.ok(htmlFailed.includes('Timeout ao consultar provedor (504)'), 'failed preserva mensagem do erro');
 assert.ok(htmlFailed.includes('gdr-criteria-pills'), 'failed exibe pilulas de criterios');
 assert.equal(contar(htmlFailed, 'class="gdr-criteria-pill"'), 5, 'failed aplica mesmo limite por ponto');
 assert.equal(contar(htmlFailed, '<span>Refazer busca</span>'), 2, 'failed exibe Refazer busca por ponto');
 assert.equal(contar(htmlFailed, '<span>Reauditar por ponto</span>'), 2, 'failed exibe Reauditar por ponto');
 assert.equal(contar(htmlFailed, '<span>Formular novo tema</span>'), 1, 'failed mantem acao secundaria');
-assert.ok(htmlFailed.includes('Tentar busca e auditoria novamente'), 'failed preserva texto do retry atual');
+assert.ok(htmlFailed.includes('Repetir busca e auditoria'), 'failed mantem o rotulo do retry');
 assert.ok(htmlFailed.includes('disabled=""'), 'ponto em reprocesso desabilita os botoes');
 
 // --- T3: failed sem parecer — pontos do plano como alvo, sem pilulas ---
@@ -166,6 +166,6 @@ assert.equal(
 );
 assert.equal(contar(htmlFailedSemAuditoria, '<span>Reauditar por ponto</span>'), 3, 'reauditoria por ponto disponivel');
 assert.equal(contar(htmlFailedSemAuditoria, '<span>Formular novo tema</span>'), 1, 'acao secundaria preservada');
-assert.ok(htmlFailedSemAuditoria.includes('Tentar auditoria novamente'), 'retry preserva texto por estagio');
+assert.ok(htmlFailedSemAuditoria.includes('Reauditar'), 'retry muda de rotulo por estagio');
 
 console.log('gdr-exec-step ok');

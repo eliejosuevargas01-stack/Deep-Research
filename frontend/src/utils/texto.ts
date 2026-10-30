@@ -28,3 +28,31 @@ export function formatarTitulo(texto: string): string {
     })
     .join(' ');
 }
+
+/**
+ * Nome em português para os estados que o servidor devolve.
+ * Evita vazar enum em inglês ou snake_case na tela.
+ */
+const ROTULOS_STATUS: Record<string, string> = {
+  planejado: 'Planejado',
+  agendado: 'Agendado',
+  pendente: 'Na fila',
+  iniciado: 'Iniciado',
+  buscando: 'Buscando',
+  coletando: 'Coletando',
+  coletado: 'Coleta concluída',
+  auditando: 'Auditando',
+  redigindo: 'Redigindo',
+  concluido: 'Concluído',
+  completo: 'Concluído',
+  aprovado: 'Aprovado',
+  reprovado: 'Reprovado',
+  parcial: 'Parcial',
+  falha: 'Falhou',
+  cancelado: 'Cancelado',
+};
+
+export function rotuloStatus(status?: string | null): string {
+  if (!status) return 'Sem andamento';
+  return ROTULOS_STATUS[status] ?? status;
+}

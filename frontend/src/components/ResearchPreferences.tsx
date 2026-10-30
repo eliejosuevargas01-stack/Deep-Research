@@ -5,19 +5,19 @@ import { RIGOR_MAXIMO, RIGOR_MINIMO, RIGOR_PADRAO, normalizarRigor, validarCallb
 
 export const ALL_PERSONAS = [
   { id: 'historiador', label: 'Historiador', desc: 'Antecedentes, precedentes e séries históricas' },
-  { id: 'visionario', label: 'Visionário', desc: 'Tendências emergentes e inovações de fronteira' },
+  { id: 'visionario', label: 'Visionário', desc: 'Novidades e tendências recentes' },
   { id: 'cetico', label: 'Cético', desc: 'Riscos, contra-evidências e pontos fracos' },
-  { id: 'futurista', label: 'Futurista', desc: 'Cenários prospectivos e impactos sistêmicos' },
+  { id: 'futurista', label: 'Futurista', desc: 'Cenários futuros e efeitos em cadeia' },
 ] as const;
 
 export const RECENCIA_OPCOES: Array<{ id: RecenciaPolitica; label: string; desc: string }> = [
-  { id: 'auto', label: 'Auto', desc: 'Estado mais recente, salvo recorte histórico do tema' },
-  { id: 'recente', label: 'Recente', desc: 'Força o estado atual da web' },
+  { id: 'auto', label: 'Auto', desc: 'O que há de mais recente, sem recorte histórico' },
+  { id: 'recente', label: 'Recente', desc: 'Só o que está no ar hoje' },
   { id: '24h', label: '24h', desc: 'Últimas 24 horas' },
   { id: '7d', label: '7d', desc: 'Últimos 7 dias' },
   { id: '30d', label: '30d', desc: 'Últimos 30 dias' },
   { id: '12m', label: '12m', desc: 'Últimos 12 meses' },
-  { id: 'historico', label: 'Histórico', desc: 'Preserva o recorte temporal do pedido' },
+  { id: 'historico', label: 'Histórico', desc: 'Mantém o período que você pediu' },
 ];
 
 export interface ResearchPreferencesProps {
@@ -321,7 +321,7 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
           </div>
         </div>
         <p className="preferences-hint">
-          {RECENCIA_OPCOES.find((o) => o.id === recencia)?.desc ?? 'Janela temporal exigida das evidências web.'}
+          {RECENCIA_OPCOES.find((o) => o.id === recencia)?.desc ?? 'Período aceito para as fontes.'}
         </p>
       </section>
 

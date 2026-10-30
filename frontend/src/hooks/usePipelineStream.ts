@@ -387,7 +387,7 @@ export function usePipelineStream(options: UsePipelineStreamOptions) {
             timestamp: new Date().toISOString(),
             agentType: 'busca',
             agentName: personaTitle,
-            title: `Persona ${personaTitle} — Varredura Web`,
+            title: `Persona ${personaTitle} · Busca`,
             reasoning: data.reasoning_coleta,
             status: data.falha_coleta ? 'falha' : 'concluido',
             details: {
@@ -415,7 +415,7 @@ export function usePipelineStream(options: UsePipelineStreamOptions) {
             timestamp: new Date().toISOString(),
             agentType: 'auditor',
             agentName: 'Auditor Analítico',
-            title: `Auditoria de 12 Critérios — Ponto ${data.ponto_n} (${data.criterios_aprovados}/12)`,
+            title: `Auditoria · Ponto ${data.ponto_n} (${data.criterios_aprovados}/12)`,
             reasoning: data.reasoning_auditoria,
             status: data.status,
             score: data.pontuacao_percentual,
@@ -444,7 +444,7 @@ export function usePipelineStream(options: UsePipelineStreamOptions) {
             timestamp: new Date().toISOString(),
             agentType: 'redator',
             agentName: 'Redator Final',
-            title: 'Síntese Executiva e Estruturação do Dossiê',
+            title: 'Redação do dossiê',
             reasoning: data.reasoning_dossier,
             status: data.status,
             details: {
@@ -504,7 +504,7 @@ export function usePipelineStream(options: UsePipelineStreamOptions) {
           }
         }, delay);
       } else {
-        setStreamError('Conexão de streaming interrompida após múltiplas tentativas.');
+        setStreamError('A conexão ao vivo caiu depois de várias tentativas.');
         closeConnection();
       }
     };

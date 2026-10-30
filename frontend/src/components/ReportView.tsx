@@ -9,7 +9,7 @@ import { api } from '../services/api';
 import { historyService } from '../services/history';
 import { ErrorNotice } from './ErrorNotice';
 import { SourceBreakdown } from './SourceBreakdown';
-import { formatarTitulo } from '../utils/texto';
+import { formatarTitulo, rotuloStatus } from '../utils/texto';
 
 interface ReportViewProps {
   report: WriterResponse;
@@ -56,7 +56,7 @@ export function verifySourcesBinding(
   sources: FontesResumo | null | undefined
 ): BindingVerificationResult {
   if (!sources) {
-    return { isValid: false, reason: 'Nenhum resumo de fontes fornecido.' };
+    return { isValid: false, reason: 'Este dossiê não traz resumo de fontes.' };
   }
 
   // 1. Validação estrita de ID da pesquisa
@@ -72,7 +72,7 @@ export function verifySourcesBinding(
   if (cleanPublished.length === 0) {
     return {
       isValid: false,
-      reason: 'Este registro contém apenas um resumo; não é possível confirmar os totais de fontes do relatório completo.',
+      reason: 'O registro guardou só um resumo, então os totais de fontes não podem ser conferidos.',
     };
   }
 
@@ -80,7 +80,7 @@ export function verifySourcesBinding(
   if (!localHash || localHash.trim().length === 0) {
     return {
       isValid: false,
-      reason: 'Falha no cálculo local de integridade do artefato publicado.',
+      reason: 'Não foi possível conferir a integridade do dossiê.',
     };
   }
 
@@ -218,7 +218,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
       if (cleanPublished.length === 0) {
         setIsMismatch(true);
         setMismatchNotice(
-          'Este registro contém apenas um resumo; não é possível confirmar os totais de fontes do relatório completo.'
+          'O registro guardou só um resumo, então os totais de fontes não podem ser conferidos.'
         );
         setVerifiedSources(null);
         setLoadingSources(false);
@@ -326,7 +326,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
     try {
       await navigator.clipboard.writeText(markdownText);
       setCopied(true);
-      setActionFeedback('Texto do dossiê copiado para a área de transferência.');
+      setActionFeedback('Dossiê copiado.');
       setTimeout(() => {
         setCopied(false);
         setActionFeedback(null);
@@ -345,7 +345,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
         return;
       }
       setCopied(true);
-      setActionFeedback('Texto do dossiê copiado para a área de transferência.');
+      setActionFeedback('Dossiê copiado.');
       setTimeout(() => {
         setCopied(false);
         setActionFeedback(null);
@@ -369,7 +369,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     setDownloaded(true);
-    setActionFeedback('Arquivo Markdown baixado.');
+    setActionFeedback('Arquivo .md baixado.');
     setTimeout(() => {
       setDownloaded(false);
       setActionFeedback(null);
@@ -439,12 +439,12 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
               {isComplete ? (
                 <>
                   <CheckCircle2 size={12} aria-hidden="true" />
-                  <span>Dossiê Concluído</span>
+                  <span>Dossiê concluído</span>
                 </>
               ) : (
                 <>
                   <AlertTriangle size={12} aria-hidden="true" />
-                  <span>Status: {report.status}</span>
+                  <span>Status: {rotuloStatus(report.status)}</span>
                 </>
               )}
             </span>
@@ -464,7 +464,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
             type="button"
             className="btn-secondary"
             onClick={handleCopy}
-            title="Copiar texto Markdown para a área de transferência"
+            title="Copiar Markdown"
           >
             {copied ? (
               <>
@@ -483,7 +483,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
             type="button"
             className="btn-secondary"
             onClick={handleDownload}
-            title="Baixar arquivo .md formatado"
+            title="Baixar .md"
           >
             {downloaded ? (
               <>
@@ -520,7 +520,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
       </div>
 
       {/* Corpo Formatado do Dossiê */}
-      <section className="markdown-body" aria-label="Conteúdo do dossiê analítico">
+      <section className="markdown-body" aria-label="Conteúdo do dossiê">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{

@@ -204,7 +204,7 @@ assert.ok(!html.includes('ver query'), 'nao existe mais o toggle de primeira que
 // --- Linha do auditor reprovando ---
 /* Contrato r3: persona e frase são nós separados na linha fechada
    (`Persona — frase`), e as ações de recuperação vivem no corpo. */
-const fraseAuditor = 'reprovou o ponto número 1 por tema difuso (50% × 6/11) — reenviado';
+const fraseAuditor = 'reprovou o ponto 1 (50% · 6/11). Motivo: tema difuso. Nova busca em andamento.';
 assert.ok(html.includes(fraseAuditor), 'linha do auditor preserva o formato e o primeiro critério');
 assert.ok(
   html.indexOf('>Auditor<') < html.indexOf(fraseAuditor),

@@ -223,15 +223,15 @@ Código inline: \`https://nao-deve-aparecer-inline.com\` e \`[outro inline](http
     'Deve rotular claramente "Consultadas mas não citadas:"'
   );
   assert.ok(
-    htmlCompleto.includes('Fontes Utilizadas no Dossiê'),
+    htmlCompleto.includes('Fontes citadas no dossiê'),
     'Deve conter o grupo expansível de fontes utilizadas'
   );
   assert.ok(
-    htmlCompleto.includes('Fontes Consultadas mas Não Citadas'),
+    htmlCompleto.includes('Consultadas, não citadas'),
     'Deve conter o grupo expansível de fontes não citadas'
   );
   assert.ok(
-    htmlCompleto.includes('Todas as Fontes Consultadas'),
+    htmlCompleto.includes('Consultadas com leitura confirmada'),
     'Deve conter o grupo de todas as fontes consultadas'
   );
   assert.ok(
@@ -287,7 +287,7 @@ Código inline: \`https://nao-deve-aparecer-inline.com\` e \`[outro inline](http
     'Deve exibir o badge "Legado / Indisponível" quando confirmado pelo backend'
   );
   assert.ok(
-    htmlIndisponivel.includes('Evidências brutas de leitura indisponíveis para este relatório'),
+    htmlIndisponivel.includes('Este relatório não guardou as leituras brutas'),
     'Deve explicar honestamente que evidências brutas não estão disponíveis'
   );
   assert.ok(
@@ -375,7 +375,7 @@ Código inline: \`https://nao-deve-aparecer-inline.com\` e \`[outro inline](http
     'ReportView deve renderizar o tema do relatório'
   );
   assert.ok(
-    htmlReport.includes('Dossiê Concluído'),
+    htmlReport.includes('Dossiê concluído'),
     'ReportView deve indicar status de conclusão'
   );
   assert.ok(
@@ -568,7 +568,7 @@ Código inline: \`https://nao-deve-aparecer-inline.com\` e \`[outro inline](http
   // Caso 3: Falha quando localHash for vazio (falha de digest criptográfico local)
   const resEmptyLocalHash = verifySourcesBinding('report-abc', 'Texto Publicado', '', validSources);
   assert.equal(resEmptyLocalHash.isValid, false, 'Deve rejeitar quando digest local for vazio');
-  assert.ok(resEmptyLocalHash.reason?.includes('Falha no cálculo local'));
+  assert.ok(resEmptyLocalHash.reason?.includes('Não foi possível conferir a integridade'));
 
   // Caso 4: Falha quando artifact_hash do servidor estiver ausente (mesmo se status for indisponivel)
   const sourcesNoHash: FontesResumo = {
@@ -615,7 +615,7 @@ Código inline: \`https://nao-deve-aparecer-inline.com\` e \`[outro inline](http
   );
   assert.equal(
     resEmptyPublishedWithForeignHash.reason,
-    'Este registro contém apenas um resumo; não é possível confirmar os totais de fontes do relatório completo.'
+    'O registro guardou só um resumo, então os totais de fontes não podem ser conferidos.'
   );
 
   const resBlankPublished = verifySourcesBinding('report-abc', '   ', 'some-hash', validSources);
@@ -626,7 +626,7 @@ Código inline: \`https://nao-deve-aparecer-inline.com\` e \`[outro inline](http
   );
   assert.equal(
     resBlankPublished.reason,
-    'Este registro contém apenas um resumo; não é possível confirmar os totais de fontes do relatório completo.'
+    'O registro guardou só um resumo, então os totais de fontes não podem ser conferidos.'
   );
 
   // =========================================================================

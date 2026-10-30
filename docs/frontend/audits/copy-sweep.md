@@ -48,7 +48,53 @@ base React; as strings nativas são só o nome do app.
   coluna. O nome do armazenamento é mais claro.
 - `ReportView.tsx:399` — `—` como marcador de valor ausente.
 
-## Evidência
+## Segunda onda: todos os arquivos
+
+Varredura completa depois do guia: 535 strings inventariadas em 31 arquivos
+(`tsx`/`ts`, sem testes nem dev harness), revisadas contra o texto que aparece na
+tela em 9 rotas × 1440/390. 24 arquivos de produção alterados.
+
+Padrões corrigidos além dos anteriores:
+
+| Antes | Depois |
+| --- | --- |
+| Pesquisa reprovada na auditoria técnica de qualidade. | A auditoria reprovou esta pesquisa. |
+| Planejamento e Decomposição em Eixos Canônicos | Planejamento: o tema vira pontos |
+| Síntese Executiva e Redação do Dossiê | Redação do dossiê |
+| Auditoria de 12 Critérios — Ponto 3 (Ciclo 2) | Auditoria · Ponto 3 (Ciclo 2) |
+| Exibindo parecer da última auditoria disponível enquanto a nova busca está em andamento. | Mostrando a auditoria anterior enquanto a nova busca roda. |
+| Investigação bloqueada na auditoria de qualidade: limiar mínimo não atendido. | A auditoria barrou a investigação: os pontos não atingiram o mínimo de critérios. |
+| Distribuindo os pontos analíticos entre as personas ativas e preparando as consultas web. O primeiro evento de cada persona aparece aqui assim que a coleta começa. | Distribuindo os pontos entre as personas e preparando as buscas. Cada persona aparece aqui assim que começa. |
+| Eixos investigativos do plano / contexto metodológico | Pontos do plano / contexto da pesquisa |
+| Subperguntas analíticas / hipóteses a verificar / fontes canônicas prioritárias / critério de conclusão | Subperguntas / hipóteses / fontes prioritárias / quando o ponto está concluído |
+| Contabilidade e proveniência de fontes da investigação | De onde vêm as fontes |
+| Evidências brutas de leitura indisponíveis para este relatório | Este relatório não guardou as leituras brutas |
+| Fontes Utilizadas no Dossiê / Consultadas mas Não Citadas | Fontes citadas no dossiê / Consultadas, não citadas |
+| Telemetria indisponível / telemetria parcial | Sem dados de tokens / dados parciais |
+| Backend sincronizado — pronto para investigar | Sessão sincronizada. Pode investigar. |
+| Credenciais ficam cifradas no servidor; nada de provedor é chamado sem a sua submissão. | As chaves ficam cifradas no servidor. Nenhum provedor é chamado sem você enviar o tema. |
+| Status: {report.status} (enum cru) | Status: Concluído / Reprovado / Parcial (via `rotuloStatus`) |
+| andamento: ● concluido · 4/4 | Andamento: ● Concluído · 4/4 |
+| pipeline_id / callback | ID da pesquisa / Entrega |
+| Falha no cálculo local de integridade do artefato publicado. | Não foi possível conferir a integridade do dossiê. |
+| Dossiê Concluído / Copiar texto Markdown para a área de transferência | Dossiê concluído / Copiar Markdown |
+| Cenários prospectivos e impactos sistêmicos | Cenários futuros e efeitos em cadeia |
+| Force o estado atual da web / Preserva o recorte temporal do pedido | Só o que está no ar hoje / Mantém o período que você pediu |
+
+Acrescentado `rotuloStatus()` em `utils/texto.ts` para que nenhum estado do
+servidor vaze em inglês ou snake_case. Ajustado o fixture do harness que exibia
+"10/9 critérios" (limiar real é 12).
+
+Mantidos: títulos de aba (`Pesquisa — Deep Research`), marcador `—` de valor
+ausente, chaves de ambiente (`N_PONTOS`, `WEBHOOK_HMAC_SECRET`) e intervalos de
+ano (`2010–2026`), que usam travessão como tipografia, não como pausa.
+
+Testes que citavam a copy antiga foram atualizados:
+`sources-accounting`, `gdr-exec-step`, `gdr-timelog-step`,
+`docs-history-remediation`, `plan-settings-polish`.
+
+## Evidência anterior
+
 
 - `tsc --noEmit` exit 0; `npm run build` ok (189,74 kB / gzip 53,71).
 - `erros.test.ts` 10/10, `historico-storage.test.ts` 3/3.

@@ -115,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             e.preventDefault();
             onNavigate('research');
           }}
-          title={collapsed ? 'DeepResearch — ir para pesquisa' : undefined}
+          title={collapsed ? 'Deep Research: ir para pesquisa' : undefined}
         >
           <BrandMark size={26} />
           {!collapsed && (

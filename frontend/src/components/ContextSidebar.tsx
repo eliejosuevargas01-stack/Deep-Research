@@ -263,7 +263,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
     return (
       <aside
         className="sidebar-container context-sidebar right-rail right-rail--sticky rr-rail rr-rail--collapsed"
-        aria-label="Informações contextuais da pesquisa"
+        aria-label="Contexto da pesquisa"
         aria-expanded={false}
       >
         <button
@@ -284,7 +284,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   return (
     <aside
       className="sidebar-container context-sidebar right-rail right-rail--sticky rr-rail"
-      aria-label="Informações contextuais da pesquisa"
+      aria-label="Contexto da pesquisa"
       aria-expanded={true}
     >
       <div className="rr-rail__panel" id={RAIL_PANEL_ID}>

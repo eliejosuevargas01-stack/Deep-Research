@@ -14,8 +14,8 @@ export interface PlanningViewProps {
 const ETAPAS = [
   'Interpretando o pedido',
   'Normalizando escopo e recência',
-  'Decompondo em eixos canônicos',
-  'Formulando hipóteses falseáveis',
+  'Dividindo em pontos',
+  'Levantando hipóteses',
   'Fechando o plano',
 ];
 

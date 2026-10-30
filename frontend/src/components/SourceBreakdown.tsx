@@ -150,7 +150,7 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
   return (
     <section
       className="source-breakdown-card sources-card"
-      aria-label="Contabilidade e proveniência de fontes da investigação"
+      aria-label="De onde vêm as fontes"
     >
       <header className="source-breakdown-header">
         <div className="source-breakdown-title-row">
@@ -167,7 +167,7 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
               </span>
             )}
             {!loading && !isMismatch && status === 'completo' && (
-              <span className="source-status-badge completo" title="Contabilidade integral de fontes auditadas">
+              <span className="source-status-badge completo" title="Todas as fontes auditadas">
                 <CheckCircle2 size={12} aria-hidden="true" />
                 <span>Evidências completas</span>
               </span>
@@ -194,7 +194,7 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
         <div
           className="source-counters-bar"
           role="group"
-          aria-label="Resumo contábil das três categorias de fontes"
+          aria-label="As três contas de fontes"
         >
           <div className="source-counter-item">
             <span className="source-counter-label">Total consultadas:</span>
@@ -280,7 +280,7 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
         <div className="source-notice-banner info" role="status">
           <AlertCircle size={18} aria-hidden="true" />
           <div>
-            <strong>Evidências brutas de leitura indisponíveis para este relatório:</strong>
+            <strong>Este relatório não guardou as leituras brutas:</strong>
             <p style={{ marginTop: '2px', fontSize: '0.82rem' }}>
               As contagens de fontes consultadas e não citadas não foram registradas para este dossiê e são
               apresentadas como indisponíveis (—). Exibindo abaixo as citações conhecidas extraídas do texto
@@ -309,7 +309,7 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
               <div className="source-group-summary-left">
                 <ChevronRight size={16} className="source-group-toggle-icon" aria-hidden="true" />
                 <BookmarkCheck size={16} color="var(--color-primary)" aria-hidden="true" />
-                <span>Fontes Utilizadas no Dossiê</span>
+                <span>Fontes citadas no dossiê</span>
               </div>
               <span className="source-group-badge active" aria-label={`${totalUtilizadasCount} fontes utilizadas`}>
                 {totalUtilizadasCount}
@@ -333,7 +333,7 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
               <div className="source-group-summary-left">
                 <ChevronRight size={16} className="source-group-toggle-icon" aria-hidden="true" />
                 <FileQuestion size={16} color="var(--color-text-muted)" aria-hidden="true" />
-                <span>Fontes Consultadas mas Não Citadas</span>
+                <span>Consultadas, não citadas</span>
               </div>
               <span
                 className="source-group-badge"
@@ -366,7 +366,7 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
               <div className="source-group-summary-left">
                 <ChevronRight size={16} className="source-group-toggle-icon" aria-hidden="true" />
                 <FileText size={16} color="var(--color-text-muted)" aria-hidden="true" />
-                <span>Todas as Fontes Consultadas com Leitura Confirmada</span>
+                <span>Consultadas com leitura confirmada</span>
               </div>
               <span
                 className="source-group-badge"

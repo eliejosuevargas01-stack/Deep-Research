@@ -255,7 +255,7 @@ export const ReasoningFeed: React.FC<ReasoningFeedProps> = ({
         {anuncio}
       </div>
       <div className="sr-only" aria-live="polite">
-        {copiadoId ? 'Raciocínio copiado para a área de transferência.' : ''}
+        {copiadoId ? 'Raciocínio copiado.' : ''}
       </div>
 
       <header className="reasoning-feed-header">

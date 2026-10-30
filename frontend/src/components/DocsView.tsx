@@ -105,25 +105,27 @@ export const DocsView: React.FC = () => {
           O limiar padrão exige aprovação em pelo menos <strong>11 dos 12 critérios</strong>. Caso um ponto seja reprovado, o sistema executa buscas direcionadas para suprir as lacunas apontadas antes de tentar nova auditoria (até o teto de 4 tentativas).
         </p>
 
-        <h2>5. Credenciais, Segurança e Precedência (RN-10)</h2>
+        <h2>5. Credenciais e Segurança</h2>
         <p>
-          O Deep Research implementa uma política de segurança rigorosa em camadas e resolução de parâmetros:
+          As chaves nunca ficam no navegador. Aqui está onde cada uma vive:
         </p>
         <ul>
           <li>
-            <strong>Sessão Integrada Same-Origin:</strong> No navegador, o acesso é autenticado automaticamente via cookies HttpOnly SameSite=Strict assinados no mesmo endereço, sem exigir fornecimento manual de segredos no cliente. Chaves externas continuam suportadas para clientes programáticos via header <code>X-API-Key</code>.
+            <strong>Sessão no mesmo endereço:</strong> o navegador entra sozinho, com cookie HttpOnly
+            SameSite=Strict. Quem chama a API de fora usa o header <code>X-API-Key</code>.
           </li>
           <li>
-            <strong>Cifra em Repouso:</strong> As credenciais cadastradas na aba de Configurações são cifradas no
-            SQLite usando Fernet (AES-128-CBC com HMAC-SHA256).
+            <strong>Criptografia no disco:</strong> o que você salva em Configurações fica cifrado no SQLite
+            (Fernet, AES-128-CBC com HMAC-SHA256).
           </li>
           <li>
-            <strong>Precedência RN-10 (Adendo 002):</strong> O Banco de Dados Relacional Cifrado (tabela <code>credenciais</code>) possui
-            prioridade primária sobre as variáveis de ambiente (<code>.env</code> ou sistema operacional). Quando cadastrada no banco com valor válido e não-vazio, a credencial salva tem prevalência; caso contrário, as variáveis de ambiente atuam como fallback seguro. A listagem de configurações indica em tempo real se a origem ativa provém de <code>banco_cifrado</code> ou <code>ambiente</code>.
+            <strong>Quem vence:</strong> o valor salvo no painel tem prioridade sobre o <code>.env</code>. Campo vazio
+            usa o <code>.env</code>. A tabela de Configurações mostra de onde veio o valor em uso (<code>banco_cifrado</code>
+            ou <code>ambiente</code>).
           </li>
           <li>
-            <strong>Exceção de Bootstrap:</strong> A chave-mestra de cifragem (<code>CREDENTIALS_MASTER_KEY</code>) permanece
-            obrigatoriamente restrita ao ambiente do sistema operacional (<code>os.environ</code>), pois é indispensável para abrir e decifrar os registros da base relacional antes de qualquer consulta.
+            <strong>Chave-mestra:</strong> <code>CREDENTIALS_MASTER_KEY</code> existe só no ambiente do servidor
+            (<code>os.environ</code>). É ela que abre o banco antes de qualquer consulta.
           </li>
           <li>
             <strong>Ausência Total (RN-02):</strong> Se uma credencial ou parâmetro estiver ausente tanto no banco cifrado quanto no ambiente, o sistema lança expressamente um erro <code>ValueError</code>, sem adotar fallbacks silenciosos ou hardcoded.
@@ -148,7 +150,7 @@ export const DocsView: React.FC = () => {
             <strong>Pesquisas antigas e valores desconhecidos:</strong> quando a contagem não existe, a tela mostra <code>não disponível</code> em vez de zero.
           </li>
           <li>
-            <strong>Isolamento Operacional:</strong> O carregamento e visualização da contabilidade de fontes consultam exclusivamente os registros analíticos já persistidos da pesquisa. Carregar fontes não executa novamente a pesquisa nem gera novos custos ou requisições adicionais de busca.
+            <strong>Abrir as fontes não refaz a pesquisa:</strong> a tela lê só o que já está salvo. Nenhuma busca nova, nenhum custo extra.
           </li>
         </ul>
 

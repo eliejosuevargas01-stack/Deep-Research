@@ -240,7 +240,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
             aria-expanded={open === 'keys'}
             aria-controls={`${baseId}-keys`}
             onClick={() => toggle('keys')}
-            title="Teclas de uso rápido"
+            title="Atalhos"
           >
             <span className="dock-btn-icon" aria-hidden="true"><Keyboard size={15} /></span>
             <span className="dock-btn-label">Atalhos</span>
@@ -252,7 +252,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
             aria-expanded={open === 'session'}
             aria-controls={`${baseId}-session`}
             onClick={() => toggle('session')}
-            title="Estado da conexão com o backend"
+            title="Estado da conexão"
           >
             <span className="dock-btn-icon" aria-hidden="true"><ShieldCheck size={15} /></span>
             <span className="dock-btn-label">Sessão</span>
@@ -415,9 +415,9 @@ export const BottomDock: React.FC<BottomDockProps> = ({
         <div className="dock-fields">
           <p className={`dock-status ${sessionAuthenticated ? 'is-ok' : 'is-warn'}`}>
             <span className="dock-status-dot" aria-hidden="true" />
-            {sessionAuthenticated ? 'Backend sincronizado — pronto para investigar' : 'Sessão pendente — o backend não respondeu'}
+            {sessionAuthenticated ? 'Sessão sincronizada. Pode investigar.' : 'Sessão pendente: o servidor não respondeu'}
           </p>
-          <p className="dock-note">Credenciais ficam cifradas no servidor; nada de provedor é chamado sem a sua submissão.</p>
+          <p className="dock-note">As chaves ficam cifradas no servidor. Nenhum provedor é chamado sem você enviar o tema.</p>
           <button type="button" className="btn-secondary dock-action" onClick={onOpenSettings}>
             Abrir configurações
           </button>

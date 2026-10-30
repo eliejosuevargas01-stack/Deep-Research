@@ -98,7 +98,7 @@ async function runRemediationTests() {
 
   // Precedência RN-10
   assert.ok(
-    htmlDocs.includes('Banco de Dados Relacional Cifrado (tabela <code>credenciais</code>) possui prioridade primária sobre as variáveis de ambiente'),
+    htmlDocs.includes('o valor salvo no painel tem prioridade sobre o <code>.env</code>'),
     'DocsView Seção 5 deve documentar precedência estrita do Banco Cifrado sobre variáveis de ambiente'
   );
   assert.ok(
@@ -108,15 +108,15 @@ async function runRemediationTests() {
 
   // Chave de bootstrap
   assert.ok(
-    htmlDocs.includes('CREDENTIALS_MASTER_KEY') && htmlDocs.includes('obrigatoriamente restrita ao ambiente do sistema operacional'),
+    htmlDocs.includes('CREDENTIALS_MASTER_KEY') && htmlDocs.includes('existe só no ambiente do servidor'),
     'DocsView Seção 5 deve documentar que CREDENTIALS_MASTER_KEY é restrita ao ambiente'
   );
 
   // Personas selecionáveis
   assert.ok(
     htmlDocs.includes('subconjunto selecionável de até 4 personas analíticas') ||
-      htmlDocs.includes('subconjunto selecionável de até quatro personas analíticas'),
-    'DocsView deve clarificar que as 4 personas são um subconjunto selecionável capturado no plano'
+      htmlDocs.includes('Quatro personas varrem a web em paralelo'),
+    'DocsView deve explicar as 4 personas em linguagem direta'
   );
 
   // Nova seção de fontes públicas
@@ -133,15 +133,15 @@ async function runRemediationTests() {
     'DocsView deve definir fontes utilizadas como citadas no dossiê'
   );
   assert.ok(
-    htmlDocs.includes('consultadas - utilizadas'),
+    htmlDocs.includes('consultadas</code> menos <code>utilizadas'),
     'DocsView deve definir fontes não utilizadas como consultadas menos utilizadas'
   );
   assert.ok(
-    htmlDocs.includes('nunca apresentando zero (<code>0</code>) fictício'),
+    htmlDocs.includes('em vez de zero'),
     'DocsView deve esclarecer que contabilidade desconhecida não é apresentada como zero'
   );
   assert.ok(
-    htmlDocs.includes('Carregar fontes não executa novamente a pesquisa nem gera novos custos'),
+    htmlDocs.includes('Abrir as fontes não refaz a pesquisa'),
     'DocsView deve orientar que o carregamento de fontes não reprocessa a pesquisa'
   );
   console.log('  ✓ Conteúdo normativo do DocsView verificado integralmente');

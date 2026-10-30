@@ -333,12 +333,12 @@ export const PlanView: React.FC<PlanViewProps> = ({
                 onClick={onStartExecution}
                 disabled={isStarting}
                 id="start-research-btn"
-                aria-label="Iniciar pesquisa síncrona dos eixos formulados"
+                aria-label="Iniciar pesquisa"
               >
                 {isStarting ? (
                   <>
                     <span className="spinner" aria-hidden="true" />
-                    <span>Iniciando pesquisa síncrona...</span>
+                    <span>Iniciando…</span>
                   </>
                 ) : (
                   <>
@@ -364,7 +364,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
         </header>
 
       {/* Cartão de pré-voo: faixa de fases + ações primárias antes da busca */}
-      <section className="gdr-plan-preflight" aria-label="Pré-voo da investigação">
+      <section className="gdr-plan-preflight" aria-label="Antes de começar">
         <p className="gdr-plan-preflight-summary">
           {plan.n_pontos} {plan.n_pontos === 1 ? 'eixo investigativo' : 'eixos investigativos'} prontos para revisão.
         </p>
@@ -409,7 +409,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
       </section>
 
         {/* Stepper Vertical dos Pontos (1..N) com Divulgação Progressiva */}
-        <section className="plan-stepper" aria-label="Eixos investigativos do plano">
+        <section className="plan-stepper" aria-label="Pontos do plano">
           {plan.pontos.map((ponto) => {
             const eixo = ponto.eixo_estruturado;
             const isExpanded = Boolean(expandedPoints[ponto.ponto_id]);
@@ -448,7 +448,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
                     <div className="stepper-point-details">
                       {eixo.subperguntas && eixo.subperguntas.length > 0 && (
                         <div className="point-detail-row">
-                          <span className="point-detail-label">Subperguntas analíticas:</span>
+                          <span className="point-detail-label">Subperguntas:</span>
                           <ul className="point-detail-list">
                             {eixo.subperguntas.map((sub, sIdx) => (
                               <li key={sIdx} className="point-detail-value">
@@ -461,14 +461,14 @@ export const PlanView: React.FC<PlanViewProps> = ({
 
                       {eixo.hipoteses && eixo.hipoteses.length > 0 && (
                         <div className="point-detail-row">
-                          <span className="point-detail-label">Hipóteses a verificar:</span>
+                          <span className="point-detail-label">Hipóteses:</span>
                           <span className="point-detail-value">{eixo.hipoteses.join(' • ')}</span>
                         </div>
                       )}
 
                       {eixo.fontes_primarias_desejadas && eixo.fontes_primarias_desejadas.length > 0 && (
                         <div className="point-detail-row">
-                          <span className="point-detail-label">Fontes canônicas prioritárias:</span>
+                          <span className="point-detail-label">Fontes prioritárias:</span>
                           <div className="point-tags-row">
                             {eixo.fontes_primarias_desejadas.map((src, srcIdx) => (
                               <span key={srcIdx} className="point-tag">
@@ -481,7 +481,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
 
                       {eixo.criterio_de_conclusao && (
                         <div className="point-detail-row">
-                          <span className="point-detail-label">Critério de conclusão:</span>
+                          <span className="point-detail-label">Quando o ponto está concluído:</span>
                           <span className="point-detail-value">{eixo.criterio_de_conclusao}</span>
                         </div>
                       )}
@@ -495,7 +495,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
 
         {/* Painel Colapsável de Contexto da Pesquisa (Comp C Accordion) */}
         {structured && (
-          <section className="context-panel" aria-label="Contexto metodológico da pesquisa">
+          <section className="context-panel" aria-label="Contexto da pesquisa">
             <button
               type="button"
               className="context-panel-header"

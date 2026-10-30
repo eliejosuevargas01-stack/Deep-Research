@@ -29,7 +29,7 @@ export const TokenUsageMeter: React.FC<TokenUsageMeterProps> = ({ metadados }) =
     return (
       <div className="rr-tokens rr-tokens--empty" aria-label="Consumo de tokens">
         <span className="rr-tokens__total">Tokens</span>
-        <span className="rr-tokens__empty">telemetria indisponível</span>
+        <span className="rr-tokens__empty">sem dados de tokens</span>
       </div>
     );
   }
@@ -84,7 +84,7 @@ export const TokenUsageMeter: React.FC<TokenUsageMeterProps> = ({ metadados }) =
         </div>
       </dl>
 
-      {metadados?.usage_complete === false && <p className="rr-tokens__note">telemetria parcial</p>}
+      {metadados?.usage_complete === false && <p className="rr-tokens__note">dados parciais</p>}
     </div>
   );
 };
