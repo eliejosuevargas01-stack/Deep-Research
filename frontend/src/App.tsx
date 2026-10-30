@@ -244,7 +244,9 @@ export const App: React.FC = () => {
     streamError,
     reconnect,
   } = usePipelineStream({
-    idPesquisa: currentPlan?.id_pesquisa,
+    // Com a aba recarregada o plano ainda não voltou, mas a pesquisa ativa já é
+    // conhecida: sem este fallback o canal ficava mudo e a tela travava em "Planejado".
+    idPesquisa: currentPlan?.id_pesquisa ?? activeResearchId ?? undefined,
     enabled: Boolean(currentPlan?.id_pesquisa && (isExecuting || pipelineStage !== 'idle')),
     onStatusChange: (status) => {
       if (status === 'buscando') setPipelineStage('searching');
@@ -462,6 +464,16 @@ export const App: React.FC = () => {
         return null;
       }
     })();
+    // Reabrir a pesquisa ativa não pode depender só do rascunho: em outra aba, em
+    // outro dia ou com o rascunho limpo, o histórico local é a única fonte do plano.
+    if (idAtivo) {
+      const registro = historyService.get(idAtivo);
+      if (registro?.planResponse) {
+        setCurrentPlan(registro.planResponse);
+        activeResearchIdRef.current = idAtivo;
+        setActiveResearchId(idAtivo);
+      }
+    }
     if (!idAtivo) {
       try {
         const rascunho = sessionStorage.getItem(DRAFT_PLAN_KEY);
@@ -507,6 +519,9 @@ export const App: React.FC = () => {
         if (estagio) {
           setCurrentPlan(registro.planResponse);
           setPipelineStage(estagio);
+          // Reata o canal ao vivo e a telemetria de tokens da pesquisa retomada.
+          activeResearchIdRef.current = idAtivo;
+          setActiveResearchId(idAtivo);
         } else if (status.status_pipeline === 'concluido' && registro.writerResponse) {
           setCurrentPlan(registro.planResponse);
           setPipelineStage('completed');
