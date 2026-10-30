@@ -129,7 +129,7 @@
 }
 
 .sidebar-brand-word {
-  font-size: min(1.08rem, 22px);
+  font-size: min(1.02rem, 19px);
   letter-spacing: -0.025em;
   overflow: hidden;
   text-overflow: ellipsis;

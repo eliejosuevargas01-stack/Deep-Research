@@ -169,3 +169,22 @@ hr.divider {
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+
+/* Cada persona com a cor da própria identidade (mesmos tons do hero).
+   No claro os tons descem um passo para manter 3:1 sobre o papel. */
+.persona-icon[data-persona='planejador'] { color: #9333ea; }
+.persona-icon[data-persona='historiador'] { color: #b45309; }
+.persona-icon[data-persona='visionario'] { color: #0284c7; }
+.persona-icon[data-persona='futurista'] { color: #4f46e5; }
+.persona-icon[data-persona='cetico'] { color: #e11d48; }
+.persona-icon[data-persona='auditor'] { color: #b45309; }
+.persona-icon[data-persona='redator'] { color: #047857; }
+
+[data-theme='dark'] .persona-icon[data-persona='planejador'] { color: #a855f7; }
+[data-theme='dark'] .persona-icon[data-persona='historiador'] { color: #d97706; }
+[data-theme='dark'] .persona-icon[data-persona='visionario'] { color: #38bdf8; }
+[data-theme='dark'] .persona-icon[data-persona='futurista'] { color: #818cf8; }
+[data-theme='dark'] .persona-icon[data-persona='cetico'] { color: #f43f5e; }
+[data-theme='dark'] .persona-icon[data-persona='auditor'] { color: #fbbf24; }
+[data-theme='dark'] .persona-icon[data-persona='redator'] { color: #34d399; }

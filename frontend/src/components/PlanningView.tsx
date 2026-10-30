@@ -10,6 +10,9 @@ export interface PlanningViewProps {
   raciocinio: string;
   erro?: string | null;
   onRetry?: () => void;
+  /** Nível do título: 1 na tela real, 2 quando a view aparece como amostra. */
+  tituloNivel?: 1 | 2;
+  tituloId?: string;
 }
 
 const ETAPAS = [
@@ -124,7 +127,15 @@ export function raciocinioLegivel(bruto: string): string {
   return extrairCamposParciais(texto);
 }
 
-export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, raciocinio, erro, onRetry }) => {
+export const PlanningView: React.FC<PlanningViewProps> = ({
+  tema,
+  iniciadoEm,
+  raciocinio,
+  erro,
+  onRetry,
+  tituloNivel = 1,
+  tituloId = 'planning-title',
+}) => {
   const [agora, setAgora] = useState<number>(() => Date.now());
 
   useEffect(() => {
@@ -138,7 +149,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, ra
   const progresso = erro ? 0 : Math.min(96, 8 + etapasConcluidas * 22);
 
   return (
-    <section className="planning-view" aria-labelledby="planning-title" aria-busy={!erro}>
+    <section className="planning-view" aria-labelledby={tituloId} aria-busy={!erro}>
       <div className="planning-status">
         <span className="planning-header-icon" aria-hidden="true">
           <PersonaIcon persona="planejador" size={28} />
@@ -149,7 +160,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, ra
         <span className="planning-elapsed" aria-live="off">{formatar(decorrido)}</span>
       </div>
 
-      <h1 id="planning-title" className="planning-theme">{formatarTitulo(tema)}</h1>
+      {tituloNivel === 1 ? (
+        <h1 id={tituloId} className="planning-theme">{formatarTitulo(tema)}</h1>
+      ) : (
+        <h2 id={tituloId} className="planning-theme">{formatarTitulo(tema)}</h2>
+      )}
       <p className="planning-subtitle">
         Decompondo o tema em eixos investigativos com hipóteses falseáveis, escopo temporal e
         critérios de conclusão.

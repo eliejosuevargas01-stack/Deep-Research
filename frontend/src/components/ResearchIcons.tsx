@@ -149,7 +149,8 @@ export function PersonaIcon({
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      className={className}
+      data-persona={persona}
+      className={`persona-icon${className ? ` ${className}` : ''}`}
       dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG[persona] }}
     />
   );

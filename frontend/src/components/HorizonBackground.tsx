@@ -57,8 +57,12 @@ export const HorizonBackground: React.FC<HorizonBackgroundProps> = ({ theme }) =
       currentX.current += (targetX.current - currentX.current) * lerpFactor;
       currentY.current += (targetY.current - currentY.current) * lerpFactor;
       if (spotRef.current) {
+        const px = currentX.current / Math.max(1, window.innerWidth);
+        const py = currentY.current / Math.max(1, window.innerHeight);
         spotRef.current.style.setProperty('--cursor-x', `${currentX.current}px`);
         spotRef.current.style.setProperty('--cursor-y', `${currentY.current}px`);
+        spotRef.current.style.setProperty('--cursor-px', String(px));
+        spotRef.current.style.setProperty('--cursor-py', String(py));
       }
       rafRef.current = requestAnimationFrame(loop);
     };

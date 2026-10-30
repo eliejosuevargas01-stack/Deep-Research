@@ -24,6 +24,30 @@
   );
   filter: blur(72px);
   transform: translate3d(0, 0, 0);
+  opacity: calc(1 - var(--cursor-px, 0.5) * 0.85);
+  transition: opacity 220ms linear;
+}
+
+/* Segunda camada: a cor desliza para o tom de informação conforme o ponteiro
+   vai para a direita; as duas cores vêm da paleta já existente. */
+.ambient-cursor-spot::after {
+  content: '';
+  position: absolute;
+  width: 560px;
+  height: 560px;
+  left: calc(var(--cursor-x, 50vw) - 280px);
+  top: calc(var(--cursor-y, 50vh) - 280px);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-info, #0f766e) 34%, transparent) 0%,
+    color-mix(in srgb, var(--color-info, #0f766e) 14%, transparent) 46%,
+    transparent 80%
+  );
+  filter: blur(78px);
+  opacity: calc(var(--cursor-px, 0.5) * 0.85);
+  transform: translate3d(calc((var(--cursor-py, 0.5) - 0.5) * -24px), 0, 0);
+  transition: opacity 220ms linear;
 }
 
 [data-theme='dark'] .ambient-cursor-spot {
@@ -56,4 +80,17 @@
   .ambient-cursor-spot {
     display: none;
   }
+}
+
+
+/* Camadas decorativas não podem inflar o scrollWidth da página. */
+.ambient-cursor-spot {
+  overflow: hidden;
+  contain: paint;
+}
+
+
+.ambient-field {
+  overflow: hidden;
+  contain: paint;
 }

@@ -69,7 +69,7 @@ export const HARNESS_PLAN: PlanResponse = {
   },
 };
 
-const SEARCH: SearchResponse = {
+export const HARNESS_SEARCH: SearchResponse = {
   id_pesquisa: 'harness-0001',
   total_pontos_processados: 2,
   status_pesquisa: 'buscando',
@@ -160,7 +160,7 @@ const CRITERIOS = [
   { id: 12, aprovado: true, justificativa: 'A conclusão decorre das premissas apresentadas, sem salto lógico.', claim_ids: ['c12'], source_ids: ['s1', 's2'] },
 ];
 
-const AUDIT: AuditResponse = {
+export const HARNESS_AUDIT: AuditResponse = {
   id_pesquisa: 'harness-0001',
   total_pontos: 2,
   aprovados: 1,
@@ -217,7 +217,7 @@ function item(
   };
 }
 
-const ITEMS: ReasoningFeedItem[] = [
+export const HARNESS_ITEMS: ReasoningFeedItem[] = [
   item('r1', 'planejador', 'Planejador', 'Decomposição do tema', 'Dividi o pedido em três pontos: série histórica de agências e postos, programas de requalificação e efeito regional. Cada ponto exige fonte primária distinta.', { details: { stage: 'plan', ponto_id: 'p1', duration_ms: 9400 } }),
   item('r2', 'busca', 'Historiador', 'Varredura Web', '**Ferramenta · SERP** `banco central serie historica agencias 2010-2024`\nO Banco Central publica a série de agências desde 2007. Encontrei a redução de 23% entre 2010 e 2024 e o corte mais forte em 2019-2021, coincidindo com o fechamento de agências físicas em capitais.\n**Ferramenta · Reader** `bcb.gov.br/estabilidadefinanceira/agencias` → 12 páginas lidas', { details: { stage: 'search', ponto_id: 'p1', duration_ms: 41200 } }),
   item('r3', 'busca', 'Cético', 'Varredura Web', 'A redução de agências não prova redução de postos: parte dos trabalhadores migrou para funções digitais. O CAGED mostra crescimento de ocupações de TI no setor, mas a série muda de classificação em 2020.', { details: { stage: 'search', ponto_id: 'p1', duration_ms: 38700 } }),
@@ -237,11 +237,11 @@ export const ExecutionHarness: React.FC<Props> = ({ stage }) => (
         <ExecutionView
           stage={stage}
           plan={HARNESS_PLAN}
-          searchResult={SEARCH}
-          auditResult={AUDIT}
+          searchResult={HARNESS_SEARCH}
+          auditResult={HARNESS_AUDIT}
           cycleNumber={stage === 'auditing' ? 2 : 1}
           maxCycles={4}
-          reasoningItems={ITEMS}
+          reasoningItems={HARNESS_ITEMS}
           failedStage={stage === 'failed' ? 'writing' : null}
           errorMessage={stage === 'failed' ? 'O provedor derrubou a conexão durante a redação (HTTP 502).' : null}
           onRetry={stage === 'failed' ? () => undefined : undefined}
@@ -254,9 +254,9 @@ export const ExecutionHarness: React.FC<Props> = ({ stage }) => (
       cycleNumber={stage === 'auditing' ? 2 : 1}
       maxCycles={4}
       collectedPoints={2}
-      auditSummary={{ aprovados: AUDIT.aprovados, total: AUDIT.total_pontos, ciclo: 1 }}
+      auditSummary={{ aprovados: HARNESS_AUDIT.aprovados, total: HARNESS_AUDIT.total_pontos, ciclo: 1 }}
       metadadosModelo={HARNESS_PLAN.metadados_modelo}
-      searchResult={SEARCH}
+      searchResult={HARNESS_SEARCH}
       fontesAtivas={stage === 'searching'}
     />
   </div>

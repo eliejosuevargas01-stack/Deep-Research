@@ -15,9 +15,9 @@ const { chromium } = createRequire(`${process.cwd()}/`)('playwright');
 
 const base = (process.argv[2] || 'http://127.0.0.1:3002').replace(/\/$/, '');
 const asJson = process.argv.includes('--json');
-const DETECT = '/home/eliezer/.claude/skills/impeccable/scripts/impeccable';
+const DETECT = process.env.IMPECCABLE_CLI || '/home/eliezer/.hermes/profiles/orchestrator/skills/creative/impeccable/scripts/impeccable';
 
-const ROUTES = ['/', '/#research', '/#history', '/#settings', '/#docs', '/#execution-search', '/#execution-audit', '/#execution-rejected', '/#execution-failed', '/#harness', '/#plan'];
+const ROUTES = ['/', '/#research', '/#history', '/#settings', '/#docs', '/#execution-search', '/#execution-audit', '/#execution-rejected', '/#execution-failed', '/#research-sim', '/#harness', '/#plan'];
 const VIEWPORTS = [
   [1440, 900],
   [768, 900],
@@ -27,11 +27,28 @@ const VIEWPORTS = [
 const SKIP_SELECTORS = new Set(); // vazio quando o portão roda na árvore mesclada
 
 function detect(url) {
+  const run = () => execFileSync('bash', [DETECT, 'detect', url, '--json'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+    timeout: 180_000,
+  });
+  try {
+    return JSON.parse(run()).filter((f) => !SKIP_SELECTORS.has(f.selector));
+  } catch {
+    try {
+      return JSON.parse(run()).filter((f) => !SKIP_SELECTORS.has(f.selector));
+    } catch (err) {
+      return [{ antipattern: 'detect-falhou', selector: String(err.message).slice(0, 120), severity: 'warning' }];
+    }
+  }
+}
+
+function detectLegacy(url) {
   try {
     const out = execFileSync('bash', [DETECT, 'detect', url, '--json'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 120_000,
+      timeout: 180_000,
     });
     const parsed = JSON.parse(out);
     return parsed.filter((f) => !SKIP_SELECTORS.has(f.selector));

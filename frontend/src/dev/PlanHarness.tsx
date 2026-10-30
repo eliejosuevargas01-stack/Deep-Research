@@ -26,7 +26,8 @@ export const PlanHarness: React.FC = () => {
 
   return (
     <div className="harness-plan" data-harness="plan">
-      {amostras.map(([rotulo, texto]) => (
+      <h1 className="harness-plan-titulo">Amostras do planejador</h1>
+      {amostras.map(([rotulo, texto], indice) => (
         <section className="harness-planning-sample" key={rotulo} aria-label={`Amostra do planejador: ${rotulo}`}>
           <p className="harness-planning-rotulo">{rotulo}</p>
           <PlanningView
@@ -35,6 +36,8 @@ export const PlanHarness: React.FC = () => {
             raciocinio={texto}
             erro={null}
             onRetry={() => undefined}
+            tituloNivel={2}
+            tituloId={`amostra-planejador-${indice}`}
           />
         </section>
       ))}

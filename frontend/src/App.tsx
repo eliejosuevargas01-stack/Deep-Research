@@ -24,6 +24,7 @@ const DocsView = React.lazy(() =>
 );
 import { ReasoningHarness } from './dev/ReasoningHarness';
 import { ExecutionHarness } from './dev/ExecutionHarness';
+import { SimulatedResearch } from './dev/SimulatedResearch';
 import { PlanHarness } from './dev/PlanHarness';
 import { api, RIGOR_PADRAO, normalizarRigor, validarCallbackUrl } from './services/api';
 import { historyService } from './services/history';
@@ -413,7 +414,7 @@ export const App: React.FC = () => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') || 'research';
       const rotas = ['research', 'history', 'settings', 'docs'];
-      if (import.meta.env.DEV) rotas.push('harness', 'plan', 'execution-search', 'execution-audit', 'execution-rejected', 'execution-failed');
+      if (import.meta.env.DEV) rotas.push('harness', 'plan', 'execution-search', 'execution-audit', 'execution-rejected', 'execution-failed', 'research-sim');
       if (rotas.includes(hash)) {
         setCurrentRoute(hash);
       }
@@ -1360,7 +1361,7 @@ export const App: React.FC = () => {
               />
             ) : !currentPlan && !writerResult && pipelineStage === 'idle' ? (
               /* Estado Vazio de Nova Pesquisa */
-              <EmptyState />
+              <EmptyState tema={tema} rascunho={composerValue} />
             ) : (
               /* Grid de Trabalho: 2 colunas com Sidebar quando há plano real; 1 coluna quando sem plano */
               <div className={`workspace-grid ${!currentPlan ? 'single-column' : ''}`} ref={workspaceRef}>
@@ -1621,6 +1622,9 @@ export const App: React.FC = () => {
         )}
         {import.meta.env.DEV && currentRoute === 'execution-audit' && (
           <ExecutionHarness stage="auditing" />
+        )}
+        {import.meta.env.DEV && currentRoute === 'research-sim' && (
+          <SimulatedResearch />
         )}
         {import.meta.env.DEV && currentRoute === 'execution-failed' && (
           <ExecutionHarness stage="failed" />

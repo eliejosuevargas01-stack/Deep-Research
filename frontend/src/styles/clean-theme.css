@@ -1099,9 +1099,32 @@
   }
 
   .workspace-main > .workspace-grid > div:first-child {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding-right: 8px;
+  }
+
+  /* Cabeçalho fixo; só a linha do tempo rola. */
+  .workspace-main > .workspace-grid > div:first-child > .execution-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .execution-card > .execution-heading-row {
+    flex: 0 0 auto;
+  }
+
+  .execution-card > .tl-linear {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding-right: 8px;
+    padding-right: 6px;
   }
 }
 
@@ -1137,4 +1160,77 @@
     max-width: calc(100% - 384px);
     margin-right: auto;
   }
+}
+
+/* Hero das 7 personas na área vazia, acima do compositor. */
+.empty-state-hero {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto 4px;
+  padding: 0 4px;
+}
+
+.empty-state-hero svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 300px;
+}
+
+@media (max-width: 899px) {
+  .empty-state-hero {
+    max-width: 100%;
+  }
+  .empty-state-hero svg {
+    max-height: 210px;
+  }
+}
+
+/* Home: hero largo no vazio, título logo abaixo, compositor na base. */
+.workspace-main > .empty-state {
+  width: 100%;
+  max-width: 1100px;
+  align-self: center;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding-bottom: 6px;
+}
+
+.workspace-main > .empty-state .empty-state-header {
+  justify-content: center;
+}
+
+.workspace-main > .empty-state .empty-state-title {
+  max-width: 40ch;
+  margin: 0 auto;
+}
+
+@media (max-width: 899px) {
+  .workspace-main > .empty-state {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    padding-top: 4px;
+  }
+
+  .workspace-main:has(.empty-state) .composer-anchor {
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-main:has(.empty-state) .composer-anchor {
+    position: static;
+    padding-bottom: 8px;
+  }
+}
+
+.harness-plan-titulo {
+  margin: 0 0 12px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
 }
