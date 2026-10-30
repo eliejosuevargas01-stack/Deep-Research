@@ -43,9 +43,9 @@ const Item: React.FC<ItemProps> = ({ active, onClick, icon, label, collapsed = f
 
 const STATUS_LABEL: Record<ResearchHistoryRecord['status'], string> = {
   planejado: 'Planejado',
-  buscando: 'Buscando',
-  auditando: 'Auditando',
-  redigindo: 'Redigindo',
+  buscando: 'Em pesquisa',
+  auditando: 'Em pesquisa',
+  redigindo: 'Em pesquisa',
   concluido: 'Concluída',
   reprovado: 'Reprovada',
   falha: 'Falha',

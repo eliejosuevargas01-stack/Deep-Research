@@ -252,6 +252,16 @@ export const App: React.FC = () => {
       else if (status === 'concluido') setPipelineStage('completed');
       else if (status === 'reprovado') setPipelineStage('rejected');
       else if (status === 'falha') setPipelineStage('failed');
+      if (currentPlan?.id_pesquisa) {
+        const current = historyService.get(currentPlan.id_pesquisa);
+        if (current) {
+          const nextStatus = (status === 'buscando' || status === 'auditando' || status === 'redigindo') ? status : current.status;
+          if (nextStatus !== current.status) {
+            historyService.save({ ...current, status: nextStatus as any });
+            setHistoryRecords(historyService.list());
+          }
+        }
+      }
     },
     onReportFinal: (report) => {
       setWriterResult({
@@ -270,6 +280,80 @@ export const App: React.FC = () => {
       // busca como concluída, escondendo o erro.
       setFailedStage((anterior) => anterior ?? estagioAtualRef.current);
       setPipelineStage('failed');
+    },
+    onAuditResult: (event: any) => {
+      setAuditResult((prev: any) => {
+        if (!prev) {
+          const novo = {
+            id_pesquisa: event.id_pesquisa,
+            status_geral: event.status === 'aprovado' ? 'aprovado' : event.status === 'reprovado' ? 'reprovado' : 'pendente',
+            aprovados: event.status === 'aprovado' ? 1 : 0,
+            total_pontos: (currentPlan as any)?.total_pontos || (currentPlan as any)?.pontos?.length || 1,
+            auditorias: [
+              {
+                ponto_id: event.ponto_id,
+                ponto_n: event.ponto_n,
+                status: event.status,
+                pontuacao_percentual: event.pontuacao_percentual,
+                criterios_aprovados: event.criterios_aprovados,
+                criterios_minimos: null,
+                pontos_fracos: event.pontos_fracos ?? null,
+                reasoning_auditoria: event.reasoning_auditoria ?? null,
+              },
+            ],
+          } as any;
+          if (currentPlan) {
+            const rec = historyService.get(currentPlan.id_pesquisa);
+            if (rec) {
+              historyService.save({ ...rec, auditResponse: novo, status: event.status === 'reprovado' ? 'reprovado' : rec.status });
+              setHistoryRecords(historyService.list());
+            }
+          }
+          setAuditCycleNumber((c) => c ?? 1);
+          return novo;
+        }
+        const auditorias = Array.isArray(prev.auditorias) ? [...prev.auditorias] : [];
+        const idx = auditorias.findIndex((a: any) => a.ponto_id === event.ponto_id);
+        if (idx >= 0) {
+          auditorias[idx] = {
+            ...auditorias[idx],
+            status: event.status,
+            pontuacao_percentual: event.pontuacao_percentual,
+            criterios_aprovados: event.criterios_aprovados,
+            pontos_fracos: event.pontos_fracos ?? auditorias[idx].pontos_fracos ?? null,
+            reasoning_auditoria: event.reasoning_auditoria ?? auditorias[idx].reasoning_auditoria ?? null,
+          };
+        } else {
+          auditorias.push({
+            ponto_id: event.ponto_id,
+            ponto_n: event.ponto_n,
+            status: event.status,
+            pontuacao_percentual: event.pontuacao_percentual,
+            criterios_aprovados: event.criterios_aprovados,
+            criterios_minimos: null,
+            pontos_fracos: event.pontos_fracos ?? null,
+            reasoning_auditoria: event.reasoning_auditoria ?? null,
+          });
+        }
+        const aprovados = auditorias.filter((a: any) => a.status === 'aprovado').length;
+        const total_pontos = Math.max(prev.total_pontos || 0, auditorias.length, (currentPlan as any)?.total_pontos || (currentPlan as any)?.pontos?.length || 0);
+        const next = {
+          ...prev,
+          auditorias,
+          aprovados,
+          total_pontos,
+          status_geral: aprovados === total_pontos && total_pontos > 0 ? 'aprovado' : (auditorias.some((a: any) => a.status === 'reprovado') ? 'reprovado' : prev.status_geral),
+        } as any;
+        if (currentPlan) {
+          const rec = historyService.get(currentPlan.id_pesquisa);
+          if (rec) {
+            historyService.save({ ...rec, auditResponse: next, status: next.status_geral === 'reprovado' ? 'reprovado' : rec.status });
+            setHistoryRecords(historyService.list());
+          }
+        }
+        setAuditCycleNumber((c) => c ?? 1);
+        return next;
+      });
     },
   });
 

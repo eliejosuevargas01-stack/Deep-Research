@@ -8,11 +8,11 @@ import './styles/planning-view.css';
 import './styles/icons-scale.css';
 import './styles/clean-theme.css';
 import './styles/ambient-cursor.css';
-import './styles/theme-contrast.css';
 import './styles/open-canvas.css';
 import './styles/world.css';
 import './styles/linear-timeline.css';
 import './styles/gdr-refit.css';
+import './styles/theme-contrast.css';
 import { initReducedMotionSMIL } from './utils/reduceMotion';
 
 // SMIL (`<animate>`/`animateTransform`/`animateMotion`) não é alcançado por
