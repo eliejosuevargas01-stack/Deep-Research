@@ -72,14 +72,36 @@ export function validarCallbackUrl(url: string): { valida: boolean; avisoLocal: 
 }
 
 /**
- * Utilitário para formatar erros retornados pela API FastAPI.
+ * Falha de API com status HTTP e detalhe técnico preservados.
+ * A UI nunca mostra `message` cru: `utils/erros.ts` traduz para texto humano
+ * e mantém o detalhe dentro de "Detalhes técnicos".
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly detalhe: string;
+
+  constructor(status: number, detalhe: string) {
+    super(detalhe ? `HTTP ${status} · ${detalhe}` : `HTTP ${status}`);
+    this.name = 'ApiError';
+    this.status = status;
+    this.detalhe = detalhe;
+  }
+}
+
+/** Converte uma resposta HTTP de erro em ApiError. */
+export async function apiError(response: Response): Promise<ApiError> {
+  const detalhe = await parseApiError(response);
+  return new ApiError(response.status, detalhe);
+}
+
+/**
+ * Extrai o detalhe técnico de uma resposta de erro (uso interno/log).
  */
 export async function parseApiError(response: Response): Promise<string> {
-  const status = response.status;
   try {
     const text = await response.text();
     if (!text) {
-      return `Erro na requisição (HTTP ${status})`;
+      return 'Resposta sem corpo';
     }
 
     try {
@@ -118,10 +140,10 @@ export async function parseApiError(response: Response): Promise<string> {
       return text.slice(0, 300);
     }
   } catch {
-    return `Erro de conexão ou resposta inválida (HTTP ${status})`;
+    return 'Resposta ilegível';
   }
 
-  return `Erro na requisição (HTTP ${status})`;
+  return 'Resposta sem detalhe';
 }
 
 /**
@@ -143,7 +165,7 @@ export const api = {
       headers: buildHeaders(),
     });
     if (!res.ok) {
-      throw new Error(await parseApiError(res));
+      throw await apiError(res);
     }
     return res.json();
   },
@@ -155,7 +177,7 @@ export const api = {
       headers: buildHeaders(),
     });
     if (!res.ok) {
-      throw new Error(await parseApiError(res));
+      throw await apiError(res);
     }
     return res.json();
   },
@@ -189,7 +211,7 @@ export const api = {
     });
 
     if (!res.ok) {
-      throw new Error(await parseApiError(res));
+      throw await apiError(res);
     }
     if (res.status === 202) {
       // Modo assíncrono: o backend agenda o job e devolve o id para polling.
@@ -227,7 +249,7 @@ export const api = {
     });
 
     if (!res.ok) {
-      throw new Error(await parseApiError(res));
+      throw await apiError(res);
     }
     const data = await res.json();
     if (!data || typeof data.id_pesquisa !== 'string') {
@@ -255,7 +277,7 @@ export const api = {
     });
 
     if (!res.ok) {
-      throw new Error(await parseApiError(res));
+      throw await apiError(res);
     }
     const data = await res.json();
     if (!data || typeof data.id_pesquisa !== 'string' || !Array.isArray(data.auditorias)) {
@@ -277,7 +299,7 @@ export const api = {
     });
 
     if (!res.ok) {
-      throw new Error(await parseApiError(res));
+      throw await apiError(res);
     }
     const data = await res.json();
     if (!data || typeof data.id_pesquisa !== 'string' || typeof data.status !== 'string') {
@@ -294,7 +316,7 @@ export const api = {
     });
 
     if (!res.ok) {
-      throw new Error(await parseApiError(res));
+      throw await apiError(res);
     }
     return res.json();
   },
@@ -308,7 +330,7 @@ export const api = {
     });
 
     if (!res.ok) {
-      throw new Error(await parseApiError(res));
+      throw await apiError(res);
     }
     return res.json();
   },
@@ -321,7 +343,7 @@ export const api = {
     });
 
     if (!res.ok) {
-      throw new Error(await parseApiError(res));
+      throw await apiError(res);
     }
     const data = (await res.json()) as PipelineStatusResumo;
     if (!data || typeof data.id_pesquisa !== 'string' || !Array.isArray(data.pontos)) {
@@ -339,7 +361,7 @@ export const api = {
     });
 
     if (!res.ok) {
-      throw new Error(await parseApiError(res));
+      throw await apiError(res);
     }
     const data = await res.json();
     if (!data || typeof data !== 'object' || typeof data.status !== 'string') {

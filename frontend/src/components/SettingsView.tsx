@@ -9,6 +9,8 @@ import {
   Info,
 } from 'lucide-react';
 import { api } from '../services/api';
+import { ErrorNotice } from './ErrorNotice';
+import { apresentarErro } from '../utils/erros';
 import { CredentialSanitizedListItem } from '../types/api';
 import './plan-settings-polish.css';
 
@@ -56,6 +58,9 @@ interface SettingsViewProps {
   draft?: SettingsFormData;
   onDraftChange?: (data: SettingsFormData) => void;
   onDiscardDraft?: () => void;
+  /** Falha global de sessão: evita repetir o mesmo 500 neste cartão. */
+  sessionError?: string | null;
+  onRetrySession?: () => void;
 }
 
 function safeClientMask(chave: string, mascarado: string, tipo?: string): string {
@@ -80,6 +85,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   draft,
   onDraftChange,
   onDiscardDraft,
+  sessionError = null,
+  onRetrySession,
 }) => {
   // Status de conexão e verificação
   const [connectionStatus, setConnectionStatus] = useState<
@@ -110,6 +117,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+  const [saveErrorDetalhe, setSaveErrorDetalhe] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Referências aos inputs reais para acessibilidade e foco pós-validação
@@ -163,7 +171,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Testar Conexão com o backend
   const handleTestConnection = async () => {
     setConnectionStatus('checking');
-    setConnectionMessage('Verificando comunicação com o backend e sessão integrada...');
+    setConnectionMessage('Testando a conexão.');
     try {
       await api.healthCheck();
       // Tenta listar credenciais com a sessão/cookie atual
@@ -171,15 +179,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setCredentialsList(creds.credenciais || []);
       setCredentialsFetchError(null);
       setConnectionStatus('connected');
-      setConnectionMessage('Comunicação ativa e autenticação com backend verificadas com sucesso.');
+      setConnectionMessage('Conexão e sessão funcionando.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('401') || msg.toLowerCase().includes('não autorizad') || msg.toLowerCase().includes('ausente')) {
         setConnectionStatus('unauthorized');
-        setConnectionMessage('Erro 401: Acesso de sessão não autorizado. Verifique a sessão local com o backend.');
+        setConnectionMessage('A sessão não foi aceita. Recarregue a página para entrar de novo; se continuar, confira se o servidor está no mesmo endereço.');
       } else {
         setConnectionStatus('error');
-        setConnectionMessage(`Falha de conexão com o servidor: ${msg}`);
+        setConnectionMessage(apresentarErro(err, { acao: 'testar a conexão' }).mensagem);
       }
     }
   };
@@ -246,12 +254,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   // Salvar credenciais cifradas no backend
-  const handleSaveCredentials = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveCredentials = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!validateForm()) return;
 
     setIsSaving(true);
     setSaveSuccessMessage(null);
+    setSaveErrorDetalhe(null);
     setSaveErrorMessage(null);
 
     const changedEntries: Array<{ chave: string; valor: string; tipo: 'llm' | 'jina' | 'webhook' | 'parametro'; base_url?: string }> = [];
@@ -322,19 +331,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setFormData((prev) => ({ ...prev, ...fieldsToClear }));
       }
 
+      setSaveErrorDetalhe(
+        failedKeys.length > 0 ? failedKeys.map((f) => `${f.chave}: ${f.erro}`).join('\n') : null
+      );
+
       if (failedKeys.length === 0) {
-        setSaveSuccessMessage(`${savedKeys.length} parâmetro(s) salvo(s) e cifrado(s) com sucesso: ${savedKeys.join(', ')}.`);
+        setSaveSuccessMessage(
+          savedKeys.length === 1
+            ? `${savedKeys[0]} foi salvo e cifrado.`
+            : `${savedKeys.length} parâmetros foram salvos e cifrados: ${savedKeys.join(', ')}.`
+        );
       } else if (savedKeys.length > 0) {
-        setSaveSuccessMessage(`Salvo com sucesso: ${savedKeys.join(', ')}.`);
-        setSaveErrorMessage(`Falha ao salvar: ${failedKeys.map((f) => `${f.chave} (${f.erro})`).join('; ')}`);
+        setSaveSuccessMessage(`${savedKeys.join(', ')} salvo. O resto não foi gravado.`);
+        setSaveErrorMessage(
+          failedKeys.length === 1
+            ? 'Uma credencial não foi salva'
+            : `${failedKeys.length} credenciais não foram salvas`
+        );
       } else {
-        setSaveErrorMessage(`Falha ao salvar: ${failedKeys.map((f) => `${f.chave} (${f.erro})`).join('; ')}`);
+        setSaveErrorMessage(
+          failedKeys.length === 1
+            ? 'Uma credencial não foi salva'
+            : `${failedKeys.length} credenciais não foram salvas`
+        );
       }
 
       // Recarrega a tabela de metadados
       await loadCredentials();
     } catch (err: unknown) {
-      setSaveErrorMessage(err instanceof Error ? err.message : String(err));
+      const falhaSalvar = apresentarErro(err, { acao: 'salvar a credencial' });
+      setSaveErrorMessage(falhaSalvar.titulo);
+      setSaveErrorDetalhe(falhaSalvar.detalhe ?? null);
     } finally {
       setIsSaving(false);
     }
@@ -667,9 +694,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
 
           {saveErrorMessage && (
-            <div className="alert-banner danger" style={{ marginTop: '12px' }} role="alert">
-              <AlertTriangle size={16} aria-hidden="true" />
-              <span>{saveErrorMessage}</span>
+            <div style={{ marginTop: '12px' }}>
+              <ErrorNotice
+                compact
+                falha={{
+                  titulo: saveErrorMessage,
+                  mensagem: 'Os campos continuam preenchidos. Corrija o que for preciso e salve de novo.',
+                  detalhe: saveErrorDetalhe ?? undefined,
+                  tom: 'erro',
+                }}
+                onRetry={() => void handleSaveCredentials()}
+                retryLabel="Salvar de novo"
+                retrying={isSaving}
+              />
             </div>
           )}
 
@@ -733,21 +770,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         {/* Tratamento honesto e segregado: Erro de requisição vs Lista vazia */}
         {credentialsFetchError ? (
-          <div className="alert-banner danger" role="alert" style={{ margin: '12px 0' }}>
-            <AlertTriangle size={16} aria-hidden="true" />
-            <div style={{ flex: 1 }}>
-              <strong>Falha ao consultar parâmetros do backend:</strong>
-              <p style={{ marginTop: '4px', fontSize: '0.85rem' }}>{credentialsFetchError}</p>
+          sessionError ? (
+            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', padding: '12px 0' }}>
+              A lista de credenciais aparece assim que a sessão conectar.{' '}
+              {onRetrySession && (
+                <button type="button" className="error-notice__btn" style={{ marginLeft: 8, minHeight: 32 }} onClick={onRetrySession}>
+                  Tentar de novo
+                </button>
+              )}
+            </p>
+          ) : (
+            <div style={{ margin: '12px 0' }}>
+              <ErrorNotice
+                compact
+                falha={apresentarErro(credentialsFetchError, { acao: 'carregar as credenciais' })}
+                onRetry={loadCredentials}
+                retrying={isLoadingCreds}
+                retryLabel="Carregar de novo"
+              />
             </div>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={loadCredentials}
-              style={{ fontSize: '0.82rem', padding: '4px 10px' }}
-            >
-              Tentar novamente
-            </button>
-          </div>
+          )
         ) : credentialsList.length === 0 ? (
           <p style={{ fontSize: '0.88rem', color: 'var(--color-text-muted)', padding: '16px 0' }}>
             Nenhum parâmetro customizado cadastrado ainda no banco cifrado. As variáveis do ambiente (.env) permanecem ativas como padrão do servidor.

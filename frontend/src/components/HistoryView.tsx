@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { History, Trash2, ExternalLink, Calendar, Hash, AlertCircle, FileText, Plus, Search } from 'lucide-react';
 import { PipelineStatusResumo, ResearchHistoryRecord } from '../types/api';
 import { api } from '../services/api';
+import { ErrorNotice } from './ErrorNotice';
 import { formatarTitulo } from '../utils/texto';
 
 interface HistoryViewProps {
@@ -32,6 +33,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   // Passo 3: status vivo por pesquisa, sem abrir SSE. Só consulta quem não
   // está concluído no registro local — dossiê pronto não muda de estágio.
   const [statusPorId, setStatusPorId] = useState<Record<string, PipelineStatusResumo>>({});
+  const [statusFalhas, setStatusFalhas] = useState(0);
 
   useEffect(() => {
     let cancelado = false;
@@ -49,6 +51,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         });
         return proximo;
       });
+      // Andamento ao vivo é best-effort: quando falha, a lista continua com o
+      // status salvo e a pessoa precisa saber que ele pode estar velho.
+      setStatusFalhas(resultados.filter((res) => res.status === 'rejected').length);
     })();
     return () => {
       cancelado = true;
@@ -166,6 +171,19 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               ))}
             </div>
           </div>
+
+          {statusFalhas > 0 && (
+            <ErrorNotice
+              compact
+              falha={{
+                titulo: 'O andamento ao vivo não atualizou',
+                mensagem: `${statusFalhas === 1 ? 'Uma pesquisa ficou' : `${statusFalhas} pesquisas ficaram`} com a situação de antes. O histórico salvo continua certo.`,
+                tom: 'aviso',
+              }}
+              onRetry={() => setStatusPorId({})}
+              retryLabel="Atualizar andamento"
+            />
+          )}
 
           {filtrados.length === 0 && (
             <p className="history-empty-filter">Nenhuma pesquisa corresponde a este filtro.</p>

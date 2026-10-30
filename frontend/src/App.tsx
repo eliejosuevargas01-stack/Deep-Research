@@ -10,6 +10,7 @@ import { EmptyState } from './components/EmptyState';
 import { PlanningView } from './components/PlanningView';
 import { PlanView } from './components/PlanView';
 import { ExecutionView, PipelineStage } from './components/ExecutionView';
+import { ErrorNotice } from './components/ErrorNotice';
 // Dossiê e documentação carregam sob demanda: react-markdown e remark-gfm só
 // entram no bundle quando a rota/estado precisa deles.
 const ReportView = React.lazy(() =>
@@ -26,6 +27,7 @@ import { ExecutionHarness } from './dev/ExecutionHarness';
 import { PlanHarness } from './dev/PlanHarness';
 import { api, RIGOR_PADRAO, normalizarRigor, validarCallbackUrl } from './services/api';
 import { historyService } from './services/history';
+import { apresentarErro } from './utils/erros';
 import {
   AuditResponse,
   PipelineStatusResumo,
@@ -36,7 +38,7 @@ import {
   WriterResponse,
 } from './types/api';
 import { usePipelineStream, formatPersonaTitle } from './hooks/usePipelineStream';
-import { RefreshCw, AlertTriangle, RotateCcw } from 'lucide-react';
+import { RefreshCw, RotateCcw } from 'lucide-react';
 
 const ACTIVE_RESEARCH_KEY = 'deepResearch.activeResearchId';
 const DRAFT_PLAN_KEY = 'deepResearch.draftPlan';
@@ -236,6 +238,8 @@ export const App: React.FC = () => {
     addReasoningItem,
     upsertReasoningItem,
     clearReasoningItems,
+    streamError,
+    reconnect,
   } = usePipelineStream({
     idPesquisa: currentPlan?.id_pesquisa,
     enabled: Boolean(currentPlan?.id_pesquisa && (isExecuting || pipelineStage !== 'idle')),
@@ -496,7 +500,7 @@ export const App: React.FC = () => {
 
       if (!sessionStateRef.current.authenticated || sessionStateRef.current.error) {
         setPlanningError(
-          'Sessão com o backend não estabelecida. Verifique a conexão e tente novamente no topo antes de enviar o tema.'
+          'A sessão ainda não conectou. Nada foi enviado. Tente de novo em instantes; se continuar, abra Configurações.'
         );
         return;
       }
@@ -561,7 +565,7 @@ export const App: React.FC = () => {
             plan.reasoning_planejamento ||
             (plan.plano_estruturado
               ? `**Pedido Normalizado:** ${plan.plano_estruturado.pedido_normalizado}\n\n**Público-alvo:** ${plan.plano_estruturado.publico}\n\n**Formato de Entrega:** ${plan.plano_estruturado.formato_entrega}`
-              : 'Plano estruturado de investigação formulado com sucesso.'),
+              : 'Plano estruturado pronto para revisão.'),
         });
       }
       // Limpa o compositor somente após o plano ser criado com sucesso, evitando duplicar plano
@@ -1179,24 +1183,15 @@ export const App: React.FC = () => {
         onToggleTheme={() => setTema((atual) => (atual === 'dark' ? 'light' : 'dark'))}
       />
 
-      {/* Alerta de Falha no Bootstrap de Sessão com Ação de Recuperação */}
+      {/* Falha ao abrir a sessão: diz o que aconteceu, o que sobrou e o próximo passo */}
       {sessionBootstrapError && (
-        <div className="alert-banner warning" role="alert" style={{ maxWidth: '1400px', margin: '16px auto 0 auto' }}>
-          <AlertTriangle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
-          <div style={{ flex: 1, fontSize: '0.85rem' }}>
-            <strong>Sessão inicial não sincronizada com o backend:</strong> {sessionBootstrapError}.
-            Certifique-se de que o backend FastAPI esteja em execução no mesmo endereço.
-          </div>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleRetryBootstrap}
-            disabled={isBootstrapping}
-            style={{ fontSize: '0.82rem', padding: '4px 10px', minHeight: '36px' }}
-          >
-            <RefreshCw size={13} className={isBootstrapping ? 'spinner' : ''} aria-hidden="true" />
-            <span>Tentar novamente</span>
-          </button>
+        <div className="app-error-slot">
+          <ErrorNotice
+            falha={apresentarErro(sessionBootstrapError, { acao: 'abrir a sessão' })}
+            onRetry={handleRetryBootstrap}
+            retrying={isBootstrapping}
+            acaoExtra={{ rotulo: 'Abrir Configurações', onClick: () => navigateTo('settings') }}
+          />
         </div>
       )}
 
@@ -1204,15 +1199,16 @@ export const App: React.FC = () => {
       <main className="workspace-main" id="conteudo">
         {currentRoute === 'research' && (
           <>
-            {/* Mensagem de Erro no Planejamento */}
+            {/* Falha no planejamento: mesmo aviso em qualquer rota, com repetição da ação */}
             {planningError && (
-              <div
-                className="alert-banner danger"
-                role="alert"
-                aria-live="assertive"
-                style={{ maxWidth: '1400px', margin: '0 auto 20px auto' }}
-              >
-                <span>Falha ao elaborar plano: {planningError}</span>
+              <div className="app-error-slot app-error-slot--inline">
+                <ErrorNotice
+                  compact
+                  falha={apresentarErro(planningError, { acao: 'elaborar o plano' })}
+                  onRetry={() => void handleCreatePlan()}
+                  retrying={isPlanning}
+                  retryLabel="Tentar de novo"
+                />
               </div>
             )}
 
@@ -1223,6 +1219,7 @@ export const App: React.FC = () => {
                 iniciadoEm={planningStartedAt}
                 raciocinio={planningText}
                 erro={planningError}
+                onRetry={() => void handleCreatePlan()}
               />
             ) : !currentPlan && !writerResult && pipelineStage === 'idle' ? (
               /* Estado Vazio de Nova Pesquisa */
@@ -1277,9 +1274,13 @@ export const App: React.FC = () => {
                         </button>
                       </div>
                       {asyncStatusErro && (
-                        <p className="card-copy" role="alert" style={{ color: 'var(--color-danger-text)' }}>
-                          {asyncStatusErro}
-                        </p>
+                        <ErrorNotice
+                          compact
+                          falha={apresentarErro(asyncStatusErro, { acao: 'consultar o andamento' })}
+                          onRetry={handleConsultarAsyncStatus}
+                          retrying={asyncConsultando}
+                          retryLabel="Consultar de novo"
+                        />
                       )}
                     </div>
                   ) : pipelineStage === 'idle' && currentPlan ? (
@@ -1305,6 +1306,8 @@ export const App: React.FC = () => {
                       cycleNumber={cycleNumber}
                       maxCycles={4}
                       errorMessage={executionError}
+                      streamError={streamError}
+                      onReconnect={reconnect}
                       failedStage={failedStage}
                       isRetrying={isRetrying}
                       onRetry={currentPlan ? handleRetryExecution : undefined}
@@ -1401,7 +1404,7 @@ export const App: React.FC = () => {
               }}
               placeholder={
                 sessionBootstrapError
-                  ? 'Sessão não sincronizada. Clique em "Tentar novamente" acima para conectar.'
+                  ? 'A sessão precisa conectar antes de descrever um tema.'
                   : currentPlan || writerResult
                   ? 'Descreva um novo tema de pesquisa para formular outro plano...'
                   : 'Descreva um novo tema de pesquisa (ex: O futuro da matriz energética no Brasil)...'
@@ -1453,6 +1456,8 @@ export const App: React.FC = () => {
             draft={settingsDraft}
             onDraftChange={setSettingsDraft}
             onDiscardDraft={handleDiscardSettingsDraft}
+            sessionError={sessionBootstrapError}
+            onRetrySession={handleRetryBootstrap}
           />
         )}
 

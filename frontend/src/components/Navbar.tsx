@@ -141,7 +141,7 @@ const NavbarBase: React.FC<NavbarProps> = ({
               type="button"
               className="pill pill-amber session-badge btn-pill-action"
               onClick={() => handleNav('settings')}
-              title="Sessão não sincronizada — abra Configurações"
+              title="A sessão não conectou. Abra Configurações."
             >
               <ShieldAlert size={12} aria-hidden="true" />
               <span>Sessão pendente</span>

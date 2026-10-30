@@ -1,0 +1,297 @@
+/* Aviso de falha: um bloco, três níveis de leitura (título, mensagem,
+   detalhes técnicos recolhidos) e a ação de recuperação ao lado. */
+
+.error-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 10px 12px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-subtle, var(--color-border));
+  border-left: 3px solid var(--color-danger-text);
+  border-radius: var(--radius-md, 10px);
+  background: var(--color-surface, #fff);
+  color: var(--color-text-primary);
+}
+
+.error-notice--aviso {
+  border-left-color: var(--color-warning-text, #a05a00);
+}
+
+.error-notice__icon {
+  margin-top: 1px;
+  color: var(--color-danger-text);
+  flex-shrink: 0;
+}
+
+.error-notice--aviso .error-notice__icon {
+  color: var(--color-warning-text, #a05a00);
+}
+
+.error-notice__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.error-notice__title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  color: var(--color-text-primary);
+}
+
+.error-notice__message {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+.error-notice__details {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.error-notice__details summary {
+  cursor: pointer;
+  width: fit-content;
+  padding: 2px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border-radius: 4px;
+}
+
+.error-notice__details summary:focus-visible {
+  outline: 2px solid var(--color-accent, #1a73e8);
+  outline-offset: 2px;
+}
+
+.error-notice__details code {
+  display: block;
+  margin-top: 6px;
+  padding: 8px 10px;
+  max-height: 168px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--color-surface-subtle, rgba(0, 0, 0, 0.04));
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.error-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.error-notice__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.error-notice__btn:hover {
+  background: var(--color-surface-subtle, rgba(0, 0, 0, 0.04));
+}
+
+.error-notice__btn--primary {
+  border-color: var(--color-text-primary);
+  background: var(--color-text-primary);
+  color: var(--color-surface, #fff);
+}
+
+.error-notice__btn--primary:hover {
+  opacity: 0.9;
+  background: var(--color-text-primary);
+}
+
+.error-notice__btn:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.error-notice__btn:focus-visible {
+  outline: 2px solid var(--color-accent, #1a73e8);
+  outline-offset: 2px;
+}
+
+.error-notice__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -2px -4px 0 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.error-notice__close:hover {
+  background: var(--color-surface-subtle, rgba(0, 0, 0, 0.04));
+  color: var(--color-text-primary);
+}
+
+.error-notice__close:focus-visible {
+  outline: 2px solid var(--color-accent, #1a73e8);
+  outline-offset: 2px;
+}
+
+.error-notice--compact {
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.error-notice--compact .error-notice__title {
+  font-size: 13px;
+}
+
+.error-notice--compact .error-notice__message {
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .error-notice {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 10px 12px;
+  }
+
+  .error-notice__close {
+    grid-column: 2;
+    justify-self: end;
+    margin: -2px -2px 0 0;
+  }
+
+  .error-notice__actions {
+    grid-column: 1 / -1;
+  }
+
+  .error-notice__btn {
+    min-height: 40px;
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+:root[data-theme='dark'] .error-notice {
+  background: var(--color-surface, #161616);
+  border-color: var(--color-border);
+}
+
+:root[data-theme='dark'] .error-notice__details code {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:root[data-theme='dark'] .error-notice__btn--primary {
+  border-color: var(--color-text-primary);
+  background: var(--color-text-primary);
+  color: #111;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .error-notice__btn {
+    transition: none;
+  }
+}
+
+/* Slot de aviso global: alinha com a coluna do conteúdo, sem empurrar a rail. */
+.app-error-slot {
+  width: 100%;
+  max-width: 1400px;
+  margin: 14px auto 0;
+  padding: 0 4px;
+}
+
+.app-error-slot--inline {
+  margin: 0 auto 18px;
+}
+
+/* Tela de exceção não tratada: uma saída clara, nada de tela branca. */
+.error-crash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--color-bg, #fbfcf9);
+}
+
+.error-crash__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 520px;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-danger-text);
+  border-radius: 12px;
+  background: var(--color-surface, #fff);
+}
+
+.error-crash__icon {
+  color: var(--color-danger-text);
+}
+
+.error-crash__title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.error-crash__message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  text-wrap: pretty;
+}
+
+.error-crash__card .error-notice__btn {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+:root[data-theme='dark'] .error-crash {
+  background: var(--color-bg, #0f0f0f);
+}
+
+@media (max-width: 640px) {
+  .app-error-slot {
+    padding: 0 10px;
+  }
+}

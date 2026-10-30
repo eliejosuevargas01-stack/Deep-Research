@@ -4,7 +4,6 @@ import {
   ChevronRight,
   AlertCircle,
   AlertTriangle,
-  RotateCcw,
   CheckCircle2,
   BookmarkCheck,
   FileQuestion,
@@ -14,6 +13,8 @@ import {
 } from 'lucide-react';
 import { FontesResumo, FonteItem, FontesStatus } from '../types/api';
 import './SourceBreakdown.css';
+import { ErrorNotice } from './ErrorNotice';
+import { apresentarErro } from '../utils/erros';
 
 export interface SourceBreakdownProps {
   fontes: FontesResumo | null | undefined;
@@ -264,23 +265,13 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
 
       {/* Erro de requisição (sem ocultar relatório ou quebrar cópia) */}
       {error && !loading && (
-        <div className="source-notice-banner danger" role="alert">
-          <AlertCircle size={18} aria-hidden="true" />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <strong>Não foi possível obter os detalhes de fontes da investigação:</strong>
-            <span>{error}</span>
-            {onRetry && (
-              <button
-                type="button"
-                className="source-retry-btn"
-                onClick={onRetry}
-                aria-label="Tentar carregar fontes novamente"
-              >
-                <RotateCcw size={12} aria-hidden="true" />
-                <span>Tentar novamente</span>
-              </button>
-            )}
-          </div>
+        <div className="source-notice-banner">
+          <ErrorNotice
+            compact
+            falha={apresentarErro(error, { acao: 'carregar as fontes' })}
+            onRetry={onRetry}
+            retryLabel="Carregar de novo"
+          />
         </div>
       )}
 

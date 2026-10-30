@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  AlertTriangle,
   XCircle,
   RotateCcw,
   RefreshCw,
@@ -13,6 +12,9 @@ import { LinearTimeline } from './LinearTimeline';
 import '../styles/execution-view.css';
 import { formatarTitulo } from '../utils/texto';
 import { ConvergenceLogo } from './ResearchIcons';
+import { ErrorNotice } from './ErrorNotice';
+import { apresentarErro } from '../utils/erros';
+import type { FalhaApresentada } from '../utils/erros';
 
 export type PipelineStage = 'idle' | 'searching' | 'auditing' | 'writing' | 'completed' | 'rejected' | 'failed';
 
@@ -131,7 +133,7 @@ export function getSuccinctStatus(
     case 'writing':
       return 'Redigindo o dossiê analítico final.';
     case 'completed':
-      return 'Investigação e dossiê final concluídos com sucesso.';
+      return 'Investigação concluída. Dossiê pronto.';
     case 'rejected':
       return 'Investigação bloqueada na auditoria de qualidade: limiar mínimo de critérios não atendido.';
     case 'failed': {
@@ -166,6 +168,64 @@ export function getCycleBadgeClass(stage: PipelineStage): string {
     default:
       return 'planejado';
   }
+}
+
+/** Falha de execução traduzida: o que parou, o que sobrou e o próximo passo. */
+function falhaDaExecucao({
+  isTimeout,
+  isProviderError,
+  failedStage,
+  errorMessage,
+}: {
+  isTimeout: boolean;
+  isProviderError: boolean;
+  failedStage?: 'searching' | 'auditing' | 'writing' | null;
+  errorMessage?: string | null;
+}): FalhaApresentada {
+  const detalhe = errorMessage?.trim() || undefined;
+
+  if (isTimeout) {
+    return {
+      titulo: 'A pesquisa passou do tempo limite',
+      mensagem: 'O que já foi coletado continua salvo. Tente de novo. Se repetir, reduza o número de pontos.',
+      detalhe,
+      tom: 'erro',
+    };
+  }
+
+  if (isProviderError) {
+    return {
+      titulo: 'O provedor de IA não respondeu',
+      mensagem: 'Nada coletado foi perdido. Tente de novo em instantes.',
+      detalhe,
+      tom: 'erro',
+    };
+  }
+
+  if (failedStage === 'writing') {
+    return {
+      titulo: 'A redação parou',
+      mensagem: 'Os pontos já passaram na auditoria. Tente de novo para escrever o dossiê; nada precisa ser recoletado.',
+      detalhe,
+      tom: 'erro',
+    };
+  }
+
+  if (failedStage === 'auditing') {
+    return {
+      titulo: 'A auditoria parou',
+      mensagem: 'Os pontos coletados continuam salvos. Tente de novo para reauditar.',
+      detalhe,
+      tom: 'erro',
+    };
+  }
+
+  return {
+    titulo: 'A busca parou',
+    mensagem: 'O que já foi coletado continua salvo. Tente de novo; a coleta retoma do último ponto concluído.',
+    detalhe,
+    tom: 'erro',
+  };
 }
 
 /** Limite de critérios não cumpridos exibidos por ponto no banner. */
@@ -303,6 +363,9 @@ interface ExecutionViewProps {
   cycleNumber: number;
   maxCycles: number;
   errorMessage?: string | null;
+  /** Queda do canal ao vivo (SSE). O trabalho continua no servidor. */
+  streamError?: string | null;
+  onReconnect?: () => void;
   failedStage?: 'searching' | 'auditing' | 'writing' | null;
   isRetrying?: boolean;
   onRetry?: () => void;
@@ -322,6 +385,8 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
   cycleNumber,
   maxCycles,
   errorMessage,
+  streamError,
+  onReconnect,
   failedStage,
   isRetrying = false,
   onRetry,
@@ -510,20 +575,25 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
         />
       </p>
 
-
-
-
+      {/* Queda do canal ao vivo: o servidor continua trabalhando */}
+      {streamError && stage !== 'failed' && (
+        <ErrorNotice
+          compact
+          falha={apresentarErro(streamError, { acao: 'acompanhar a pesquisa ao vivo', tom: 'aviso' })}
+          onRetry={onReconnect}
+          retryLabel="Reconectar"
+        />
+      )}
 
       {/* Estado: Reprovado na Auditoria / Teto de Tentativas Excedido */}
       {stage === 'rejected' && (
         <div className="alert-banner danger exec-error-card" role="alert">
           <XCircle size={20} aria-hidden="true" className="execution-banner-icon" />
           <div className="execution-banner-body">
-            <strong>Investigação bloqueada na auditoria de qualidade</strong>
+            <strong>A auditoria barrou o dossiê</strong>
             <p className="execution-banner-copy">
-              Nem todos os pontos atingiram o limiar mínimo de 11/12 critérios após as tentativas de busca e refinamento.
-              Conforme as diretrizes de confiabilidade, a redação final do dossiê não pode ser executada com dados não
-              aprovados.
+              Nenhum ponto chegou a 11 de 12 critérios depois das tentativas. O dossiê não foi escrito porque os
+              dados não passaram no crivo. Refazer a busca dos pontos abaixo é o caminho mais curto para liberar.
             </p>
             {auditResult?.auditorias?.some((a) => (a.criterios ?? []).some((c) => !c.aprovado)) && (
               <BannerPontosPendentes
@@ -550,54 +620,27 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
 
       {/* Estado: Falha na Execução (Timeout, 502, 504, erro de provedor) com Recuperação Específica */}
       {stage === 'failed' && (
-        <div className="alert-banner danger exec-error-card" role="alert">
-          <AlertTriangle size={20} aria-hidden="true" className="execution-banner-icon" />
+        <div className="exec-error-card">
+          <ErrorNotice
+            falha={falhaDaExecucao({ isTimeout, isProviderError, failedStage, errorMessage })}
+            onRetry={onRetry}
+            retrying={isRetrying}
+            retryLabel={
+              failedStage === 'writing' || auditResult?.pronto_para_writer
+                ? 'Escrever o dossiê de novo'
+                : failedStage === 'auditing'
+                ? 'Reauditar'
+                : 'Repetir busca e auditoria'
+            }
+            acaoExtra={{ rotulo: 'Formular novo tema', onClick: onReset }}
+          />
           <div className="execution-banner-body">
-            <strong>
-              {isTimeout
-                ? 'Tempo limite de execução excedido (Timeout):'
-                : isProviderError
-                ? 'Falha temporária de comunicação com o provedor (502 Gateway):'
-                : 'Falha na execução da pesquisa:'}
-            </strong>
-            <p className="execution-banner-copy execution-banner-copy--break">
-              {errorMessage || 'Ocorreu uma instabilidade na execução do pipeline de pesquisa ou comunicação com o servidor.'}
-            </p>
             <BannerPontosPendentes
               pontos={pontosPendentes}
               onRefazerBuscaPonto={onRefazerBuscaPonto}
               onReauditarPonto={onReauditarPonto}
               pontoEmReprocesso={pontoEmReprocesso}
             />
-            <div className="execution-banner-actions">
-              {onRetry && (
-                <button
-                  type="button"
-                  className="btn-start-research btn-compact"
-                  onClick={onRetry}
-                  disabled={isRetrying}
-                  
-                >
-                  <RefreshCw size={14} className={isRetrying ? 'spinner' : ''} aria-hidden="true" />
-                  <span>
-                    {failedStage === 'writing' || auditResult?.pronto_para_writer
-                      ? 'Tentar redigir dossiê novamente'
-                      : failedStage === 'auditing'
-                      ? 'Tentar auditoria novamente'
-                      : 'Tentar busca e auditoria novamente'}
-                  </span>
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn-secondary btn-compact"
-                onClick={onReset}
-                
-              >
-                <RotateCcw size={14} aria-hidden="true" />
-                <span>Formular novo tema</span>
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -621,7 +664,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
         <div className="alert-banner info">
           <span className="spinner" aria-hidden="true" />
           <div>
-            <strong>Pontos aprovados pela auditoria! Redigindo dossiê final...</strong>
+            <strong>Pontos aprovados. Redigindo o dossiê.</strong>
             <p className="execution-banner-copy">
               Consolidando evidências canônicas e redigindo o relatório analítico integral em Markdown.
             </p>

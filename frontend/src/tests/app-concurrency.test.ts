@@ -262,11 +262,11 @@ async function runRealConcurrencyTests() {
       await page.goto(BASE_URL);
 
       // Deve exibir o banner de falha de sincronização de sessão
-      const warningAlert = page.locator('.alert-banner.warning');
+      const warningAlert = page.locator('.error-notice');
       await warningAlert.waitFor({ state: 'visible', timeout: 10000 });
       const warningText = await warningAlert.textContent();
       assert.ok(
-        warningText?.includes('Sessão inicial não sincronizada com o backend'),
+        warningText?.includes('O servidor travou no meio do caminho'),
         'Deve exibir aviso explícito de falha na sincronização inicial'
       );
 
@@ -285,7 +285,7 @@ async function runRealConcurrencyTests() {
       sessionShouldFail = false;
 
       // Clica no botão "Tentar novamente" do banner
-      const retryBtn = warningAlert.locator('button.btn-secondary');
+      const retryBtn = warningAlert.locator('.error-notice__btn--primary');
       await retryBtn.click();
 
       // Aguarda o banner de aviso desaparecer

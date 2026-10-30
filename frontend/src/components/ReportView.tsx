@@ -7,6 +7,7 @@ import { Copy, Check, Download, ExternalLink, AlertTriangle, RotateCcw, CheckCir
 import { WriterResponse, FontesResumo } from '../types/api';
 import { api } from '../services/api';
 import { historyService } from '../services/history';
+import { ErrorNotice } from './ErrorNotice';
 import { SourceBreakdown } from './SourceBreakdown';
 import { formatarTitulo } from '../utils/texto';
 
@@ -362,7 +363,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     setDownloaded(true);
-    setActionFeedback('Arquivo Markdown transferido com sucesso.');
+    setActionFeedback('Arquivo Markdown baixado.');
     setTimeout(() => {
       setDownloaded(false);
       setActionFeedback(null);
@@ -408,17 +409,17 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
         </div>
       )}
 
-      {/* Alerta explícito se o dossiê não estiver concluído */}
+      {/* Dossiê incompleto: diz o tamanho do problema antes do texto */}
       {!isComplete && (
-        <div className="alert-banner warning" role="alert">
-          <AlertTriangle size={20} aria-hidden="true" style={{ flexShrink: 0 }} />
-          <div>
-            <strong>Dossiê marcado como {report.status.toUpperCase()} pelo redator:</strong>
-            <p style={{ marginTop: '4px', fontSize: '0.85rem' }}>
-              {report.diagnostico ||
-                'O dossiê foi gerado com ressalvas ou dados incompletos devido a insuficiência de evidências em alguns pontos.'}
-            </p>
-          </div>
+        <div className="report-warning-slot">
+          <ErrorNotice
+            falha={{
+              titulo: 'Este dossiê ficou incompleto',
+              mensagem: 'Alguns pontos não tinham evidência suficiente. O texto abaixo foi preservado como está e pode ser lido e copiado normalmente.',
+              detalhe: report.diagnostico || undefined,
+              tom: 'aviso',
+            }}
+          />
         </div>
       )}
 
@@ -462,7 +463,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
             {copied ? (
               <>
                 <Check size={16} aria-hidden="true" />
-                <span>Copiado!</span>
+                <span>Copiado</span>
               </>
             ) : (
               <>
@@ -481,7 +482,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
             {downloaded ? (
               <>
                 <Check size={16} aria-hidden="true" />
-                <span>Baixado!</span>
+                <span>Baixado</span>
               </>
             ) : (
               <>

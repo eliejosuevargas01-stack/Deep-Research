@@ -344,8 +344,8 @@ Código inline: \`https://nao-deve-aparecer-inline.com\` e \`[outro inline](http
     'Deve exibir a mensagem de erro específica'
   );
   assert.ok(
-    htmlError.includes('Tentar novamente'),
-    'Deve exibir botão para tentar novamente a requisição de fontes'
+    htmlError.includes('Carregar de novo'),
+    'Deve exibir ação para recarregar as fontes'
   );
   assert.equal(retryClicked, false, 'retryClicked inicial deve ser false');
 

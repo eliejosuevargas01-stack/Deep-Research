@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { ErrorNotice } from './ErrorNotice';
+import { apresentarErro } from '../utils/erros';
 import { formatarTitulo } from '../utils/texto';
 
 export interface PlanningViewProps {
@@ -7,6 +8,7 @@ export interface PlanningViewProps {
   iniciadoEm: number;
   raciocinio: string;
   erro?: string | null;
+  onRetry?: () => void;
 }
 
 const ETAPAS = [
@@ -27,7 +29,7 @@ const formatar = (ms: number): string => {
  * Tela intermediária do planejamento: aparece no instante em que o tema é enviado,
  * antes de `POST /plan` responder, e mostra o raciocínio do Planejador em tempo real.
  */
-export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, raciocinio, erro }) => {
+export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, raciocinio, erro, onRetry }) => {
   const [agora, setAgora] = useState<number>(() => Date.now());
 
   useEffect(() => {
@@ -93,12 +95,13 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, ra
       </div>
 
       {erro && (
-        <div className="planning-error" role="alert">
-          <AlertTriangle size={17} aria-hidden="true" />
-          <div>
-            <strong>Não foi possível elaborar o plano</strong>
-            <p>{erro}</p>
-          </div>
+        <div className="planning-error">
+          <ErrorNotice
+            compact
+            falha={apresentarErro(erro, { acao: 'elaborar o plano' })}
+            onRetry={onRetry}
+            retryLabel="Tentar de novo"
+          />
         </div>
       )}
     </section>
