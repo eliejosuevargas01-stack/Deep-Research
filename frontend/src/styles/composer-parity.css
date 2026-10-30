@@ -808,16 +808,3 @@
     animation: none;
   }
 }
-
-/* Alvos de toque no mobile: 44px de altura para chip de preferências e dock. */
-@media (max-width: 899px) {
-  .composer-anchor .composer-meta-group .preferences-toggle-btn {
-    height: 44px;
-    min-height: 44px;
-  }
-
-  .composer-anchor .dock-btn {
-    min-width: 44px;
-    min-height: 44px;
-  }
-}

@@ -1025,7 +1025,7 @@
 }
 
 .workspace-main {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   max-width: none;
 }
 
@@ -1130,16 +1130,7 @@
 
 @media (max-width: 899px) {
   .workspace-main {
-    overflow: visible !important;
-    overflow-y: visible !important;
-    overflow-x: hidden !important;
-  }
-
-  html,
-  body {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    height: auto !important;
+    overflow-y: auto;
   }
 }
 
@@ -1242,45 +1233,4 @@
   font-size: 15px;
   font-weight: 600;
   color: var(--color-text-secondary);
-}
-
-/* Rotas de conteúdo (guia, ajustes, histórico, dossiê) não têm linha do tempo:
-   a coluna central é o scroller. Só a tela de execução mantém o scroll no
-   `.tl-linear`, com cabeçalho fixo. */
-@media (min-width: 900px) {
-  .workspace-main:not(:has(.execution-card)) {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-  }
-
-  .workspace-main:not(:has(.execution-card)) > .workspace-grid > div:first-child {
-    overflow: visible;
-  }
-}
-
-/* Alvos de toque: nada abaixo de 44px no mobile. */
-@media (max-width: 899px) {
-  .brand-link,
-  .preferences-toggle-btn,
-  .dock-btn,
-  .form-input,
-  .form-select,
-  .form-textarea {
-    min-height: 44px;
-  }
-
-  .brand-link {
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .dock-btn {
-    min-width: 44px;
-  }
-}
-
-@media (max-width: 899px) {
-  .btn-secondary {
-    min-height: 44px;
-  }
 }

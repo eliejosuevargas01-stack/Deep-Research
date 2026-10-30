@@ -1,0 +1,158 @@
+/* Correções de rolagem — cirúrgicas, para não mexer no visual aprovado.
+   Desktop: shell fixa, coluna central rola (execução segue com o scroll no
+   `.tl-linear`). Mobile: a página rola e a tab bar fica fixa. */
+
+@media (min-width: 900px) {
+  .workspace-main:not(:has(.execution-card)) {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  .workspace-main:not(:has(.execution-card)) > .workspace-grid > div:first-child {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 899px) {
+  html,
+  body {
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  #root,
+  .app-shell,
+  .app-main,
+  .app-container {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 100dvh;
+    overflow: visible !important;
+  }
+
+  .workspace-main {
+    height: auto;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    overflow: visible !important;
+  }
+
+  .mobile-tabbar {
+    position: fixed;
+  }
+
+  /* O composer acompanha a rolagem e para acima da tab bar. */
+  .composer-anchor {
+    position: sticky;
+    bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+    z-index: 30;
+  }
+
+  /* Dossiê é leitura: nada de composer flutuando por cima do texto. */
+  .workspace-main:has(.report-card) .composer-anchor {
+    display: none;
+  }
+
+  /* Painel de contexto vira gaveta sobre o conteúdo, recolhida por padrão. */
+  .workspace-grid > .sidebar-container.rr-rail {
+    position: fixed;
+    top: 52px;
+    right: 8px;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    width: min(86vw, 340px);
+    z-index: 60;
+    border-radius: 16px;
+    background: var(--color-surface);
+    box-shadow: 0 16px 40px rgba(12, 20, 20, 0.18);
+    overflow: hidden;
+    transition: transform 180ms ease-out;
+  }
+
+  .workspace-grid > .sidebar-container.rr-rail--collapsed {
+    top: auto;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    width: auto;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .rr-rail__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 44px;
+    padding: 0 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(12, 20, 20, 0.12);
+  }
+
+  .rr-rail__pill-count {
+    color: var(--color-text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Alvos de toque: 44px no mobile, sem mexer no desenho. */
+@media (max-width: 899px) {
+  .brand-link,
+  .preferences-toggle-btn,
+  .dock-btn,
+  .topic-pill,
+  .form-input,
+  .form-select,
+  .form-textarea,
+  .btn-secondary,
+  .mobile-tab,
+  .rr-rail__collapse,
+  .rr-rail__reopen,
+  .rr-rail__tab {
+    min-height: 44px;
+  }
+
+  .brand-link,
+  .preferences-toggle-btn,
+  .dock-btn,
+  .mobile-tab {
+    align-items: center;
+  }
+
+  .composer-anchor .composer-meta-group .preferences-toggle-btn {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .composer-anchor .dock-btn {
+    min-width: 44px;
+    min-height: 44px;
+    height: 44px;
+  }
+
+  .composer-anchor .dock-btn .dock-btn-label {
+    display: none;
+  }
+
+  .workspace-grid > .sidebar-container.rr-rail--collapsed {
+    min-width: 44px;
+  }
+
+  .settings-container .form-input {
+    min-height: 44px;
+  }
+
+  .history-actions .btn-secondary {
+    min-height: 44px;
+    min-width: 44px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}

@@ -436,12 +436,13 @@
   opacity: 1;
 }
 
-/* Alvos de toque confortáveis em telas com ponteiro grosso (mobile/tablet). */
-@media (pointer: coarse) {
-  .history-actions .btn-secondary {
-    min-height: 44px;
-    padding: 6px 10px;
-  }
+.history-actions .btn-secondary {
+  border: 0;
+  background: transparent;
+  padding: 4px 6px;
+  min-height: 0;
+  color: var(--color-text-secondary);
+  box-shadow: none;
 }
 
 .history-actions .btn-secondary:hover {
@@ -552,13 +553,6 @@
 .settings-container .form-input {
   width: 100%;
   min-height: 42px;
-}
-
-/* No mobile o alvo de toque mínimo sobe para 44px (WCAG 2.5.8). */
-@media (max-width: 899px) {
-  .settings-container .form-input {
-    min-height: 44px;
-  }
 }
 
 .settings-container .form-label-hint {

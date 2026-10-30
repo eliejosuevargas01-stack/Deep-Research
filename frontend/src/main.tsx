@@ -13,6 +13,7 @@ import './styles/world.css';
 import './styles/linear-timeline.css';
 import './styles/gdr-refit.css';
 import './styles/theme-contrast.css';
+import './styles/mobile-shell.css';
 import { initReducedMotionSMIL } from './utils/reduceMotion';
 
 // SMIL (`<animate>`/`animateTransform`/`animateMotion`) não é alcançado por

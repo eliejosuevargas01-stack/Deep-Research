@@ -291,12 +291,3 @@
   }
 }
 
-
-/* Alvos de toque no mobile: campos de formulário com 44px. */
-@media (max-width: 899px) {
-  .form-input,
-  .form-select,
-  .form-textarea {
-    min-height: 44px;
-  }
-}
