@@ -984,7 +984,7 @@
 
 .workspace-main {
   flex: 0 0 auto;
-  max-width: 1500px;
+  max-width: none;
 }
 
 .workspace-main:has(.execution-card) {

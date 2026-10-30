@@ -89,7 +89,7 @@ body {
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: var(--space-6);
   align-items: start;
-  max-width: 1280px;
+  max-width: none;
   margin: 0 auto;
 }
 
