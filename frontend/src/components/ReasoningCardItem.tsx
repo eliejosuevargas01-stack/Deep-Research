@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useRef } from 'react';
 import { InlineMarkdown } from './InlineMarkdown';
 import {
   AlertTriangle,
@@ -153,13 +153,9 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
   registrarToggle,
 }: ReasoningCardItemProps) {
   const corpoId = `reasoning-body-${item.id}`;
-  // O backend usa 'concluido'/'falha' na busca e 'aprovado'/'reprovado' na
-  // auditoria: sem normalizar, cartão de auditoria nunca mostra desfecho.
   const falhou = item.status === 'falha' || item.status === 'reprovado';
   const concluiu = !item.streaming && (item.status === 'concluido' || item.status === 'aprovado');
-  // O título do SSE já repete o nome do agente ("Varredura Web — Cético").
-  // O badge ao lado diz o mesmo; repetir polui a linha.
-  const sufixo = new RegExp(`\\s*[—–-]\\s*${item.agentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i');
+  const sufixo = new RegExp(`\s*[—–-]\s*${item.agentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\s*$`, 'i');
   const titulo = item.title.replace(sufixo, '').trim() || item.title;
   const detalhes = (item.details || {}) as Record<string, unknown>;
   const duracao = formatDuration(
@@ -175,8 +171,6 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
   const personaTipo = item.agentType === 'busca' || item.agentType === 'planejador' || item.agentType === 'auditor' || item.agentType === 'redator'
     ? mapearPersonaParaTipo(`${item.agentName} ${item.title}`)
     : mapearPersonaParaTipo(item.agentName);
-  // Pílulas de domínio/consulta extraídas da telemetria real do agente
-  // (`Ferramenta · SERP` e URLs citadas no raciocínio). Sem fabricar fontes.
   const consultas = Array.from(item.reasoning.matchAll(/Ferramenta · SERP\*\*\s*`([^`]+)`/g))
     .map((m) => m[1])
     .slice(0, 3);
@@ -196,6 +190,44 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
     Boolean(item.streaming),
     typeof detalhes.started_at === 'number' ? (detalhes.started_at as number) : null
   );
+
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const userScrolledRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    if (!item.streaming || !aberto) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    const onScroll = () => {
+      if (el.scrollTop < lastScrollTopRef.current) {
+        userScrolledRef.current = true;
+      } else if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
+        userScrolledRef.current = false;
+      }
+      lastScrollTopRef.current = el.scrollTop;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [item.streaming, aberto]);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    if (!item.streaming || !aberto) return;
+    if (userScrolledRef.current) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    try {
+      el.scrollTop = el.scrollHeight;
+    } catch {
+      /* ignore */
+    }
+  }, [item.reasoning, item.streaming, aberto]);
 
   return (
     <article
@@ -264,7 +296,7 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
       )}
 
       {aberto && (
-        <div id={corpoId} className="reasoning-card-body">
+        <div id={corpoId} className="reasoning-card-body" ref={bodyRef}>
           {item.streaming ? (
             <div className="reasoning-streaming-text">
               <InlineMarkdown text={normalizarTelemetria(item.reasoning)} />
