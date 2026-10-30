@@ -10,25 +10,34 @@ import { HARNESS_PLAN } from './ExecutionHarness';
 export const PlanHarness: React.FC = () => {
   const [iniciando, setIniciando] = useState(false);
 
-  const raciocinioJson = JSON.stringify({
+  const raciocinioCompleto = JSON.stringify({
     tema: HARNESS_PLAN.tema ?? 'IA generativa no trabalho de TI',
     publico: 'gestores de TI e profissionais acompanhando o mercado',
     formato_entrega: 'Relatório com evidências datadas e distinção entre estudo e relato de mídia',
     pressupostos: ['Trabalho de TI inclui código, dados e segurança'],
     ambiguidades: ['Não está definido se o foco é adoção individual ou agregado'],
   });
+  const raciocinioTruncado = raciocinioCompleto.slice(0, Math.floor(raciocinioCompleto.length * 0.55));
+  const amostras: Array<[string, string]> = [
+    ['json completo', raciocinioCompleto],
+    ['json pela metade (streaming)', raciocinioTruncado],
+    ['prosa pura', 'O pedido pede comparação entre estudos controlados e relatos de mercado. Vou dividir em quatro pontos.'],
+  ];
 
   return (
     <div className="harness-plan" data-harness="plan">
-      <section className="harness-planning-sample" aria-label="Amostra do planejador em ação">
-        <PlanningView
-          tema={HARNESS_PLAN.tema ?? 'IA generativa no trabalho de TI'}
-          iniciadoEm={Date.now() - 8000}
-          raciocinio={raciocinioJson}
-          erro={null}
-          onRetry={() => undefined}
-        />
-      </section>
+      {amostras.map(([rotulo, texto]) => (
+        <section className="harness-planning-sample" key={rotulo} aria-label={`Amostra do planejador: ${rotulo}`}>
+          <p className="harness-planning-rotulo">{rotulo}</p>
+          <PlanningView
+            tema={HARNESS_PLAN.tema ?? 'IA generativa no trabalho de TI'}
+            iniciadoEm={Date.now() - 8000}
+            raciocinio={texto}
+            erro={null}
+            onRetry={() => undefined}
+          />
+        </section>
+      ))}
       <PlanView
         plan={HARNESS_PLAN}
         isStarting={iniciando}

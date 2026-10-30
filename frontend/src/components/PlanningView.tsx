@@ -68,28 +68,60 @@ function valorLegivel(v: unknown): string {
   return String(v);
 }
 
-/** O planejador devolve JSON; a tela mostra texto, não chaves cruas. */
-export function raciocinioLegivel(bruto: string): string {
-  const texto = (bruto || '').trim();
-  if (!texto.startsWith('{')) return bruto;
-  let dados: unknown;
-  try {
-    dados = JSON.parse(texto);
-  } catch {
-    return bruto;
-  }
-  if (!dados || typeof dados !== 'object') return bruto;
-  const obj = dados as Record<string, unknown>;
-  const linhas = Object.keys(ROTULOS)
+/** Objeto já parseado -> linhas legíveis, na ordem dos rótulos conhecidos. */
+function formatarObjeto(obj: Record<string, unknown>): string {
+  return Object.keys(ROTULOS)
     .filter((k) => obj[k] != null)
     .map((k) => {
       const valor = valorLegivel(obj[k]);
       if (!valor) return '';
-      const lista = Array.isArray(obj[k]);
-      return `${ROTULOS[k]}:\n${lista ? '• ' : ''}${valor}`;
+      return `${ROTULOS[k]}:\n${Array.isArray(obj[k]) ? '• ' : ''}${valor}`;
     })
-    .filter(Boolean);
-  return linhas.length > 0 ? linhas.join('\n\n') : bruto;
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+/** O raciocínio chega em pedaços: JSON completo, JSON truncado ou prosa. */
+function extrairCamposParciais(texto: string): string {
+  const linhas: string[] = [];
+  for (const chave of Object.keys(ROTULOS)) {
+    const str = texto.match(new RegExp(`"${chave}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)("|$)`, 's'));
+    if (str && str[1] && str[1].trim()) {
+      linhas.push(`${ROTULOS[chave]}: ${str[1].replace(/\\n/g, ' ').replace(/\\"/g, '"').trim()}`);
+      continue;
+    }
+    const arr = texto.match(new RegExp(`"${chave}"\\s*:\\s*\\[([\\s\\S]*?)(\\]|$)`, 's'));
+    if (arr && arr[1]) {
+      const itens = [...arr[1].matchAll(/"((?:[^"\\]|\\.)*)("|$)/g)]
+        .map((m) => m[1].replace(/\\n/g, ' ').replace(/\\"/g, '"').trim())
+        .filter(Boolean);
+      if (itens.length > 0) linhas.push(`${ROTULOS[chave]}:\n• ${itens.join('\n• ')}`);
+    }
+  }
+  return linhas.join('\n\n');
+}
+
+/**
+ * O planejador devolve JSON; a tela mostra texto, nunca chave crua.
+ * Enquanto o JSON não fecha, extrai só os campos já chegados.
+ */
+export function raciocinioLegivel(bruto: string): string {
+  const texto = (bruto || '').trim();
+  if (!texto) return '';
+  if (!texto.includes('"') || !texto.includes(':')) return bruto;
+  const inicio = texto.indexOf('{');
+  if (inicio >= 0) {
+    try {
+      const dados = JSON.parse(texto.slice(inicio)) as Record<string, unknown>;
+      if (dados && typeof dados === 'object') {
+        const completo = formatarObjeto(dados);
+        if (completo) return completo;
+      }
+    } catch {
+      /* JSON ainda incompleto: cai na extração parcial */
+    }
+  }
+  return extrairCamposParciais(texto);
 }
 
 export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, raciocinio, erro, onRetry }) => {
@@ -150,7 +182,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, ra
 
       <div className="planning-reasoning">
         <p className="planning-reasoning-label">Raciocínio do planejador</p>
-        {raciocinio ? (
+        {raciocinioLegivel(raciocinio) ? (
           <pre className="planning-reasoning-text">{raciocinioLegivel(raciocinio)}</pre>
         ) : (
           <p className="planning-reasoning-empty">
