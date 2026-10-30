@@ -1130,3 +1130,11 @@
 .execution-banner-actions > .btn-secondary span {
   overflow-wrap: anywhere;
 }
+
+/* Aviso de erro não passa por baixo do painel de contexto. */
+@media (min-width: 1081px) {
+  .workspace-main:has(.rr-rail) > .app-error-slot {
+    max-width: calc(100% - 384px);
+    margin-right: auto;
+  }
+}
