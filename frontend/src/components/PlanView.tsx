@@ -366,7 +366,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
       {/* Cartão de pré-voo: faixa de fases + ações primárias antes da busca */}
       <section className="gdr-plan-preflight" aria-label="Antes de começar">
         <p className="gdr-plan-preflight-summary">
-          {plan.n_pontos} {plan.n_pontos === 1 ? 'eixo investigativo' : 'eixos investigativos'} prontos para revisão.
+          {plan.n_pontos} {plan.n_pontos === 1 ? 'eixo investigativo pronto' : 'eixos investigativos prontos'} para revisão.
         </p>
         <ol className="gdr-phases" aria-label="Fases da investigação">
           {fases.map((f) => (

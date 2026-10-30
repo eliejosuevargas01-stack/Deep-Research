@@ -1066,3 +1066,67 @@
 .workspace-main:has(.empty-state) .composer-anchor {
   margin-top: auto;
 }
+
+/* Com o painel de contexto aberto, o compositor e seus chips param antes da rail. */
+@media (min-width: 1081px) {
+  .workspace-main:has(.rr-rail) .composer-anchor,
+  .workspace-main:has(.rr-rail) .bottom-dock,
+  .workspace-main:has(.rr-rail) .dock-shell {
+    max-width: calc(100% - 384px);
+    margin-left: 0;
+    margin-right: auto;
+  }
+}
+
+
+/* A janela não rola: o scroll vive na coluna central e no painel de contexto. */
+@media (min-width: 900px) {
+  .workspace-main {
+    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .workspace-main > .workspace-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  .workspace-main > .workspace-grid > * {
+    min-height: 0;
+  }
+
+  .workspace-main > .workspace-grid > div:first-child {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 8px;
+  }
+}
+
+@media (max-width: 899px) {
+  .workspace-main {
+    overflow-y: auto;
+  }
+}
+
+/* Ações do aviso de auditoria: quebram linha em vez de espremer. */
+.execution-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.execution-banner-actions > .btn-start-research,
+.execution-banner-actions > .btn-secondary {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.execution-banner-actions > .btn-start-research span,
+.execution-banner-actions > .btn-secondary span {
+  overflow-wrap: anywhere;
+}

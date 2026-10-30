@@ -3,7 +3,7 @@ import { ChevronDown, RefreshCw, ShieldCheck } from 'lucide-react';
 import type { AuditCriterionDetail, AuditItem, AuditResponse, PlanResponse, SearchResponse } from '../types/api';
 import type { ReasoningFeedItem } from '../types/stream';
 import '../styles/linear-timeline.css';
-import { ConvergenceLogo, PersonaIcon } from './ResearchIcons';
+import { PersonaIcon } from './ResearchIcons';
 import type { PersonaType } from './ResearchIcons';
 import { Favicon } from './Favicon';
 
@@ -224,7 +224,7 @@ const Passo: React.FC<PassoProps> = ({
   const rotuloInterno = (
     <>
       <span className={`tl-icone${falha ? ' tl-falha' : ''}`} aria-hidden="true">
-        {aoVivo ? <ConvergenceLogo phase="stream" size={16} /> : <PersonaIcon persona={persona} size={16} />}
+        <PersonaIcon persona={persona} size={aoVivo ? 18 : 16} />
       </span>
       <span className="tl-texto">
         <span className="tl-persona">{rotulo}</span>
