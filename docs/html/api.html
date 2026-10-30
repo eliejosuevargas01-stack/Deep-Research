@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API — Deep Research</title>
+<meta name="description" content="Contratos HTTP completos: payloads, códigos de erro, eventos SSE e entrega por webhook.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#7c3aed">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/docs.css">
+<script>
+(function () {
+  try {
+    if (localStorage.getItem("dr-docs-theme") === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  } catch (e) {}
+})();
+</script>
+</head>
+<body id="top">
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<aside class="docs-sidebar" id="docs-sidebar" aria-label="Navegação da documentação"><a class="sidebar-brand" href="index.html"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg></span><span class="brand-text"><span class="brand-name">Deep Research</span><span class="brand-sub">Documentação técnica</span></span></a><span class="sidebar-mode"><span class="mode-dot"></span> v0.1.0 · português</span><nav class="sidebar-nav"><p class="sidebar-group">Documentação</p><a class="sidebar-item" href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg><span>Visão geral</span></a><a class="sidebar-item" href="arquitetura.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"></path><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"></path><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"></path></svg><span>Arquitetura</span></a><a class="sidebar-item is-active" href="api.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg><span>API</span></a><a class="sidebar-item" href="operacoes.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"></line><line x1="10" x2="3" y1="4" y2="4"></line><line x1="21" x2="12" y1="12" y2="12"></line><line x1="8" x2="3" y1="12" y2="12"></line><line x1="21" x2="16" y1="20" y2="20"></line><line x1="12" x2="3" y1="20" y2="20"></line><line x1="14" x2="14" y1="2" y2="6"></line><line x1="8" x2="8" y1="10" y2="14"></line><line x1="16" x2="16" y1="18" y2="22"></line></svg><span>Operações</span></a><p class="sidebar-group">Projeto</p><a class="sidebar-item" href="../../PRODUCT.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg><span>Produto</span><span class="item-badge" aria-hidden="true">MD</span></a><a class="sidebar-item" href="../../DESIGN.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.68 0-.44-.16-.84-.44-1.15-.27-.3-.43-.7-.43-1.14a1.65 1.65 0 0 1 1.65-1.65H16c3.31 0 6-2.69 6-6 0-4.97-4.48-9-10-9Z"></path></svg><span>Design</span><span class="item-badge" aria-hidden="true">MD</span></a><a class="sidebar-item" href="../../_reversa_sdd/prd.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M9 12h6"></path><path d="M9 16h6"></path></svg><span>PRD</span><span class="item-badge" aria-hidden="true">MD</span></a><p class="sidebar-group">Referência</p><a class="sidebar-item" href="../../docs/security_audit_findings.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg><span>Auditoria</span><span class="item-badge" aria-hidden="true">MD</span></a><a class="sidebar-item" href="../frontend/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg><span>Frontend</span></a></nav><div class="sidebar-footer"><div class="sidebar-version"><span>Versão do projeto</span><code>0.1.0</code></div><div class="sidebar-version"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg> HTML offline</span><code>sem build</code></div></div></aside>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<div class="docs-main">
+<header class="docs-topbar">
+  <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Abrir navegação" aria-controls="docs-sidebar" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg>
+  </button>
+  <nav class="breadcrumb" aria-label="Trilha de navegação">
+    <a href="index.html" class="crumb-root">Documentação</a>
+    <span class="crumb-separator" aria-hidden="true">/</span>
+    <strong>API</strong>
+  </nav>
+  <div class="topbar-actions">
+    <button class="search-trigger" id="search-trigger" type="button" aria-label="Buscar na documentação">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <span class="search-label">Buscar na documentação</span>
+      <kbd id="search-kbd">Ctrl K</kbd>
+    </button>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Alternar tema" title="Alternar tema">
+      <span class="icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg></span>
+      <span class="icon-sun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg></span>
+    </button>
+  </div>
+  <div class="scroll-progress" aria-hidden="true"><span id="scroll-progress-bar"></span></div>
+</header>
+
+<div class="docs-layout">
+<main class="docs-content" id="main-content">
+  <header class="page-header">
+    <div class="page-eyebrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path></svg> Documentação técnica</div>
+    <h1 class="page-title">API — Deep Research</h1>
+    <p class="page-lead">Contratos HTTP completos: payloads, códigos de erro, eventos SSE e entrega por webhook.</p>
+    <div class="page-meta">
+      <span class="chip chip-accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle></svg> v0.1.0</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Atualizado em 28/10/2026</span>
+      <a class="chip chip-link" href="../API.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg> Ver fonte Markdown</a>
+    </div>
+  </header>
+  
+  <details class="mobile-toc"><summary>Nesta página</summary><nav><a class="toc-link" href="#1-convenções">1. Convenções</a><a class="toc-link" href="#2-post-apiv1plan">2. POST /api/v1/plan</a><a class="toc-link" href="#3-get-apiv1planid-pesquisastream">3. GET /api/v1/plan/{id_pesquisa}/stream</a><a class="toc-link" href="#4-post-apiv1search">4. POST /api/v1/search</a><a class="toc-link" href="#5-post-apiv1audit">5. POST /api/v1/audit</a><a class="toc-link" href="#6-post-apiv1writer">6. POST /api/v1/writer</a><a class="toc-link" href="#7-get-apiv1pipelineid-pesquisastatus">7. GET /api/v1/pipeline/{id_pesquisa}/status</a><a class="toc-link" href="#8-get-apiv1pipelineid-pesquisasources">8. GET /api/v1/pipeline/{id_pesquisa}/sources</a><a class="toc-link" href="#9-get-apiv1pipelineid-pesquisastream">9. GET /api/v1/pipeline/{id_pesquisa}/stream</a><a class="toc-link" href="#10-post-apiv1admincredentials">10. POST /api/v1/admin/credentials</a><a class="toc-link" href="#11-get-apiv1admincredentials">11. GET /api/v1/admin/credentials</a><a class="toc-link" href="#12-rotas-públicas">12. Rotas públicas</a><a class="toc-link" href="#13-contrato-do-webhook">13. Contrato do webhook</a></nav></details>
+  <article class="markdown-body">
+<p>Contrato HTTP da versão <code>0.1.0</code>. Base local: <code>http://127.0.0.1:8010</code>. Em Docker Compose: <code>http://127.0.0.1:8085</code>.</p>
+<ul>
+<li>Swagger: <code>GET /docs</code></li>
+<li>OpenAPI: <code>GET /openapi.json</code></li>
+<li>Prefixo de negócio: <code>/api/v1</code></li>
+</ul>
+<hr />
+<h2 id="1-convenções">1. Convenções</h2>
+<h3 id="autenticação">Autenticação</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Forma</th>
+<th style="text-align: left;">Uso</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Cookie <code>dr_local_session</code></td>
+<td style="text-align: left;">Interface web em loopback; emitido por <code>GET /app/session</code> (<code>HttpOnly</code>, <code>SameSite=Strict</code>, 24 h)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>X-API-Key: &lt;chave&gt;</code></td>
+<td style="text-align: left;">Integrações, quando <code>API_SECRET_KEY</code> está configurada</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>Authorization: Bearer &lt;chave&gt;</code></td>
+<td style="text-align: left;">Equivalente ao header acima</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>?token=&lt;chave&gt;</code> ou <code>?api_key=&lt;chave&gt;</code></td>
+<td style="text-align: left;">Apenas <code>GET</code>/<code>HEAD</code>, necessário para <code>EventSource</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Sem <code>API_SECRET_KEY</code> e sem cookie válido, as rotas <code>/api/v1/*</code> ficam abertas (modo desenvolvimento). Requisições com cookie exigem <code>Origin</code>/<code>Referer</code> de mesma origem.</p>
+<h3 id="corpo-e-respostas">Corpo e respostas</h3>
+<ul>
+<li>Entrada e saída em <code>application/json; charset=utf-8</code>.</li>
+<li>Erros de regra: <code>{"detail": "mensagem"}</code> ou <code>{"detail": {"tipo": "...", ...}}</code>.</li>
+<li>Erros de validação Pydantic: <code>422</code> com <code>{"detail": [{"loc": [...], "msg": "...", "type": "..."}]}</code>.</li>
+<li>Exceção inesperada: <code>500</code> com <code>{"detail": "Erro interno do servidor."}</code>.</li>
+</ul>
+<h3 id="códigos-comuns">Códigos comuns</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: center;">Código</th>
+<th style="text-align: left;">Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><code>200</code></td>
+<td style="text-align: left;">Operação concluída</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>201</code></td>
+<td style="text-align: left;">Plano criado (modo síncrono)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>202</code></td>
+<td style="text-align: left;">Plano criado e pipeline assíncrono agendado</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>400</code></td>
+<td style="text-align: left;">Requisição inválida (estado ou parâmetro)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>401</code></td>
+<td style="text-align: left;">Chave ausente/inválida</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>403</code></td>
+<td style="text-align: left;">Origem divergente ou sessão cross-site</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>404</code></td>
+<td style="text-align: left;">Pesquisa/ponto não encontrado</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>409</code></td>
+<td style="text-align: left;">Execução concorrente ou lease de outro processo</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>422</code></td>
+<td style="text-align: left;">Validação semântica/estrutural</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>500</code></td>
+<td style="text-align: left;">Erro interno ou configuração ausente</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>502</code></td>
+<td style="text-align: left;">Falha do provedor LLM/Jina</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>504</code></td>
+<td style="text-align: left;">Timeout de LLM, Jina ou estágio</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="2-post-apiv1plan">2. <code>POST /api/v1/plan</code></h2>
+<p>Cria o plano de investigação e persiste a pesquisa. <strong>Não executa busca.</strong></p>
+<h3 id="requisição">Requisição</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Campo</th>
+<th style="text-align: left;">Tipo</th>
+<th style="text-align: center;">Obrigatório</th>
+<th style="text-align: left;">Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>tema</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">sim</td>
+<td style="text-align: left;">Tema/briefing; mínimo 5 caracteres, sem teto no backend</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>id_pesquisa</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">UUID pré-existente; se omitido, o servidor gera</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>async_execute</code></td>
+<td style="text-align: left;">boolean</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;"><code>false</code> (padrão). <code>true</code> agenda o pipeline completo e retorna <code>202</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>callback_url</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">URL de webhook específica desta execução</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>n_pontos</code></td>
+<td style="text-align: left;">inteiro</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">Eixos investigativos; inteiro ≥ 1, sem booleanos/float</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>personas</code></td>
+<td style="text-align: left;">string[]</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">Subconjunto não vazio de <code>historiador</code>, <code>visionario</code>, <code>cetico</code>, <code>futurista</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>execution_mode</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;"><code>parallel</code> (padrão) ou <code>sequential</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>recencia</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;"><code>auto</code>, <code>recente</code>, <code>24h</code>, <code>7d</code>, <code>30d</code>, <code>12m</code>, <code>historico</code></td>
+</tr>
+</tbody>
+</table></div>
+<pre><code class="language-bash">curl -X POST http://127.0.0.1:8010/api/v1/plan \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: SUA_CHAVE' \
+  -d '{
+    &quot;tema&quot;: &quot;Impacto da IA generativa no mercado de trabalho brasileiro&quot;,
+    &quot;n_pontos&quot;: 4,
+    &quot;personas&quot;: [&quot;historiador&quot;, &quot;cetico&quot;, &quot;futurista&quot;],
+    &quot;execution_mode&quot;: &quot;parallel&quot;,
+    &quot;recencia&quot;: &quot;auto&quot;
+  }'
+</code></pre>
+<h3 id="resposta-201-planresponse">Resposta <code>201</code> — <code>PlanResponse</code></h3>
+<pre><code class="language-json">{
+  &quot;id_pesquisa&quot;: &quot;3f6c2b1a-...&quot;,
+  &quot;tema&quot;: &quot;Impacto da IA generativa no mercado de trabalho brasileiro&quot;,
+  &quot;n_pontos&quot;: 4,
+  &quot;criado_em&quot;: &quot;2026-10-28T20:15:03.123456Z&quot;,
+  &quot;status_pipeline&quot;: &quot;planejado&quot;,
+  &quot;pontos&quot;: [
+    {
+      &quot;ponto_id&quot;: &quot;8a1d...&quot;,
+      &quot;ponto_n&quot;: 1,
+      &quot;ponto&quot;: &quot;Pergunta principal do eixo&quot;,
+      &quot;status&quot;: &quot;pendente&quot;,
+      &quot;pontos_fracos&quot;: null,
+      &quot;reasoning_planejamento&quot;: &quot;Raciocínio operacional do planejador&quot;,
+      &quot;reasoning_auditoria&quot;: null,
+      &quot;eixo_estruturado&quot;: {
+        &quot;pergunta_principal&quot;: &quot;...&quot;,
+        &quot;subperguntas&quot;: [&quot;...&quot;],
+        &quot;hipoteses&quot;: [&quot;...&quot;],
+        &quot;consultas_iniciais&quot;: [&quot;...&quot;],
+        &quot;fontes_primarias_desejadas&quot;: [&quot;...&quot;],
+        &quot;riscos_de_vies&quot;: [&quot;...&quot;],
+        &quot;evidencias_que_refutariam&quot;: [&quot;...&quot;],
+        &quot;criterio_de_conclusao&quot;: &quot;...&quot;,
+        &quot;investigabilidade&quot;: &quot;...&quot;,
+        &quot;eixo_essencial&quot;: true
+      }
+    }
+  ],
+  &quot;plano_estruturado&quot;: {
+    &quot;pedido_original&quot;: &quot;...&quot;,
+    &quot;pedido_normalizado&quot;: &quot;...&quot;,
+    &quot;publico&quot;: &quot;...&quot;,
+    &quot;formato_entrega&quot;: &quot;...&quot;,
+    &quot;recorte_temporal&quot;: null,
+    &quot;data_referencia&quot;: &quot;2026-10-28&quot;,
+    &quot;politica_recencia&quot;: &quot;auto&quot;,
+    &quot;pressupostos&quot;: [&quot;...&quot;],
+    &quot;ambiguidades&quot;: [],
+    &quot;pergunta_de_esclarecimento&quot;: null,
+    &quot;eixos&quot;: []
+  },
+  &quot;metadados_modelo&quot;: {
+    &quot;modelo&quot;: &quot;...&quot;,
+    &quot;recencia&quot;: {&quot;modo&quot;: &quot;auto&quot;, &quot;data_referencia&quot;: &quot;2026-10-28&quot;}
+  },
+  &quot;preferencias&quot;: {
+    &quot;n_pontos&quot;: 4,
+    &quot;personas&quot;: [&quot;historiador&quot;, &quot;cetico&quot;, &quot;futurista&quot;],
+    &quot;recencia&quot;: &quot;auto&quot;,
+    &quot;data_referencia&quot;: &quot;2026-10-28&quot;,
+    &quot;execution_mode&quot;: &quot;parallel&quot;
+  }
+}
+</code></pre>
+<p>Com <code>async_execute: true</code> → <strong><code>202</code></strong> e corpo com <code>status: "iniciado"</code>, <code>mensagem</code>, <code>callback_url</code> e os mesmos campos de plano/pontos.</p>
+<h3 id="erros">Erros</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: center;">Código</th>
+<th style="text-align: left;"><code>detail.tipo</code> / mensagem</th>
+<th style="text-align: left;">Causa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><code>422</code></td>
+<td style="text-align: left;"><code>ambiguidade_bloqueante</code></td>
+<td style="text-align: left;">Tema ambíguo; inclui <code>pergunta_de_esclarecimento</code></td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>422</code></td>
+<td style="text-align: left;"><code>PlanContractError</code></td>
+<td style="text-align: left;">Plano fora do contrato (quantidade, tipos, duplicatas)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>422</code></td>
+<td style="text-align: left;">mensagem</td>
+<td style="text-align: left;">Quantidade de pontos divergente do solicitado</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>502</code></td>
+<td style="text-align: left;"><code>LLMCallError</code></td>
+<td style="text-align: left;">Provedor LLM recusou/falhou</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>502</code>/<code>504</code></td>
+<td style="text-align: left;"><code>JinaError</code></td>
+<td style="text-align: left;">Falha na descoberta SERP</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>500</code></td>
+<td style="text-align: left;"><code>CONFIG_ERROR</code></td>
+<td style="text-align: left;"><code>N_PONTOS</code>/configuração ausente</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>400</code></td>
+<td style="text-align: left;">mensagem</td>
+<td style="text-align: left;">Valor de domínio inválido</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="3-get-apiv1planid-pesquisastream">3. <code>GET /api/v1/plan/{id_pesquisa}/stream</code></h2>
+<p>SSE com o raciocínio do planejador <strong>durante</strong> o <code>POST /plan</code>. O <code>id_pesquisa</code> deve ser conhecido pelo cliente antecipadamente (enviado no corpo do <code>POST</code>).</p>
+<ul>
+<li><code>Content-Type: text/event-stream</code></li>
+<li>Eventos: <code>agent.delta</code> (<code>kind: reasoning</code> ou <code>content</code>) e comentários <code>: keep-alive</code> a cada 15 s</li>
+<li>Sem snapshot de banco; encerra na desconexão</li>
+</ul>
+<hr />
+<h2 id="4-post-apiv1search">4. <code>POST /api/v1/search</code></h2>
+<p>Executa a coleta web por personas nos pontos pendentes.</p>
+<h3 id="requisição_1">Requisição</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Campo</th>
+<th style="text-align: left;">Tipo</th>
+<th style="text-align: center;">Obrigatório</th>
+<th style="text-align: left;">Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>id_pesquisa</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">sim</td>
+<td style="text-align: left;">UUID da pesquisa</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ponto_id</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">Reprocessa somente um ponto</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>personas</code></td>
+<td style="text-align: left;">string[]</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">Filtro de personas para retentativa focada</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>execution_mode</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;"><code>parallel</code> (padrão) ou <code>sequential</code></td>
+</tr>
+</tbody>
+</table></div>
+<pre><code class="language-bash">curl -X POST http://127.0.0.1:8010/api/v1/search \
+  -H 'Content-Type: application/json' -H 'X-API-Key: SUA_CHAVE' \
+  -d '{&quot;id_pesquisa&quot;:&quot;3f6c2b1a-...&quot;,&quot;execution_mode&quot;:&quot;parallel&quot;}'
+</code></pre>
+<h3 id="resposta-200-searchresponse">Resposta <code>200</code> — <code>SearchResponse</code></h3>
+<pre><code class="language-json">{
+  &quot;id_pesquisa&quot;: &quot;3f6c2b1a-...&quot;,
+  &quot;total_pontos_processados&quot;: 4,
+  &quot;status_pesquisa&quot;: &quot;coletado&quot;,
+  &quot;total_falhas_coleta&quot;: 0,
+  &quot;resumo_coletas&quot;: [
+    {
+      &quot;ponto_id&quot;: &quot;8a1d...&quot;,
+      &quot;ponto_n&quot;: 1,
+      &quot;status&quot;: &quot;coletado&quot;,
+      &quot;falha_coleta&quot;: false,
+      &quot;diagnostico&quot;: null,
+      &quot;total_urls_lidas&quot;: 9,
+      &quot;total_urls_fonte&quot;: 7,
+      &quot;tamanho_conteudo_caracteres&quot;: 48213,
+      &quot;tentativas&quot;: 1,
+      &quot;personas&quot;: [
+        {
+          &quot;persona&quot;: &quot;historiador&quot;,
+          &quot;analise&quot;: &quot;Síntese da persona&quot;,
+          &quot;reasoning&quot;: null,
+          &quot;urls_fonte&quot;: [&quot;https://...&quot;],
+          &quot;queries_executadas&quot;: 3,
+          &quot;falha_coleta&quot;: false,
+          &quot;diagnostico&quot;: null,
+          &quot;conclusoes&quot;: [],
+          &quot;lacunas&quot;: [],
+          &quot;diario_acoes&quot;: [],
+          &quot;motivo_parada&quot;: null,
+          &quot;envelopes&quot;: []
+        }
+      ],
+      &quot;conteudo_relevante&quot;: &quot;...&quot;,
+      &quot;fontes&quot;: {},
+      &quot;trechos&quot;: {},
+      &quot;selecao_contexto&quot;: {},
+      &quot;recencia&quot;: {}
+    }
+  ]
+}
+</code></pre>
+<p><code>reasoning</code> é sempre <code>null</code> na resposta HTTP; o raciocínio operacional aparece apenas no SSE autenticado.</p>
+<h3 id="erros_1">Erros</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: center;">Código</th>
+<th style="text-align: left;">Causa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><code>404</code></td>
+<td style="text-align: left;">Pesquisa não encontrada ou sem pontos pendentes</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>400</code></td>
+<td style="text-align: left;">Estado/configuração inválida para busca</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>504</code></td>
+<td style="text-align: left;">Timeout do ponto (<code>TIMEOUT_ERROR</code>, <code>re_tentavel: true</code>)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>500</code></td>
+<td style="text-align: left;">Falha interna não tratada</td>
+</tr>
+</tbody>
+</table></div>
+<p>Falhas de persona ou de leitura não derrubam a resposta: são reportadas em <code>falha_coleta</code>, <code>diagnostico</code> e <code>total_falhas_coleta</code>.</p>
+<hr />
+<h2 id="5-post-apiv1audit">5. <code>POST /api/v1/audit</code></h2>
+<p>Audita os pontos coletados contra os 12 critérios.</p>
+<h3 id="requisição_2">Requisição</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Campo</th>
+<th style="text-align: left;">Tipo</th>
+<th style="text-align: center;">Obrigatório</th>
+<th style="text-align: left;">Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>id_pesquisa</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">sim</td>
+<td style="text-align: left;">UUID da pesquisa</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ponto_id</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">Audita somente um ponto</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>criterios_minimos</code></td>
+<td style="text-align: left;">inteiro</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;"><code>10</code>, <code>11</code> (padrão) ou <code>12</code></td>
+</tr>
+</tbody>
+</table></div>
+<pre><code class="language-bash">curl -X POST http://127.0.0.1:8010/api/v1/audit \
+  -H 'Content-Type: application/json' -H 'X-API-Key: SUA_CHAVE' \
+  -d '{&quot;id_pesquisa&quot;:&quot;3f6c2b1a-...&quot;,&quot;criterios_minimos&quot;:11}'
+</code></pre>
+<h3 id="resposta-200-auditresponse">Resposta <code>200</code> — <code>AuditResponse</code></h3>
+<pre><code class="language-json">{
+  &quot;id_pesquisa&quot;: &quot;3f6c2b1a-...&quot;,
+  &quot;total_pontos&quot;: 4,
+  &quot;aprovados&quot;: 3,
+  &quot;reprovados&quot;: 1,
+  &quot;status_geral&quot;: &quot;auditado&quot;,
+  &quot;status_pesquisa&quot;: &quot;auditado&quot;,
+  &quot;pronto_para_writer&quot;: false,
+  &quot;auditorias&quot;: [
+    {
+      &quot;ponto_id&quot;: &quot;8a1d...&quot;,
+      &quot;ponto_n&quot;: 1,
+      &quot;status&quot;: &quot;aprovado&quot;,
+      &quot;pontuacao_percentual&quot;: 91.67,
+      &quot;criterios_aprovados&quot;: 11,
+      &quot;criterios_minimos&quot;: 11,
+      &quot;valido&quot;: true,
+      &quot;criterios&quot;: [
+        {
+          &quot;id&quot;: 1,
+          &quot;aprovado&quot;: true,
+          &quot;justificativa&quot;: &quot;...&quot;,
+          &quot;claim_ids&quot;: [&quot;clm_...&quot;],
+          &quot;source_ids&quot;: [&quot;src_...&quot;],
+          &quot;lacuna&quot;: null,
+          &quot;correcao&quot;: null,
+          &quot;personas_pertinentes&quot;: [&quot;historiador&quot;]
+        }
+      ],
+      &quot;pontos_fracos&quot;: null,
+      &quot;diagnostico&quot;: null,
+      &quot;resumo_auditoria&quot;: &quot;...&quot;,
+      &quot;tarefas&quot;: [],
+      &quot;antes_depois&quot;: {},
+      &quot;envelope&quot;: {},
+      &quot;reasoning_auditoria&quot;: null
+    }
+  ]
+}
+</code></pre>
+<h3 id="erros_2">Erros</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: center;">Código</th>
+<th style="text-align: left;">Causa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><code>404</code></td>
+<td style="text-align: left;">Pesquisa não encontrada</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>409</code></td>
+<td style="text-align: left;">Execução concorrente do mesmo ponto</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>502</code></td>
+<td style="text-align: left;"><code>AUDIT_LLM_PROVIDER_ERROR</code> ou JSON inválido do modelo</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>504</code></td>
+<td style="text-align: left;"><code>AUDIT_TIMEOUT</code> — evidência preservada; repetir</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>400</code></td>
+<td style="text-align: left;">Estado/limiar inválido</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="6-post-apiv1writer">6. <code>POST /api/v1/writer</code></h2>
+<p>Redige, avalia e publica o dossiê final; dispara o webhook quando configurado.</p>
+<h3 id="requisição_3">Requisição</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Campo</th>
+<th style="text-align: left;">Tipo</th>
+<th style="text-align: center;">Obrigatório</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>id_pesquisa</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">sim</td>
+</tr>
+</tbody>
+</table></div>
+<pre><code class="language-bash">curl -X POST http://127.0.0.1:8010/api/v1/writer \
+  -H 'Content-Type: application/json' -H 'X-API-Key: SUA_CHAVE' \
+  -d '{&quot;id_pesquisa&quot;:&quot;3f6c2b1a-...&quot;}'
+</code></pre>
+<h3 id="resposta-200-writerresponse">Resposta <code>200</code> — <code>WriterResponse</code></h3>
+<pre><code class="language-json">{
+  &quot;id_pesquisa&quot;: &quot;3f6c2b1a-...&quot;,
+  &quot;tema&quot;: &quot;...&quot;,
+  &quot;status&quot;: &quot;concluido&quot;,
+  &quot;total_caracteres_dossier&quot;: 18234,
+  &quot;concluido_em&quot;: &quot;2026-10-28T20:31:44.001234Z&quot;,
+  &quot;dossier_final&quot;: &quot;# Dossiê\n\n...&quot;,
+  &quot;dossier_resumo&quot;: &quot;# Dossiê\n\n...&quot;,
+  &quot;reasoning_dossier&quot;: null,
+  &quot;diagnostico&quot;: null,
+  &quot;qualidade_artigo&quot;: {
+    &quot;aprovado&quot;: true,
+    &quot;pontuacao_percentual&quot;: 100.0,
+    &quot;criterios_aprovados&quot;: 12,
+    &quot;criterios_minimos&quot;: 11,
+    &quot;criterios&quot;: []
+  },
+  &quot;metadados&quot;: {},
+  &quot;fontes&quot;: {
+    &quot;id_pesquisa&quot;: &quot;3f6c2b1a-...&quot;,
+    &quot;status&quot;: &quot;completo&quot;,
+    &quot;total_consultadas&quot;: 28,
+    &quot;total_utilizadas&quot;: 19,
+    &quot;total_nao_utilizadas&quot;: 9,
+    &quot;consultadas&quot;: [{&quot;url&quot;: &quot;https://...&quot;, &quot;titulo&quot;: &quot;...&quot;, &quot;dominio&quot;: &quot;...&quot;}],
+    &quot;utilizadas&quot;: [],
+    &quot;nao_utilizadas&quot;: [],
+    &quot;observacao&quot;: null,
+    &quot;artifact_hash&quot;: &quot;sha256...&quot;
+  },
+  &quot;webhook_entrega&quot;: {
+    &quot;url&quot;: &quot;https://...&quot;,
+    &quot;status&quot;: &quot;entregue&quot;,
+    &quot;http_status_code&quot;: 200,
+    &quot;tentativas&quot;: 1,
+    &quot;detalhes_falha&quot;: null
+  }
+}
+</code></pre>
+<blockquote>
+<p><strong>Atenção:</strong> <code>200</code> não significa dossiê aprovado. Verifique <code>status == "concluido"</code>. Em bloqueio/reprovação o corpo pode vir com <code>status: "incompleto"</code> e <code>dossier_final: null</code>.</p>
+</blockquote>
+<h3 id="erros_3">Erros</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: center;">Código</th>
+<th style="text-align: left;">Causa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><code>404</code></td>
+<td style="text-align: left;">Pesquisa não encontrada</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>409</code></td>
+<td style="text-align: left;">Conflito de concorrência/lease</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>502</code></td>
+<td style="text-align: left;">Falha do provedor LLM</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>504</code></td>
+<td style="text-align: left;">Deadline de 600 s excedido</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>400</code></td>
+<td style="text-align: left;">Pré-condição de prontidão não atendida (pontos não aprovados, coleta desatualizada)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>500</code></td>
+<td style="text-align: left;"><code>WRITER_PROCESSING_ERROR</code></td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="7-get-apiv1pipelineid-pesquisastatus">7. <code>GET /api/v1/pipeline/{id_pesquisa}/status</code></h2>
+<pre><code class="language-json">{
+  &quot;id_pesquisa&quot;: &quot;3f6c2b1a-...&quot;,
+  &quot;tema&quot;: &quot;...&quot;,
+  &quot;status_pipeline&quot;: &quot;redigindo&quot;,
+  &quot;erro_pipeline&quot;: null,
+  &quot;criado_em&quot;: &quot;2026-10-28T20:15:03.123456Z&quot;,
+  &quot;concluido_em&quot;: null,
+  &quot;webhook_status&quot;: &quot;pendente&quot;,
+  &quot;total_pontos&quot;: 4,
+  &quot;pontos&quot;: [
+    {
+      &quot;ponto_id&quot;: &quot;8a1d...&quot;,
+      &quot;ponto_n&quot;: 1,
+      &quot;status&quot;: &quot;aprovado&quot;,
+      &quot;tentativas&quot;: 1,
+      &quot;tentativas_auditoria&quot;: 1,
+      &quot;pontos_fracos&quot;: null
+    }
+  ],
+  &quot;tem_dossier&quot;: false
+}
+</code></pre>
+<p><code>status_pipeline</code>: <code>planejado</code>, <code>buscando</code>, <code>auditando</code>, <code>redigindo</code>, <code>concluido</code>, <code>bloqueado</code>, <code>reprovado</code>, <code>parcial</code>, <code>falha</code>.</p>
+<hr />
+<h2 id="8-get-apiv1pipelineid-pesquisasources">8. <code>GET /api/v1/pipeline/{id_pesquisa}/sources</code></h2>
+<p>Somente leitura. Retorna <code>FontesResumo</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Campo</th>
+<th style="text-align: left;">Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>status</code></td>
+<td style="text-align: left;">Disponibilidade da contabilidade</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>total_consultadas</code> / <code>total_utilizadas</code> / <code>total_nao_utilizadas</code></td>
+<td style="text-align: left;">Contagens</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>consultadas[]</code>, <code>utilizadas[]</code>, <code>nao_utilizadas[]</code></td>
+<td style="text-align: left;"><code>{url, titulo, dominio}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>observacao</code></td>
+<td style="text-align: left;">Ressalva quando a contabilidade é parcial</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>artifact_hash</code></td>
+<td style="text-align: left;">Hash do dossiê associado, quando houver</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>404</code> se a pesquisa não existir.</p>
+<hr />
+<h2 id="9-get-apiv1pipelineid-pesquisastream">9. <code>GET /api/v1/pipeline/{id_pesquisa}/stream</code></h2>
+<p>SSE de progresso. Query params opcionais:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Param</th>
+<th style="text-align: left;">Tipo</th>
+<th style="text-align: left;">Efeito</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>snapshot_only</code></td>
+<td style="text-align: left;">boolean</td>
+<td style="text-align: left;">Envia apenas o snapshot do banco e encerra</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>max_events</code></td>
+<td style="text-align: left;">inteiro</td>
+<td style="text-align: left;">Encerra após N eventos</td>
+</tr>
+</tbody>
+</table></div>
+<p>Sequência: snapshot (<code>pipeline.status</code>, <code>point.status</code>, <code>audit.result</code>, <code>search.progress</code>, <code>writer.progress</code>, <code>report.final</code>) → eventos ao vivo → <code>: keep-alive</code> a cada 15 s. Encerra em status terminal (<code>concluido</code>, <code>falha</code>, <code>reprovado</code>), desconexão ou limites acima.</p>
+<h3 id="catálogo-de-eventos">Catálogo de eventos</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Evento</th>
+<th style="text-align: left;">Campos principais</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>pipeline.status</code></td>
+<td style="text-align: left;"><code>id_pesquisa</code>, <code>status_pipeline</code>, <code>timestamp</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>point.status</code></td>
+<td style="text-align: left;"><code>id_pesquisa</code>, <code>ponto_id</code>, <code>ponto_n</code>, <code>status</code>, <code>tentativas</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>stage.start</code> / <code>stage.end</code></td>
+<td style="text-align: left;"><code>id_pesquisa</code>, <code>stage</code>, <code>agent</code>, <code>ponto_id</code>, extras</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>agent.delta</code></td>
+<td style="text-align: left;"><code>stage</code>, <code>agent</code>, <code>ponto_id</code>, <code>kind</code> (<code>reasoning</code>/<code>content</code>), <code>text</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>search.progress</code></td>
+<td style="text-align: left;"><code>ponto_id</code>, <code>persona</code>, <code>queries_executadas</code>, <code>urls_lidas</code>, <code>falha_coleta</code>, <code>reasoning_coleta</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>audit.result</code></td>
+<td style="text-align: left;"><code>ponto_id</code>, <code>ponto_n</code>, <code>status</code>, <code>pontuacao_percentual</code>, <code>criterios_aprovados</code>, <code>reasoning_auditoria</code>, <code>pontos_fracos</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>writer.progress</code></td>
+<td style="text-align: left;"><code>status</code>, <code>reasoning_dossier</code>, <code>total_caracteres</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>report.final</code></td>
+<td style="text-align: left;"><code>status</code>, <code>dossier_final</code>, <code>total_caracteres</code>, <code>concluido_em</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>pipeline.error</code></td>
+<td style="text-align: left;"><code>id_pesquisa</code>, <code>erro</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Deltas consecutivos do mesmo <code>stage</code>/<code>agent</code>/<code>ponto_id</code>/<code>kind</code> são agregados em um frame (até 400 deltas). Reconexão não reproduz o histórico; o snapshot inicial representa o estado persistido.</p>
+<hr />
+<h2 id="10-post-apiv1admincredentials">10. <code>POST /api/v1/admin/credentials</code></h2>
+<p>Cria ou atualiza uma credencial cifrada. O valor nunca é devolvido.</p>
+<h3 id="requisição_4">Requisição</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Campo</th>
+<th style="text-align: left;">Tipo</th>
+<th style="text-align: center;">Obrigatório</th>
+<th style="text-align: left;">Limite</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>chave</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">sim</td>
+<td style="text-align: left;">1–100 caracteres</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>valor</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">sim</td>
+<td style="text-align: left;">≥ 1 caractere</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>tipo</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">sim</td>
+<td style="text-align: left;">1–30; <code>llm</code>, <code>jina</code>, <code>webhook</code>, <code>parametro</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>base_url</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>descricao</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">—</td>
+</tr>
+</tbody>
+</table></div>
+<pre><code class="language-bash">curl -X POST http://127.0.0.1:8010/api/v1/admin/credentials \
+  -H 'Content-Type: application/json' -H 'X-API-Key: SUA_CHAVE' \
+  -d '{&quot;chave&quot;:&quot;LLM_MODEL_STRONG&quot;,&quot;valor&quot;:&quot;gpt-4o&quot;,&quot;tipo&quot;:&quot;parametro&quot;}'
+</code></pre>
+<h3 id="resposta-200">Resposta <code>200</code></h3>
+<pre><code class="language-json">{
+  &quot;status&quot;: &quot;salvo&quot;,
+  &quot;chave&quot;: &quot;LLM_MODEL_STRONG&quot;,
+  &quot;tipo&quot;: &quot;parametro&quot;,
+  &quot;base_url&quot;: null,
+  &quot;criptografado&quot;: true,
+  &quot;algoritmo&quot;: &quot;Fernet (AES-128-CBC + HMAC-SHA256)&quot;,
+  &quot;atualizado_em&quot;: &quot;2026-10-28T20:40:00.000000Z&quot;
+}
+</code></pre>
+<p><code>400</code> se <code>chave</code>/<code>valor</code> forem vazios ou contiverem apenas espaços.</p>
+<h3 id="chaves-reconhecidas-pelo-pipeline">Chaves reconhecidas pelo pipeline</h3>
+<p><code>OPENAI_API_KEY</code>, <code>LLM_BASE_URL</code>, <code>LLM_MODEL_LIGHT</code>, <code>LLM_MODEL_STRONG</code>, <code>JINA_API_KEY</code>, <code>JINA_BASE_URL</code>, <code>N_PONTOS</code>, <code>PERSONAS_CONFIG</code>, <code>CALLBACK_WEBHOOK_URL</code>, <code>WEBHOOK_HMAC_SECRET</code>, <code>API_SECRET_KEY</code>.</p>
+<hr />
+<h2 id="11-get-apiv1admincredentials">11. <code>GET /api/v1/admin/credentials</code></h2>
+<p>Lista metadados mascarados:</p>
+<pre><code class="language-json">{
+  &quot;credenciais&quot;: [
+    {
+      &quot;chave&quot;: &quot;OPENAI_API_KEY&quot;,
+      &quot;tipo&quot;: &quot;llm&quot;,
+      &quot;base_url&quot;: &quot;https://api.openai.com/v1&quot;,
+      &quot;origem_ativa&quot;: &quot;banco_cifrado&quot;,
+      &quot;mascarado&quot;: &quot;sk-a****9f2c&quot;,
+      &quot;atualizado_em&quot;: &quot;2026-10-28T20:40:00.000000Z&quot;
+    }
+  ]
+}
+</code></pre>
+<ul>
+<li><code>origem_ativa</code>: <code>banco_cifrado</code> ou <code>ambiente</code>.</li>
+<li>Valores ≤ 8 caracteres e campos vazios aparecem como <code>[REDACTED]</code>.</li>
+<li>A listagem não revela o valor real nem serve para repopular formulários.</li>
+</ul>
+<hr />
+<h2 id="12-rotas-públicas">12. Rotas públicas</h2>
+<h3 id="get-health"><code>GET /health</code></h3>
+<pre><code class="language-json">{&quot;status&quot;: &quot;healthy&quot;}
+</code></pre>
+<h3 id="get-appsession"><code>GET /app/session</code></h3>
+<ul>
+<li>Cliente elegível (loopback + Host local + mesma origem): <code>200</code> com <code>authenticated: true</code>, <code>mode: "local"</code>, <code>preferences</code> e <code>Set-Cookie: dr_local_session=...</code>.</li>
+<li>Cliente não elegível: <code>200</code> com <code>authenticated: false</code>, <code>mode: "remote"</code>, <code>preferences</code>.</li>
+<li>Host não local: <code>403</code>. <code>Origin</code>/<code>Referer</code> divergente ou <code>Sec-Fetch-Site: cross-site</code>: <code>403</code>.</li>
+</ul>
+<p><code>preferences</code> inclui <code>n_pontos</code> e personas padrão.</p>
+<h3 id="get-e-get-assets"><code>GET /</code> e <code>GET /assets/*</code></h3>
+<p>Entregam a SPA compilada. Sem <code>frontend/dist/index.html</code>, retornam <code>503</code> com instrução de build. Caminhos <code>api/*</code>, <code>health</code>, <code>docs*</code>, <code>openapi.json</code>, <code>app/session</code> não são capturados pelo fallback.</p>
+<hr />
+<h2 id="13-contrato-do-webhook">13. Contrato do webhook</h2>
+<p>Entrega apenas quando o dossiê é publicado com <code>status = concluido</code> e há URL de callback resolvida (payload &gt; <code>CALLBACK_WEBHOOK_URL</code>).</p>
+<h3 id="requisição_5">Requisição</h3>
+<pre><code class="language-http">POST &lt;callback_url&gt;
+Content-Type: application/json
+X-Signature: sha256=&lt;hex&gt;
+X-Event-Type: research.completed
+X-Research-Id: &lt;id_pesquisa&gt;
+</code></pre>
+<pre><code class="language-json">{
+  &quot;evento&quot;: &quot;research.completed&quot;,
+  &quot;id_pesquisa&quot;: &quot;3f6c2b1a-...&quot;,
+  &quot;tema&quot;: &quot;...&quot;,
+  &quot;status&quot;: &quot;concluido&quot;,
+  &quot;total_pontos&quot;: 4,
+  &quot;total_caracteres_dossier&quot;: 18234,
+  &quot;dossier_final&quot;: &quot;# Dossiê\n\n...&quot;,
+  &quot;artifact_hash&quot;: &quot;sha256...&quot;,
+  &quot;concluido_em&quot;: &quot;2026-10-28T20:31:44.001234Z&quot;
+}
+</code></pre>
+<h3 id="validação-no-receptor">Validação no receptor</h3>
+<pre><code class="language-python">import hashlib, hmac
+
+def assinatura_valida(secret: str, raw_body: bytes, header: str) -&gt; bool:
+    esperado = &quot;sha256=&quot; + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(esperado, header)
+</code></pre>
+<p>A assinatura cobre os <strong>bytes crus</strong> do corpo. Não reserialize o JSON antes de validar.</p>
+<h3 id="política-de-entrega">Política de entrega</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Situação</th>
+<th style="text-align: left;">Resultado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>2xx</code></td>
+<td style="text-align: left;"><code>entregue</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>4xx</code> (exceto 429)</td>
+<td style="text-align: left;"><code>falha_definitiva</code>, sem retry</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>429</code>, <code>500</code>, <code>502</code>, <code>503</code>, <code>504</code>, erro de transporte</td>
+<td style="text-align: left;">retry com backoff exponencial</td>
+</tr>
+<tr>
+<td style="text-align: left;">Após 4 tentativas</td>
+<td style="text-align: left;"><code>falha_definitiva</code> registrada em <code>pesquisa.webhook_status</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>O <code>WriterResponse.webhook_entrega</code> informa <code>url</code>, <code>status</code>, <code>http_status_code</code>, <code>tentativas</code> e <code>detalhes_falha</code>.</p>
+  </article>
+  <footer class="page-footer">
+    <div class="pager"><a class="pager-link prev" href="arquitetura.html"><span class="pager-label">Anterior</span><span class="pager-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>Arquitetura</span></a><a class="pager-link next" href="operacoes.html"><span class="pager-label">Próximo</span><span class="pager-title">Operações<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span></a></div>
+    <a class="back-to-top" href="#top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></svg> Voltar ao topo</a>
+  </footer>
+</main>
+<aside class="docs-toc" aria-label="Nesta página"><p class="toc-title">Nesta página</p><nav><a class="toc-link" href="#1-convenções">1. Convenções</a><a class="toc-link" href="#2-post-apiv1plan">2. POST /api/v1/plan</a><a class="toc-link" href="#3-get-apiv1planid-pesquisastream">3. GET /api/v1/plan/{id_pesquisa}/stream</a><a class="toc-link" href="#4-post-apiv1search">4. POST /api/v1/search</a><a class="toc-link" href="#5-post-apiv1audit">5. POST /api/v1/audit</a><a class="toc-link" href="#6-post-apiv1writer">6. POST /api/v1/writer</a><a class="toc-link" href="#7-get-apiv1pipelineid-pesquisastatus">7. GET /api/v1/pipeline/{id_pesquisa}/status</a><a class="toc-link" href="#8-get-apiv1pipelineid-pesquisasources">8. GET /api/v1/pipeline/{id_pesquisa}/sources</a><a class="toc-link" href="#9-get-apiv1pipelineid-pesquisastream">9. GET /api/v1/pipeline/{id_pesquisa}/stream</a><a class="toc-link" href="#10-post-apiv1admincredentials">10. POST /api/v1/admin/credentials</a><a class="toc-link" href="#11-get-apiv1admincredentials">11. GET /api/v1/admin/credentials</a><a class="toc-link" href="#12-rotas-públicas">12. Rotas públicas</a><a class="toc-link" href="#13-contrato-do-webhook">13. Contrato do webhook</a></nav></aside>
+</div>
+</div>
+
+<div class="search-overlay" id="search-overlay" aria-hidden="true">
+  <div class="search-modal" role="dialog" aria-modal="true" aria-labelledby="search-title">
+    <div class="search-field">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <label class="sr-only" id="search-title" for="search-input">Buscar na documentação</label>
+      <input id="search-input" type="search" placeholder="Buscar seções, endpoints, variáveis…" autocomplete="off" spellcheck="false">
+      <button class="search-close" id="search-close" type="button">ESC</button>
+    </div>
+    <div class="search-results" id="search-results" role="listbox" aria-label="Resultados da busca"></div>
+    <div class="search-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+      <span><kbd>Enter</kbd> abrir</span>
+      <span><kbd>Esc</kbd> fechar</span>
+      <span class="search-count" id="search-count"></span>
+    </div>
+  </div>
+</div>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/docs.js"></script>
+</body>
+</html>

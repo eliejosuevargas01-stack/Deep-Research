@@ -1,0 +1,11 @@
+......................................                                   [100%]
+=============================== warnings summary ===============================
+tests/integration/test_research_preferences.py::test_plan_endpoint_rejects_bool_and_float_via_http_422
+tests/integration/test_research_preferences.py::test_plan_endpoint_rejects_bool_and_float_via_http_422
+tests/integration/test_research_preferences.py::test_plan_endpoint_rejects_bool_and_float_via_http_422
+tests/integration/test_research_preferences.py::test_plan_endpoint_rejects_bool_and_float_via_http_422
+  /home/eliezer/Escritorio/deep-research/Deep-Research/.venv/lib/python3.14/site-packages/starlette/_exception_handler.py:59: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    response = await handler(conn, exc)  # type: ignore[arg-type]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+38 passed, 4 warnings in 2.72s

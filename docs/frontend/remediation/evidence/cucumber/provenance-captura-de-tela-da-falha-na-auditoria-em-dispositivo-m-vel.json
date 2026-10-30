@@ -1,0 +1,15 @@
+{
+  "scenarioName": "Captura de tela da falha na auditoria em dispositivo móvel",
+  "baseUrl": "http://localhost:3001",
+  "timestamp": "2026-10-29T18:19:27.390Z",
+  "mode": "test",
+  "loadedScripts": [
+    "http://localhost:3001/@vite/client",
+    "http://localhost:3001/src/main.tsx?t=1793297520105"
+  ],
+  "loadedStyles": [],
+  "screenshots": [
+    "mobile-empty.png"
+  ],
+  "liveViolations": 0
+}

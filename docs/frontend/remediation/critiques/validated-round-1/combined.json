@@ -1,0 +1,46 @@
+{
+  "round": 1,
+  "validated_visual_round": true,
+  "method": "Two isolated Hermes CLI contexts, explicit primary native userimage attachments after capture",
+  "model": "ag/gemini-3.8-flash-high",
+  "provider": "9router",
+  "reasoning": "high",
+  "A_session": "20261026_152620_be013d",
+  "B_session": "20261026_152620_dbfc98",
+  "A_final_before_B_synthesis": true,
+  "synthesized_at": "2026-10-26T18:56:37.104222+00:00",
+  "design_score": "33/40",
+  "B_score": "34/40",
+  "disposition": "fix",
+  "blocking_findings": [
+    {
+      "id": "VR1-P1",
+      "issue": "Preference panel header/close projects above viewport after scrolling to composer in shortdesktop",
+      "evidence": [
+        "A-evidence/05_preferences_popover_open.png",
+        "B-evidence/06_preferences_popover_open.png"
+      ],
+      "fix": "Bound actual openpanel to viewport; close and allcontent must remainreachable at desktop/mobile/landscape",
+      "owner": "Hermes frontend recovery-proof worker already tasked to verifygeometry/fix"
+    }
+  ],
+  "other_findings": [
+    {
+      "id": "VR1-P2",
+      "issue": "Composer help omits Shift+Enter newline hint",
+      "action": "Hermes frontend worker already askedtoimprovehelp"
+    },
+    {
+      "id": "VR1-P3",
+      "issue": "Suggested assertive liveannouncements oninvalidkeystrokes",
+      "action": "Do not blindlyaddassertiveperkeystrokespam; verify accessibleerrors with finalCucumber/labels"
+    }
+  ],
+  "limitations": [
+    "Mobile screenshot12 showsinitialpage ratherthanactualopenpanel; mobilepopovervisual remainsunproven untilround5",
+    "ShiftEnter evidence used syntheticdispatch/CDPinsertText; genuine keyboardchord requiresfinalCucumber",
+    "Capturedbundle version is recorded in A/B manifests; currentAppsource changedconcurrently insettings/recovery, not falselyequatedtoearlierbundle",
+    "Fixture providers simulated, actualFastAPI/auth/browsercontrols; no liveprovider success implied"
+  ],
+  "next": "Fix actualpanelposition and truthfulshortcuthelp; round2 plan/report inprogress. Finalindependentaudit andCucumberpending."
+}

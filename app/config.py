@@ -4,9 +4,15 @@ Carrega configurações estritamente de variáveis de ambiente ou arquivo .env
 sem fallbacks hardcoded, atendendo a RN-02 e DT-01.
 """
 
+import sys
 from functools import lru_cache
-from typing import Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
+from typing import Any, Optional, Tuple, Type
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 
 class Settings(BaseSettings):
@@ -39,6 +45,20 @@ class Settings(BaseSettings):
 
     # Persistência do Banco de Dados
     database_url: Optional[str] = None
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """Em ambiente de teste (pytest), ignora o arquivo .env para garantir isolamento hermético."""
+        if "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
+            return (init_settings, env_settings)
+        return (init_settings, env_settings, dotenv_settings, file_secret_settings)
 
     def require_n_pontos(self) -> int:
         """Obtém N_PONTOS ou lança erro explícito sem fallback hardcoded."""

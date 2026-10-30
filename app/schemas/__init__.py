@@ -7,7 +7,7 @@ from app.schemas.admin import (
     CredentialSanitizedListItem,
 )
 from app.schemas.audit import (
-    AuditCriteria,
+    AuditCriterionDetail,
     AuditEvaluationResult,
     AuditItem,
     AuditRequest,
@@ -26,6 +26,7 @@ from app.schemas.search import (
     SearchRequest,
     SearchResponse,
 )
+from app.schemas.sources import FonteItem, FontesResumo
 from app.schemas.writer import (
     WebhookEntregaMetadata,
     WriterRequest,
@@ -46,10 +47,12 @@ __all__ = [
     "AuditResponse",
     "AuditItem",
     "AuditEvaluationResult",
-    "AuditCriteria",
+    "AuditCriterionDetail",
     "WriterRequest",
     "WriterResponse",
     "WebhookEntregaMetadata",
+    "FonteItem",
+    "FontesResumo",
     "CredentialCreateRequest",
     "CredentialResponse",
     "CredentialSanitizedListItem",

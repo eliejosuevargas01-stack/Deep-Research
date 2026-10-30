@@ -121,3 +121,46 @@ def classify_failure(
         categoria=classify_status(http_status),
         erro_original=erro_original,
     )
+
+
+class LLMCallError(ValueError, RuntimeError):
+    """Falha de chamada ao provedor LLM que preserva o envelope de telemetria da tentativa (DR-005, DR-013)."""
+
+    def __init__(
+        self,
+        message: str,
+        envelope: Optional[Any] = None,
+        status_code: Optional[int] = None,
+        envelopes: Optional[Any] = None,
+    ) -> None:
+        from app.tools.llm_types import redact_sensitive_string
+        redacted_msg = redact_sensitive_string(str(message))
+        super().__init__(redacted_msg)
+        self.envelope = envelope
+        self.status_code = status_code
+        if envelopes is not None:
+            self.envelopes = list(envelopes)
+        elif envelope is not None:
+            priors = getattr(envelope, "prior_envelopes", []) or []
+            self.envelopes = list(priors) + [envelope]
+        else:
+            self.envelopes = []
+
+
+class SearchTimeoutError(TimeoutError):
+    """Falha tipada de tempo limite excedido durante a varredura web com personas."""
+
+    def __init__(
+        self,
+        id_pesquisa: str,
+        ponto_id: str,
+        ponto_n: int,
+        timeout_seconds: float,
+        diagnostico: str,
+    ) -> None:
+        super().__init__(f"Tempo limite de busca excedido ({timeout_seconds:.1f}s) no ponto {ponto_n}: {diagnostico}")
+        self.id_pesquisa = id_pesquisa
+        self.ponto_id = ponto_id
+        self.ponto_n = ponto_n
+        self.timeout_seconds = timeout_seconds
+        self.diagnostico = diagnostico

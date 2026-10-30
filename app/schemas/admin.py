@@ -115,7 +115,7 @@ class CredentialSanitizedListItem(BaseModel):
         """Aplica mascaramento de segurança evitando qualquer exposição de segredos."""
         if not value:
             return "[REDACTED]"
-        if tipo == "webhook" or value.startswith("http://") or value.startswith("https://"):
+        if value.startswith("http://") or value.startswith("https://"):
             return value
         if len(value) <= 8:
             return "[REDACTED]"

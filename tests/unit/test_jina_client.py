@@ -37,6 +37,37 @@ async def test_jina_serp_metadata_isolation() -> None:
     req = mock_net.requests[0]
     assert req.headers.get("Accept") == "application/json"
     assert req.headers.get("X-Retain-Images") == "none"
+    assert req.headers.get("X-No-Cache") == "true"
+
+
+@pytest.mark.asyncio
+async def test_jina_serp_preserva_data_de_publicacao_e_permite_cache() -> None:
+    """A SERP deve expor timestamp quando o provedor o devolve; fresh=False não força bypass."""
+    import httpx
+
+    from app.tools.jina_client import JinaClient
+
+    mock_net = MockNetwork()
+    mock_net.custom_handlers["s.jina.ai"] = lambda req: httpx.Response(
+        200,
+        json={
+            "code": 200,
+            "data": [
+                {
+                    "title": "Notícia recente",
+                    "url": "https://example.org/noticia",
+                    "description": "Descrição",
+                    "timestamp": "2026-10-25T12:00:00Z",
+                }
+            ],
+        },
+    )
+    transport = create_mock_transport(mock_net)
+    client = JinaClient(api_key="jina-test-key", transport=transport)
+
+    resultados = await client.search("notícia", fresh=False)
+    assert resultados[0]["timestamp"] == "2026-10-25T12:00:00Z"
+    assert mock_net.requests[0].headers.get("X-No-Cache") is None
 
 
 @pytest.mark.asyncio

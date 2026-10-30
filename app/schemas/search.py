@@ -7,8 +7,10 @@ Derivado de:
 Atende a T022.
 """
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
+
+from app.schemas.execution import ExecutionMode
 
 
 class PersonaColetaItem(BaseModel):
@@ -42,6 +44,26 @@ class PersonaColetaItem(BaseModel):
     diagnostico: Optional[str] = Field(
         default=None,
         description="Diagnóstico da falha de coleta com categoria e ação corretiva (RF-04)",
+    )
+    conclusoes: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Conclusões estruturadas com IDs de evidência canônica (DR-009)",
+    )
+    lacunas: Optional[List[str]] = Field(
+        default=None,
+        description="Lacunas de informação explicitadas pela persona",
+    )
+    diario_acoes: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Diário operacional de ações backend executadas",
+    )
+    motivo_parada: Optional[str] = Field(
+        default=None,
+        description="Motivo explícito de encerramento da busca",
+    )
+    envelopes: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Metadados públicos higienizados dos envelopes das chamadas LLM da persona",
     )
 
 
@@ -97,6 +119,22 @@ class SearchColetaResumo(BaseModel):
         default=None,
         description="Conteúdo analítico consolidado das 4 personas",
     )
+    fontes: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Mapa único de fontes web coletadas no ponto",
+    )
+    trechos: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Trechos com IDs backend e offsets verificáveis no corpo",
+    )
+    selecao_contexto: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Ledger de seleção de contexto com orçamento explícito",
+    )
+    recencia: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Resumo da política de recência, data de referência e data da fonte mais recente",
+    )
 
 
 # Aliases de conveniência para importações compatíveis
@@ -115,6 +153,18 @@ class SearchRequest(BaseModel):
     ponto_id: Optional[str] = Field(
         default=None,
         description="Filtro opcional para reprocessamento exclusivo de um ponto (UUID)",
+    )
+    personas: Optional[List[str]] = Field(
+        default=None,
+        description="Filtro opcional de personas para re-tentativas focadas",
+    )
+    execution_mode: ExecutionMode = Field(
+        default="parallel",
+        description=(
+            "Modo de execução dos pontos de pesquisa: 'parallel' processa os N pontos "
+            "concorrentemente; 'sequential' processa um ponto por vez, em ordem de ponto_n "
+            "(PRD v2, invariante I-3). Valor inválido é rejeitado com 422."
+        ),
     )
 
 

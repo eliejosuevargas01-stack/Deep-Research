@@ -122,6 +122,13 @@ async def test_writer_endpoint_happy_path() -> None:
         assert data["status"] == "concluido"
         assert data["total_caracteres_dossier"] > 0
         assert data["webhook_entrega"]["status"] in ("entregue", "falha_definitiva")
+        # Qualidade editorial estrita: avaliador auditor_redacao com vetor 12 e corte >= 11
+        qualidade = data["qualidade_artigo"]
+        assert qualidade["avaliacao_valida"] is True
+        assert qualidade["criterios_aprovados"] >= 11
+        assert len(qualidade["criterios"]) == 12
+        assert [c["id"] for c in qualidade["criterios"]] == list(range(1, 13))
+        assert data["reasoning_dossier"] is None, "Raciocínio interno nunca é exposto (W11)"
 
 
 @pytest.mark.asyncio
@@ -147,3 +154,9 @@ async def test_full_pipeline_end_to_end() -> None:
         r4 = await client.post("/api/v1/writer", json={"id_pesquisa": id_pesquisa})
         assert r4.status_code == 200
         assert r4.json()["status"] == "concluido"
+        # Ciclo ponta-a-ponta com avaliador auditor_redacao: corte estrito >= 11/12
+        qualidade = r4.json()["qualidade_artigo"]
+        assert qualidade["avaliacao_valida"] is True
+        assert qualidade["criterios_aprovados"] >= 11
+        assert len(qualidade["criterios"]) == 12
+        assert [c["id"] for c in qualidade["criterios"]] == list(range(1, 13))

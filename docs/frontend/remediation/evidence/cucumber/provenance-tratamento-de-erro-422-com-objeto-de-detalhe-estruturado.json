@@ -1,0 +1,15 @@
+{
+  "scenarioName": "Tratamento de erro 422 com objeto de detalhe estruturado",
+  "baseUrl": "http://localhost:3001",
+  "timestamp": "2026-10-29T18:19:31.030Z",
+  "mode": "test",
+  "loadedScripts": [
+    "http://localhost:3001/@vite/client",
+    "http://localhost:3001/src/main.tsx?t=1793297520105"
+  ],
+  "loadedStyles": [],
+  "screenshots": [
+    "desktop-empty.png"
+  ],
+  "liveViolations": 0
+}

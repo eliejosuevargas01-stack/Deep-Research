@@ -1,0 +1,603 @@
+{
+  "revision": "7a90dcdb7d91e312720f6bb26fabe0ffb936cf165b672738ddceb7489b4f862f",
+  "receipt": {
+    "schemaVersion": 1,
+    "reviewer": "local-browser",
+    "visualDecision": "approved",
+    "captureVerified": true,
+    "capture": {
+      "schema": "plan-review-proof-v1",
+      "components": [
+        {
+          "id": "brand-mark",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.0176,
+                "y": 0.0176,
+                "w": 0.0221,
+                "h": 0.0332
+              }
+            }
+          }
+        },
+        {
+          "id": "user-mark",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.0703,
+                "y": 0.1104,
+                "w": 0.0273,
+                "h": 0.041
+              }
+            }
+          }
+        },
+        {
+          "id": "assistant-mark",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.0293,
+                "y": 0.2061,
+                "w": 0.0319,
+                "h": 0.0488
+              }
+            }
+          }
+        },
+        {
+          "id": "point-one-index",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.082,
+                "y": 0.3721,
+                "w": 0.0293,
+                "h": 0.0449
+              }
+            }
+          }
+        },
+        {
+          "id": "point-two-index",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.082,
+                "y": 0.4775,
+                "w": 0.0293,
+                "h": 0.0459
+              }
+            }
+          }
+        },
+        {
+          "id": "point-three-index",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.082,
+                "y": 0.583,
+                "w": 0.0293,
+                "h": 0.0459
+              }
+            }
+          }
+        },
+        {
+          "id": "status-glyph",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.7585,
+                "y": 0.1074,
+                "w": 0.0156,
+                "h": 0.0234
+              }
+            }
+          }
+        },
+        {
+          "id": "point-count-glyph",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.7591,
+                "y": 0.2158,
+                "w": 0.015,
+                "h": 0.0234
+              }
+            }
+          }
+        },
+        {
+          "id": "topic-glyph",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.7591,
+                "y": 0.2793,
+                "w": 0.015,
+                "h": 0.0234
+              }
+            }
+          }
+        },
+        {
+          "id": "date-glyph",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.7591,
+                "y": 0.3486,
+                "w": 0.015,
+                "h": 0.0234
+              }
+            }
+          }
+        },
+        {
+          "id": "scope-heading-glyph",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.7578,
+                "y": 0.4551,
+                "w": 0.0156,
+                "h": 0.0234
+              }
+            }
+          }
+        },
+        {
+          "id": "scope-coverage-glyph",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.7598,
+                "y": 0.5039,
+                "w": 0.0176,
+                "h": 0.0264
+              }
+            }
+          }
+        },
+        {
+          "id": "scope-sources-glyph",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.7598,
+                "y": 0.6016,
+                "w": 0.0176,
+                "h": 0.0264
+              }
+            }
+          }
+        },
+        {
+          "id": "scope-method-glyph",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.7598,
+                "y": 0.6738,
+                "w": 0.0176,
+                "h": 0.0264
+              }
+            }
+          }
+        },
+        {
+          "id": "scope-focus-glyph",
+          "views": {
+            "preview": {
+              "kind": "comp-crop",
+              "compPath": ".impeccable/mocks/c-canvas.png",
+              "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+              "box": {
+                "x": 0.7598,
+                "y": 0.748,
+                "w": 0.0176,
+                "h": 0.0264
+              }
+            }
+          }
+        }
+      ],
+      "scope": "Pinned raster sources and comp-crop geometry. No browser capture; no visual, semantic or human-identity approval."
+    },
+    "submission": {
+      "schemaVersion": 1,
+      "requestId": "components",
+      "packetRevision": "7a90dcdb7d91e312720f6bb26fabe0ffb936cf165b672738ddceb7489b4f862f",
+      "decisions": {
+        "brand-mark": {
+          "revision": "0b37d6164b2ad6576cddfc778e73ce72fff39b05d1a667f2eb10b841b1933c91",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "user-mark": {
+          "revision": "a53036586ba19906e3fb27343218b9a4d77c5b0de27f995ad50b116d28636c83",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "assistant-mark": {
+          "revision": "099ec2ce2a62e3e08ec5f62795c8108f6f6c574ef6921c93cd39fd9ab5e48904",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "point-one-index": {
+          "revision": "917472d003504ac841c02f29a904fa9d5290fc336365fa543d89455ef3e8f6b7",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "point-two-index": {
+          "revision": "4bf9b8f30cde2f09fee0e15a33a7f87beae15343f4d7be95b2a53ba4d104f02b",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "point-three-index": {
+          "revision": "0822d4c44a932dc07c45fcd475bf92436f5979676aa0be89eede6c0e3f24d89c",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "status-glyph": {
+          "revision": "a00777e95c13bc1bf4865623e1e6c3123dc6bdf77dc8efe1eea7f44435982ff1",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "point-count-glyph": {
+          "revision": "48821b5be5490a2cb59365d8f6abe92c41ec7bc3afdfc838f633fcc4cbd27335",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "topic-glyph": {
+          "revision": "8541376898212a7a7ee2baac9d9c1f83689dbe2d44789c49159d4f3dfda3a01b",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "date-glyph": {
+          "revision": "61bd5c7cfe9217ab9ddb708e9f34890a2d2f95ebaa7cb78d6e964e876f41ac0e",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "scope-heading-glyph": {
+          "revision": "3b5288a6773eb1236643ebda2f09e09e471fdb1f2270eb989bafd3b705e46927",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "scope-coverage-glyph": {
+          "revision": "566c4ca2c98678ab87060c0cf53cf2204512dae244983627a1cf563962a40f79",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "scope-sources-glyph": {
+          "revision": "aa119a0d52a1241a116612872e8b86017272c8297d7c0f4aefce0da97000ed2d",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "scope-method-glyph": {
+          "revision": "68adaa65d4df1d4a149e2080936167d14fc710c50c6fe6fa499fe2b6b436b235",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        },
+        "scope-focus-glyph": {
+          "revision": "dfd5b4305beeaafa6a04ae733471cc1fc672659c933cc38aad980d880f978e95",
+          "action": "approve",
+          "feedback": "",
+          "split": false
+        }
+      },
+      "missing": [],
+      "inventoryConfirmed": true
+    }
+  },
+  "capture": {
+    "schema": "plan-review-proof-v1",
+    "components": [
+      {
+        "id": "brand-mark",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.0176,
+              "y": 0.0176,
+              "w": 0.0221,
+              "h": 0.0332
+            }
+          }
+        }
+      },
+      {
+        "id": "user-mark",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.0703,
+              "y": 0.1104,
+              "w": 0.0273,
+              "h": 0.041
+            }
+          }
+        }
+      },
+      {
+        "id": "assistant-mark",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.0293,
+              "y": 0.2061,
+              "w": 0.0319,
+              "h": 0.0488
+            }
+          }
+        }
+      },
+      {
+        "id": "point-one-index",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.082,
+              "y": 0.3721,
+              "w": 0.0293,
+              "h": 0.0449
+            }
+          }
+        }
+      },
+      {
+        "id": "point-two-index",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.082,
+              "y": 0.4775,
+              "w": 0.0293,
+              "h": 0.0459
+            }
+          }
+        }
+      },
+      {
+        "id": "point-three-index",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.082,
+              "y": 0.583,
+              "w": 0.0293,
+              "h": 0.0459
+            }
+          }
+        }
+      },
+      {
+        "id": "status-glyph",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.7585,
+              "y": 0.1074,
+              "w": 0.0156,
+              "h": 0.0234
+            }
+          }
+        }
+      },
+      {
+        "id": "point-count-glyph",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.7591,
+              "y": 0.2158,
+              "w": 0.015,
+              "h": 0.0234
+            }
+          }
+        }
+      },
+      {
+        "id": "topic-glyph",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.7591,
+              "y": 0.2793,
+              "w": 0.015,
+              "h": 0.0234
+            }
+          }
+        }
+      },
+      {
+        "id": "date-glyph",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.7591,
+              "y": 0.3486,
+              "w": 0.015,
+              "h": 0.0234
+            }
+          }
+        }
+      },
+      {
+        "id": "scope-heading-glyph",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.7578,
+              "y": 0.4551,
+              "w": 0.0156,
+              "h": 0.0234
+            }
+          }
+        }
+      },
+      {
+        "id": "scope-coverage-glyph",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.7598,
+              "y": 0.5039,
+              "w": 0.0176,
+              "h": 0.0264
+            }
+          }
+        }
+      },
+      {
+        "id": "scope-sources-glyph",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.7598,
+              "y": 0.6016,
+              "w": 0.0176,
+              "h": 0.0264
+            }
+          }
+        }
+      },
+      {
+        "id": "scope-method-glyph",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.7598,
+              "y": 0.6738,
+              "w": 0.0176,
+              "h": 0.0264
+            }
+          }
+        }
+      },
+      {
+        "id": "scope-focus-glyph",
+        "views": {
+          "preview": {
+            "kind": "comp-crop",
+            "compPath": ".impeccable/mocks/c-canvas.png",
+            "compSha256": "75040d19d88f26bf1c7d2b7d1d22fe995a3f730206946c523f733a632b670d09",
+            "box": {
+              "x": 0.7598,
+              "y": 0.748,
+              "w": 0.0176,
+              "h": 0.0264
+            }
+          }
+        }
+      }
+    ],
+    "scope": "Pinned raster sources and comp-crop geometry. No browser capture; no visual, semantic or human-identity approval."
+  },
+  "sourceStatus": null,
+  "lifecycle": null,
+  "service": null
+}

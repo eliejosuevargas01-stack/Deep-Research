@@ -1,0 +1,22 @@
+{
+  "round": 3,
+  "method": "dual-independent-Hermes-native-images",
+  "A_score": 36,
+  "B_reported_total": 34,
+  "B_recomputed_total": 37,
+  "B_total_arithmetic_issue": true,
+  "max": 40,
+  "disposition": "fix",
+  "detector_count": 1,
+  "confirmed_actionable": [
+    "first invalid settings field lacks focus after submit",
+    "execution scopedCSS thick sideborder detected; correction in progress"
+  ],
+  "scope_dispositions": {
+    "long_form_as_P1": "not accepted solely from scroll depth; ten configuration fields may require scrolling; preserve functional grouping instead of forced tabs",
+    "global_CtrlS": "optional, not a release blocker",
+    "current_precedence": "approvedAdendo002 DB>ENV fallback; priorcapture/runtime not final evidence"
+  },
+  "capture_version_limit": "A older Settings copy/fixture ENV-first, B currentUI DB-first with stale fixture backend, root reload/current verification pending",
+  "no_final_acceptance_from_scores": true
+}

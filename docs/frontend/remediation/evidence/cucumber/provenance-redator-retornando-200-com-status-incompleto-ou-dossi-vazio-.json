@@ -1,0 +1,13 @@
+{
+  "scenarioName": "Redator retornando 200 com status incompleto ou dossiê vazio não é considerado sucesso",
+  "baseUrl": "http://localhost:3001",
+  "timestamp": "2026-10-29T18:19:48.367Z",
+  "mode": "test",
+  "loadedScripts": [
+    "http://localhost:3001/@vite/client",
+    "http://localhost:3001/src/main.tsx?t=1793297520105"
+  ],
+  "loadedStyles": [],
+  "screenshots": [],
+  "liveViolations": 0
+}

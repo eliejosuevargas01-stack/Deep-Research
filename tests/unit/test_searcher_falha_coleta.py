@@ -100,8 +100,8 @@ async def test_nenhuma_sintese_e_chamada_ao_llm_quando_nao_ha_evidencia(
     )
     pontos = await repo.list_points(pesquisa.id_pesquisa)
 
-    # LLM devolve 500: qualquer chamada de sintese falharia alto.
-    mock_net.set_llm_status_sequence([500])
+    # LLM devolve 200 na proposição da ação e 500 caso houvesse chamada indevida de síntese.
+    mock_net.set_llm_status_sequence([200, 500])
 
     jina_client = JinaClient(api_key="jina-key", transport=transport, min_backoff=0.0)
     llm_client = LLMClient(api_key="openai-key", transport=transport)

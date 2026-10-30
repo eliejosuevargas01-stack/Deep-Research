@@ -85,3 +85,40 @@ async def test_verify_api_key_missing_header_raises_401(monkeypatch: pytest.Monk
             db=db,
         )
     assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_query_token_allowed_on_get_and_head(monkeypatch: pytest.MonkeyPatch):
+    """Verifica que ?token= na query string é aceito para métodos seguros GET e HEAD."""
+    monkeypatch.setenv("API_SECRET_KEY", "segredo-super-valido")
+    db = AsyncMock()
+
+    # GET com query param token
+    req_get = MagicMock()
+    req_get.method = "GET"
+    req_get.query_params = {"token": "segredo-super-valido"}
+    res_get = await verify_api_key(request=req_get, x_api_key=None, authorization=None, db=db)
+    assert res_get is True
+
+    # HEAD com query param token
+    req_head = MagicMock()
+    req_head.method = "HEAD"
+    req_head.query_params = {"token": "segredo-super-valido"}
+    res_head = await verify_api_key(request=req_head, x_api_key=None, authorization=None, db=db)
+    assert res_head is True
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_query_token_rejected_on_mutating_methods(monkeypatch: pytest.MonkeyPatch):
+    """Verifica que ?token= na query string é estritamente rejeitado em métodos mutantes (POST, PUT, DELETE)."""
+    monkeypatch.setenv("API_SECRET_KEY", "segredo-super-valido")
+    db = AsyncMock()
+
+    for method in ("POST", "PUT", "DELETE", "PATCH"):
+        req = MagicMock()
+        req.method = method
+        req.query_params = {"token": "segredo-super-valido"}
+        with pytest.raises(HTTPException) as exc_info:
+            await verify_api_key(request=req, x_api_key=None, authorization=None, db=db)
+        assert exc_info.value.status_code == 401
+

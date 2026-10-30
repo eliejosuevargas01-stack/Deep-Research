@@ -1,0 +1,14 @@
+{
+  "pid": 34237,
+  "host": "127.0.0.1",
+  "port": 8012,
+  "pytest_transport_enabled": false,
+  "dependency_overrides": 0,
+  "database": "isolated SQLite; actual configured model and search providers",
+  "app_source_sha256": "5dec5025cacca8cf3ef28a7041d8b2fc4d0e23a232902d9118b700b8f268924f",
+  "frontend_index_sha256": "9824c7ea72108d41a0b57af0e896c8b73c99f72ad1133f0531b0ac65f006821d",
+  "model_light": "cx/gpt-5.6-terra",
+  "model_strong": "cx/gpt-5.6-terra",
+  "recorder": "transparent ASGI receive/send observation; headers never captured",
+  "session_auth": "real app mechanism; no injected X-API-Key"
+}

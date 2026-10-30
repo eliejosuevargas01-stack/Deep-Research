@@ -3,7 +3,11 @@
 Conecta a s.jina.ai para consultas SERP isolando metadados (RN-03, DT-06)
 e a r.jina.ai para raspagem integral em Markdown (RN-05).
 Implementa política de 1 tentativa inicial + 3 retries com backoff exponencial
-e timeout de 600 segundos (RNF-02, RNF-03, DT-11).
+e timeout resiliente (RNF-02, RNF-03, DT-11).
+
+Quando a base configurada é um proxy (ex.: Cloudflare Worker), o Reader usa o
+MESMO proxy: a credencial configurada é a do proxy, então chamar r.jina.ai
+direto devolveria 401 e o ponto seria auditado com "0 URLs lidas".
 """
 
 import asyncio
@@ -13,6 +17,18 @@ from typing import Any, Dict, List, Optional
 import httpx
 from app.config import get_settings
 from app.tools.errors import JinaError, classify_failure
+
+# Hosts canônicos da Jina: quando a base é um deles, o Reader continua em r.jina.ai.
+_JINA_CANONICAL_HOSTS = ("s.jina.ai", "r.jina.ai", "jina.ai")
+
+
+def _is_canonical_jina_base(base_url: Optional[str]) -> bool:
+    """True quando a base aponta para os hosts oficiais da Jina (sem proxy)."""
+    raw = (base_url or "").strip().lower()
+    if not raw:
+        return True
+    host = raw.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
+    return host in _JINA_CANONICAL_HOSTS
 
 
 def _normalize_base_url(url: Optional[str], default: str) -> str:
@@ -35,7 +51,7 @@ class JinaClient:
         reader_base_url: Optional[str] = None,
         transport: Optional[httpx.AsyncBaseTransport] = None,
         client: Optional[httpx.AsyncClient] = None,
-        timeout: float = 600.0,
+        timeout: Optional[float] = None,
         min_backoff: float = 0.01,
     ) -> None:
         settings = get_settings()
@@ -59,12 +75,22 @@ class JinaClient:
         )
 
         self.reader_base_url = _normalize_base_url(
-            reader_base_url
+            # Proxy detectado na base de busca efetiva: Reader usa o mesmo proxy.
+            (reader_base_url or (self.search_base_url if not _is_canonical_jina_base(self.search_base_url) else None))
             or os.environ.get("JINA_READER_BASE_URL"),
             default="https://r.jina.ai",
         )
 
-        self.timeout = timeout
+        # Timeout por requisição (default 45s): precisa cobrir o deadline do proxy
+        # (TOTAL_REQUEST_DEADLINE_MS no Worker), senão o cliente corta antes e o
+        # erro classificado do proxy nunca chega.
+        resolved_timeout = timeout
+        if resolved_timeout is None:
+            try:
+                resolved_timeout = float(os.environ.get("JINA_HTTP_TIMEOUT_SECONDS", "45.0"))
+            except (ValueError, TypeError):
+                resolved_timeout = 45.0
+        self.timeout = max(1.0, float(resolved_timeout))
         self.min_backoff = min_backoff
         self.transport = transport
         self._client = client or httpx.AsyncClient(
@@ -92,9 +118,33 @@ class JinaClient:
         são terminais e nunca viram resultado vazio nem são retentadas.
         """
         max_attempts = 4
+        # Timeouts não merecem 4 tentativas de 45s: o deadline do proxy já é
+        # conhecido e insistir só queima o orçamento do ponto de pesquisa.
+        max_attempts_timeout = 2
         res: Optional[httpx.Response] = None
         for attempt in range(1, max_attempts + 1):
-            res = await self._client.get(url, headers=headers)
+            try:
+                res = await self._client.get(url, headers=headers)
+            except httpx.TimeoutException as exc:
+                if attempt < max_attempts_timeout:
+                    await asyncio.sleep(self.min_backoff * (2 ** (attempt - 1)))
+                    continue
+                raise JinaError(
+                    "tempo limite excedido na chamada ao provedor",
+                    http_status=504,
+                    categoria="indisponibilidade",
+                    erro_original=exc,
+                ) from exc
+            except httpx.RequestError as exc:
+                if attempt < max_attempts:
+                    await asyncio.sleep(self.min_backoff * (2 ** (attempt - 1)))
+                    continue
+                raise JinaError(
+                    "falha de rede ao chamar o provedor",
+                    http_status=503,
+                    categoria="indisponibilidade",
+                    erro_original=exc,
+                ) from exc
             if res.status_code >= 400:
                 try:
                     body: Any = res.json()
@@ -114,10 +164,15 @@ class JinaClient:
         self,
         query: str,
         include_content: bool = False,
+        fresh: bool = True,
     ) -> List[Dict[str, str]]:
-        """Executa busca SERP retornando apenas metadados (título, url, descrição).
+        """Executa busca SERP retornando metadados (título, url, descrição, data).
 
         Atende a RN-03: isolamento estrito de metadados, vedado download de corpo de página.
+        ``fresh=True`` envia ``X-No-Cache``; no Search da Jina esse bypass de cache
+        costuma exceder o timeout e derrubar o plano, então o default é ``False``.
+        A atualidade é buscada por ancoragem temporal da query e pela data de
+        publicação devolvida pela SERP, não pela header de cache.
         """
         if not query or not query.strip():
             raise ValueError("A consulta de busca não pode ser vazia.")
@@ -129,6 +184,8 @@ class JinaClient:
             "X-Retain-Images": "none",
             "Authorization": f"Bearer {self.api_key}",
         }
+        if fresh:
+            headers["X-No-Cache"] = "true"
 
         res = await self._request(url, headers)
         data = res.json()
@@ -154,13 +211,27 @@ class JinaClient:
                     "url": str(item.get("url", "")),
                     "description": str(item.get("description", "") or item.get("snippet", "")),
                 }
+                published = (
+                    item.get("timestamp")
+                    or item.get("published_time")
+                    or item.get("published")
+                    or item.get("date")
+                    or item.get("last_updated")
+                )
+                if published:
+                    entry["timestamp"] = str(published)
                 if include_content:
                     entry["content"] = str(item.get("content", ""))
                 sanitized_results.append(entry)
         return sanitized_results
 
-    async def read(self, target_url: str) -> str:
-        """Executa raspagem integral de página web via Jina Reader sem truncamento sintático (RN-05)."""
+    async def read(self, target_url: str, fresh: bool = True) -> str:
+        """Executa raspagem integral de página web via Jina Reader sem truncamento sintático (RN-05).
+
+        ``fresh=True`` evita reutilizar cache antigo do Reader quando a pergunta
+        depende do estado atual da página. A leitura continua sendo feita em
+        Markdown integral.
+        """
         if not target_url or not target_url.strip():
             raise ValueError("A URL de destino para leitura não pode ser vazia.")
 
@@ -169,10 +240,22 @@ class JinaClient:
             "Accept": "text/markdown",
             "Authorization": f"Bearer {self.api_key}",
         }
+        if fresh:
+            headers["X-No-Cache"] = "true"
 
         # RF-01/DÚVIDA-01: mesmo defeito de classe do search() — o corpo de erro
-        # (ex.: 402 InsufficientBalanceError) era devolvido como Markdown legítimo.
+        # (ex.: 402 InsufficientBalanceError ou code >= 400 com data null) não pode ser tratado como Markdown.
         res = await self._request(url, headers)
+        text_content = res.text or ""
+        if text_content.strip().startswith("{"):
+            try:
+                data = res.json()
+                if isinstance(data, dict):
+                    codigo = data.get("code")
+                    if isinstance(codigo, int) and codigo >= 400:
+                        raise classify_failure(codigo, data)
+            except ValueError:
+                pass
 
         # Retorna conteúdo integral em Markdown sem cortes (RN-05)
-        return res.text
+        return text_content

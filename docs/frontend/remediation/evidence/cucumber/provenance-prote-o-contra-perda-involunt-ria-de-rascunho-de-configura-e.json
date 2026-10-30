@@ -1,0 +1,15 @@
+{
+  "scenarioName": "Proteção contra perda involuntária de rascunho de configurações",
+  "baseUrl": "http://localhost:3001",
+  "timestamp": "2026-10-29T18:22:17.445Z",
+  "mode": "test",
+  "loadedScripts": [
+    "http://localhost:3001/@vite/client",
+    "http://localhost:3001/src/main.tsx?t=1793297520105"
+  ],
+  "loadedStyles": [],
+  "screenshots": [
+    "desktop-settings.png"
+  ],
+  "liveViolations": 0
+}

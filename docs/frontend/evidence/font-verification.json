@@ -1,0 +1,168 @@
+{
+  "verifiedAt": "2026-10-26T04:13:03.743Z",
+  "browser": "Chromium (Playwright headless)",
+  "targetUrl": "http://127.0.0.1:3001",
+  "verificationStatus": "VERIFIED_LOADED",
+  "commandsExecuted": [
+    {
+      "command": "npm run build",
+      "exitCode": 0,
+      "result": "Built successfully (dist assets created including geist-sans woff/woff2 files)"
+    },
+    {
+      "command": "BASE_URL=http://127.0.0.1:3001 npm run test:e2e",
+      "exitCode": 0,
+      "result": "21 scenarios passed (21 passed), 100 steps passed (100 passed)"
+    }
+  ],
+  "fontNetworkRequests": [
+    {
+      "url": "http://127.0.0.1:3001/node_modules/@fontsource/geist-sans/files/geist-sans-latin-600-normal.woff2",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "font/woff2",
+      "fromServiceWorker": false
+    },
+    {
+      "url": "http://127.0.0.1:3001/node_modules/@fontsource/geist-sans/files/geist-sans-latin-400-normal.woff2",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "font/woff2",
+      "fromServiceWorker": false
+    },
+    {
+      "url": "http://127.0.0.1:3001/node_modules/@fontsource/geist-mono/files/geist-mono-latin-400-normal.woff2",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "font/woff2",
+      "fromServiceWorker": false
+    },
+    {
+      "url": "http://127.0.0.1:3001/node_modules/@fontsource/geist-sans/files/geist-sans-latin-500-normal.woff2",
+      "status": 200,
+      "statusText": "OK",
+      "contentType": "font/woff2",
+      "fromServiceWorker": false
+    }
+  ],
+  "browserEvaluation": {
+    "cssVariables": {
+      "--font-sans": "'Geist Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      "--font-mono": "'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+    },
+    "computedStyles": {
+      "htmlFontFamily": "\"Geist Sans\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "bodyFontFamily": "\"Geist Sans\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "rootFontFamily": "\"Geist Sans\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif"
+    },
+    "documentFontsStatus": "loaded",
+    "documentFontsCheck": {
+      "15px \"Geist Sans\"": true,
+      "400 15px \"Geist Sans\"": true,
+      "500 15px \"Geist Sans\"": true,
+      "600 15px \"Geist Sans\"": true,
+      "15px \"Geist\"": true
+    },
+    "loadedFacesCount": 1,
+    "fontFaceSet": [
+      {
+        "family": "Geist Sans",
+        "status": "loaded",
+        "weight": "400",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Sans",
+        "status": "loaded",
+        "weight": "500",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Sans",
+        "status": "loaded",
+        "weight": "600",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "400",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "400",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "400",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "400",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "400",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "loaded",
+        "weight": "400",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "500",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "500",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "500",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "500",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "500",
+        "style": "normal"
+      },
+      {
+        "family": "Geist Mono",
+        "status": "unloaded",
+        "weight": "500",
+        "style": "normal"
+      }
+    ],
+    "metricWidths": {
+      "testString": "The quick brown fox jumps over the lazy dog 1234567890",
+      "geistSansPx": 433,
+      "systemSansPx": 410.03125,
+      "monospacePx": 520.171875,
+      "serifPx": 376.375,
+      "isGeistSansMetricDivergentFromSystemFallback": true
+    }
+  }
+}

@@ -1,0 +1,269 @@
+{
+  "captured_at": "2026-10-26T22:40:58.189129+00:00",
+  "id_pesquisa": "dee9fa33-1205-4323-8715-ab388deb8747",
+  "mode": "existing user-completed report; readonly database proof, no models triggered",
+  "status": "concluido",
+  "concluido_em": "2026-10-26T22:17:36.740972+00:00",
+  "report_characters": 9352,
+  "artifact_sha256": "7dbf09a2686541721efeacd64533a0716fefc85e2de46da833fb81355dc893eb",
+  "generation_attempt_summary": [
+    {
+      "etapa": "plan",
+      "persona": "planejador",
+      "model_requested": "ag/gemini-3.8-flash-high",
+      "model_used": "gemini-3.8-flash-n",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 17.3452,
+      "output_characters": 2391
+    },
+    {
+      "etapa": "plan",
+      "persona": "avaliador_semantico",
+      "model_requested": "ag/gemini-3.8-flash-high",
+      "model_used": "gemini-3.8-flash-n",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 7.678,
+      "output_characters": 337
+    },
+    {
+      "etapa": "search",
+      "persona": "historiador",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 2.5742,
+      "output_characters": 222
+    },
+    {
+      "etapa": "search",
+      "persona": "historiador",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 3.886,
+      "output_characters": 171
+    },
+    {
+      "etapa": "search",
+      "persona": "historiador",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 3.5156,
+      "output_characters": 202
+    },
+    {
+      "etapa": "search",
+      "persona": "historiador",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 4.2541,
+      "output_characters": 144
+    },
+    {
+      "etapa": "search",
+      "persona": "historiador",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 7.2164,
+      "output_characters": 2283
+    },
+    {
+      "etapa": "search",
+      "persona": "visionario",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 2.6156,
+      "output_characters": 161
+    },
+    {
+      "etapa": "search",
+      "persona": "visionario",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 2.5283,
+      "output_characters": 228
+    },
+    {
+      "etapa": "search",
+      "persona": "visionario",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 3.4164,
+      "output_characters": 196
+    },
+    {
+      "etapa": "search",
+      "persona": "visionario",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 8.7007,
+      "output_characters": 2885
+    },
+    {
+      "etapa": "search",
+      "persona": "cetico",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 5.078,
+      "output_characters": 141
+    },
+    {
+      "etapa": "search",
+      "persona": "cetico",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 2.7018,
+      "output_characters": 219
+    },
+    {
+      "etapa": "search",
+      "persona": "cetico",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 3.2119,
+      "output_characters": 207
+    },
+    {
+      "etapa": "search",
+      "persona": "cetico",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 6.2324,
+      "output_characters": 2566
+    },
+    {
+      "etapa": "search",
+      "persona": "cetico",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 10.6783,
+      "output_characters": 2126
+    },
+    {
+      "etapa": "search",
+      "persona": "futurista",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 2.1945,
+      "output_characters": 206
+    },
+    {
+      "etapa": "search",
+      "persona": "futurista",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 2.7758,
+      "output_characters": 175
+    },
+    {
+      "etapa": "search",
+      "persona": "futurista",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 3.7251,
+      "output_characters": 214
+    },
+    {
+      "etapa": "search",
+      "persona": "futurista",
+      "model_requested": "gemini/gemini-3.5-flash-lite",
+      "model_used": "gemini-3.5-flash-lite",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 5.4904,
+      "output_characters": 1756
+    },
+    {
+      "etapa": "audit",
+      "persona": "auditor",
+      "model_requested": "ag/gemini-3.8-flash-high",
+      "model_used": "gemini-3.8-flash-n",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 55.345,
+      "output_characters": 7161
+    },
+    {
+      "etapa": "write",
+      "persona": "redator final",
+      "model_requested": "ag/gemini-3.8-flash-high",
+      "model_used": "gemini-3.8-flash-n",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 42.2244,
+      "output_characters": 9084
+    },
+    {
+      "etapa": "write",
+      "persona": "redator final",
+      "model_requested": "ag/gemini-3.8-flash-high",
+      "model_used": "gemini-3.8-flash-n",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 54.9646,
+      "output_characters": 9352
+    },
+    {
+      "etapa": "write",
+      "persona": "auditor_redacao",
+      "model_requested": "ag/gemini-3.8-flash-high",
+      "model_used": "gemini-3.8-flash-n",
+      "is_regular_finish": 1,
+      "finish_reason": "stop",
+      "latency_seconds": 33.8515,
+      "output_characters": 5094
+    }
+  ],
+  "publication_metadata_keys": [
+    "input_hash",
+    "artifact_hash",
+    "model_strong",
+    "writer_version",
+    "finish_reason",
+    "is_regular_finish",
+    "qualidade_artigo",
+    "diagnostico",
+    "draft_count",
+    "eval_count",
+    "webhook_url",
+    "tentativas_webhook",
+    "lease_token",
+    "generation_attempt_ids",
+    "finalizado_em",
+    "concluido_em"
+  ]
+}

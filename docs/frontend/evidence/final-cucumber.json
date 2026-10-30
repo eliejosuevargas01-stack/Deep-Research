@@ -1,0 +1,10 @@
+{
+  "command": "/home/eliezer/.local/bin/npm run test:e2e",
+  "exit_code": 0,
+  "summary": [
+    "21 scenarios (21 passed)",
+    "101 steps (101 passed)",
+    "0m28.039s (executing steps: 0m27.906s)"
+  ],
+  "note": "After responsive plan grid fix and independent fixture preparation"
+}

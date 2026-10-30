@@ -71,6 +71,9 @@ async def async_engine(temp_db_path: str, test_env: None) -> AsyncGenerator[Asyn
     yield engine
 
     await engine.dispose()
+    from app.db import session as db_session_module
+    if db_session_module._engine is not None:
+        await db_session_module._engine.dispose()
     reset_engine()
     get_settings.cache_clear()
 
@@ -101,6 +104,11 @@ async def init_test_db_if_integration() -> None:
     """Garante que a base de dados dos testes de integração possua as tabelas e colunas atualizadas."""
     current_test = os.environ.get("PYTEST_CURRENT_TEST", "")
     if "tests/integration/" in current_test:
+        os.environ["DATABASE_URL"] = "sqlite+aiosqlite:////tmp/test_deep_research.db"
+        from app.config import get_settings
+        get_settings.cache_clear()
+        from app.db.session import reset_engine
+        reset_engine()
         from app.main import _setup_integration_test_env
         _setup_integration_test_env()
         from app.db.init_db import init_db

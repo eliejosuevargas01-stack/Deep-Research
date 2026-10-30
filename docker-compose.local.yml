@@ -1,0 +1,21 @@
+services:
+  api:
+    container_name: deep-research-local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    command: ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8085"]
+    env_file:
+      - /tmp/deep-research-runtime.env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/deep_research_local.db
+      - N_PONTOS=1
+      - PERSONAS_CONFIG=planejador,historiador,visionario,cetico,futurista,auditor,redator final
+      - LLM_BASE_URL=http://127.0.0.1:20128/v1
+    volumes:
+      - deep_research_local_data:/app/data
+    restart: "no"
+
+volumes:
+  deep_research_local_data:

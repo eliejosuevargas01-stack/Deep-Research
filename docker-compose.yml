@@ -2,12 +2,21 @@ services:
   api:
     container_name: deep-research
     build: .
-    ports:
-      - "8085:8000"
+    # No Linux, network_mode: host conecta diretamente ao namespace de rede do host.
+    # Isso preserva o IP do cliente como 127.0.0.1 (loopback autêntico) ao acessar via 127.0.0.1,
+    # permitindo emissão de sessão de navegador local segura sem depender de bridge gateway (172.x).
+    # Para plataformas sem suporte a network_mode: host (ex: macOS/Windows), o script local
+    # 'scripts/run_app.py' deve ser utilizado diretamente no ambiente host.
+    network_mode: host
+    command: ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8085"]
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=sqlite+aiosqlite:////app/data/deep_research.db
       - CREDENTIALS_MASTER_KEY=${CREDENTIALS_MASTER_KEY}
-      - N_PONTOS=5
+      - N_PONTOS=${N_PONTOS:-1}
+      - HOST=127.0.0.1
+      - PORT=8085
     volumes:
-      - /root/projects/deep-research/data:/app/data
+      - ./data:/app/data
     restart: unless-stopped

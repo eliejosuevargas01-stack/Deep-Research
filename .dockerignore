@@ -15,3 +15,37 @@ data/
 *.db-wal
 *.db-shm
 run_test.sh
+
+# Dependências e artefatos de build locais
+.venv
+venv
+env
+frontend/node_modules
+node_modules
+frontend/dist
+*.egg-info
+__pycache__
+
+# Documentação, evidências e histórico (não vão para a imagem)
+docs
+frontend-recovery-browser-evidence
+_reversa_bugs
+*.png
+*.log
+search-red.txt
+
+# Segredos e certificados
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+.dev.vars
+.wrangler
+*.vars
+
+# Caches de ferramentas locais
+.impeccable
+scripts/.shim_cache
+*.shim_cache

@@ -1,0 +1,298 @@
+{
+  "round": 5,
+  "scope": "responsividade-coerencia",
+  "evaluator": "A",
+  "role": "independent_design_review",
+  "model": "ag/gemini-3.8-flash-high",
+  "reasoning": "high",
+  "provider": "9router",
+  "execution_phase": "CAPTURE_ONLY",
+  "timestamp_utc": "2026-10-27T00:37:30Z",
+  "session_id": "round5_eval_a",
+  "target_url": "http://localhost:8011/",
+  "reference_url": "http://127.0.0.1:9015/",
+  "provider_mode": "fixture_simulated_external_providers",
+  "frozen_bundle_hashes": {
+    "frontend/dist/assets/index-DJ1sYgkX.js": "c74b7ad3de1eb3cc86080cd3a7c531c815352ca3816dac51b815dffd4c69f749",
+    "frontend/dist/assets/index-Wmy6xx4v.css": "4e3a5ca6dd1fb61d6cf96718b07cf6650d697e4eb9242b9563c5c19dfcf6d3ca"
+  },
+  "reference_hashes": {
+    "/home/eliezer/Escritorio/dominuslabs-codex/docs/index.html": "861cdb28dc093e40db1f34c49d216291da95093aabb0bffbbb5274c7b0a70570",
+    "/home/eliezer/Escritorio/dominuslabs-codex/docs-src/assets/docs.css": "e92d1c398327ed8e2d42fd81a9a3e137c64449bfcd119bf7e56f3894376699cd",
+    "/home/eliezer/Escritorio/dominuslabs-codex/docs-src/assets/extra.css": "b0216d8637c0f338058c85ebc4049502e1b5fc853ab596e6c5c55688e7fa314b"
+  },
+  "browser_harness": {
+    "tool": "Hermes browser_exec",
+    "session": "round5_eval_a",
+    "tab_lifecycle": "new_tab dedicated -> multiple viewport tests -> clean close_tab"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "name": "desktop_1440_initial_and_font_inspection",
+      "viewport": [1440, 900],
+      "actions": [
+        "Navigate to http://localhost:8011/",
+        "Set deviceMetricsOverride(width=1440, height=900, dsf=1, mobile=false)",
+        "Inspect FontFaceSet loaded status",
+        "Inspect computed key text styles and GSAP presence",
+        "Capture screenshot -> copy to 01_desktop_1440_workspace.png"
+      ],
+      "objective_results": {
+        "title": "🐴 Deep Research — Workspace de Investigação Analítica",
+        "documentFontsCount": 39,
+        "loadedFonts": ["Outfit 700", "Inter 400", "Inter 500", "Inter 600", "JetBrains Mono 400"],
+        "keyStyles": {
+          "brandTitle": { "color": "rgb(15, 23, 42)", "bgColor": "rgb(255, 255, 255)", "fontFamily": "Outfit, \"Plus Jakarta Sans\", system-ui, sans-serif" },
+          "textarea": { "color": "rgb(15, 23, 42)", "bgColor": "rgb(243, 244, 246)", "fontFamily": "Inter, system-ui, sans-serif" },
+          "preferencesToggle": { "color": "rgb(109, 40, 217)", "bgColor": "rgb(255, 255, 255)", "fontFamily": "Inter, system-ui, sans-serif" },
+          "sampleCard": { "color": "rgb(0, 0, 0)", "bgColor": "rgb(255, 255, 255)", "fontFamily": "Arial" },
+          "newResearchBtn": { "color": "rgb(255, 255, 255)", "bgColor": "rgb(109, 40, 217)", "fontFamily": "Inter, system-ui, sans-serif" }
+        },
+        "hasGsap": false,
+        "gsapTweens": null,
+        "screenshotPath": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/01_desktop_1440_workspace.png",
+        "sha256": "4a0d3ac4069f03423333143841a5c3e29f5c90d9b3acf4ab9c6b9df7f27d85e0",
+        "bytes": 119951
+      }
+    },
+    {
+      "step_id": 2,
+      "name": "reference_9015_verification",
+      "viewport": [1440, 900],
+      "actions": [
+        "Navigate to http://127.0.0.1:9015/",
+        "Inspect original reference design tokens and computed styles",
+        "Capture screenshot -> copy to 03_actual_reference_9015.png"
+      ],
+      "objective_results": {
+        "title": "🐴 Início · Docs Deep Research",
+        "computedStyles": {
+          "bodyBg": "rgb(249, 250, 251)",
+          "bodyColor": "rgb(55, 65, 81)",
+          "bodyFont": "Inter, system-ui, sans-serif",
+          "h1Font": "Outfit, \"Plus Jakarta Sans\", system-ui, sans-serif",
+          "h1Color": "rgb(15, 23, 42)"
+        },
+        "screenshotPath": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/03_actual_reference_9015.png",
+        "sha256": "dd07ef0b7ab27c2e485bb0cc31b3d52cf2369e966a59eaed2231d5e1ccc646a0",
+        "bytes": 129522
+      }
+    },
+    {
+      "step_id": 3,
+      "name": "mobile_375_composer_and_preferences",
+      "viewport": [375, 812],
+      "actions": [
+        "Navigate to http://localhost:8011/",
+        "Set deviceMetricsOverride(width=375, height=812, dsf=2, mobile=true)",
+        "Click sample topic suggestion card; verify input focus transfer",
+        "Test composer resize desktop->375->desktop with wrap text (ResizeObserver cap at 120px)",
+        "Test short text clipping prevention",
+        "Open preferences toggle near bottom of 375x812 viewport",
+        "Verify preferences panel geometry atop composer",
+        "Test native CDP Escape key dispatch -> verify panel unmount and focus return to toggle button",
+        "Re-open preferences toggle, select 2 points, configure active personas to only Historiador and Cético",
+        "Capture screenshot -> copy to 02_mobile_375_composer_preferences.png"
+      ],
+      "objective_results": {
+        "suggestionFocusTransferred": true,
+        "composerWrapTest": {
+          "desktop1440": { "offsetHeight": 68, "scrollHeight": 68, "clientHeight": 68, "scrollTop": 0, "maxHeight": "120px" },
+          "mobile375": { "offsetHeight": 68, "scrollHeight": 332, "clientHeight": 68, "scrollTop": 0, "maxHeight": "120px" },
+          "desktop1440Return": { "offsetHeight": 68, "scrollHeight": 68, "clientHeight": 68, "scrollTop": 0, "maxHeight": "120px" },
+          "shortText": { "value": "IA no Brasil", "offsetHeight": 68, "scrollHeight": 68, "clientHeight": 68, "clipped": false }
+        },
+        "preferencesPanelRect": {
+          "top": 111.23,
+          "bottom": 631.23,
+          "left": 16,
+          "right": 359,
+          "width": 343,
+          "height": 520,
+          "viewportHeight": 812,
+          "viewportWidth": 375
+        },
+        "nativeCdpEscapeResult": {
+          "panelExistsAfter": false,
+          "activeElId": "preferences-toggle-btn",
+          "activeElClass": "preferences-toggle-btn ",
+          "focusReturned": true
+        },
+        "configuredState": {
+          "point2Selected": true,
+          "personaStates": {
+            "Historiador": true,
+            "Visionário": false,
+            "Cético": true,
+            "Futurista": false
+          },
+          "chipLabel": "2 pontos • 2 personas"
+        },
+        "screenshotPath": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/02_mobile_375_composer_preferences.png",
+        "sha256": "9e73691dbead0ce3285ce48f512358d2affafe98f74e71f139144dff260c3102",
+        "bytes": 291444
+      }
+    },
+    {
+      "step_id": 4,
+      "name": "submit_topic_and_initial_plan_sole_start_verification",
+      "viewport": [1440, 900],
+      "actions": [
+        "Close preferences popover via CDP Escape",
+        "Type topic 'O futuro da matriz energética no Brasil' into composer textarea",
+        "Click composer-send-btn",
+        "Poll plan arrival on fixture app",
+        "Verify initialPlan soleStart action ('Iniciar pesquisa') uniqueness and visibility",
+        "Execute document.elementFromPoint at center of Iniciar pesquisa button WITHOUT any scroll helper"
+      ],
+      "objective_results": {
+        "planLoaded": true,
+        "planTheme": "O futuro da matriz energética no Brasil",
+        "planBadges": ["2 pontos analíticos", "2 personas ativas"],
+        "soleStartVerification": {
+          "unique": true,
+          "count": 1,
+          "text": "Iniciar pesquisa",
+          "rect": { "top": 237.5, "bottom": 281.5, "left": 817.28, "right": 999, "width": 181.72, "height": 44 },
+          "center": { "cx": 908.14, "cy": 259.5 },
+          "elementFromPointTagName": "SPAN",
+          "isHittable": true,
+          "noScrollHelperRequired": true
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "name": "midwidth_916_and_837_and_navbar_collision",
+      "viewports": [[916, 900], [837, 900]],
+      "actions": [
+        "Set deviceMetricsOverride(width=916, height=900)",
+        "Check soleStart hittability via elementFromPoint and navbar collision",
+        "Set deviceMetricsOverride(width=837, height=900)",
+        "Check soleStart hittability via elementFromPoint and navbar collision",
+        "Capture screenshot -> copy to 04_midwidth_837_916_plan.png"
+      ],
+      "objective_results": {
+        "at916": {
+          "soleStartHittable": true,
+          "center": { "cx": 760.14, "cy": 259.5 },
+          "brandRect": { "left": 12, "right": 158.64 },
+          "newBtnRect": { "left": 166.64, "right": 204.64 },
+          "navLinksVisible": false,
+          "mobileToggleVisible": true,
+          "navbarCollision": false
+        },
+        "at837": {
+          "soleStartHittable": true,
+          "center": { "cx": 147.86, "cy": 398.84 },
+          "brandRect": { "left": 12, "right": 158.64 },
+          "newBtnRect": { "left": 166.64, "right": 204.64 },
+          "navLinksVisible": false,
+          "mobileToggleVisible": true,
+          "navbarCollision": false
+        },
+        "screenshotPath": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/04_midwidth_837_916_plan.png",
+        "sha256": "59a07818280a03ff78af61dd4a52db9a061411fb801ecdddde015c2df316c281",
+        "bytes": 85961
+      }
+    },
+    {
+      "step_id": 6,
+      "name": "cancel_new_theme_and_keyboard_focus_inspection",
+      "viewport": [1440, 900],
+      "actions": [
+        "Click 'Novo tema' button (.query-action-btn)",
+        "Inspect confirmation dialog (.query-confirm-reset role=alertdialog)",
+        "Click 'Cancelar' button",
+        "Inspect plan preservation and document.activeElement focus target"
+      ],
+      "objective_results": {
+        "alertdialogRendered": true,
+        "dialogText": "Descartar plano formulado? Descartar plano Cancelar",
+        "afterCancel": {
+          "confirmBoxClosed": true,
+          "planPreserved": true,
+          "startBtnExists": true,
+          "queryTitle": "O futuro da matriz energética no Brasil",
+          "activeElementTagName": "BODY",
+          "focusReturnedToTrigger": false,
+          "defectObserved": "Focus falls back to document.body when Cancelar is clicked, losing interactive keyboard position instead of returning to 'Novo tema' trigger button."
+        }
+      }
+    },
+    {
+      "step_id": 7,
+      "name": "shortlaptop_1280x577_inspection",
+      "viewport": [1280, 577],
+      "actions": [
+        "Set deviceMetricsOverride(width=1280, height=577, mobile=false)",
+        "Test soleStart hittability via elementFromPoint without scrolling",
+        "Inspect composer and sidebar positions relative to initial fold",
+        "Capture screenshot -> copy to 05_shortlaptop_1280x577.png"
+      ],
+      "objective_results": {
+        "startBtnHittable": true,
+        "center": { "cx": 760.14, "cy": 259.5 },
+        "startBtnRect": { "top": 237.5, "bottom": 281.5, "left": 669.28, "right": 851 },
+        "composerRect": { "top": 705.84, "bottom": 835.47, "height": 129.62 },
+        "viewportHeight": 577,
+        "scrollHeight": 867,
+        "finding": "Primary plan and soleStart action fit cleanly in upper fold; composer rests below fold on short laptop.",
+        "screenshotPath": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/05_shortlaptop_1280x577.png",
+        "sha256": "af75273a2dfee0e73fe0afbbf2c5bbde850643a1897cda85cb2b6f20460f0f3b",
+        "bytes": 70465
+      }
+    },
+    {
+      "step_id": 8,
+      "name": "fixture_pipeline_execution_and_source_contrast",
+      "viewport": [1440, 900],
+      "actions": [
+        "Click 'Iniciar pesquisa' (start-research-btn)",
+        "Wait for synchronous fixture pipeline completion ('Dossiê Concluído')",
+        "Inspect .source-explanation-note styling, text color and actual parent background",
+        "Calculate WCAG AA contrast ratio atop non-white parent",
+        "Capture screenshot -> copy to 06_dossier_source_breakdown.png"
+      ],
+      "objective_results": {
+        "pipelineCompleted": true,
+        "statusBadge": "Dossiê Concluído",
+        "sourceBreakdownRendered": true,
+        "sourceExplanationNote": {
+          "text": "Fontes consultadas mas não citadas representam referências e leituras de apoio que compuseram o contexto investigativo, sem citação direta no texto final (não constituem fontes rejeitadas).",
+          "color": "rgb(107, 114, 128)",
+          "fontSize": "12.3px",
+          "lineHeight": "18.45px",
+          "fontFamily": "Inter, system-ui, sans-serif",
+          "directParentTag": "SECTION",
+          "directParentClass": "source-breakdown-card sources-card",
+          "directParentBg": "rgb(243, 244, 246)",
+          "calculatedContrastRatio": "4.39:1",
+          "wcagCompliance": "FAIL (below 4.5:1 required for normal 12.3px text because parent is subtle gray #F3F4F6 rather than assumed white #FFFFFF)"
+        },
+        "screenshotPath": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/06_dossier_source_breakdown.png",
+        "sha256": "3dc6e95ad3ce300f31d7cd8ba7c223071eee1808cd683ae898aa19dbb1d1555f",
+        "bytes": 107105
+      }
+    },
+    {
+      "step_id": 9,
+      "name": "zoom_200_and_limitations_audit",
+      "actions": [
+        "Probe CDP Emulation.setPageScaleFactor(2.0)",
+        "Observe layout metrics under headless browser"
+      ],
+      "objective_results": {
+        "status": "unproven",
+        "reason": "CDP headless automation lacks native browser-level zoom reflow API (Ctrl++ equivalent). Emulation.setPageScaleFactor applies visual pinch-zoom rather than desktop layout zoom reflow, and CSS zoom is prohibited by directive as synthetic. Therefore true 200% browser zoom reflow is declared unproven/degraded rather than an invented PASS."
+      }
+    }
+  ],
+  "cleanup": {
+    "session_tab_closed": true,
+    "user_root_tabs_untouched": true,
+    "vault_or_browser_history_accessed": false,
+    "external_browser_libraries_installed": false
+  }
+}

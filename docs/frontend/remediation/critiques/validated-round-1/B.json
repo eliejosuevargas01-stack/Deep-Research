@@ -1,0 +1,108 @@
+{
+  "assessment": "B",
+  "round": 1,
+  "scope": "entrada-compositor",
+  "target": "http://localhost:8011/",
+  "provenance": {
+    "evaluator": "Evaluator B (Detector + Browser Evidence)",
+    "model": "ag/gemini-3.8-flash-high",
+    "provider": "9router",
+    "reasoning": "high",
+    "timestamp_utc": "2026-10-26T18:54:30Z",
+    "git_head": "94805ca859431a07636b2d41bf4d47d6b5c30c0a",
+    "subagents_used": false,
+    "browser_session": "eval_b_round1",
+    "tab_closed": "CEF35600CB570B7DA0DD590C4FAEEF68",
+    "visual_inspection": "verified_native_image_inspection",
+    "native_image_attached": "06_preferences_popover_open.png"
+  },
+  "detector": {
+    "command": "/home/eliezer/.claude/skills/impeccable/scripts/impeccable detect --json frontend/src",
+    "exit_code": 0,
+    "findings_count": 0,
+    "findings": []
+  },
+  "scores": {
+    "total": 34,
+    "max": 40,
+    "percentage": 85.0,
+    "band": "Strong with ergonomic defects",
+    "heuristics": {
+      "visibility_of_system_status": {
+        "score": 3,
+        "issue": "Contador 0/500 e alertas funcionam em tempo real; contudo, o topo do popover de preferências (título e botão Fechar X) sofre corte visual na borda superior da viewport desktop padrão (1280x577)."
+      },
+      "match_system_real_world": {
+        "score": 4,
+        "issue": "n/a — Terminologia analítica precisa em português ('Workspace de Investigação Analítica', 'pontos analíticos', 'personas')."
+      },
+      "user_control_and_freedom": {
+        "score": 2,
+        "issue": "Botão de fechar (X) do popover fica cortado e inacessível visualmente; o fechamento por mouse fica obstruído, dependendo de Escape ou clique externo."
+      },
+      "consistency_and_standards": {
+        "score": 4,
+        "issue": "n/a — Alinhamento rigoroso à paleta DominusLabs (#6D28D9, #F9FAFB) e tipografia Inter/Outfit."
+      },
+      "error_prevention": {
+        "score": 4,
+        "issue": "n/a — Bloqueio de submissão para <5 e >500 caracteres; trava obrigatória da última persona analítica."
+      },
+      "recognition_rather_than_recall": {
+        "score": 4,
+        "issue": "n/a — Cards de sugestões auto-preenchem o compositor; chip de preferências exibe resumo ativo (+1 ponto • 4 personas)."
+      },
+      "flexibility_and_efficiency": {
+        "score": 3,
+        "issue": "Shift+Enter validado via inserção de quebra de linha e expansão do campo, mas disparo de atalho físico de SO permanece como limite sintético a confirmar na suíte Cucumber."
+      },
+      "aesthetic_and_minimalist_design": {
+        "score": 3,
+        "issue": "Visual limpo e profissional, porém prejudicado pelo corte superior do painel flutuante."
+      },
+      "error_recovery": {
+        "score": 4,
+        "issue": "n/a — Mensagens dinâmicas informam a contagem exata de caracteres faltantes ou excedentes; banner de erro de sessão com botão de retry."
+      },
+      "help_and_documentation": {
+        "score": 3,
+        "issue": "Descrições claras para cada persona e para a finalidade dos eixos analíticos."
+      }
+    }
+  },
+  "defects_identified": [
+    {
+      "id": "DEFECT-B-01",
+      "severity": "major",
+      "category": "layout_clipping",
+      "component": "ResearchPreferences.tsx / components.css (.preferences-panel)",
+      "description": "Corte visual do topo do popover de preferências: posicionado em bottom: calc(100% + 10px) com altura de até 520px, o cabeçalho (.preferences-header com título e botão X) é projetado para fora da viewport em telas desktop padrão (altura 577px), ficando invisível ao usuário.",
+      "remediation": "Adicionar contenção de viewport com max-height: calc(100vh - 160px) e overflow-y: auto para que o cabeçalho sticky e o botão X permaneçam visíveis e operáveis via clique."
+    },
+    {
+      "id": "DEFECT-B-02",
+      "severity": "minor",
+      "category": "test_provenance_boundary",
+      "component": "Composer.tsx",
+      "description": "Comportamento multiline comprovado via CDP Input.insertText e resize do textarea, porém o atalho físico Shift+Enter via teclado real de SO deve ser homologado formalmente na suíte Cucumber.",
+      "remediation": "Validar cenário de teclado nativo com Playwright no teste de aceitação Cucumber."
+    }
+  ],
+  "source_hashes": {
+    "frontend/src/App.tsx": "ef424550dc29034532bb7f8b3260a0a19c7b0c9edd1ec444490bd679b834e680",
+    "frontend/src/components/Composer.tsx": "11d64abec24cb3b205faccf7a27d99d11d151a0f7d693c06a28276ee76b816e0",
+    "frontend/src/components/EmptyState.tsx": "664764bbe35eda39f0caf75ca87a7c6f7d32ecdf860d4e904d6806899e866a95",
+    "frontend/src/components/ResearchPreferences.tsx": "1b668cbdb1e2bb2e9c1e3f2b67840e53bde9f959c46609999befe52dd3595aed",
+    "frontend/src/styles/tokens.css": "a2c6b1de2fbcb84a9ac4e3166375d664cbf5460495a3cf039dacc56699683239",
+    "frontend/src/styles/main.css": "5a85c4ca01425dd33dccbb6ef7c5d3a1e9cb00866aed0e057759a574c8f54399",
+    "frontend/src/styles/components.css": "65b49e5ab188b7e36059d32f8649c9fe979a6c3f393042547a790167ffcbf5cf"
+  },
+  "bundle_hashes": {
+    "frontend/dist/assets/index-BQyC2RqP.js": "cdc4dc851ec35395275e9e6289319df82b4fb66fe49be1011edc10395a00fba7",
+    "frontend/dist/assets/index-BTro1C8g.css": "00535d433132c25d1fd002ec5eb179d9ddcc1f09b6c726b1d88702323a3b3197",
+    "frontend/dist/index.html": "3ba93a6ae392c41832e476760106140738ea71abf19366911e0e6d5cdacfbc55"
+  },
+  "evidence_directory": "docs/frontend/remediation/critiques/validated-round-1/B-evidence/",
+  "total_evidence_artifacts": 10,
+  "verdict": "CONDITIONAL_PASS_WITH_REMEDIATIONS_REQUIRED"
+}

@@ -1,0 +1,56 @@
+{
+  "task": "hermes-browser-capability-verification",
+  "timestamp_utc": "2026-10-26T21:30:00Z",
+  "tool_name": "browser_exec",
+  "runtime_success": true,
+  "session": "hermes_cap_eval",
+  "url": "http://127.0.0.1:3002/",
+  "page_title": "🐴 Deep Research — Workspace de Investigação Analítica",
+  "viewport": {
+    "width": 1878,
+    "height": 961,
+    "scroll_x": 0,
+    "scroll_y": 0,
+    "page_width": 1878,
+    "page_height": 961
+  },
+  "interactions": {
+    "observed_suggestion_button": {
+      "selector": ".sample-topic-card",
+      "text": "O futuro da matriz energética no Brasil\nTransição para fontes renováveis, hidrogênio verde, segurança energética e investimentos até 2035.",
+      "action": "click",
+      "result": "composer-input populated with 'O futuro da matriz energética no Brasil'"
+    },
+    "preference_trigger": {
+      "selector": "#preferences-toggle-btn",
+      "text": "+\n1 ponto • 4 personas",
+      "aria_label": "Preferências de investigação (número de pontos e personas)",
+      "action": "click",
+      "result": "preferences-wrapper expanded and visible"
+    },
+    "topic_submitted": false
+  },
+  "artifacts": {
+    "source_screenshot_path": "/home/eliezer/.config/browser-harness/tmp/shot.png",
+    "saved_screenshot_path": "docs/frontend/remediation/evidence/hermes-browser-capability/hermes-browser-capability.png",
+    "absolute_screenshot_path": "/home/eliezer/Escritorio/deep-research/Deep-Research/docs/frontend/remediation/evidence/hermes-browser-capability/hermes-browser-capability.png",
+    "screenshot_size_bytes": 154057,
+    "screenshot_sha256": "67aeb54563d35d7c040f52ddadc561b991d7af0bfbad1a41926beb5313a40e40"
+  },
+  "source_hashes": {
+    "frontend/src/App.tsx": "bf552cf1984e3e03860026ebdc76820f7af44b2054c8eb895ba70e1a02c14576",
+    "frontend/src/styles/main.css": "5a85c4ca01425dd33dccbb6ef7c5d3a1e9cb00866aed0e057759a574c8f54399",
+    "frontend/src/styles/components.css": "01fc415d662a5e41267fc83fb9fd6301ca817f8bccd00320a3fb398ee209b24a",
+    "frontend/src/styles/tokens.css": "a2c6b1de2fbcb84a9ac4e3166375d664cbf5460495a3cf039dacc56699683239"
+  },
+  "vision_evaluation": {
+    "native_vision_vs_fallback_provenance": "Direct browser capture artifact via Hermes browser_exec helper capture_screenshot(). Auxiliary evaluation skipped per directive (no secondary/auxiliary model evaluation permitted).",
+    "vision_analyze_called": false,
+    "auxiliary_models_used": false
+  },
+  "cleanup": {
+    "tab_closed": true,
+    "closed_target_id": "CD71DA520699AC2B9ADD32431529C990",
+    "other_tabs_touched": false
+  }
+}

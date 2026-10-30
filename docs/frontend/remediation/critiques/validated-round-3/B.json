@@ -1,0 +1,128 @@
+{
+  "assessment": "B",
+  "round": 3,
+  "scope": "configuracoes",
+  "target": "http://localhost:8011/#settings",
+  "provenance": {
+    "evaluator": "Evaluator B (Detector + Browser Evidence + Verified Native Vision)",
+    "model": "ag/gemini-3.8-flash-high",
+    "provider": "9router",
+    "reasoning": "high",
+    "timestamp_utc": "2026-10-26T23:01:04Z",
+    "git_head": "94805ca859431a07636b2d41bf4d47d6b5c30c0a",
+    "subagents_used": false,
+    "browser_session": "session_b_round3",
+    "tab_closed": "BD23257118810A6C053A9D3B12464B31",
+    "visual_inspection": "verified_native_image_inspection",
+    "native_images_inspected": [
+      "02_settings_field_validation_errors.png",
+      "04_settings_active_origin_table.png"
+    ]
+  },
+  "detector_findings": {
+    "command": "/home/eliezer/.claude/skills/impeccable/scripts/impeccable detect --json frontend/src",
+    "exit_code": 2,
+    "findings_count": 1,
+    "items": [
+      {
+        "antipattern": "side-tab",
+        "name": "Side-tab accent border",
+        "description": "Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+        "severity": "warning",
+        "category": "slop",
+        "file": "/home/eliezer/Escritorio/deep-research/Deep-Research/frontend/src/styles/execution-view.css",
+        "line": 78,
+        "snippet": "border-left: 3px solid var(--color-indigo, #4F46E5)"
+      }
+    ]
+  },
+  "scores": {
+    "total": 34,
+    "max": 40,
+    "percentage": 85.0,
+    "band": "Strong with ergonomic defects",
+    "heuristics": {
+      "visibility_of_system_status": {
+        "score": 4,
+        "issue": "n/a — Feedback imediato no teste de conexão da API com mensagem afirmativa, indicador de 'Modo local' e banner dinâmico de rascunho em memória."
+      },
+      "match_system_real_world": {
+        "score": 4,
+        "issue": "n/a — Terminologia analítica precisa em português ('Banco Cifrado (AES-128-CBC)', 'Regra de Precedência RN-10', 'Origem Ativa')."
+      },
+      "user_control_and_freedom": {
+        "score": 4,
+        "issue": "n/a — Botão explícito 'Descartar rascunho' limpa alterações em memória; proteção contra fechamento acidental via beforeunload."
+      },
+      "consistency_and_standards": {
+        "score": 4,
+        "issue": "n/a — Fiel à identidade DominusLabs (violeta #6D28D9, fundo claro #F9FAFB, bordas sutis #E5E7EB, fontes Outfit/Inter/JetBrains Mono)."
+      },
+      "error_prevention": {
+        "score": 4,
+        "issue": "n/a — Validação local rigorosa para URLs e inteiros positivos; submissão é abortada sem tocar no backend quando há dados inválidos."
+      },
+      "recognition_rather_than_recall": {
+        "score": 4,
+        "issue": "n/a — Dicas de rótulo para cada provedor, banner explicativo de precedência RN-10 e tabela de origem ativa com valores sanitizados."
+      },
+      "flexibility_and_efficiency": {
+        "score": 3,
+        "issue": "Preservação de rascunho ao navegar entre rotas sem gravação prematura no banco; ausência de validação inline por provedor individual."
+      },
+      "aesthetic_and_minimalist_design": {
+        "score": 3,
+        "issue": "Extensão vertical considerável do formulário em telas de laptop padrão (1280x577), empurrando a tabela de auditoria para rolagem profunda."
+      },
+      "error_recovery": {
+        "score": 4,
+        "issue": "n/a — Mensagens de erro granulares por campo com role='alert' e bordas vermelhas (.form-input.error); recuperação simples por edição ou descarte."
+      },
+      "help_and_documentation": {
+        "score": 3,
+        "issue": "Explicações claras de segurança e precedência, mas parâmetros complexos como formato de HMAC poderiam ter dicas inline adicionais."
+      }
+    }
+  },
+  "defects_and_observations": [
+    {
+      "id": "OBS-B-01",
+      "severity": "P1",
+      "category": "layout_scroll_depth",
+      "component": "SettingsView.tsx (.settings-grid-form / .card)",
+      "description": "Extensão vertical elevada do formulário: em viewports comuns (<= 720px), a soma dos 10 campos de provedores exige rolagem contínua para acessar a tabela de origem ativa.",
+      "remediation": "Agrupar os campos por provedor em accordions ou abas internas (LLM, Jina, Webhook/Parâmetros) para reduzir a altura do cartão."
+    },
+    {
+      "id": "OBS-B-02",
+      "severity": "P2",
+      "category": "runtime_precedence_limitation",
+      "component": "serve_acceptance_app.py / SettingsView.tsx",
+      "description": "A tabela capturada reflete origem 'Ambiente (.env)' para N_PONTOS porque o backend da fixture não foi reiniciado para evitar interrupção da captura, executando runtime anterior ao Adendo 002. A UI renderiza com precisão o retorno da API, mas esta captura não constitui prova empírica da precedência Banco > ENV.",
+      "remediation": "Reiniciar a fixture de backend em ciclo subsequente de validação para verificar a nova prevalência dinâmica de Adendo 002."
+    },
+    {
+      "id": "DEFECT-B-03",
+      "severity": "P3",
+      "category": "slop_detected",
+      "component": "frontend/src/styles/execution-view.css (linha 78)",
+      "description": "Detector Impeccable acusou antipattern visual side-tab (borda espessa à esquerda de card com cor forte) em execution-view.css. Não afeta a renderização direta de SettingsView, mas é achado estático pendente no projeto.",
+      "remediation": "Substituir border-left por borda sutil em todo o perímetro ou remover o acento visual no componente ExecutionView."
+    }
+  ],
+  "source_hashes": {
+    "frontend/src/App.tsx": "a1ad21aa1c30ac40e06f3fc6f0e0098e23cf4f9c2de1c1e4f5874b64a7ceff43",
+    "frontend/src/components/SettingsView.tsx": "a3d81ab27944ea8b7079d5a58908dfcbe449de528397ebbd2cf5a2d82402d566",
+    "frontend/src/styles/components.css": "20aa864d9477d5767334e135ff04f2b4db1a74db83a53605a62cc71b98b6726f",
+    "frontend/src/styles/tokens.css": "a2c6b1de2fbcb84a9ac4e3166375d664cbf5460495a3cf039dacc56699683239",
+    "frontend/src/styles/main.css": "5a85c4ca01425dd33dccbb6ef7c5d3a1e9cb00866aed0e057759a574c8f54399"
+  },
+  "bundle_hashes": {
+    "frontend/dist/assets/index-DDNXweTS.js": "6cf80eff40c98b1959439fd4de4df039abbcceaa12e2a1c5ce7931f9ed33138f",
+    "frontend/dist/assets/index-Ca6kLR37.css": "a3fee420c0b2d9f9430f1a4c3be398cacf470ab3cb36bdc0230992e4b83948e9",
+    "frontend/dist/index.html": "450c6af094408f293f68fcf87840c5fe09c765782555ff5625a372ab5eaf0f91"
+  },
+  "evidence_directory": "docs/frontend/remediation/critiques/validated-round-3/B-evidence/",
+  "total_evidence_artifacts": 4,
+  "verdict": "CONDITIONAL_PASS_WITH_REMEDIATIONS_REQUIRED"
+}

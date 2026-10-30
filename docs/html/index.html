@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep Research — Documentação técnica</title>
+<meta name="description" content="Pipeline modular de pesquisa profunda: planejamento em N eixos, coleta por personas, auditoria em 12 critérios e dossiê final rastreável.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#7c3aed">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/docs.css">
+<script>
+(function () {
+  try {
+    if (localStorage.getItem("dr-docs-theme") === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  } catch (e) {}
+})();
+</script>
+</head>
+<body id="top">
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<aside class="docs-sidebar" id="docs-sidebar" aria-label="Navegação da documentação"><a class="sidebar-brand" href="index.html"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg></span><span class="brand-text"><span class="brand-name">Deep Research</span><span class="brand-sub">Documentação técnica</span></span></a><span class="sidebar-mode"><span class="mode-dot"></span> v0.1.0 · português</span><nav class="sidebar-nav"><p class="sidebar-group">Documentação</p><a class="sidebar-item is-active" href="index.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg><span>Visão geral</span></a><a class="sidebar-item" href="arquitetura.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"></path><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"></path><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"></path></svg><span>Arquitetura</span></a><a class="sidebar-item" href="api.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg><span>API</span></a><a class="sidebar-item" href="operacoes.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"></line><line x1="10" x2="3" y1="4" y2="4"></line><line x1="21" x2="12" y1="12" y2="12"></line><line x1="8" x2="3" y1="12" y2="12"></line><line x1="21" x2="16" y1="20" y2="20"></line><line x1="12" x2="3" y1="20" y2="20"></line><line x1="14" x2="14" y1="2" y2="6"></line><line x1="8" x2="8" y1="10" y2="14"></line><line x1="16" x2="16" y1="18" y2="22"></line></svg><span>Operações</span></a><p class="sidebar-group">Projeto</p><a class="sidebar-item" href="../../PRODUCT.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg><span>Produto</span><span class="item-badge" aria-hidden="true">MD</span></a><a class="sidebar-item" href="../../DESIGN.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.68 0-.44-.16-.84-.44-1.15-.27-.3-.43-.7-.43-1.14a1.65 1.65 0 0 1 1.65-1.65H16c3.31 0 6-2.69 6-6 0-4.97-4.48-9-10-9Z"></path></svg><span>Design</span><span class="item-badge" aria-hidden="true">MD</span></a><a class="sidebar-item" href="../../_reversa_sdd/prd.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M9 12h6"></path><path d="M9 16h6"></path></svg><span>PRD</span><span class="item-badge" aria-hidden="true">MD</span></a><p class="sidebar-group">Referência</p><a class="sidebar-item" href="../../docs/security_audit_findings.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg><span>Auditoria</span><span class="item-badge" aria-hidden="true">MD</span></a><a class="sidebar-item" href="../frontend/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg><span>Frontend</span></a></nav><div class="sidebar-footer"><div class="sidebar-version"><span>Versão do projeto</span><code>0.1.0</code></div><div class="sidebar-version"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg> HTML offline</span><code>sem build</code></div></div></aside>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<div class="docs-main">
+<header class="docs-topbar">
+  <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Abrir navegação" aria-controls="docs-sidebar" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg>
+  </button>
+  <nav class="breadcrumb" aria-label="Trilha de navegação">
+    <a href="index.html" class="crumb-root">Documentação</a>
+    <span class="crumb-separator" aria-hidden="true">/</span>
+    <strong>Visão geral</strong>
+  </nav>
+  <div class="topbar-actions">
+    <button class="search-trigger" id="search-trigger" type="button" aria-label="Buscar na documentação">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <span class="search-label">Buscar na documentação</span>
+      <kbd id="search-kbd">Ctrl K</kbd>
+    </button>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Alternar tema" title="Alternar tema">
+      <span class="icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg></span>
+      <span class="icon-sun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg></span>
+    </button>
+  </div>
+  <div class="scroll-progress" aria-hidden="true"><span id="scroll-progress-bar"></span></div>
+</header>
+
+<div class="docs-layout">
+<main class="docs-content" id="main-content">
+  <header class="page-header">
+    <div class="page-eyebrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path></svg> Documentação técnica</div>
+    <h1 class="page-title">Deep Research</h1>
+    <p class="page-lead">Pipeline modular de pesquisa profunda: planejamento em N eixos, coleta por personas, auditoria em 12 critérios e dossiê final rastreável.</p>
+    <div class="page-meta">
+      <span class="chip chip-accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle></svg> v0.1.0</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Atualizado em 28/10/2026</span>
+      <a class="chip chip-link" href="../../README.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg> Ver fonte Markdown</a>
+    </div>
+  </header>
+  <div class="docs-steps"><div class="docs-step"><div class="docs-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg></div><h3>1. Planejamento</h3><p>N eixos, N pontos e termos de busca estruturados.</p></div><div class="docs-step"><div class="docs-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg></div><h3>2. Coleta</h3><p>Historiador, visionário, cético e futurista em paralelo.</p></div><div class="docs-step"><div class="docs-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg></div><h3>3. Auditoria</h3><p>12 critérios por ponto, com evidência rastreável.</p></div><div class="docs-step"><div class="docs-step-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg></div><h3>4. Dossiê</h3><p>Markdown final, fontes canônicas e publicação por etapa.</p></div></div>
+  <details class="mobile-toc"><summary>Nesta página</summary><nav><a class="toc-link" href="#1-o-que-o-sistema-entrega">1. O que o sistema entrega</a><a class="toc-link" href="#2-como-funciona">2. Como funciona</a><a class="toc-link" href="#3-stack">3. Stack</a><a class="toc-link" href="#4-início-rápido-local">4. Início rápido (local)</a><a class="toc-link" href="#5-configuração-mínima">5. Configuração mínima</a><a class="toc-link" href="#6-api">6. API</a><a class="toc-link" href="#7-estrutura-do-repositório">7. Estrutura do repositório</a><a class="toc-link" href="#8-testes">8. Testes</a><a class="toc-link" href="#9-documentação">9. Documentação</a><a class="toc-link" href="#10-limitações-conhecidas">10. Limitações conhecidas</a></nav></details>
+  <article class="markdown-body">
+<p>Pipeline modular de pesquisa profunda na internet. Recebe um tema, produz um plano de investigação estruturado, coleta evidência web com personas analíticas, audita cada ponto contra 12 critérios de qualidade e redige um dossiê final em Markdown com fontes canônicas rastreáveis.</p>
+<p>A interface web (React + TypeScript) é servida pelo próprio backend FastAPI em origem única, sem runtime Node em produção.</p>
+<p>O problema que resolve: research manual leva dias, as fontes não são auditadas e o relatório perde rastreabilidade. O Deep Research automatiza o ciclo com pontos aprovados/reprovados individualmente, evidência rastreável e dossiê final — meta de ciclo completo abaixo de 10 minutos. Público: analistas de research, redatores e integradores de API.</p>
+<ul>
+<li><strong>Versão:</strong> 0.1.0</li>
+<li><strong>Idioma da interface e dos relatórios:</strong> português</li>
+<li><strong>Estado:</strong> Checkpoint 1 (fluxo completo síncrono) e streaming SSE implementados</li>
+<li><strong>Especificações:</strong> <a href="../../_reversa_sdd/"><code>_reversa_sdd/</code></a> (PRD, SDD, adendos e rastreabilidade)</li>
+</ul>
+<hr />
+<h2 id="1-o-que-o-sistema-entrega">1. O que o sistema entrega</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Capacidade</th>
+<th style="text-align: left;">Resultado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Planejamento</td>
+<td style="text-align: left;">N eixos investigativos com pergunta principal, subperguntas, hipóteses, consultas iniciais, riscos de viés, evidência de refutação e critério de conclusão</td>
+</tr>
+<tr>
+<td style="text-align: left;">Coleta</td>
+<td style="text-align: left;">Evidência integral lida em páginas reais (não snippets) por 4 personas: historiador, visionário, cético e futurista</td>
+</tr>
+<tr>
+<td style="text-align: left;">Auditoria</td>
+<td style="text-align: left;">Vetor tipado de 12 critérios por ponto, com limiar configurável de 10, 11 ou 12 aprovações</td>
+</tr>
+<tr>
+<td style="text-align: left;">Redação</td>
+<td style="text-align: left;">Dossiê em Markdown com citações <code>[Fonte](URL)</code>, fontes verificadas e avaliação de qualidade do próprio artigo</td>
+</tr>
+<tr>
+<td style="text-align: left;">Rastreabilidade</td>
+<td style="text-align: left;">IDs de fonte (<code>src_*</code>) e trechos (<code>chk_*</code>), hashes SHA-256, offsets, contabilidade de fontes consultadas/utilizadas/não utilizadas</td>
+</tr>
+<tr>
+<td style="text-align: left;">Entrega</td>
+<td style="text-align: left;">Resposta HTTP síncrona ou pipeline autônomo com callback webhook assinado (HMAC-SHA256)</td>
+</tr>
+<tr>
+<td style="text-align: left;">Observabilidade</td>
+<td style="text-align: left;">Progresso por SSE, status por ponto, envelopes de cada chamada LLM persistidos em <code>generation_attempts</code></td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="2-como-funciona">2. Como funciona</h2>
+<pre><code>POST /api/v1/plan     → plano + N pontos persistidos (não executa busca)
+POST /api/v1/search   → leitura web por persona, evidência e proveniência por ponto
+POST /api/v1/audit    → 12 critérios por ponto, aprovação/reprovação e tarefas de correção
+POST /api/v1/writer   → dossiê final, avaliação do artigo, fontes e webhook opcional
+</code></pre>
+<p>Com <code>async_execute: true</code>, o <code>POST /plan</code> retorna <code>202</code> e o <code>PipelineRunner</code> executa as quatro etapas em background, com retentativas automáticas:</p>
+<ol>
+<li>busca e auditoria por ponto, até <strong>4 tentativas de busca</strong> e <strong>3 de auditoria</strong>;</li>
+<li>redação bloqueada se algum ponto não for aprovado;</li>
+<li>dossiê aprovado, publicação atômica e despacho do webhook.</li>
+</ol>
+<pre><code>Navegador (React SPA)
+   │  fetch /api/v1/*            ▲ SSE /api/v1/pipeline/{id}/stream
+   ▼                             │
+FastAPI (app/main.py) ───────────┘
+   │
+   ├── Jina s.jina.ai  → descoberta (SERP, apenas metadados)
+   ├── Jina r.jina.ai  → leitura integral das páginas em Markdown
+   ├── LLM OpenAI-compatible /chat/completions (modelo leve e forte)
+   └── SQLite WAL: pesquisa, pontos, conteudo_coletado, credenciais,
+                   generation_attempts
+</code></pre>
+<p>Detalhamento técnico: <a href="arquitetura.html"><code>docs/ARCHITECTURE.md</code></a>.</p>
+<hr />
+<h2 id="3-stack">3. Stack</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Camada</th>
+<th style="text-align: left;">Tecnologia</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Backend</td>
+<td style="text-align: left;">Python ≥ 3.11 (ambiente atual em 3.14), FastAPI, Uvicorn, Pydantic v2 + pydantic-settings</td>
+</tr>
+<tr>
+<td style="text-align: left;">Persistência</td>
+<td style="text-align: left;">SQLAlchemy 2.0 assíncrono + aiosqlite, SQLite em modo WAL</td>
+</tr>
+<tr>
+<td style="text-align: left;">Integrações</td>
+<td style="text-align: left;">httpx, tenacity; Jina Search/Reader; qualquer provedor compatível com OpenAI Chat Completions</td>
+</tr>
+<tr>
+<td style="text-align: left;">Segurança</td>
+<td style="text-align: left;">Fernet (AES-128-CBC + HMAC-SHA256) para credenciais; HMAC-SHA256 para sessão e webhook</td>
+</tr>
+<tr>
+<td style="text-align: left;">Frontend</td>
+<td style="text-align: left;">React 18, TypeScript 5.7, Vite 6, CSS puro tokenizado, GSAP, react-markdown + remark-gfm</td>
+</tr>
+<tr>
+<td style="text-align: left;">Testes</td>
+<td style="text-align: left;">pytest + pytest-asyncio; Cucumber + Playwright para o frontend</td>
+</tr>
+<tr>
+<td style="text-align: left;">Empacotamento</td>
+<td style="text-align: left;"><code>pyproject.toml</code>; Dockerfile multi-stage (Node build → Python runtime); docker compose</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="4-início-rápido-local">4. Início rápido (local)</h2>
+<h3 id="pré-requisitos">Pré-requisitos</h3>
+<ul>
+<li>Python 3.11 ou superior</li>
+<li>Node.js 20 ou superior (apenas para compilar o frontend)</li>
+<li>Chaves de acesso a um provedor LLM compatível com OpenAI e à Jina</li>
+</ul>
+<h3 id="passos">Passos</h3>
+<pre><code class="language-bash">cd Deep-Research
+
+# 1. Ambiente Python
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -e &quot;.[dev]&quot;
+
+# 2. Configuração
+cp .env.example .env
+# edite .env: CREDENTIALS_MASTER_KEY, OPENAI_API_KEY, JINA_API_KEY, N_PONTOS, PERSONAS_CONFIG...
+
+# 3. Frontend (gera frontend/dist)
+cd frontend
+npm ci
+npm run build
+cd ..
+
+# 4. Servidor integrado
+python scripts/run_app.py --port 8010
+</code></pre>
+<p>Acesse <code>http://127.0.0.1:8010</code>. O <code>run_app.py</code> compila o frontend automaticamente se <code>frontend/dist/index.html</code> não existir; use <code>--build</code> para forçar nova compilação.</p>
+<h3 id="desenvolvimento-com-hot-reload">Desenvolvimento com hot reload</h3>
+<pre><code class="language-bash"># terminal 1 — API
+uvicorn app.main:app --host 127.0.0.1 --port 8010 --reload
+
+# terminal 2 — Vite (proxy para 8010)
+cd frontend &amp;&amp; npm run dev     # http://127.0.0.1:3000
+</code></pre>
+<h3 id="docker">Docker</h3>
+<pre><code class="language-bash">docker compose up --build      # http://127.0.0.1:8085
+</code></pre>
+<p>O compose usa <code>network_mode: host</code> (Linux) para preservar o loopback real e permitir sessão local automática. Para macOS/Windows, use o modo local com <code>scripts/run_app.py</code>.</p>
+<p>Guia operacional completo: <a href="operacoes.html"><code>docs/OPERATIONS.md</code></a>.</p>
+<hr />
+<h2 id="5-configuração-mínima">5. Configuração mínima</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Variável</th>
+<th style="text-align: center;">Obrigatória</th>
+<th style="text-align: left;">Função</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>DATABASE_URL</code></td>
+<td style="text-align: center;">sim</td>
+<td style="text-align: left;"><code>sqlite+aiosqlite:///./data/deep_research.db</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CREDENTIALS_MASTER_KEY</code></td>
+<td style="text-align: center;">sim</td>
+<td style="text-align: left;">Chave Fernet que cifra a tabela <code>credenciais</code>; somente via ambiente</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>OPENAI_API_KEY</code></td>
+<td style="text-align: center;">sim</td>
+<td style="text-align: left;">Credencial do provedor LLM</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>JINA_API_KEY</code></td>
+<td style="text-align: center;">sim</td>
+<td style="text-align: left;">Credencial Jina Search/Reader</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>N_PONTOS</code></td>
+<td style="text-align: center;">sim*</td>
+<td style="text-align: left;">Número de eixos investigativos</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PERSONAS_CONFIG</code></td>
+<td style="text-align: center;">sim*</td>
+<td style="text-align: left;">Lista das 7 personas do pipeline</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>WEBHOOK_HMAC_SECRET</code></td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">Segredo de assinatura do callback; sem ele não há entrega por webhook</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CALLBACK_WEBHOOK_URL</code></td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">URL padrão de callback</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>API_SECRET_KEY</code></td>
+<td style="text-align: center;">não</td>
+<td style="text-align: left;">Ativa autenticação por <code>X-API-Key</code>/<code>Bearer</code> nas rotas <code>/api/v1/*</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>* Também podem ser definidas pelo painel de configurações, que grava na tabela cifrada <code>credenciais</code>.</p>
+<p><strong>Precedência de credenciais:</strong> banco cifrado → variáveis de ambiente → erro explícito. Exceção: <code>CREDENTIALS_MASTER_KEY</code> existe apenas no ambiente; <code>API_SECRET_KEY</code> é lida primeiro do ambiente e depois do banco.</p>
+<p>Referência completa (timeouts, orçamentos, recência, modelos): <a href="operacoes.html#2-variáveis-de-ambiente"><code>docs/OPERATIONS.md</code></a>.</p>
+<hr />
+<h2 id="6-api">6. API</h2>
+<p>Todas as rotas de negócio vivem sob <code>/api/v1</code>. Referência completa com payloads e erros: <a href="api.html"><code>docs/API.md</code></a>.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Método</th>
+<th style="text-align: left;">Rota</th>
+<th style="text-align: left;">Função</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;"><code>/api/v1/plan</code></td>
+<td style="text-align: left;">Cria plano e pontos (<code>201</code>; <code>202</code> com <code>async_execute: true</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;"><code>/api/v1/plan/{id_pesquisa}/stream</code></td>
+<td style="text-align: left;">SSE do raciocínio do planejador</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;"><code>/api/v1/search</code></td>
+<td style="text-align: left;">Executa a coleta por personas</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;"><code>/api/v1/audit</code></td>
+<td style="text-align: left;">Audita os pontos coletados</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;"><code>/api/v1/writer</code></td>
+<td style="text-align: left;">Redige, avalia e publica o dossiê</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;"><code>/api/v1/pipeline/{id_pesquisa}/status</code></td>
+<td style="text-align: left;">Status consolidado do pipeline</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;"><code>/api/v1/pipeline/{id_pesquisa}/sources</code></td>
+<td style="text-align: left;">Contabilidade de fontes (somente leitura)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;"><code>/api/v1/pipeline/{id_pesquisa}/stream</code></td>
+<td style="text-align: left;">SSE de progresso, raciocínios e dossiê</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>POST</code></td>
+<td style="text-align: left;"><code>/api/v1/admin/credentials</code></td>
+<td style="text-align: left;">Cria/atualiza credencial cifrada</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;"><code>/api/v1/admin/credentials</code></td>
+<td style="text-align: left;">Lista metadados mascarados e origem ativa</td>
+</tr>
+</tbody>
+</table></div>
+<p>Rotas públicas fora do prefixo: <code>GET /health</code>, <code>GET /app/session</code>, <code>GET /docs</code> (Swagger), <code>GET /openapi.json</code>, e a SPA em <code>/</code>.</p>
+<h3 id="autenticação">Autenticação</h3>
+<ol>
+<li><strong>Navegador local:</strong> <code>GET /app/session</code> emite cookie <code>dr_local_session</code> (<code>HttpOnly</code>, <code>SameSite=Strict</code>, TTL 24 h) quando o cliente é loopback, o <code>Host</code> é local e <code>Origin</code>/<code>Referer</code> coincidem. Requisições mutantes exigem mesma origem (CSRF).</li>
+<li><strong>Integração:</strong> <code>X-API-Key</code> ou <code>Authorization: Bearer &lt;chave&gt;</code> quando <code>API_SECRET_KEY</code> está configurada. Endpoints SSE aceitam <code>?token=</code> ou <code>?api_key=</code> porque <code>EventSource</code> não envia cabeçalhos.</li>
+<li><strong>Modo aberto:</strong> sem <code>API_SECRET_KEY</code> e sem cookie válido, as rotas <code>/api/v1/*</code> ficam liberadas. Isso é um modo de desenvolvimento, não uma configuração de produção.</li>
+</ol>
+<hr />
+<h2 id="7-estrutura-do-repositório">7. Estrutura do repositório</h2>
+<pre><code>Deep-Research/
+├── app/
+│   ├── main.py                 FastAPI, lifespan, /health, sessão, SPA e assets
+│   ├── config.py               Pydantic Settings (sem fallbacks hardcoded)
+│   ├── api/v1/endpoints/       plan, search, audit, writer, pipeline, admin
+│   ├── core/                   planner, searcher, auditor, writer, pipeline_runner,
+│   │                           personas, temporal, plan_validator, security, streaming
+│   ├── db/                     modelos ORM, sessão WAL, init/migrações, repositórios
+│   ├── schemas/                contratos Pydantic de entrada e saída
+│   ├── services/               credenciais, cripto, contabilidade de fontes, webhook
+│   ├── tools/                  clientes LLM e Jina, tipos e erros
+│   └── ui_session.py           sessão local assinada e checagem mesma origem
+├── frontend/
+│   ├── src/components/         Composer, PlanView, ExecutionView, ReportView, Settings...
+│   ├── src/hooks/              usePipelineStream (SSE)
+│   ├── src/services/           cliente HTTP e histórico local
+│   ├── features/               testes Cucumber/Gherkin
+│   └── dist/                   bundle servido pelo FastAPI
+├── tests/                      unit/ e integration/ (pytest)
+├── docs/                       arquitetura, API, operações e evidências de frontend
+├── scripts/                    run_app.py, run_local.py, shim Jina local
+├── _reversa_sdd/               PRD, SDD, adendos, personas e rastreabilidade
+├── _reversa_forward/           requisitos por feature
+├── data/                       banco SQLite (não versionado)
+├── Dockerfile                  build multi-stage
+└── docker-compose.yml          execução em 127.0.0.1:8085
+</code></pre>
+<hr />
+<h2 id="8-testes">8. Testes</h2>
+<pre><code class="language-bash"># Backend — 509 testes coletados
+.venv/bin/python -m pytest
+
+# Um módulo específico
+.venv/bin/python -m pytest tests/unit/test_writer_acceptance.py -q
+
+# Frontend — typecheck + build de produção
+cd frontend &amp;&amp; npm run build
+
+# E2E Cucumber/Playwright (requer app em execução)
+cd frontend &amp;&amp; npm run test:e2e
+</code></pre>
+<p>O E2E usa <code>BASE_URL</code> (padrão <code>http://localhost:8011</code>). O script <code>run_test.sh</code> sobe a aplicação na porta 8111 com <code>.env.test</code>.</p>
+<hr />
+<h2 id="9-documentação">9. Documentação</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Documento</th>
+<th style="text-align: left;">Conteúdo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><a href="index.html"><code>docs/html/index.html</code></a></td>
+<td style="text-align: left;">Versão HTML navegável — busca, tema claro/escuro e sumário por página</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="arquitetura.html"><code>docs/ARCHITECTURE.md</code></a></td>
+<td style="text-align: left;">Componentes, fluxo por etapa, modelo de dados, concorrência, SSE, segurança</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="api.html"><code>docs/API.md</code></a></td>
+<td style="text-align: left;">Contratos HTTP, payloads, códigos de erro, eventos SSE e webhook</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="operacoes.html"><code>docs/OPERATIONS.md</code></a></td>
+<td style="text-align: left;">Variáveis de ambiente, execução, banco, testes, diagnóstico e segurança operacional</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="../../frontend/README.md"><code>frontend/README.md</code></a></td>
+<td style="text-align: left;">Visão do frontend e comandos</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="../../docs/frontend/"><code>docs/frontend/</code></a></td>
+<td style="text-align: left;">Auditorias, evidências visuais e relatórios de remediação</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="../../PRODUCT.md"><code>PRODUCT.md</code></a></td>
+<td style="text-align: left;">Plataforma, propósito, restrições e princípios de produto</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="../../DESIGN.md"><code>DESIGN.md</code></a></td>
+<td style="text-align: left;">Sistema visual e decisões de design</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="../../_reversa_sdd/prd.md"><code>_reversa_sdd/prd.md</code></a></td>
+<td style="text-align: left;">PRD vigente (requisitos, métricas, invariantes)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="../../_reversa_sdd/sdd/"><code>_reversa_sdd/sdd/</code></a></td>
+<td style="text-align: left;">SDD por endpoint e adendos de confiabilidade</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="../../docs/security_audit_findings.md"><code>docs/security_audit_findings.md</code></a></td>
+<td style="text-align: left;">Auditoria de segurança e itens de remediação</td>
+</tr>
+</tbody>
+</table></div>
+<p>A versão HTML é gerada a partir destes arquivos por <code>scripts/build_docs_html.py</code>; instruções em <a href="../../docs/html/README.md"><code>docs/html/README.md</code></a>.</p>
+<hr />
+<h2 id="10-limitações-conhecidas">10. Limitações conhecidas</h2>
+<ul>
+<li><strong>SQLite único:</strong> o banco é um arquivo local com WAL; não há suporte a múltiplas instâncias concorrentes.</li>
+<li><strong>SSE em memória:</strong> o <code>PipelineEventHub</code> é por processo. Com múltiplos workers, eventos não são compartilhados; o snapshot inicial do banco cobre o estado persistido, não o histórico de deltas.</li>
+<li><strong>Sem rate limiting:</strong> não há middleware de limite por IP/chave.</li>
+<li><strong>Sem paginação ou listagem de pesquisas:</strong> o histórico da interface é local ao navegador (<code>localStorage</code>).</li>
+<li><strong>Sem deleção:</strong> não existem endpoints para remover pesquisas ou credenciais.</li>
+<li><strong>Autenticação opcional:</strong> sem <code>API_SECRET_KEY</code>, a API fica aberta (modo desenvolvimento).</li>
+<li><strong>Entrada de tema:</strong> o backend aceita tema com 5 ou mais caracteres e sem teto; o compositor da interface limita a 500 caracteres.</li>
+<li><strong>Webhook sem fila durável:</strong> são 1 tentativa + 3 retries em processo; falha definitiva fica registrada em <code>pesquisa.webhook_status</code>, sem reentrega posterior.</li>
+</ul>
+  </article>
+  <footer class="page-footer">
+    <div class="pager"><a class="pager-link next" href="arquitetura.html"><span class="pager-label">Próximo</span><span class="pager-title">Arquitetura<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span></a></div>
+    <a class="back-to-top" href="#top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></svg> Voltar ao topo</a>
+  </footer>
+</main>
+<aside class="docs-toc" aria-label="Nesta página"><p class="toc-title">Nesta página</p><nav><a class="toc-link" href="#1-o-que-o-sistema-entrega">1. O que o sistema entrega</a><a class="toc-link" href="#2-como-funciona">2. Como funciona</a><a class="toc-link" href="#3-stack">3. Stack</a><a class="toc-link" href="#4-início-rápido-local">4. Início rápido (local)</a><a class="toc-link" href="#5-configuração-mínima">5. Configuração mínima</a><a class="toc-link" href="#6-api">6. API</a><a class="toc-link" href="#7-estrutura-do-repositório">7. Estrutura do repositório</a><a class="toc-link" href="#8-testes">8. Testes</a><a class="toc-link" href="#9-documentação">9. Documentação</a><a class="toc-link" href="#10-limitações-conhecidas">10. Limitações conhecidas</a></nav></aside>
+</div>
+</div>
+
+<div class="search-overlay" id="search-overlay" aria-hidden="true">
+  <div class="search-modal" role="dialog" aria-modal="true" aria-labelledby="search-title">
+    <div class="search-field">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <label class="sr-only" id="search-title" for="search-input">Buscar na documentação</label>
+      <input id="search-input" type="search" placeholder="Buscar seções, endpoints, variáveis…" autocomplete="off" spellcheck="false">
+      <button class="search-close" id="search-close" type="button">ESC</button>
+    </div>
+    <div class="search-results" id="search-results" role="listbox" aria-label="Resultados da busca"></div>
+    <div class="search-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+      <span><kbd>Enter</kbd> abrir</span>
+      <span><kbd>Esc</kbd> fechar</span>
+      <span class="search-count" id="search-count"></span>
+    </div>
+  </div>
+</div>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/docs.js"></script>
+</body>
+</html>

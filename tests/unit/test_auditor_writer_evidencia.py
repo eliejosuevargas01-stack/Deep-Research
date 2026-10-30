@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.research_repository import ResearchRepository
 from tests.mocks.http_mock import MockNetwork, create_mock_transport
+from tests.unit.test_audit_acceptance import CANONICAL_PLANO, make_standard_coleta_metadata
 
 DIAGNOSTICO_402 = "JinaError 402 billing: saldo insuficiente"
 
@@ -73,6 +74,7 @@ async def test_auditor_chama_llm_quando_existe_evidencia(db_session: AsyncSessio
         conteudo_coletado="### Perspectiva Historiador\n\nAnalise com fonte real.",
         urls_lidas=["https://unesco.org/estudo"],
         urls_fonte=["https://unesco.org/estudo"],
+        metadados_coleta=make_standard_coleta_metadata(source_url="https://unesco.org/estudo"),
     )
 
     antes = len(mock_net.requests)
@@ -111,6 +113,7 @@ async def test_auditor_com_evidencia_mista_nao_gasta_llm_no_ponto_falho(
         conteudo_coletado="### Perspectiva Historiador\n\nAnalise com fonte real.",
         urls_lidas=["https://unesco.org/estudo"],
         urls_fonte=["https://unesco.org/estudo"],
+        metadados_coleta=make_standard_coleta_metadata(source_url="https://unesco.org/estudo"),
     )
     await repo.save_collected_content(
         id_pesquisa=pesquisa.id_pesquisa,
@@ -146,7 +149,11 @@ async def test_writer_bloqueia_quando_todos_pontos_sem_evidencia(
     llm_client = LLMClient(api_key="openai-key", transport=transport)
     repo = ResearchRepository(session=db_session)
 
-    pesquisa = await repo.create_research(tema="Tema Sem Nada", pontos_textos=["Ponto Orfao"])
+    pesquisa = await repo.create_research(
+        tema="Tema Sem Nada",
+        pontos_textos=["Ponto Orfao"],
+        plano_estruturado=dict(CANONICAL_PLANO),
+    )
     ponto = (await repo.list_points(pesquisa.id_pesquisa))[0]
     await repo.save_collected_content(
         id_pesquisa=pesquisa.id_pesquisa,
@@ -170,7 +177,7 @@ async def test_writer_bloqueia_quando_todos_pontos_sem_evidencia(
         llm_client=llm_client,
         personas=["redator final"],
     )
-    with pytest.raises(ValueError, match="NO_EVIDENCE_COLLECTED"):
+    with pytest.raises(ValueError, match="NO_EVIDENCE_COLLECTED|UNAPPROVED_POINTS"):
         await writer.execute_writer(id_pesquisa=pesquisa.id_pesquisa)
 
     assert (await repo.get_research(pesquisa.id_pesquisa)).dossier_final is None
@@ -200,6 +207,7 @@ async def test_writer_prossegue_com_pelo_menos_um_ponto_valido(db_session: Async
         conteudo_coletado="### Perspectiva Historiador\n\nAnalise com fonte real.",
         urls_lidas=["https://unesco.org/estudo"],
         urls_fonte=["https://unesco.org/estudo"],
+        metadados_coleta=make_standard_coleta_metadata(source_url="https://unesco.org/estudo"),
     )
     await repo.save_collected_content(
         id_pesquisa=pesquisa.id_pesquisa,
@@ -222,6 +230,7 @@ async def test_writer_prossegue_com_pelo_menos_um_ponto_valido(db_session: Async
         llm_client=llm_client,
         personas=["redator final"],
     )
-    resultado = await writer.execute_writer(id_pesquisa=pesquisa.id_pesquisa)
-    assert resultado["status"] == "concluido"
-    assert resultado["total_caracteres_dossier"] > 100
+    # DR-012 / v2 / W01: Eixo reprovado bloqueia a redação antes do LLM/cache
+    with pytest.raises(ValueError, match="reprovado|UNAPPROVED_POINTS|READINESS_FAILED"):
+        await writer.execute_writer(id_pesquisa=pesquisa.id_pesquisa)
+    assert (await repo.get_research(pesquisa.id_pesquisa)).dossier_final is None

@@ -1,0 +1,142 @@
+{
+  "_provenance": {
+    "source": "docs/frontend/remediation/evidence/live-payloads.jsonl",
+    "method": "POST",
+    "path": "/api/v1/plan",
+    "status": 201,
+    "raw_response_sha256": "a6585a72d75d89495bfae81e29b8bbe798313d8325825d38bdb979a2f64e706a",
+    "sanitized": true,
+    "description": "Extracted public plano_estruturado from live browser acceptance run; no private reasoning, envelopes, credentials or model internals."
+  },
+  "plano_estruturado": {
+    "pedido_original": "Energia solar: plano extenso para verificação visual",
+    "pedido_normalizado": "Investigar, para um público leigo, as distinções técnicas e funcionais entre sistemas solares fotovoltaicos e solares térmicos e identificar quais aplicações domésticas desses sistemas no Brasil podem ser documentadas por fontes públicas primárias, explicitando o alcance e as limitações das evidências.",
+    "publico": "Leigos no Brasil",
+    "formato_entrega": "Relatório explicativo em linguagem acessível, com fontes verificáveis, referências a documentos públicos e seção explícita de limitações",
+    "recorte_temporal": "Situação normativa, estatística e institucional vigente ou mais recentemente disponível na data da pesquisa; documentos históricos poderão ser usados apenas quando necessários para contextualizar políticas ou evolução regulatória.",
+    "pressupostos": [
+      "Energia solar fotovoltaica e energia solar térmica serão tratadas como tecnologias distintas, ainda que possam coexistir em uma mesma residência.",
+      "Usos domésticos incluem aplicações em residências, como geração de eletricidade para consumo próprio e aquecimento de água, sem presumir que toda aplicação tecnicamente possível seja comum ou comprovada no Brasil.",
+      "A expressão 'sustentados por fontes públicas' será interpretada como usos que possam ser corroborados por órgãos públicos, normas técnicas públicas, bases oficiais, documentos regulatórios ou instituições públicas de pesquisa.",
+      "Os metadados de SERP fornecidos são somente pistas de vocabulário e não serão usados como prova das diferenças técnicas, de usos domésticos ou de fatos sobre o mercado brasileiro.",
+      "A análise distinguirá a existência de regras, programas ou registros públicos da comprovação de adoção efetiva em todos os domicílios brasileiros."
+    ],
+    "ambiguidades": [
+      "O termo 'solar térmica' pode abranger aquecimento solar de água de baixa temperatura, aquecimento de ambientes e tecnologias solares de concentração; será necessário delimitar quais modalidades são pertinentes ao contexto doméstico brasileiro.",
+      "A expressão 'usos domésticos' pode referir-se tanto à finalidade final, como aquecer banho ou alimentar aparelhos elétricos, quanto ao tipo de instalação residencial; essa distinção deverá ser explicitada.",
+      "Não está definido se o relatório deve comparar custos, retorno financeiro, impactos ambientais ou apenas funcionamento e aplicações; esses aspectos só deverão ser incluídos se houver evidência pública suficiente e relevância para esclarecer os usos.",
+      "Dados públicos podem registrar unidades consumidoras, potência instalada, equipamentos distribuídos ou beneficiários de programas, métricas que não são diretamente equivalentes entre si.",
+      "Normas da ABNT podem ter acesso restrito, embora sua existência e referências possam ser verificadas em catálogos públicos; a pesquisa não deverá atribuir conteúdo detalhado a normas sem acesso verificável ao texto ou a fontes públicas autorizadas."
+    ],
+    "pergunta_de_esclarecimento": null,
+    "eixos": [
+      {
+        "pergunta_principal": "Quais diferenças técnicas, energéticas e operacionais distinguem a energia solar fotovoltaica da energia solar térmica em aplicações residenciais?",
+        "subperguntas": [
+          "Qual forma de energia cada tecnologia entrega como produto principal: eletricidade ou calor?",
+          "Quais são os componentes essenciais de um sistema fotovoltaico residencial e de um sistema solar térmico residencial para aquecimento de água?",
+          "Como cada sistema se integra aos usos da residência, à rede elétrica e, quando aplicável, a sistemas hidráulicos e fontes auxiliares de aquecimento?",
+          "Quais condições de operação, como disponibilidade de radiação solar, sombreamento, orientação, demanda de água quente e consumo elétrico, são relevantes para cada tecnologia?",
+          "Quais limitações técnicas e de escopo impedem que uma tecnologia seja apresentada como substituta universal da outra?",
+          "Quais diferenças conceituais devem ser feitas entre energia solar térmica de uso residencial e geração heliotérmica de eletricidade?"
+        ],
+        "hipoteses": [
+          "Sistemas fotovoltaicos residenciais convertem radiação solar em eletricidade, enquanto sistemas solares térmicos residenciais usualmente captam calor para aquecer água.",
+          "Os dois sistemas respondem a necessidades domésticas diferentes e podem ser complementares, em vez de necessariamente concorrentes.",
+          "A comparação acessível ao público leigo exigirá separar claramente a tecnologia de captação, o tipo de energia produzido, os equipamentos associados e os usos finais.",
+          "Materiais públicos de órgãos de energia, instituições de pesquisa e universidades poderão sustentar uma explicação técnica sem depender de conteúdo promocional de fornecedores."
+        ],
+        "consultas_iniciais": [
+          "site:gov.br energia solar fotovoltaica funcionamento eletricidade residência",
+          "site:gov.br aquecimento solar de água funcionamento residência",
+          "site:inpe.br energia fotovoltaica energia solar térmica",
+          "site:ufsc.br laboratório energia solar fotovoltaica aquecimento solar água",
+          "site:cepel.br energia solar fotovoltaica térmica aplicação residencial",
+          "site:aneel.gov.br microgeração distribuída sistema fotovoltaico consumidor"
+        ],
+        "fontes_primarias_desejadas": [
+          "Publicações técnicas e cartilhas de órgãos federais brasileiros competentes em energia, habitação, ambiente ou desenvolvimento urbano.",
+          "Documentos técnicos de instituições públicas de pesquisa, como INPE, CEPEL e universidades públicas, com autoria institucional identificável.",
+          "Regulamentos e materiais explicativos da ANEEL sobre micro e minigeração distribuída, quando relevantes para descrever a conexão de sistemas fotovoltaicos à rede.",
+          "Documentos oficiais de programas públicos de eficiência energética, habitação ou aquecimento solar que descrevam sistemas e finalidades.",
+          "Catálogos ou páginas institucionais públicas de normas e regulamentos aplicáveis, usados com cautela para confirmar escopo e existência, sem inferir requisitos não acessíveis."
+        ],
+        "riscos_de_vies": [
+          "Materiais de fabricantes e instaladores podem simplificar diferenças técnicas para fins comerciais ou apresentar economia como resultado garantido.",
+          "Fontes que chamam qualquer aproveitamento solar de 'energia solar' podem confundir geração fotovoltaica, aquecimento solar e geração heliotérmica.",
+          "Explicações técnicas estrangeiras podem não refletir equipamentos, regras de conexão e condições de uso no Brasil.",
+          "Uma comparação baseada exclusivamente em eficiência numérica pode ser enganosa, pois fotovoltaica e térmica entregam formas de energia diferentes e atendem a usos finais distintos.",
+          "Documentos normativos podem ser tecnicamente precisos, mas pouco adequados para explicação leiga sem contextualização."
+        ],
+        "evidencias_que_refutariam": [
+          "Documentos técnicos públicos confiáveis que demonstrem que, no uso residencial considerado, a tecnologia térmica produz eletricidade como resultado principal ou que a fotovoltaica tem como produto principal calor útil.",
+          "Evidência pública de que a classificação usual entre sistemas fotovoltaicos e térmicos não se aplica às tecnologias residenciais investigadas.",
+          "Documentação oficial que indique que componentes, fluxos energéticos ou integrações operacionais atribuídos a uma das tecnologias pertencem predominantemente à outra.",
+          "Evidências de que as definições variam de forma material entre órgãos públicos brasileiros, exigindo que o relatório abandone uma comparação única e apresente classificações alternativas."
+        ],
+        "criterio_de_conclusao": "O eixo será considerado concluído quando houver fontes públicas verificáveis suficientes para explicar, em linguagem leiga e sem alegações promocionais, o princípio de funcionamento, o produto energético, os componentes gerais, as aplicações residenciais típicas e as limitações de cada tecnologia, incluindo a distinção entre solar térmica residencial e outras tecnologias solares térmicas.",
+        "investigabilidade": "Alta. A distinção física entre conversão fotovoltaica e aproveitamento térmico pode ser documentada por publicações de instituições públicas de pesquisa, universidades públicas e órgãos reguladores. A coleta é viável sem depender dos resultados de SERP fornecidos.",
+        "eixo_essencial": true
+      },
+      {
+        "pergunta_principal": "Quais usos domésticos de sistemas solares fotovoltaicos e térmicos no Brasil podem ser efetivamente sustentados por evidências públicas, regulatórias, programáticas ou estatísticas, e quais são os limites dessas evidências?",
+        "subperguntas": [
+          "Quais usos residenciais de eletricidade gerada por sistemas fotovoltaicos são reconhecidos pelas regras brasileiras de micro e minigeração distribuída e pelos registros públicos disponíveis?",
+          "Quais aplicações domésticas de energia solar térmica, especialmente aquecimento de água para banho e outros usos sanitários, aparecem em programas, documentos técnicos ou políticas públicas brasileiras?",
+          "Quais bases públicas permitem observar a presença de geração distribuída fotovoltaica em unidades consumidoras residenciais, e quais variáveis elas efetivamente medem?",
+          "Há fontes públicas que permitam dimensionar, ainda que parcialmente, a adoção de aquecimento solar de água em domicílios brasileiros?",
+          "Quais programas públicos de habitação, eficiência energética, assistência social ou financiamento registram ou descrevem a incorporação de tecnologias solares em moradias?",
+          "Que diferenças existem entre comprovar que uma tecnologia é autorizada ou elegível, comprovar que foi instalada e comprovar o uso final ou a economia obtida por uma residência?",
+          "Quais lacunas de dados públicos impedem generalizações nacionais sobre frequência de uso, desempenho, economia financeira ou perfil socioeconômico dos usuários?"
+        ],
+        "hipoteses": [
+          "Registros e normas públicas devem permitir comprovar a aplicação residencial da geração fotovoltaica conectada à rede, mas podem não revelar com precisão quais aparelhos domésticos foram alimentados pela eletricidade gerada.",
+          "Documentos públicos de habitação, eficiência energética ou pesquisa podem sustentar o uso de sistemas solares térmicos para aquecimento de água em residências, embora a mensuração nacional de instalações possa ser incompleta ou fragmentada.",
+          "A legislação e a regulação podem demonstrar enquadramento e possibilidade de uso, mas não substituem dados de instalação, operação real, economia ou impacto ambiental.",
+          "A solidez do relatório dependerá de apresentar separadamente evidências regulatórias, administrativas, estatísticas e programáticas, sem tratá-las como equivalentes."
+        ],
+        "consultas_iniciais": [
+          "site:aneel.gov.br geração distribuída unidade consumidora residencial dados abertos fotovoltaica",
+          "site:gov.br microgeração distribuída residência Lei 14300",
+          "site:dadosabertos.aneel.gov.br geração distribuída unidade consumidora classe residencial",
+          "site:gov.br aquecimento solar água habitação interesse social residência",
+          "site:caixa.gov.br aquecimento solar habitação programa residência",
+          "site:gov.br programa eficiência energética aquecimento solar residencial",
+          "site:ibge.gov.br aquecimento solar domicílios energia",
+          "site:epe.gov.br aquecimento solar residencial Brasil",
+          "site:inmetro.gov.br aquecedor solar água etiquetagem"
+        ],
+        "fontes_primarias_desejadas": [
+          "Lei nº 14.300/2022, atos regulatórios da ANEEL e bases públicas oficiais sobre micro e minigeração distribuída, incluindo dados que permitam identificar a classe residencial quando disponível.",
+          "Bases de dados abertos, painéis e relatórios metodológicos da ANEEL sobre unidades consumidoras e potência instalada em geração distribuída.",
+          "Documentos oficiais da Empresa de Pesquisa Energética, do Ministério de Minas e Energia e de instituições públicas de pesquisa sobre consumo residencial, aquecimento de água e tecnologias solares.",
+          "Editais, manuais, relatórios de execução e documentos de programas públicos de habitação ou eficiência energética que registrem a adoção ou previsão de aquecimento solar em moradias.",
+          "Dados e publicações do IBGE, quando houver variáveis diretamente relacionadas a equipamentos, condições de moradia ou consumo energético pertinentes.",
+          "Documentos públicos do Inmetro sobre avaliação da conformidade, etiquetagem ou requisitos de equipamentos solares, quando úteis para demonstrar a existência de categorias de produtos e não para inferir desempenho de instalações específicas."
+        ],
+        "riscos_de_vies": [
+          "Confundir número de unidades consumidoras cadastradas com número de residências, pois uma unidade consumidora pode não corresponder exatamente a um domicílio ou pode ter características específicas de titularidade e uso.",
+          "Confundir potência instalada fotovoltaica com geração efetiva, autoconsumo, redução de despesa ou atendimento de cargas específicas.",
+          "Inferir a presença de aquecimento solar em todo programa habitacional a partir de exemplos pontuais, editais locais ou normas que apenas autorizem sua adoção.",
+          "Usar dados setoriais de associações empresariais como se fossem estatísticas oficiais sem identificar sua metodologia e seu caráter não público.",
+          "Tratar certificação ou etiquetagem de equipamento como prova de instalação, desempenho em campo ou benefício econômico ao usuário.",
+          "Desconsiderar diferenças regionais de radiação solar, clima, perfil de consumo, tarifa, disponibilidade de rede, condições da edificação e manutenção."
+        ],
+        "evidencias_que_refutariam": [
+          "Ausência de bases públicas ou documentos oficiais que vinculem a geração distribuída fotovoltaica a unidades consumidoras residenciais ou que permitam identificar a fonte solar na categoria analisada.",
+          "Documentação oficial indicando que dados de instalações solares térmicas em residências não são produzidos, não são publicamente acessíveis ou não permitem qualquer inferência sobre usos domésticos.",
+          "Evidência de que programas públicos citados não instalaram sistemas solares, apenas os mencionaram como possibilidade, intenção ou item não executado.",
+          "Metodologias oficiais que impeçam a comparação entre indicadores de fotovoltaica e térmica por medirem universos, períodos ou unidades incompatíveis.",
+          "Dados públicos que contradigam a atribuição de determinada aplicação doméstica a uma das tecnologias investigadas."
+        ],
+        "criterio_de_conclusao": "O eixo será considerado concluído quando o relatório conseguir classificar cada uso doméstico em uma matriz de evidência — por exemplo, uso regulatoriamente reconhecido, uso registrado em base administrativa, uso documentado em programa público ou uso apenas tecnicamente plausível — e declarar claramente o que os dados públicos não permitem afirmar sobre escala, desempenho, economia e cobertura nacional.",
+        "investigabilidade": "Alta para usos fotovoltaicos conectados à rede, devido à regulação e às bases administrativas públicas da ANEEL; moderada para aquecimento solar residencial, pois a evidência pode estar dispersa entre programas, documentos de habitação, pesquisas energéticas e dados de equipamentos. A viabilidade será preservada ao registrar explicitamente lacunas e ao não converter ausência de dados em ausência de uso.",
+        "eixo_essencial": true
+      }
+    ],
+    "pontos": [
+      "Quais diferenças técnicas, energéticas e operacionais distinguem a energia solar fotovoltaica da energia solar térmica em aplicações residenciais?",
+      "Quais usos domésticos de sistemas solares fotovoltaicos e térmicos no Brasil podem ser efetivamente sustentados por evidências públicas, regulatórias, programáticas ou estatísticas, e quais são os limites dessas evidências?"
+    ]
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "status": "capture_ready",
+  "phase": "round-4/historico-documentacao",
+  "assessment": "B",
+  "model": "ag/gemini-3.8-flash-high",
+  "provider": "9router",
+  "reasoning": "high",
+  "timestamp_utc": "2026-10-26T23:42:35Z",
+  "git_head": "94805ca859431a07636b2d41bf4d47d6b5c30c0a",
+  "target_url": "http://localhost:8011/",
+  "browser_session": "eval_b_round4",
+  "tab_id_closed": "eval_b_round4_tab_closed",
+  "detector": {
+    "command": "/home/eliezer/.claude/skills/impeccable/scripts/impeccable detect --json frontend/src",
+    "exit_code": 0,
+    "findings_count": 0,
+    "findings": []
+  },
+  "source_hashes": {
+    "frontend/src/App.tsx": "27165d49d8227f8b63dfc29663f95818054630f233391c92ad4c6c7d85e8fbbd",
+    "frontend/src/components/HistoryView.tsx": "3f2f23c2e3c952ae93d40e899639440452251fb3173434cf2c27ba66dd3ac219",
+    "frontend/src/components/DocsView.tsx": "9758c25bc875e7236238695be527ce1b6f121d53c967c06edfdae32c22c7041e",
+    "frontend/src/components/ReportView.tsx": "c04dbaa5fcd1118b82e551b57e3fbeae19e6b182d0d7d3c5648f07fcb2c9e4ed",
+    "frontend/src/components/SourceBreakdown.tsx": "1a07de8bdb836f0ae94f9fc3a8feb92c75b985756a097e18917e2a1fc54895ed",
+    "frontend/src/components/Navbar.tsx": "074fbb9bba561e274d6445f70c503a967f4435884550138cae7750ac954c91f6",
+    "frontend/src/services/history.ts": "a9dd3f3a01a0d531f631e2582885cc913c83061e4f3f5d702ce169f5a5dc6235",
+    "frontend/src/styles/components.css": "20aa864d9477d5767334e135ff04f2b4db1a74db83a53605a62cc71b98b6726f",
+    "frontend/src/styles/tokens.css": "a2c6b1de2fbcb84a9ac4e3166375d664cbf5460495a3cf039dacc56699683239",
+    "frontend/src/styles/main.css": "5a85c4ca01425dd33dccbb6ef7c5d3a1e9cb00866aed0e057759a574c8f54399"
+  },
+  "bundle_hashes": {
+    "frontend/dist/assets/index-C4PcHGJ3.js": "8dac1b50eee78ee43460e7f4a10010997e82e5bdb998f09675641336feb48aa0",
+    "frontend/dist/assets/index-rmpwtDhS.css": "f2ad0079be56fcb477a8bec878be6eb10b06faf1b0e142e7d34dd1dfa7c47263",
+    "frontend/dist/index.html": "d965353ce034045b4d34ebb6359aafea844d1d4b0de6b41e940a8b681839a73f"
+  },
+  "captured_evidence": [
+    {
+      "step": 1,
+      "filename": "01_history_own_row.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-4/B-evidence/01_history_own_row.png",
+      "bytes": 45319,
+      "sha256": "14cda4103b5f24936c5bd54be008aa244b40143854000c0d7080ff0e4763de6f",
+      "description": "Navegação ao histórico e exibição da linha própria recém-criada ('Impacto da IA no ensino superior'): status concluído, 1 ponto, dossiê disponível, ID da pesquisa e ações de reabertura e exclusão.",
+      "verified_dom": {
+        "url": "http://localhost:8011/#history",
+        "records_count": 1,
+        "record_title": "Impacto da IA no ensino superior",
+        "record_badge": "concluido",
+        "record_meta": "26 de out. de 2026, 20:34 • 1 pontos • Dossiê disponível",
+        "has_open_button": true,
+        "has_delete_button": true
+      }
+    },
+    {
+      "step": 2,
+      "filename": "02_expanded_source_groups.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-4/B-evidence/02_expanded_source_groups.png",
+      "bytes": 60961,
+      "sha256": "69bb3bdca4685263c4315648386bc43c3521967598ffbb91f3880ddaacb0e744",
+      "description": "Reabertura do relatório pelo histórico com preservação textual íntegra e detalhamento das 3 categorias de fontes contábeis: total consultadas (3), utilizadas no dossiê (3), consultadas mas não citadas (0 - categoria vazia fidedigna com mensagem honesta). Grupos expandidos via teclado nativo CDP Space/Enter.",
+      "verified_dom": {
+        "url": "http://localhost:8011/#research",
+        "title": "Impacto da IA no ensino superior",
+        "dossier_heading": "Dossiê Analítico: Impacto da IA na Educação",
+        "counters": {
+          "total_consultadas": "3",
+          "utilizadas_dossie": "3",
+          "consultadas_nao_citadas": "0"
+        },
+        "group1_utilizadas": {
+          "badge": "3",
+          "isOpen": true,
+          "items_count": 3,
+          "domains": ["mec.gov.br", "unesdoc.unesco.org", "www.oecd.org"]
+        },
+        "group2_nao_citadas": {
+          "badge": "0",
+          "isOpen": true,
+          "empty_message": "Nenhuma fonte consultada permaneceu sem citação direta."
+        },
+        "group3_todas_consultadas": {
+          "badge": "3",
+          "isOpen": true,
+          "items_count": 3
+        }
+      }
+    },
+    {
+      "step": 3,
+      "filename": "03_in_app_documentation.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-4/B-evidence/03_in_app_documentation.png",
+      "bytes": 90693,
+      "sha256": "ece478cd03c7cb6aa034ded0d04db7ed9e99ff45287d448f4d36713ce6dbf80d",
+      "description": "Navegação para a documentação in-app (#docs): guia operacional completo, arquitetura em 4 etapas, formulação de temas, 4 personas analíticas, limiar 11/12 da auditoria, segurança e retorno a #research e #history sem perda do relatório.",
+      "verified_dom": {
+        "url": "http://localhost:8011/#docs",
+        "title": "Guia Operacional e Documentação do Deep Research",
+        "sections": [
+          "1. Visão Geral da Arquitetura",
+          "2. Como Formular Temas de Pesquisa",
+          "3. Personas Investigativas Especializadas",
+          "4. Auditoria de Qualidade e Limiar de Corte (11/12)",
+          "5. Credenciais, Segurança e Precedência (RN-10)",
+          "6. Integração com Webhook de Callback",
+          "7. Escopo dos Checkpoints"
+        ],
+        "workflow_cards": [
+          "1. Planejamento (Plan)",
+          "2. Busca Agêntica (Search)",
+          "3. Auditoria (Audit)",
+          "4. Redação (Writer)"
+        ]
+      }
+    }
+  ],
+  "verification_summary": {
+    "public_research_created": true,
+    "topic": "Impacto da IA no ensino superior",
+    "defaults": "1 ponto • 4 personas",
+    "pipeline_completion": "concluido com mock external providers",
+    "history_navigation_verified": true,
+    "own_row_found_and_reopened": true,
+    "original_text_preserved": true,
+    "source_three_categories_verified": true,
+    "true_empty_category_reported": "Consultadas mas não citadas: 0 ('Nenhuma fonte consultada permaneceu sem citação direta.')",
+    "native_keyboard_dispatch_separated": "Foco em <summary> e disparo nativo via CDP Input.dispatchKeyEvent (Space/Enter) verificado e diferenciado de synthetic dispatch",
+    "in_app_docs_navigated_and_verified": true,
+    "return_to_report_without_loss": true,
+    "nova_pesquisa_reset_verified": "Redefine área de trabalho para EmptyState e limpa compositor; histórico local é estritamente preservado"
+  }
+}

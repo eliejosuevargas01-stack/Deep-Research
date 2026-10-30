@@ -1,0 +1,139 @@
+{
+  "round": 4,
+  "surface": "historico-documentacao",
+  "evaluator": "A",
+  "role": "independent_design_review",
+  "model": "ag/gemini-3.8-flash-high",
+  "reasoning": "high",
+  "provider": "9router",
+  "method": "single-context (isolated independent Evaluator A session)",
+  "timestamp_verified_utc": "2026-10-26T23:41:18Z",
+  "target_url": "http://localhost:8011",
+  "provider_mode": "fixture_simulated_external_providers",
+  "visual_provenance": {
+    "native_pixel_inspected_images": [
+      {
+        "file": "01_source_breakdown_after_history_reopen.png",
+        "sha256": "7914ea4168ff47082522bedba08260e991e8199dd196b01dc5160786f784d12b",
+        "observed_pixels": "Cabeçalho com ícone Layers 'Fontes da Investigação'; badge verde com checkmark 'EVIDÊNCIAS COMPLETAS'; barra de contadores coesa ('Total consultadas: 3 • Utilizadas no dossiê: 3 • Consultadas mas não citadas: 0') com destaque roxo no número 3; nota de rodapé explicativa clara; primeiro grupo <details open> exibindo 3 itens (mec.gov.br, unesdoc.unesco.org, www.oecd.org) com tags de domínio e ícones de link externo; segundo grupo <details open> com foco nativo de teclado (anel roxo) exibindo mensagem vazia contextual fidedigna em itálico."
+      },
+      {
+        "file": "02_in_app_documentation_overview.png",
+        "sha256": "122a96b2801ae822a98de01e3df7cdbc19cc8d49fbeda682735aeeac8fe05487",
+        "observed_pixels": "Card centralizado em superfície branca com borda suave; cabeçalho com ícone BookOpen em roxo primário, título H1 'Guia Operacional e Documentação do Deep Research' e subtítulo explicativo de referência ao Checkpoint 1; seção 1 com 4 cards de arquitetura com ícones (Planejamento, Busca Agêntica, Auditoria, Redação); seção 2 detalhando boas práticas de formulação de temas (5 a 500 caracteres, exemplos de 'Bom' e 'Evitar'); início da seção 3 com personas investigativas."
+      }
+    ],
+    "functional_dom_and_execution_evidence_only": [
+      {
+        "step": "history_view_interaction",
+        "status": "Execução funcional confirmada via DOM/CDP, mas imagem não anexada nesta rodada de julgamento visual; não inferir pixels além do registro DOM gravado."
+      },
+      {
+        "step": "documentation_security_section",
+        "status": "Viewport nativo da imagem 02 não cobre a seção 5 inferior de segurança; evidência da seção 5 registrada via leitura estrita de código-fonte de DocsView.tsx e log de interação."
+      }
+    ]
+  },
+  "served_bundle_hashes": {
+    "capture_initial_frontend_dist_assets_index-C4PcHGJ3.js": "8dac1b50eee78ee43460e7f4a10010997e82e5bdb998f09675641336feb48aa0",
+    "concurrent_rebuild_frontend_dist_assets_index-CEeeuqJr.js": "0ba73bef275894eba71a95cf9cb87ec4303b30ff6f10cff1a919616287e74485",
+    "frontend_dist_assets_index-rmpwtDhS.css": "f2ad0079be56fcb477a8bec878be6eb10b06faf1b0e142e7d34dd1dfa7c47263"
+  },
+  "source_hashes_at_capture": {
+    "frontend/src/App.tsx": "27165d49d8227f8b63dfc29663f95818054630f233391c92ad4c6c7d85e8fbbd",
+    "frontend/src/components/ReportView.tsx": "aa79d300504111f21c8a83a09744901aec060ad8498861e5a2484a2f4a8ee827",
+    "frontend/src/components/HistoryView.tsx": "3f2f23c2e3c952ae93d40e899639440452251fb3173434cf2c27ba66dd3ac219",
+    "frontend/src/components/SourceBreakdown.tsx": "1a07de8bdb836f0ae94f9fc3a8feb92c75b985756a097e18917e2a1fc54895ed",
+    "frontend/src/components/DocsView.tsx": "9758c25bc875e7236238695be527ce1b6f121d53c967c06edfdae32c22c7041e"
+  },
+  "design_specificity": {
+    "verdict": "Alto nível de especificidade analítica. Interface foge de templates genéricos de IA conversacional ao implementar uma contabilidade de proveniência de fontes granular (com distinção explícita entre referências citadas e referências contextuais não rejeitadas) e um guia operacional in-app estruturado por estágios de pipeline e critérios formais.",
+    "brand_alignment": "Convergência com a identidade técnica do DominusLabs e Goostozinhos: tipografia sóbria (Outfit + Inter), paleta violeta profissional, borders sutis e ausência de ruído decorativo supérfluo."
+  },
+  "heuristics_scores": {
+    "1_visibility_of_system_status": {
+      "score": 4,
+      "rationale": "Status visível em todas as etapas: contadores de fontes (3 consultadas, 3 utilizadas, 0 não citadas) com pill de destaque, badge 'EVIDÊNCIAS COMPLETAS', chips de status no histórico e preservação de rota."
+    },
+    "2_match_between_system_and_real_world": {
+      "score": 4,
+      "rationale": "Vocabulário técnico natural para pesquisadores analíticos ('dossiê', 'eixos', 'contabilidade de fontes'). Esclarecimento factual de que fontes não citadas não são rejeitadas, mas contexto investigativo."
+    },
+    "3_user_control_and_freedom": {
+      "score": 3,
+      "rationale": "Usuário pode reabrir pesquisas antigas com um clique, recolher e expandir grupos de fontes e resetar para nova pesquisa sem descartar o histórico. Ponto de perda: ausência de controle global de 'Expandir todos / Recolher todos' na seção de fontes (presente na tela de plano, mas ausente em fontes)."
+    },
+    "4_consistency_and_standards": {
+      "score": 3,
+      "rationale": "Conformidade sólida de componentes e padrões web. No entanto, há inconsistência semântica de documentação: DocsView (seção 5) ainda descreve a precedência de RN-10 como 'Ambiente > Banco cifrado', enquanto o padrão normativo aprovado no Adendo 002 estabelece 'Banco cifrado > Ambiente de fallback'."
+    },
+    "5_error_prevention": {
+      "score": 4,
+      "rationale": "Verificação estrita de protocolo de links (apenas http/https), vinculação de integridade por artifact_hash contra contaminação de versões anteriores, confirmação antes de limpar todo o histórico."
+    },
+    "6_recognition_rather_than_recall": {
+      "score": 4,
+      "rationale": "Cartões de histórico mantêm o tema original, contagem de pontos, carimbo de data legível em pt-BR e indicador de dossiê; linhas de fontes exibem tag de domínio e URL completa."
+    },
+    "7_flexibility_and_efficiency_of_use": {
+      "score": 3,
+      "rationale": "Reabertura rápida de relatórios do histórico. Navegação nativa por teclado no summary (<details>) testada e comprovada via CDP (Space/Enter). Ponto de melhoria: histórico não oferece busca ou filtro por texto quando a lista acumula muitos registros."
+    },
+    "8_aesthetic_and_minimalist_design": {
+      "score": 4,
+      "rationale": "Composição limpa e elegante. Recusa deliberada do clichê de 3 cards métricos decorados em prol de uma barra coesa de contadores agrupados com separadores em ponto ('•'). Hierarquia tipográfica clara e legível."
+    },
+    "9_help_users_recognize_diagnose_recover_errors": {
+      "score": 3,
+      "rationale": "Mensagens de estado vazio perfeitamente contextuais ('Nenhuma fonte consultada permaneceu sem citação direta.'). Banner de mismatch protege texto de divergências de versão. No histórico, contudo, relatórios com status 'reprovado' não possuem indicação clara de reexecução direta a partir do card."
+    },
+    "10_help_and_documentation": {
+      "score": 4,
+      "rationale": "Guia in-app dedicado e permanente (#docs), detalhando desde a arquitetura do sistema e heurísticas de formulação de tema até o vetor formal das 12 perguntas de corte da auditoria."
+    },
+    "total_score": 36,
+    "max_score": 40,
+    "percentage": 90.0
+  },
+  "cognitive_load": {
+    "checklist_status": "PASS",
+    "options_per_decision_point": "Máximo de 2 a 3 ações visíveis simultâneas por contexto (Abrir, Excluir no histórico; Expandir grupo no breakdown).",
+    "memory_burden": "Mínima. Dados do relatório, contabilidade e histórico são mantidos e reidratados sem exigir que o usuário memorize parâmetros anteriores."
+  },
+  "emotional_journey": {
+    "peak_end_rule": "Forte sensação de rigor e confiabilidade ao visualizar a contabilidade de fontes completas (3/3/0) e reabrir o trabalho salvo com formatação e citações intactas.",
+    "friction_points": "Leve atrito ao rolar a página extensa de documentação sem links de âncora internos."
+  },
+  "strengths": [
+    "Barra de contadores de fontes agrupada de forma coesa, eliminando o clichê visual de cards métricos isolados e deixando a leitura fluida e analítica.",
+    "Implementação semântica e acessível de grupos colapsáveis com tags nativas HTML5 <details> e <summary>, garantindo controle de teclado comprovado por CDP sem dependência de scripts pesados.",
+    "Documentação interna integrada (#docs) com orientações práticas de formulação de perguntas (5 a 500 caracteres, exemplos de 'Bom' e 'Evitar') e detalhamento das 4 personas analíticas."
+  ],
+  "actionable_priorities": [
+    {
+      "priority": "P1",
+      "category": "consistency_and_documentation",
+      "title": "Alinhar texto da seção 5 de DocsView com a regra normativa Adendo 002 (DB > ENV)",
+      "impact": "Elimina contradição entre o guia do usuário e o comportamento aprovado do workspace nas configurações.",
+      "persona": "Casey (Security & Compliance Auditor)",
+      "fix": "Atualizar a redação da Seção 5 em `DocsView.tsx` para indicar que configurações salvas no banco cifrado possuem precedência sobre variáveis de ambiente de fallback, mantendo apenas CREDENTIALS_MASTER_KEY como bootstrap estrito de ambiente."
+    },
+    {
+      "priority": "P2",
+      "category": "flexibility_and_operability",
+      "title": "Adicionar controle de 'Expandir / Recolher todos os grupos' em SourceBreakdown",
+      "impact": "Permite que pesquisadores que avaliam dezenas de fontes inspecionem todo o inventário com um único clique, mantendo consistência com o botão já existente na tela de plano.",
+      "persona": "Sam (Investigador Cético)",
+      "fix": "Introduzir um botão secundário compacto no cabeçalho do `SourceBreakdown.tsx` gerenciando o atributo `open` dos 3 nós <details>."
+    },
+    {
+      "priority": "P3",
+      "category": "navigation_and_scannability",
+      "title": "Adicionar índice de âncoras (TOC) e filtro rápido de histórico",
+      "impact": "Facilita o salto direto para seções técnicas da documentação (#docs) e agiliza a localização de investigações em históricos extensos (#history).",
+      "persona": "Jordan (Tomador de Decisão / Pesquisador Frequente)",
+      "fix": "Incluir navegação interna por âncoras no topo do `DocsView.tsx` e um campo de filtro por texto simples na barra de ações do `HistoryView.tsx`."
+    }
+  ],
+  "disposition": "APROVADO com ressalvas construtivas de documentação e refinamento (36/40). Critérios operacionais de navegação, histórico, reabertura fiel, integridade contábil de fontes e documentação interna atendidos integralmente na interface real."
+}

@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-26T22:14:15.937944+00:00",
+  "user_image": "/tmp/codex-clipboard-65e55b65-19fd-4934-ba8c-9f0382556121.png",
+  "sha256": "90675033e2a3d1fd9fb7c8c3ec2e5919c42535fc53d8b37dec3fdd6cef865bf9",
+  "inspected_by_root": true,
+  "content": "User-supplied execution UI, public research claims/sourceURLs and ordinary research preferences; no credentials, PII or private contacts visible. Critique of layout only, not factual validation.",
+  "target": "frontend/src/components/ExecutionView.tsx",
+  "destination": "User-required Hermes primary ag/gemini-3.8-flash-high high via local9router; noaux",
+  "user_live_research": "Must not interact with existing user tabs, restart backend8010, reload user research, or send new paid research calls."
+}

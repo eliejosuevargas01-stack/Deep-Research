@@ -84,7 +84,7 @@ async def test_searcher_prompt_contains_explicit_failure_instruction(
 
 @pytest.mark.asyncio
 async def test_searcher_tool_response_on_empty_results(db_session: AsyncSession) -> None:
-    """Verifica que busca vazia (0 resultados) não mente que URLs foram lidas anteriormente."""
+    """Verifica que busca vazia (0 resultados) transmite diagnóstico acionável no protocolo JSON e não mente que URLs foram lidas."""
     repo = ResearchRepository(session=db_session)
     pesquisa = await repo.create_research(
         tema="Tema Busca Vazia",
@@ -93,8 +93,7 @@ async def test_searcher_tool_response_on_empty_results(db_session: AsyncSession)
     pontos = await repo.list_points(pesquisa.id_pesquisa)
 
     mock_net = MockNetwork()
-    # Simula Jina retornando lista vazia
-    async def jina_empty(request: httpx.Request) -> httpx.Response:
+    def jina_empty(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"code": 200, "data": []})
 
     mock_net.custom_handlers["s.jina.ai"] = jina_empty
@@ -115,17 +114,21 @@ async def test_searcher_tool_response_on_empty_results(db_session: AsyncSession)
     memoria_persona = searcher.memoria[f"{pesquisa.id_pesquisa}:{pontos[0].ponto_id}"]["historiador"]
     msgs = memoria_persona["messages"]
 
-    # Localiza mensagem do tipo tool
+    # F05: Protocolo unificado em JSON sem mensagens avulsas role="tool"
     tool_msgs = [m for m in msgs if m.get("role") == "tool"]
-    assert len(tool_msgs) > 0
-    # Mensagem deve informar que não retornou nenhuma URL, e NÃO dizer que já foram lidas
-    assert "não retornou nenhuma URL ou resultado" in tool_msgs[0]["content"]
-    assert "já foram lidas anteriormente" not in tool_msgs[0]["content"]
+    assert len(tool_msgs) == 0, "role='tool' deve ser estritamente zero em todos os ramos!"
+
+    # Diagnóstico deve ser transmitido no histórico operacional entregue no payload JSON
+    user_msg = next((m.get("content", "") for m in msgs if m.get("role") == "user"), "")
+    diario = memoria_persona.get("diario", [])
+    assert "não retornou nenhuma URL ou resultado" in user_msg or any("não retornou nenhuma URL ou resultado" in d.get("resultado", "") for d in diario)
+    assert "já foram lidas anteriormente" not in user_msg
+    assert not any("já foram lidas anteriormente" in d.get("resultado", "") for d in diario)
 
 
 @pytest.mark.asyncio
 async def test_searcher_tool_response_on_tool_failure(db_session: AsyncSession) -> None:
-    """Verifica que quando a tool Jina falha (ex: 402), a mensagem com erro explícito é enviada como role: tool."""
+    """Verifica que quando a tool Jina falha (ex: 402), a mensagem com erro explícito é transmitida no payload JSON (sem role: tool)."""
     repo = ResearchRepository(session=db_session)
     pesquisa = await repo.create_research(
         tema="Tema Erro Tool",
@@ -134,7 +137,7 @@ async def test_searcher_tool_response_on_tool_failure(db_session: AsyncSession) 
     pontos = await repo.list_points(pesquisa.id_pesquisa)
 
     mock_net = MockNetwork()
-    async def jina_402(request: httpx.Request) -> httpx.Response:
+    def jina_402(request: httpx.Request) -> httpx.Response:
         return httpx.Response(402, json={"code": 402, "message": "Account balance not enough, please recharge."})
 
     mock_net.custom_handlers["s.jina.ai"] = jina_402
@@ -156,8 +159,12 @@ async def test_searcher_tool_response_on_tool_failure(db_session: AsyncSession) 
     memoria_persona = searcher.memoria[f"{pesquisa.id_pesquisa}:{pontos[0].ponto_id}"]["historiador"]
     msgs = memoria_persona["messages"]
 
-    # Mensagem de tool presente com erro explícito
+    # F05: Zero mensagens role="tool"
     tool_msgs = [m for m in msgs if m.get("role") == "tool"]
-    assert len(tool_msgs) == 1
-    assert "ERRO NA FERRAMENTA jina_search" in tool_msgs[0]["content"]
-    assert "402" in tool_msgs[0]["content"] or "saldo" in tool_msgs[0]["content"].lower()
+    assert len(tool_msgs) == 0, "role='tool' deve ser estritamente zero em caso de falha de ferramenta!"
+
+    # Erro explícito registrado no histórico operacional do payload JSON
+    user_msg = next((m.get("content", "") for m in msgs if m.get("role") == "user"), "")
+    diario = memoria_persona.get("diario_acoes") or memoria_persona.get("diario", [])
+    assert "ERRO NA FERRAMENTA jina_search" in user_msg or any("ERRO NA FERRAMENTA jina_search" in d.get("resultado", "") for d in diario)
+    assert "402" in user_msg or any("402" in d.get("resultado", "") for d in diario) or "saldo" in str(diario).lower()

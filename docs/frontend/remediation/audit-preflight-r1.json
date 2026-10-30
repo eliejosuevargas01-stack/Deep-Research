@@ -1,0 +1,261 @@
+{
+  "audit_phase": "phase_1_preliminary_preflight_readonly_review",
+  "audit_type": "independent_hermes_quality_arbitrator",
+  "session_profile": "critique-native",
+  "model": "ag/gemini-3.8-flash-high",
+  "provider": "custom (provider9router)",
+  "reasoning": "high",
+  "timestamp_utc": "2026-10-27T00:40:16Z",
+  "disposition": "preliminary_pending_round5_and_QA",
+  "scope": {
+    "is_preliminary_preflight": true,
+    "is_release_approval": false,
+    "is_final_whole_project_approval": false,
+    "evaluated_components": [
+      "Backend Architecture & Security (app/ui_session.py, app/main.py, app/core/security.py)",
+      "Normative Precedence Adendo 002 (app/db/credentials_repository.py, app/services/credential_resolver.py)",
+      "Source Accounting S01 (app/services/source_accounting_service.py, ReportView.tsx, SourceBreakdown.tsx)",
+      "Frontend UI Polish & Accessibility (PlanView, HistoryView, Composer, SettingsView, DocsView)",
+      "QA Test Suite Readiness & Assertion Integrity (frontend/features/)"
+    ]
+  },
+  "source_hashes": {
+    "backend": {
+      "app/main.py": "5dec5025cacca8cf3ef28a7041d8b2fc4d0e23a232902d9118b700b8f268924f",
+      "app/ui_session.py": "d1e38511c08355522671e0e53fc711ca3a17fc7f0147f70dfa60af8f98f19a6a",
+      "app/core/security.py": "f39a7eccf0339a66ae971803509dbb6f83934874137acb92722ea1190c9e97c7",
+      "app/core/planner.py": "01399c807a8377a07559e26515f0ab2edf780db6dc61f30e4848f97069b11363",
+      "app/core/searcher.py": "389a00d3ace9fc08792e7d098a4c7fd6642263ccdd4b3814addaffb2fb78e939",
+      "app/core/auditor.py": "2defde70a9bac56f36040b6a70fcc833090398001b7ccd37ae50894ce95bb819",
+      "app/core/writer.py": "e441fb2e1c1e2ac1fa9b8585f16a68013d3901bdec6cff23c1604beb9da4f7b3",
+      "app/core/personas.py": "832e7ee75a5b514d10daf798974d9441caba5cd96cee2371c897fed42162c498",
+      "app/core/plan_validator.py": "1ce6b710db54705d69bacc530a1a87a0623e6726e601d76b2a3585455202934d",
+      "app/core/pipeline_runner.py": "985a8797b79d5766c86bd7c154cf0c12e0c2135259de29ebd14a5fcff9675c6c",
+      "app/db/credentials_repository.py": "723b70cd2e2c0a5ac544336af0791a0d745118c49fc47cd95593151996efbf2f",
+      "app/db/research_repository.py": "7f878a01dda4a4e6e9d1be8c86469fc13f6ea1f97ac4ef47434f648323a64ae9",
+      "app/services/credential_resolver.py": "d6c87d217758433e208dbecf7e3c9e0a1f4953dd7011e149d74c6ecba1a299d1",
+      "app/services/source_accounting_service.py": "2f2452045a2436fb0ac939867b793ac1118eb1c15c780422e3a0cbb5d6dea323",
+      "app/schemas/sources.py": "ad8a061ac8d511958bf27a9e5c5b9409fffcfef575b790f4edcb3634fdeed0b9",
+      "app/schemas/plan.py": "157c714bc3caf223e1135620cda1307b2f76c413f9704d40a8ea93f5138f5c18",
+      "app/schemas/search.py": "5db87b23efe5bdd125ed9b95f396a0b1910710441ce9f35e225ddc874dac6c8b",
+      "app/schemas/audit.py": "db1e5f88847fffdc57adab7c9bec42723d2f181c21890f9b2c6a63750f383e25",
+      "app/schemas/writer.py": "7b0f771ab8d5c981de1a8a52ddf5030b588fd380b7bd6186ce62803f45dce1d0"
+    },
+    "frontend_source": {
+      "frontend/src/App.tsx": "22ba2040d5b609110611c6749aad99b4cf18954d56ac536b0097fb4551c6633e",
+      "frontend/src/components/Composer.tsx": "0d58214a3904faab35b3d523c49223b6881c25c4cc2bcfab6c3e100ec63ece98",
+      "frontend/src/components/PlanView.tsx": "1d1a177b69532ac08e84475979837a61ba1315fa6d86d5f7dcca9414f7d98957",
+      "frontend/src/components/ExecutionView.tsx": "0e8dbbad51d8b93feed301dc30385c7f16e4004ba9b4a09b9097c8e615343d0e",
+      "frontend/src/components/ReportView.tsx": "c04dbaa5fcd1118b82e551b57e3fbeae19e6b182d0d7d3c5648f07fcb2c9e4ed",
+      "frontend/src/components/SourceBreakdown.tsx": "254e96e2961d4961c83fa9ad85e9435923d093f8344e1436c471d524e3cff194",
+      "frontend/src/components/SourceBreakdown.css": "48a928380eed00f1246afd87dc25dad968fe7847c5454683ad93304dde65fde8",
+      "frontend/src/components/HistoryView.tsx": "4fdf35b2546b255d18e6f440b6de50c72ff249a4f4e93057f9b52c48c84da356",
+      "frontend/src/components/SettingsView.tsx": "7b6a7082a1c6b2bcfe2f6a78d33d66d3b37e891d0ef12c2cd9b27ef4c8b3b207",
+      "frontend/src/components/DocsView.tsx": "4fa7b5a2a74960d082576742613b800ddfb30b388e3e552a6bbc568a20d552ba",
+      "frontend/src/components/ResearchPreferences.tsx": "4e0d5a696bda24d76335ff4c7497090167484d9d3ce194d50f51994d25f4c105",
+      "frontend/src/services/api.ts": "4c50d977652fb19f0552b3035350759e2aae1102e2670c7851b679a699906b20",
+      "frontend/src/services/history.ts": "a9dd3f3a01a0d531f631e2582885cc913c83061e4f3f5d702ce169f5a5dc6235",
+      "frontend/src/types/api.ts": "cf555a8fbecc904da53f0d6b284aea230334bf65c2287d502bffe0393792f653",
+      "frontend/src/styles/tokens.css": "a2c6b1de2fbcb84a9ac4e3166375d664cbf5460495a3cf039dacc56699683239",
+      "frontend/src/styles/main.css": "0e537b6cb0117a6402847ea04bd5e79d7aaf483845dcb9adab988937aac3935a",
+      "frontend/src/styles/components.css": "20aa864d9477d5767334e135ff04f2b4db1a74db83a53605a62cc71b98b6726f",
+      "frontend/src/styles/execution-view.css": "c754041e4ad09aa6d0419ecb5f4d9069578233b898ae764b4c495cf868df30a6",
+      "frontend/src/components/plan-settings-polish.css": "7e73cce204a0e84a760f6222195cfca6c766db59575a84ec8a3b622187d687b9"
+    },
+    "frontend_dist": {
+      "frontend/dist/index.html": "35fc88d8256866231e8985cfc1232a1f58801ae3587ac39827c09dd6ddf686a1",
+      "frontend/dist/assets/index-DJ1sYgkX.js": "c74b7ad3de1eb3cc86080cd3a7c531c815352ca3816dac51b815dffd4c69f749",
+      "frontend/dist/assets/index-Wmy6xx4v.css": "4e3a5ca6dd1fb61d6cf96718b07cf6650d697e4eb9242b9563c5c19dfcf6d3ca"
+    },
+    "critical_tests": {
+      "tests/unit/test_source_accounting.py": "270920e3964bc6b59619a54d4a57925fcfedaf915e59c2d19a9299878d83bc97",
+      "tests/integration/test_sources_endpoint.py": "194526a35d4846d410498af9f771b10401068db5a188568639b624f3e1f3c99d",
+      "frontend/src/tests/sources-accounting.test.ts": "bccd808984b6cef45baf596685f11216e900e9bb24903d658cf5039bf17d399e",
+      "frontend/features/05_sources_accounting.feature": "47afe8b9cd2323803f6b2e3654330a75cd9ebae4b7d0c344e96b893420b3ba8f",
+      "frontend/features/step_definitions/steps.ts": "3eafca4227e7365e9eb0975ae8684d3666df957577741182db46b96f3301884c",
+      "frontend/features/support/world.ts": "af612454781a794714186ceaf30f7b1097cc494e48d7652067f09e629d2ad21a"
+    },
+    "docs_reference": {
+      "/home/eliezer/Escritorio/dominuslabs-codex/docs-src/assets/docs.css": "e92d1c398327ed8e2d42fd81a9a3e137c64449bfcd119bf7e56f3894376699cd",
+      "/home/eliezer/Escritorio/dominuslabs-codex/docs-src/assets/extra.css": "b0216d8637c0f338058c85ebc4049502e1b5fc853ab596e6c5c55688e7fa314b"
+    }
+  },
+  "criteria_assessment": {
+    "C01": {
+      "status": "PASS",
+      "evidence_path": "app/main.py:150-205; app/ui_session.py; frontend/dist/index.html",
+      "verification_summary": "Frontend e backend compilados servidos pelo FastAPI. Assets possuem checagem de confinamento relacional contra path traversal; arquivos inexistentes retornam 404 estrito sem desviar para index.html SPA. Sessão HttpOnly SameSite=Strict assinada (dr_local_session) emitida para clientes de loopback sem expor credenciais no bundle ou requerer API_SECRET_KEY manual."
+    },
+    "C02": {
+      "status": "UNPROVEN",
+      "evidence_path": "docs/frontend/remediation/evidence/live-payloads.jsonl; docs/frontend/remediation/evidence/live-terminal-after-retry.json; docs/frontend/remediation/evidence/existing-user-writer-readonly-proof.json",
+      "verification_summary": "Comunicação real exercitada em http://127.0.0.1:3002/. O teste com 2 pontos reais gerou timeout 504 no provedor de busca durante retentativa (TIMEOUT_ERROR recuperável). O relatório histórico real dee9fa33-1205-4323-8715-ab388deb8747 (9352 caracteres, 24 tentativas) comprova a estrutura de writer sem re-execução paga, mas a prova visual completa do fluxo integrado novo depende da Rodada 5."
+    },
+    "C03": {
+      "status": "UNPROVEN",
+      "evidence_path": "docs/frontend/remediation/evidence/backend-sources-root-verified.json; frontend/features/step_definitions/steps.ts; .impeccable/remediation-20261026/qa-readiness-root-review.md",
+      "verification_summary": "422 testes de backend aprovados em 68.6s. Testes de frontend SSR e contabilidade (13 testes) aprovados. Todavia, a suíte Cucumber pós-aprovação (G04) contém lacunas de asserção ativas identificadas pela revisão de QA (revisão de hashes parciais, interceptação antes de dispatch, classes defasadas) atualmente sob correção."
+    },
+    "C04": {
+      "status": "UNPROVEN",
+      "evidence_path": "docs/frontend/remediation/evidence/live-payloads.jsonl; docs/frontend/remediation/evidence/backend-persona-gates-root-verified.json",
+      "verification_summary": "Payloads reais refletem n_pontos e personas selecionadas (Historiador e Cético no plano real). Os gates de backend rejeitam personas não selecionadas. Todavia, a execução completa da fixture com 2/2 personas ativas terminando com sucesso está pendente da finalização da Rodada 5."
+    },
+    "C05": {
+      "status": "PASS",
+      "evidence_path": "frontend/src/components/ResearchPreferences.tsx; frontend/src/components/Composer.tsx; frontend/src/services/history.ts; docs/frontend/remediation/critiques/round-1/combined.json",
+      "verification_summary": "Painel + expansível opera com cliques, suporte a teclado, Escape e preservação de limites (mínimo 1 persona, 1..N pontos). Preservação do snapshot de plano no histórico corrigida em App.tsx e history.ts."
+    },
+    "C06": {
+      "status": "UNPROVEN",
+      "evidence_path": "frontend/src/components/PlanView.tsx; frontend/src/styles/components.css; docs/frontend/remediation/critiques/round-1/combined.md",
+      "verification_summary": "Transições GSAP implementadas com limpeza no unmount e fallback acessível sob prefers-reduced-motion. Validação visual nativa de frames em execução da Rodada 5 pendente."
+    },
+    "C07": {
+      "status": "PASS",
+      "evidence_path": "frontend/src/styles/tokens.css; frontend/src/components/SourceBreakdown.css; /home/eliezer/Escritorio/dominuslabs-codex/docs-src/assets/docs.css",
+      "verification_summary": "Paleta baseada em Dominus Violet (#6D28D9 / #7C3AED), Indigo (#4F46E5) e Navy (#1E1B4B) sobre superfícies claras (#F9FAFB / #FFFFFF). Paleta da documentação original preservada intacta. Identificado P2 sobre contraste de texto explicativo em fundos não brancos."
+    },
+    "C08": {
+      "status": "PASS",
+      "evidence_path": "frontend/src/styles/tokens.css; frontend/src/components/DocsView.tsx; /home/eliezer/Escritorio/dominuslabs-codex/docs-src/assets/docs.css",
+      "verification_summary": "Fidelidade tipográfica e de espaçamentos comprovada com Outfit, Inter e JetBrains Mono auto-hospedados (fontsource compilado no bundle Vite). Topologia Comp C preservada com navegação superior, canvas central, barra lateral de metadados e compositor inferior ancorado."
+    },
+    "C09": {
+      "status": "UNPROVEN",
+      "evidence_path": "frontend/src/components/PlanView.tsx; frontend/src/App.tsx; frontend/src/components/ReportView.tsx",
+      "verification_summary": "Interações semânticas nas sugestões e compositor responsivo verificados. ReportView possui vinculação estrita de fontes por id e hash completo do artefato publicado. Todavia, restam 2 apontamentos de usabilidade e cópia honesta (alertdialog sem foco/Escape no PlanView e texto de confirmação de interrupção no histórico em App.tsx)."
+    },
+    "G01": {
+      "status": "PASS",
+      "evidence_path": "app/db/credentials_repository.py:25-48; app/services/credential_resolver.py; app/services/crypto_service.py; frontend/src/components/SettingsView.tsx",
+      "verification_summary": "Precedência normativa do Adendo 002 (Banco Cifrado > Ambiente) implementada no repositório e no resolver. Chave CREDENTIALS_MASTER_KEY obrigatoriamente restrita ao ambiente (bootstrap). SettingsView exibe aviso explicativo fidedigno da RN-10 revisada e foca automaticamente no primeiro campo inválido."
+    },
+    "G02": {
+      "status": "PASS",
+      "evidence_path": "app/api/v1/endpoints/plan.py; app/api/v1/endpoints/search.py; app/api/v1/endpoints/audit.py; app/api/v1/endpoints/writer.py; frontend/src/components/ExecutionView.tsx; docs/frontend/remediation/evidence/existing-user-writer-readonly-proof.json",
+      "verification_summary": "Fluxo síncrono do Checkpoint 1 sem SSE, sem falsas transmissões de pensamento. O plano apresenta botão único 'Iniciar pesquisa' no cabeçalho. ExecutionView exibe estágios estruturados, ciclo capturado e detalhes técnicos de falha."
+    },
+    "G03": {
+      "status": "UNPROVEN",
+      "evidence_path": "docs/frontend/remediation/audit-preflight-r1.json; docs/frontend/remediation/audit-preflight-r1.md",
+      "verification_summary": "Fase 1 de auditoria pré-voo em andamento. Não constitui aprovação definitiva de release nem certificação integral de fechamento. Reavaliação final ocorrerá após conclusão da Rodada 5 e da correção de testes QA."
+    },
+    "G04": {
+      "status": "pending_post_approval",
+      "evidence_path": "frontend/features/; frontend/features/step_definitions/steps.ts",
+      "verification_summary": "Gate de release agendado obrigatoriamente para execução pelo orquestrador após a aprovação formal da auditoria independente. Comando requerido: npm --prefix frontend run test:e2e (ou npx cucumber-js). Não executado nesta fase."
+    },
+    "G05": {
+      "status": "UNPROVEN",
+      "evidence_path": "docs/frontend/remediation/critiques/; .impeccable/remediation-20261026/requirements.json",
+      "verification_summary": "Rodadas 1 a 4 executadas e validadas (com ressalvas de limites de proveniência visual registradas no log histórico). A Rodada 5 com avaliação nativa A/B e evidência visual está em andamento."
+    },
+    "G06": {
+      "status": "PASS",
+      "evidence_path": "frontend/package.json; app/main.py:150-205; scripts/run_local.py",
+      "verification_summary": "Build único via Vite (npm run build). FastAPI serve aplicação unificada e estáticos com confinamento. Nenhuma chave externa manual exigida do usuário na interface."
+    },
+    "S01": {
+      "status": "PASS",
+      "evidence_path": "app/services/source_accounting_service.py; frontend/src/components/ReportView.tsx; frontend/src/components/SourceBreakdown.tsx; docs/frontend/remediation/source-audit-r2.json; docs/frontend/remediation/evidence/existing-user-sources-http-proof.json",
+      "verification_summary": "Modelo contábil tripartite (consultadas, utilizadas, não citadas) implementado no backend e frontend. GET /sources protegido executado sobre relatório real dee9fa33-1205-4323-8715-ab388deb8747 com 11 consultadas / 9 utilizadas / 2 não citadas, validação de hash coincidente e zero chamadas adicionais a modelos. ReportView rejeita vinculação de fontes de outros relatórios ou de artigos resumo-only."
+    }
+  },
+  "security_observations_verification": {
+    "scope": "Verificação das 5 falhas apontadas em preintegration-security-observations.json contra a implementação final de app/ui_session.py",
+    "findings_status": {
+      "different_port_origin": {
+        "status": "FIXED",
+        "evidence": "app/ui_session.py:88-117 (get_request_origin inclui porta explícita); canon_origin != expected_origin rejeita portas divergentes."
+      },
+      "missing_origin_referer_mutating": {
+        "status": "FIXED",
+        "evidence": "app/ui_session.py:270-274 (verify_same_origin_csrf exige expressamente Origin ou Referer em métodos mutantes POST/PUT/DELETE/PATCH; ausência resulta em False)."
+      },
+      "different_scheme_origin": {
+        "status": "FIXED",
+        "evidence": "app/ui_session.py:121-130 (_canonical_origin valida scheme e compara com scheme canônico esperado de get_request_origin)."
+      },
+      "untrusted_127_prefix_hostname": {
+        "status": "FIXED",
+        "evidence": "app/ui_session.py:63-86 (_is_local_host restringe hostnames a ALLOWED_LOCAL_HOSTNAMES ou parsing estrito de IP loopback via ipaddress.ip_address; rejeita hostnames com prefixo malicioso como 127.example.com)."
+      },
+      "malformed_unicode_cookie": {
+        "status": "FIXED",
+        "evidence": "app/ui_session.py:204-210 (verify_session_token realiza conversão protegida b64_payload.encode('ascii') e captura explicitamente UnicodeEncodeError retornando False sem propagar exceção)."
+      }
+    }
+  },
+  "findings": [
+    {
+      "id": "FINDING-P1-01",
+      "severity": "P1",
+      "title": "Lacunas de integridade de asserção na suíte de testes E2E/Cucumber",
+      "location": "frontend/features/step_definitions/steps.ts:1949, 1982-1987; frontend/features/support/world.ts:102-116",
+      "category": "Test Automation / Quality Assurance",
+      "impact": "Testes de aceitação validavam apenas o comprimento de strings (length > 50, length === 64) ou a presença de badges sem confrontar o conteúdo UTF-8 real do redator e seu hash SHA-256; seletor incorreto (.history-item-card vs .history-card); guarda de requisições live disparava em evento on('request') após despacho em vez de interceptar no context.route.",
+      "recommendation": "Concluir a revisão e aplicação do pacote de correção qa-readiness-root-review.md antes da execução final pós-aprovação."
+    },
+    {
+      "id": "FINDING-P1-02",
+      "severity": "P1",
+      "title": "Ausência de gestão de foco e tratamento de tecla Escape no alertdialog de descarte de plano",
+      "location": "frontend/src/components/PlanView.tsx:93-121",
+      "category": "Accessibility / Keyboard Navigation",
+      "impact": "O elemento inline com role='alertdialog' para confirmação de 'Descartar plano formulado?' não captura foco no momento da abertura, não responde à tecla Escape para cancelamento e não restaura o foco ao botão disparador ('Novo tema') após fechar.",
+      "recommendation": "Implementar listener de keydown para 'Escape', aplicar auto-foco no botão de cancelamento ou no container e devolver foco ao botão disparador quando o modal fechar."
+    },
+    {
+      "id": "FINDING-P1-03",
+      "severity": "P1",
+      "title": "Mensagem enganosa na caixa de diálogo de confirmação ao carregar histórico durante execução",
+      "location": "frontend/src/App.tsx:437",
+      "category": "Truthful State / UX Copy",
+      "impact": "A mensagem 'Existe uma pesquisa em andamento. Deseja interromper e abrir esta pesquisa?' afirma falsamente que a pesquisa em andamento será interrompida. Como o pipeline síncrono do backend FastAPI não suporta cancelamento via cliente HTTP, a operação de fundo continuará no servidor.",
+      "recommendation": "Alterar o texto para refletir a realidade operacional: 'Existe uma pesquisa em execução no servidor. Deseja alternar a visualização para esta pesquisa histórica? (Nota: a execução em segundo plano no servidor não será cancelada)'."
+    },
+    {
+      "id": "FINDING-P2-01",
+      "severity": "P2",
+      "title": "Razão de contraste marginal no texto explicativo de fontes sobre superfícies sutis",
+      "location": "frontend/src/components/SourceBreakdown.css:125-130",
+      "category": "Accessibility / Contrast",
+      "impact": "O estilo .source-explanation-note utiliza color: var(--color-text-muted, #6b7280) em font-size: 0.82rem (~13.1px). Em fundo branco (#FFFFFF) a razão é 4.76:1 (aprovada no limite WCAG AA 4.5:1), porém sobre fundos sutis (#F3F4F6) a razão cai para 4.32:1, falhando no critério de contraste mínimo.",
+      "recommendation": "Substituir por var(--color-text-secondary, #374151), que atinge contraste robusto de 8.8:1 sobre branco e 8.0:1 sobre fundos sutis."
+    },
+    {
+      "id": "FINDING-P2-02",
+      "severity": "P2",
+      "title": "Evidência visual da Rodada 5 pendente de conclusão",
+      "location": "docs/frontend/remediation/critiques/round-5/",
+      "category": "Visual Evidence Provenance",
+      "impact": "A homologação das capturas finais em resoluções 375px, 837px e 1440px com o modelo nativo Gemini 3.8 Flash High está em curso pela equipe de design, impedindo a emissão imediata da recomendação de release final.",
+      "recommendation": "Aguardar a gravação e congelamento dos artefatos da Rodada 5 antes da transição para a aprovação do release."
+    },
+    {
+      "id": "FINDING-P3-01",
+      "severity": "P3",
+      "title": "Estilos inline em subelementos de SourceBreakdown.tsx",
+      "location": "frontend/src/components/SourceBreakdown.tsx:88, 161, 269, 293",
+      "category": "Theming / CSS Craft",
+      "impact": "Estilos visuais de flex/cor declarados diretamente no JSX reduzem a manutenibilidade do design system.",
+      "recommendation": "Extrair declarações para classes dedicadas em SourceBreakdown.css."
+    },
+    {
+      "id": "FINDING-P3-02",
+      "severity": "P3",
+      "title": "Aviso de depreciação module.register() no runner de testes Node.js",
+      "location": "frontend/src/tests/sources-accounting.test.ts:23",
+      "category": "Tooling",
+      "impact": "Emissão de aviso informativo nos logs de execução do Node 22+. Nenhum impacto nos testes que passam integralmente.",
+      "recommendation": "Atualizar hook de registro quando suporte estável estiver disponível."
+    }
+  ],
+  "holistic_rationale": "A inspeção detalhada do código-fonte confirma que os alicerces arquiteturais, a segurança de sessão e mesma origem (CSRF/Host), a inversão normativa de precedência de credenciais (Adendo 002) e o modelo tripartite de contabilidade de fontes (S01) foram implementados com rigor técnico de alto padrão. O backend conta com 422 testes automatizados aprovados e a aplicação compilada é servida pelo FastAPI sem vazamento de segredos ou exigência de API_SECRET_KEY. Contudo, em conformidade com o mandato de arbitragem independente, a aprovação para Cucumber final (G04) não pode ser emitida nesta fase, pois a Rodada 5 de crítica visual está em andamento e foram identificados três achados de nível P1 (ausência de gestão de foco/Escape no alertdialog do PlanView, mensagem enganosa de cancelamento no histórico e lacunas ativas de asserção na suíte de testes de QA). A disposição preliminar correta e obrigatória é preliminary_pending_round5_and_QA.",
+  "unresolved_limitations": [
+    "A Rodada 5 com avaliação visual nativa em 375/837/1440 e checagem de contraste em tela ainda não foi concluída.",
+    "A suíte de testes Cucumber está sob correção pelo autor de QA para sanar os apontamentos do qa-readiness-root-review.md.",
+    "O gate G04 permanece classificado estritamente como pending_post_approval e não pode ser executado antes da aprovação da auditoria final."
+  ]
+}

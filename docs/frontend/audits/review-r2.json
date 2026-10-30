@@ -1,0 +1,18 @@
+{
+  "disposition": "ship",
+  "health_score": 20,
+  "health_max": 20,
+  "acceptance_passed": 16,
+  "acceptance_total": 16,
+  "material_fixes": [],
+  "auditor": {
+    "model": "ag/gemini-3.8-flash-high",
+    "reasoning": "high",
+    "session": "20261026_011052_5b44da"
+  },
+  "source": "docs/frontend/audits/review-r2.md",
+  "source_sha256": "4f981dba179c9a8f99079a3010b7e4989c73e3c61d6af5bec2a306cce87a636c",
+  "export_note": "Orchestrator transcription of the completed independent Hermes Markdown verdict. The CLI was interrupted after writing Markdown and before exporting JSON. This is not an additional audit.",
+  "formal_component_review": "pending: no machine receipt recorded",
+  "post_audit_validation": "R2 is a historical review. Subsequent responsive grid correction and fixture preparation are recorded in final test logs and the R3 follow-up when available."
+}

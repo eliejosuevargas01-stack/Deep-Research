@@ -1,0 +1,9 @@
+{
+  "target": "frontend/src/components/ExecutionView.tsx",
+  "command": "/home/eliezer/.claude/skills/impeccable/scripts/impeccable detect --json frontend/src/components/ExecutionView.tsx",
+  "exit_code": 0,
+  "findings_count": 0,
+  "findings": [],
+  "timestamp": "2026-10-26T22:20:01Z",
+  "notes": "Deterministic regex pattern matching reported zero primary findings on ExecutionView.tsx."
+}

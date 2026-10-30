@@ -6,10 +6,19 @@ com 100% de fontes canônicas e bloqueio estrito de pendências.
 Atende a DT-07 a DT-10, RN-04 a RN-08 e RF-01 a RF-10.
 """
 
+from datetime import datetime, timezone
+import json
+import uuid
+import httpx
 import pytest
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.models import ConteudoColetado
 from app.db.research_repository import ResearchRepository
 from tests.mocks.http_mock import MockNetwork, create_mock_transport
+from tests.unit.test_audit_acceptance import CANONICAL_PLANO, make_audit_12_vector, make_standard_coleta_metadata
+from tests.unit.test_reproduction_gate1_helpers import make_llm_json_response, make_llm_raw_response
+from tests.unit.test_writer_acceptance import make_writer_article_12_eval
 
 
 @pytest.mark.asyncio
@@ -203,21 +212,48 @@ async def test_writer_enforces_100_percent_canonical_sources_and_structure(
     webhook_client = WebhookClient(secret="webhook-secret", transport=transport)
     repo = ResearchRepository(session=db_session)
 
+    canonical_url = "https://unesdoc.unesco.org/ark:/48223/pf0000377897"
+    coleta_id = str(uuid.uuid4())
+    coleta_meta = make_standard_coleta_metadata(source_url=canonical_url)
+    coleta_meta["auditorias"] = [
+        {
+            "id_auditoria": str(uuid.uuid4()),
+            "coleta_id": coleta_id,
+            "rodada": 1,
+            "valido": True,
+            "aplicado": True,
+            "status": "aprovado",
+            "criterios": make_audit_12_vector(12),
+            "criterios_aprovados": 12,
+            "criterios_minimos": 11,
+            "pontuacao_percentual": 100.0,
+            "pontos_fracos": None,
+            "tarefas": [],
+            "criado_em": datetime.now(timezone.utc).isoformat(),
+        }
+    ]
     pesquisa = await repo.create_research(
         tema="Tema Redação Final",
         pontos_textos=["Ponto Auditado e Aprovado"],
+        plano_estruturado=dict(CANONICAL_PLANO),
     )
     pontos = await repo.list_points(pesquisa.id_pesquisa)
-    await repo.update_point_status(ponto_id=pontos[0].ponto_id, status="aprovado")
     await repo.save_collected_content(
         id_pesquisa=pesquisa.id_pesquisa,
         ponto_id=pontos[0].ponto_id,
         tema=pesquisa.tema,
         ponto=pontos[0].ponto,
         conteudo_coletado="Texto completo do ponto 1.",
-        urls_lidas=["https://unesdoc.unesco.org/doc"],
-        urls_fonte=["https://unesdoc.unesco.org/doc"],
+        urls_lidas=[canonical_url],
+        urls_fonte=[canonical_url],
+        metadados_coleta=coleta_meta,
     )
+    await repo.session.execute(
+        update(ConteudoColetado)
+        .where(ConteudoColetado.ponto_id == pontos[0].ponto_id)
+        .values(id=coleta_id)
+    )
+    await repo.update_point_status(ponto_id=pontos[0].ponto_id, status="aprovado")
 
     writer = Writer(
         research_repo=repo,
@@ -225,6 +261,34 @@ async def test_writer_enforces_100_percent_canonical_sources_and_structure(
         webhook_client=webhook_client,
         callback_url="https://callback.test/hook",
     )
+
+    dossie_unesco = f"""# Dossiê Analítico: IA e Educação Básica
+
+## 1. Sumário Executivo
+Este dossiê consolida os achados das quatro personas investigativas sobre a integração de IA generativa na educação básica. O relatório canônico [Relatório UNESCO]({canonical_url}) atesta a urgência de capacitação docente e a persistência de assimetrias de conectividade documentadas no corpo lido.
+
+## 2. Desenvolvimento dos Eixos Temáticos
+A investigação do eixo apurou, pelo corpo real da fonte primária [Relatório UNESCO]({canonical_url}), que dinâmicas escolares são transformadas por modelos generativos e que as diretrizes formais ainda não alcançam a maioria das escolas monitoradas no conjunto entregue.
+
+## 3. Ressalvas e Limitações Metodológicas
+A auditoria formal qualifica os achados: os dados de capacitação docente provêm de relato secundário consolidado no relatório lido, sem confirmação primária de monitoramento longitudinal; nenhuma versão, comando ou métrica fora do conjunto lido foi introduzida.
+
+## 4. Referências e Fontes Canônicas
+1. [Relatório UNESCO]({canonical_url}) - Relatório analítico sobre integração pedagógica de modelos generativos.
+"""
+
+    def writer_llm_handler(req: httpx.Request) -> httpx.Response:
+        body = json.loads(req.content.decode("utf-8"))
+        msgs = body.get("messages", [])
+        is_eval = any(
+            m.get("role") == "system" and "auditor_redacao" in str(m.get("content", ""))
+            for m in msgs
+        ) or body.get("response_format", {}).get("type") == "json_object"
+        if is_eval:
+            return make_llm_json_response(make_writer_article_12_eval(12))
+        return make_llm_raw_response(content=dossie_unesco, finish_reason="stop")
+
+    mock_net.custom_handlers["chat/completions"] = writer_llm_handler
 
     resultado = await writer.execute_writer(id_pesquisa=pesquisa.id_pesquisa)
 
@@ -256,6 +320,7 @@ async def test_writer_blocks_when_points_pending(db_session: AsyncSession) -> No
     pesquisa = await repo.create_research(
         tema="Pesquisa com Ponto Pendente",
         pontos_textos=["Ponto que não foi auditado"],
+        plano_estruturado=dict(CANONICAL_PLANO),
     )
 
     writer = Writer(
@@ -299,6 +364,7 @@ async def test_incremental_rounds_and_auditor_rejection_cycle(db_session: AsyncS
         conteudo_coletado="### Perspectiva Historiador\n\nPrimeira análise histórica.",
         urls_lidas=["https://exemplo.com/1"],
         urls_fonte=["https://exemplo.com/1"],
+        metadados_coleta=make_standard_coleta_metadata(source_url="https://exemplo.com/1"),
     )
     assert c1.rodada == 1
 
@@ -311,6 +377,7 @@ async def test_incremental_rounds_and_auditor_rejection_cycle(db_session: AsyncS
         conteudo_coletado="### Perspectiva Historiador\n\nSegunda análise refinada com novos dados.",
         urls_lidas=["https://exemplo.com/2"],
         urls_fonte=["https://exemplo.com/2"],
+        metadados_coleta=make_standard_coleta_metadata(source_url="https://exemplo.com/2"),
     )
     assert c2.rodada == 2
 

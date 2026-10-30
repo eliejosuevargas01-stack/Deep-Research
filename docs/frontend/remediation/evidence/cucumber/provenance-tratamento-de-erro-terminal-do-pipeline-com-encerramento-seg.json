@@ -1,0 +1,13 @@
+{
+  "scenarioName": "Tratamento de erro terminal do pipeline com encerramento seguro da conexão SSE",
+  "baseUrl": "http://localhost:3001",
+  "timestamp": "2026-10-29T18:26:37.666Z",
+  "mode": "test",
+  "loadedScripts": [
+    "http://localhost:3001/@vite/client",
+    "http://localhost:3001/src/main.tsx?t=1793297520105"
+  ],
+  "loadedStyles": [],
+  "screenshots": [],
+  "liveViolations": 0
+}

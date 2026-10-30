@@ -3,18 +3,30 @@
 Atende a T036, RF-08, RF-09, RF-10 e RN-07.
 """
 
+import asyncio
+import json
+import logging
 import os
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+logger = logging.getLogger(__name__)
+
 from app.core.writer import Writer
 from app.db.research_repository import ResearchRepository
 from app.db.session import get_db
 from app.schemas.writer import WriterRequest, WriterResponse
-from app.services.credential_resolver import resolve_key, resolve_personas
+from app.services.credential_resolver import (
+    resolve_callback_webhook_url,
+    resolve_key,
+    resolve_personas,
+    resolve_webhook_hmac_secret,
+)
+from app.services.source_accounting_service import SourceAccountingService
 from app.services.webhook_client import WebhookClient
+from app.tools.errors import LLMCallError
 from app.tools.llm_client import LLMClient
 
 router = APIRouter()
@@ -48,6 +60,8 @@ async def write_dossier(
     """Consolida pontos auditados, redige o dossiê final e despacha notificação assinada via webhook."""
     transport = _get_transport()
     repo = ResearchRepository(session=db)
+    llm_client: Optional[LLMClient] = None
+    webhook_client: Optional[WebhookClient] = None
     try:
         llm_key = _clean_key(await resolve_key(db, "OPENAI_API_KEY", transport)) or (
             "openai-mock-key" if transport else None
@@ -63,7 +77,7 @@ async def write_dossier(
             model_strong=model_strong,
             transport=transport,
         )
-        webhook_secret = _clean_key(await resolve_key(db, "WEBHOOK_HMAC_SECRET", transport)) or (
+        webhook_secret = _clean_key(await resolve_webhook_hmac_secret(db)) or (
             "test-secret" if transport else None
         )
         webhook_client = (
@@ -71,13 +85,44 @@ async def write_dossier(
             if webhook_secret
             else None
         )
+        callback_url = await resolve_callback_webhook_url(db)
         writer = Writer(
             research_repo=repo,
             llm_client=llm_client,
             webhook_client=webhook_client,
-            personas=None if transport else await resolve_personas(db),
+            callback_url=callback_url,
+            personas=None,
         )
         resumo = await writer.execute_writer(id_pesquisa=payload.id_pesquisa)
+        # Contabilidade pública de fontes aditiva (consultadas, utilizadas, não utilizadas)
+        try:
+            source_service = SourceAccountingService(research_repo=repo)
+            fontes_summary = await source_service.get_source_summary(
+                id_pesquisa=payload.id_pesquisa,
+                dossier_override=resumo.get("dossier_final"),
+            )
+            if fontes_summary is not None:
+                resumo["fontes"] = fontes_summary
+        except Exception as src_err:
+            logger.warning(f"Falha ao computar resumo de fontes para {payload.id_pesquisa}: {src_err}")
+        # W07/W12 (r3): timeout TOTAL do core chega como TimeoutError TIPADO capturado
+        # abaixo (HTTP 504); não há mais envelope diagnóstico nominal com 200.
+        return WriterResponse(**resumo)
+    except (TimeoutError, asyncio.TimeoutError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=f"TIMEOUT_ERROR: {str(exc)}",
+        )
+    except LLMCallError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"LLM_PROVIDER_ERROR: {str(exc)}",
+        )
+    except (json.JSONDecodeError, httpx.HTTPError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"EXTERNAL_PROVIDER_ERROR: {str(exc)}",
+        )
     except ValueError as exc:
         msg = str(exc)
         if "RESEARCH_NOT_FOUND" in msg or "não localizada" in msg:
@@ -85,14 +130,40 @@ async def write_dossier(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=msg,
             )
-        if "PENDING_AUDIT_POINTS" in msg or "pendente" in msg:
+        if any(term in msg for term in ("CONCURRENCY_CONFLICT", "CONCURRENT_EXECUTION", "outro processo", "lease", "bloqueio")):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
+                detail=msg,
+            )
+        if any(term in msg for term in ("LLM_FAILURE", "LLM_ERROR")):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=msg,
+            )
+        if any(term in msg for term in ("TIMEOUT", "timed out")):
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
                 detail=msg,
             )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=msg,
         )
-
-    return WriterResponse(**resumo)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"WRITER_PROCESSING_ERROR: {str(exc)}",
+        )
+    finally:
+        # W12 (r4): fecha TAMBÉM o WebhookClient criado, em qualquer caminho (erro ou
+        # sucesso), sem impedir o fechamento do LLMClient — falha no aclose do webhook
+        # é best-effort e nunca pula o fechamento do outro cliente.
+        if webhook_client is not None:
+            try:
+                await webhook_client.aclose()
+            except Exception:
+                pass
+        if llm_client is not None:
+            await llm_client.aclose()

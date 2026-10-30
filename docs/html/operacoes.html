@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operações — Deep Research</title>
+<meta name="description" content="Instalação, configuração, banco, testes, diagnóstico e cuidados de segurança operacional.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#7c3aed">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/docs.css">
+<script>
+(function () {
+  try {
+    if (localStorage.getItem("dr-docs-theme") === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  } catch (e) {}
+})();
+</script>
+</head>
+<body id="top">
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<aside class="docs-sidebar" id="docs-sidebar" aria-label="Navegação da documentação"><a class="sidebar-brand" href="index.html"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg></span><span class="brand-text"><span class="brand-name">Deep Research</span><span class="brand-sub">Documentação técnica</span></span></a><span class="sidebar-mode"><span class="mode-dot"></span> v0.1.0 · português</span><nav class="sidebar-nav"><p class="sidebar-group">Documentação</p><a class="sidebar-item" href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg><span>Visão geral</span></a><a class="sidebar-item" href="arquitetura.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"></path><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"></path><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"></path></svg><span>Arquitetura</span></a><a class="sidebar-item" href="api.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg><span>API</span></a><a class="sidebar-item is-active" href="operacoes.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"></line><line x1="10" x2="3" y1="4" y2="4"></line><line x1="21" x2="12" y1="12" y2="12"></line><line x1="8" x2="3" y1="12" y2="12"></line><line x1="21" x2="16" y1="20" y2="20"></line><line x1="12" x2="3" y1="20" y2="20"></line><line x1="14" x2="14" y1="2" y2="6"></line><line x1="8" x2="8" y1="10" y2="14"></line><line x1="16" x2="16" y1="18" y2="22"></line></svg><span>Operações</span></a><p class="sidebar-group">Projeto</p><a class="sidebar-item" href="../../PRODUCT.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg><span>Produto</span><span class="item-badge" aria-hidden="true">MD</span></a><a class="sidebar-item" href="../../DESIGN.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.68 0-.44-.16-.84-.44-1.15-.27-.3-.43-.7-.43-1.14a1.65 1.65 0 0 1 1.65-1.65H16c3.31 0 6-2.69 6-6 0-4.97-4.48-9-10-9Z"></path></svg><span>Design</span><span class="item-badge" aria-hidden="true">MD</span></a><a class="sidebar-item" href="../../_reversa_sdd/prd.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M9 12h6"></path><path d="M9 16h6"></path></svg><span>PRD</span><span class="item-badge" aria-hidden="true">MD</span></a><p class="sidebar-group">Referência</p><a class="sidebar-item" href="../../docs/security_audit_findings.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg><span>Auditoria</span><span class="item-badge" aria-hidden="true">MD</span></a><a class="sidebar-item" href="../frontend/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg><span>Frontend</span></a></nav><div class="sidebar-footer"><div class="sidebar-version"><span>Versão do projeto</span><code>0.1.0</code></div><div class="sidebar-version"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg> HTML offline</span><code>sem build</code></div></div></aside>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<div class="docs-main">
+<header class="docs-topbar">
+  <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Abrir navegação" aria-controls="docs-sidebar" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg>
+  </button>
+  <nav class="breadcrumb" aria-label="Trilha de navegação">
+    <a href="index.html" class="crumb-root">Documentação</a>
+    <span class="crumb-separator" aria-hidden="true">/</span>
+    <strong>Operações</strong>
+  </nav>
+  <div class="topbar-actions">
+    <button class="search-trigger" id="search-trigger" type="button" aria-label="Buscar na documentação">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <span class="search-label">Buscar na documentação</span>
+      <kbd id="search-kbd">Ctrl K</kbd>
+    </button>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Alternar tema" title="Alternar tema">
+      <span class="icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg></span>
+      <span class="icon-sun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg></span>
+    </button>
+  </div>
+  <div class="scroll-progress" aria-hidden="true"><span id="scroll-progress-bar"></span></div>
+</header>
+
+<div class="docs-layout">
+<main class="docs-content" id="main-content">
+  <header class="page-header">
+    <div class="page-eyebrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path></svg> Documentação técnica</div>
+    <h1 class="page-title">Operações — Deep Research</h1>
+    <p class="page-lead">Instalação, configuração, banco, testes, diagnóstico e cuidados de segurança operacional.</p>
+    <div class="page-meta">
+      <span class="chip chip-accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle></svg> v0.1.0</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Atualizado em 28/10/2026</span>
+      <a class="chip chip-link" href="../OPERATIONS.md"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg> Ver fonte Markdown</a>
+    </div>
+  </header>
+  
+  <details class="mobile-toc"><summary>Nesta página</summary><nav><a class="toc-link" href="#1-requisitos">1. Requisitos</a><a class="toc-link" href="#2-variáveis-de-ambiente">2. Variáveis de ambiente</a><a class="toc-link" href="#3-modos-de-execução">3. Modos de execução</a><a class="toc-link" href="#4-banco-de-dados">4. Banco de dados</a><a class="toc-link" href="#5-verificação-de-saúde">5. Verificação de saúde</a><a class="toc-link" href="#6-testes">6. Testes</a><a class="toc-link" href="#7-diagnóstico">7. Diagnóstico</a><a class="toc-link" href="#8-observabilidade">8. Observabilidade</a><a class="toc-link" href="#9-segurança-operacional">9. Segurança operacional</a><a class="toc-link" href="#10-manutenção">10. Manutenção</a></nav></details>
+  <article class="markdown-body">
+<p>Guia de instalação, configuração, execução, testes e diagnóstico. Para o desenho técnico, consulte <a href="arquitetura.html"><code>ARCHITECTURE.md</code></a>; para os contratos HTTP, <a href="api.html"><code>API.md</code></a>.</p>
+<hr />
+<h2 id="1-requisitos">1. Requisitos</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Item</th>
+<th style="text-align: left;">Versão / observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Python</td>
+<td style="text-align: left;">≥ 3.11 (<code>pyproject.toml</code>); ambiente de desenvolvimento atual em 3.14.7</td>
+</tr>
+<tr>
+<td style="text-align: left;">Node.js / npm</td>
+<td style="text-align: left;">Node 20+ (build do frontend; não é necessário em produção)</td>
+</tr>
+<tr>
+<td style="text-align: left;">SQLite</td>
+<td style="text-align: left;">Embutido no Python via <code>aiosqlite</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Rede</td>
+<td style="text-align: left;">Acesso HTTPS a <code>s.jina.ai</code>, <code>r.jina.ai</code> e ao provedor LLM</td>
+</tr>
+<tr>
+<td style="text-align: left;">Docker</td>
+<td style="text-align: left;">Opcional; compose usa <code>network_mode: host</code> (Linux)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="instalação">Instalação</h3>
+<pre><code class="language-bash">cd Deep-Research
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -e &quot;.[dev]&quot;
+cp .env.example .env
+</code></pre>
+<p>O <code>uv.lock</code> existe, mas os comandos documentados usam <code>pip</code>/<code>venv</code>. Se preferir <code>uv</code>:</p>
+<pre><code class="language-bash">uv sync
+</code></pre>
+<hr />
+<h2 id="2-variáveis-de-ambiente">2. Variáveis de ambiente</h2>
+<h3 id="21-obrigatórias-na-prática">2.1 Obrigatórias na prática</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Variável</th>
+<th style="text-align: left;">Exemplo</th>
+<th style="text-align: left;">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>DATABASE_URL</code></td>
+<td style="text-align: left;"><code>sqlite+aiosqlite:///./data/deep_research.db</code></td>
+<td style="text-align: left;">Sem default no código; erro explícito se ausente</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CREDENTIALS_MASTER_KEY</code></td>
+<td style="text-align: left;">chave Fernet</td>
+<td style="text-align: left;">Somente via ambiente; decifra a tabela <code>credenciais</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>OPENAI_API_KEY</code></td>
+<td style="text-align: left;"><code>sk-...</code></td>
+<td style="text-align: left;">Pode vir do banco cifrado</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>JINA_API_KEY</code></td>
+<td style="text-align: left;"><code>jina_...</code></td>
+<td style="text-align: left;">Pode vir do banco cifrado</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>N_PONTOS</code></td>
+<td style="text-align: left;"><code>4</code></td>
+<td style="text-align: left;">Sem default no código; configurável pela interface</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PERSONAS_CONFIG</code></td>
+<td style="text-align: left;"><code>planejador,historiador,visionario,cetico,futurista,auditor,redator final</code></td>
+<td style="text-align: left;">7 personas; a última contém espaço</td>
+</tr>
+</tbody>
+</table></div>
+<p>Gere a chave mestra com:</p>
+<pre><code class="language-bash">python3 -c &quot;from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())&quot;
+</code></pre>
+<blockquote>
+<p>Guarde a <code>CREDENTIALS_MASTER_KEY</code> fora do repositório. Sem ela, os valores da tabela <code>credenciais</code> não podem ser decifrados. Não há rotação automática de chave.</p>
+</blockquote>
+<h3 id="22-opcionais-e-de-ajuste">2.2 Opcionais e de ajuste</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Variável</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">Efeito</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>LLM_BASE_URL</code></td>
+<td style="text-align: left;"><code>https://api.openai.com/v1</code></td>
+<td style="text-align: left;">Base compatível com OpenAI; a rota usada é <code>/chat/completions</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>LLM_MODEL_LIGHT</code></td>
+<td style="text-align: left;"><code>gpt-4o-mini</code></td>
+<td style="text-align: left;">Coleta com personas</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>LLM_MODEL_STRONG</code></td>
+<td style="text-align: left;"><code>gpt-4o</code></td>
+<td style="text-align: left;">Plano, auditoria, redação e avaliação do artigo</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>LLM_TIMEOUT</code></td>
+<td style="text-align: left;"><code>1800</code> (s)</td>
+<td style="text-align: left;">Timeout HTTP do cliente LLM</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>LLM_REASONING_EFFORT</code></td>
+<td style="text-align: left;"><code>high</code></td>
+<td style="text-align: left;">Enviado quando o provedor suporta reasoning</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>JINA_BASE_URL</code></td>
+<td style="text-align: left;"><code>https://s.jina.ai</code></td>
+<td style="text-align: left;">Base de descoberta; o Reader usa <code>r.jina.ai</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>JINA_SEARCH_BASE_URL</code></td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">Override explícito da descoberta</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>JINA_READER_BASE_URL</code></td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">Override explícito da leitura</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>JINA_HTTP_TIMEOUT_SECONDS</code></td>
+<td style="text-align: left;"><code>45</code></td>
+<td style="text-align: left;">Timeout por requisição Jina</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>SEARCH_POINT_TIMEOUT_SECONDS</code></td>
+<td style="text-align: left;"><code>480</code></td>
+<td style="text-align: left;">Deadline por ponto na busca</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>SEARCH_READER_TIMEOUT_SECONDS</code></td>
+<td style="text-align: left;"><code>45</code></td>
+<td style="text-align: left;">Deadline por leitura de URL</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>SEARCH_MAX_URLS_PER_TURN</code></td>
+<td style="text-align: left;"><code>4</code></td>
+<td style="text-align: left;">URLs lidas por turno da persona</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>AUDIT_POINT_TIMEOUT_SECONDS</code></td>
+<td style="text-align: left;"><code>600</code></td>
+<td style="text-align: left;">Deadline da decisão por ponto</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>AUDIT_EVIDENCE_PASS_TIMEOUT_SECONDS</code></td>
+<td style="text-align: left;"><code>300</code></td>
+<td style="text-align: left;">Deadline por passe de evidência</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>AUDIT_POINT_LEASE_SECONDS</code></td>
+<td style="text-align: left;"><code>1800</code></td>
+<td style="text-align: left;">Validade da reserva do ponto</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>AUDIT_EVIDENCE_BUDGET_CHARS</code></td>
+<td style="text-align: left;"><code>320000</code></td>
+<td style="text-align: left;">Evidência por passe</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>AUDIT_JSON_BUDGET_CHARS</code></td>
+<td style="text-align: left;"><code>1200000</code></td>
+<td style="text-align: left;">Teto do JSON de decisão</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RESEARCH_REFERENCE_DATE</code></td>
+<td style="text-align: left;">calculado</td>
+<td style="text-align: left;">Fixa a data de referência (<code>YYYY-MM-DD</code>) para testes</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>RESEARCH_REFERENCE_TIMEZONE</code></td>
+<td style="text-align: left;"><code>America/Sao_Paulo</code></td>
+<td style="text-align: left;">Fuso da data de referência</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CALLBACK_WEBHOOK_URL</code></td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">URL padrão de callback</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>WEBHOOK_HMAC_SECRET</code></td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">Sem ele, o <code>Writer</code> não cria cliente de webhook</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>API_SECRET_KEY</code></td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">Ativa autenticação por chave; sem ela, API aberta</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>HOST</code> / <code>PORT</code></td>
+<td style="text-align: left;"><code>127.0.0.1</code> / <code>8000</code></td>
+<td style="text-align: left;">Usadas pelo comando do Dockerfile</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>BACKEND_PORT</code></td>
+<td style="text-align: left;"><code>8010</code></td>
+<td style="text-align: left;">Alvo do proxy do Vite</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>BASE_URL</code></td>
+<td style="text-align: left;"><code>http://localhost:8011</code></td>
+<td style="text-align: left;">Base dos testes Cucumber</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="23-precedência">2.3 Precedência</h3>
+<ol>
+<li>Banco cifrado (<code>credenciais</code>) — prioridade.</li>
+<li>Variáveis de ambiente / <code>.env</code> — fallback.</li>
+<li>Erro explícito — sem fallback hardcoded.</li>
+</ol>
+<p>Exceções: <code>CREDENTIALS_MASTER_KEY</code> só existe no ambiente; <code>API_SECRET_KEY</code> é lida primeiro do ambiente e depois do banco.</p>
+<hr />
+<h2 id="3-modos-de-execução">3. Modos de execução</h2>
+<h3 id="31-servidor-integrado-recomendado">3.1 Servidor integrado (recomendado)</h3>
+<pre><code class="language-bash">python scripts/run_app.py --port 8010
+</code></pre>
+<ul>
+<li>compila o frontend automaticamente se <code>frontend/dist/index.html</code> não existir;</li>
+<li><code>--build</code> força nova compilação;</li>
+<li><code>--reload</code> habilita auto-reload;</li>
+<li>bind padrão <code>127.0.0.1</code>;</li>
+<li>serve SPA, assets, <code>/health</code> e <code>/api/v1/*</code> na mesma origem.</li>
+</ul>
+<h3 id="32-desenvolvimento-separado">3.2 Desenvolvimento separado</h3>
+<pre><code class="language-bash"># API
+uvicorn app.main:app --host 127.0.0.1 --port 8010 --reload
+
+# Frontend
+cd frontend
+npm ci
+npm run dev        # http://127.0.0.1:3000
+</code></pre>
+<p>O Vite faz proxy de <code>/app</code>, <code>/api</code> e <code>/health</code> para <code>http://127.0.0.1:8010</code> com <code>changeOrigin: false</code>, preservando o <code>Host</code> e a validação de mesma origem.</p>
+<h3 id="33-docker-compose">3.3 Docker Compose</h3>
+<pre><code class="language-bash">docker compose up --build
+</code></pre>
+<ul>
+<li>container: <code>deep-research</code>;</li>
+<li>porta: <code>8085</code> (<code>uvicorn app.main:app --host 127.0.0.1 --port 8085</code>);</li>
+<li><code>network_mode: host</code> — necessário para o cliente aparecer como loopback e receber sessão local;</li>
+<li>volume: <code>./data:/app/data</code>;</li>
+<li>banco: <code>/app/data/deep_research.db</code>;</li>
+<li><code>restart: unless-stopped</code>.</li>
+</ul>
+<p>Em macOS/Windows, <code>network_mode: host</code> não tem o mesmo comportamento; use <code>scripts/run_app.py</code> no host.</p>
+<p>Build manual da imagem:</p>
+<pre><code class="language-bash">docker build -t deep-research .
+docker run --rm --network host --env-file .env -v &quot;$PWD/data:/app/data&quot; deep-research
+</code></pre>
+<h3 id="34-portas-de-referência">3.4 Portas de referência</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: center;">Porta</th>
+<th style="text-align: left;">Uso</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><code>3000</code></td>
+<td style="text-align: left;">Vite dev/preview</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>8000</code></td>
+<td style="text-align: left;"><code>run_app.py</code> e Dockerfile (default)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>8010</code></td>
+<td style="text-align: left;">API de desenvolvimento e alvo do proxy Vite</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>8085</code></td>
+<td style="text-align: left;">docker compose</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>8111</code></td>
+<td style="text-align: left;"><code>run_test.sh</code> e testes Cucumber</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="4-banco-de-dados">4. Banco de dados</h2>
+<h3 id="41-arquivo-e-pragmas">4.1 Arquivo e pragmas</h3>
+<ul>
+<li>Default do exemplo: <code>./data/deep_research.db</code>.</li>
+<li>No boot, <code>init_db()</code> cria tabelas, aplica migrações aditivas idempotentes e valida os pragmas.</li>
+<li>Pragmas aplicados em cada conexão: <code>journal_mode=WAL</code>, <code>synchronous=NORMAL</code>, <code>foreign_keys=ON</code>, <code>busy_timeout=30000</code>.</li>
+<li>Arquivos auxiliares <code>-wal</code> e <code>-shm</code> aparecem ao lado do banco; não os remova com a aplicação em execução.</li>
+</ul>
+<h3 id="42-backup">4.2 Backup</h3>
+<p>Com a aplicação parada (ou usando o backup online do SQLite):</p>
+<pre><code class="language-bash">sqlite3 data/deep_research.db &quot;.backup 'backup-deep-research-$(date +%F).db'&quot;
+</code></pre>
+<p>Preserve também a <code>CREDENTIALS_MASTER_KEY</code>: o backup do banco sem a chave não permite decifrar credenciais.</p>
+<h3 id="43-inspeção-rápida">4.3 Inspeção rápida</h3>
+<pre><code class="language-bash">sqlite3 data/deep_research.db \
+  &quot;select id_pesquisa, status_pipeline, substr(tema,1,60) from pesquisa order by criado_em desc limit 10;&quot;
+
+sqlite3 data/deep_research.db \
+  &quot;select etapa, persona, model_used, latency_seconds, criado_em from generation_attempts order by criado_em desc limit 20;&quot;
+</code></pre>
+<h3 id="44-limpeza">4.4 Limpeza</h3>
+<p>Não existem endpoints de deleção de pesquisas ou credenciais. Se for indispensável remover dados, faça backup antes e opere via SQL manual, respeitando as FKs em cascata (<code>pontos</code> e <code>conteudo_coletado</code> acompanham a <code>pesquisa</code>).</p>
+<hr />
+<h2 id="5-verificação-de-saúde">5. Verificação de saúde</h2>
+<pre><code class="language-bash">curl -s http://127.0.0.1:8010/health
+# {&quot;status&quot;:&quot;healthy&quot;}
+</code></pre>
+<pre><code class="language-bash">curl -s http://127.0.0.1:8010/api/v1/pipeline/&lt;id&gt;/status \
+  -H &quot;X-API-Key: $API_SECRET_KEY&quot;
+</code></pre>
+<p>Checklist pós-deploy:</p>
+<ol>
+<li><code>/health</code> responde <code>200</code>.</li>
+<li><code>/</code> entrega o <code>index.html</code>.</li>
+<li><code>/docs</code> abre o Swagger.</li>
+<li><code>GET /app/session</code> retorna <code>authenticated: true</code> em acesso loopback.</li>
+<li><code>POST /api/v1/plan</code> com tema curto retorna <code>201</code> e pontos persistidos.</li>
+<li><code>GET /api/v1/pipeline/&lt;id&gt;/stream</code> emite <code>pipeline.status</code> e keep-alives.</li>
+</ol>
+<hr />
+<h2 id="6-testes">6. Testes</h2>
+<pre><code class="language-bash"># Backend: 509 testes coletados
+.venv/bin/python -m pytest
+
+# Falha rápida e verbosa
+.venv/bin/python -m pytest -x -q
+
+# Apenas unitários
+.venv/bin/python -m pytest tests/unit -q
+
+# Apenas integração
+.venv/bin/python -m pytest tests/integration -q
+
+# Frontend: typecheck + build
+cd frontend &amp;&amp; npm run build
+
+# E2E Cucumber/Playwright
+cd frontend &amp;&amp; npm run test:e2e
+</code></pre>
+<p>Observações:</p>
+<ul>
+<li>Os testes de integração usam banco isolado e mock transport; não exigem provedores reais.</li>
+<li>Os testes E2E esperam a aplicação em <code>BASE_URL</code> (default <code>http://localhost:8011</code>).</li>
+<li><code>run_test.sh</code> sobe a aplicação na <code>8111</code> com <code>.env.test</code>.</li>
+<li>Em ambiente de teste, <code>app/config.py</code> ignora o <code>.env</code> e <code>app/main.py</code> injeta defaults apenas para <code>tests/integration/</code>.</li>
+</ul>
+<hr />
+<h2 id="7-diagnóstico">7. Diagnóstico</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: left;">Sintoma</th>
+<th style="text-align: left;">Causa provável</th>
+<th style="text-align: left;">Ação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>503</code> "Frontend bundle não compilado ou ausente"</td>
+<td style="text-align: left;"><code>frontend/dist/index.html</code> não existe</td>
+<td style="text-align: left;"><code>cd frontend &amp;&amp; npm ci &amp;&amp; npm run build</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>403</code> em <code>/app/session</code></td>
+<td style="text-align: left;">Host não local, <code>Origin</code>/<code>Referer</code> divergente ou acesso por IP de LAN</td>
+<td style="text-align: left;">Acesse <code>http://127.0.0.1:...</code> ou <code>http://localhost:...</code>; atrás de proxy, preserve Host/Origin</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>401</code> "Chave de API ausente ou inválida"</td>
+<td style="text-align: left;"><code>API_SECRET_KEY</code> configurada e requisição sem chave</td>
+<td style="text-align: left;">Envie <code>X-API-Key</code>/<code>Bearer</code> ou use a sessão do navegador</td>
+</tr>
+<tr>
+<td style="text-align: left;">API responde sem autenticação</td>
+<td style="text-align: left;"><code>API_SECRET_KEY</code> não configurada (modo aberto)</td>
+<td style="text-align: left;">Defina a chave em produção e reinicie</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>500 CONFIG_ERROR: N_PONTOS...</code></td>
+<td style="text-align: left;"><code>N_PONTOS</code> ausente no banco e no ambiente</td>
+<td style="text-align: left;">Defina no <code>.env</code> ou no painel de configurações</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>500 CONFIG_ERROR: ...</code></td>
+<td style="text-align: left;"><code>CREDENTIALS_MASTER_KEY</code>/<code>DATABASE_URL</code> ausente</td>
+<td style="text-align: left;">Preencha o <code>.env</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>500 CONFIG_ERROR: OPENAI_API_KEY...</code> (ou <code>400</code> em search/audit/writer)</td>
+<td style="text-align: left;">Chave do provedor não cadastrada no banco nem no ambiente</td>
+<td style="text-align: left;">Cadastre em <code>/api/v1/admin/credentials</code> ou no <code>.env</code> e reinicie</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>400</code> em <code>/admin/credentials</code></td>
+<td style="text-align: left;"><code>chave</code>/<code>valor</code> vazios ou só espaços</td>
+<td style="text-align: left;">Preencha os campos obrigatórios</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>502 LLM_PROVIDER_ERROR</code> / <code>AUDIT_LLM_PROVIDER_ERROR</code></td>
+<td style="text-align: left;">Provedor recusou, filtro de conteúdo ou JSON inválido</td>
+<td style="text-align: left;">Verifique modelo, prompt e limites; reduza fontes por ponto</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>504 TIMEOUT_ERROR</code> na busca</td>
+<td style="text-align: left;">Ponto excedeu <code>SEARCH_POINT_TIMEOUT_SECONDS</code></td>
+<td style="text-align: left;">Repita o ponto; aumente o timeout se a rede for lenta</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>504 AUDIT_TIMEOUT</code></td>
+<td style="text-align: left;">Decisão excedeu 600 s</td>
+<td style="text-align: left;">Repita a auditoria; a evidência foi preservada</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>504</code> na redação</td>
+<td style="text-align: left;">Deadline de 600 s</td>
+<td style="text-align: left;">Reduza o volume de evidência por ponto</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>409</code> conflito/lease</td>
+<td style="text-align: left;">Outro processo possui a reserva</td>
+<td style="text-align: left;">Aguarde a expiração do lease (<code>AUDIT_POINT_LEASE_SECONDS</code>) e repita</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>200</code> com <code>status: "incompleto"</code></td>
+<td style="text-align: left;">Artigo não aprovado ou dossiê não publicado</td>
+<td style="text-align: left;">Trate como falha; verifique <code>diagnostico</code> e <code>qualidade_artigo</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">SSE sem eventos</td>
+<td style="text-align: left;"><code>id_pesquisa</code> errado, pipeline já terminal ou múltiplos workers</td>
+<td style="text-align: left;">Confirme o ID; use um único processo ou um hub externo</td>
+</tr>
+<tr>
+<td style="text-align: left;">SSE atrás de proxy trava</td>
+<td style="text-align: left;">Buffering do proxy</td>
+<td style="text-align: left;">Desative buffering; os headers já enviam <code>X-Accel-Buffering: no</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Webhook <code>falha_definitiva</code></td>
+<td style="text-align: left;">URL inválida, 4xx, TLS ou 4 tentativas esgotadas</td>
+<td style="text-align: left;">Verifique <code>pesquisa.webhook_status</code>/<code>webhook_resposta</code> e o segredo HMAC</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>database is locked</code></td>
+<td style="text-align: left;">Transação longa concorrente</td>
+<td style="text-align: left;">Verifique WAL, <code>busy_timeout</code> e evite chamadas externas dentro de transações</td>
+</tr>
+<tr>
+<td style="text-align: left;">Docker sem sessão local</td>
+<td style="text-align: left;"><code>network_mode: host</code> ausente ou plataforma não-Linux</td>
+<td style="text-align: left;">Use o compose no Linux ou <code>run_app.py</code> no host</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="8-observabilidade">8. Observabilidade</h2>
+<ul>
+<li><strong>Status consolidado:</strong> <code>GET /api/v1/pipeline/{id}/status</code>.</li>
+<li><strong>Progresso ao vivo:</strong> <code>GET /api/v1/pipeline/{id}/stream</code> (SSE).</li>
+<li><strong>Telemetria de LLM:</strong> tabela <code>generation_attempts</code> (etapa, persona, modelo, prompt hash, uso, custo, latência, erros).</li>
+<li><strong>Entrega:</strong> <code>pesquisa.webhook_status</code>, <code>pesquisa.webhook_resposta</code> e <code>WriterResponse.webhook_entrega</code>.</li>
+<li><strong>Fontes:</strong> <code>GET /api/v1/pipeline/{id}/sources</code> e <code>WriterResponse.fontes</code>.</li>
+<li><strong>Logs:</strong> <code>uvicorn</code> no stdout; o runner registra início/fim por pesquisa. Não há integração OTel configurada.</li>
+</ul>
+<p>Consultas úteis:</p>
+<pre><code class="language-sql">-- pesquisas travadas em estágio não terminal
+select id_pesquisa, status_pipeline, criado_em
+from pesquisa
+where status_pipeline in ('buscando','auditando','redigindo');
+
+-- custo/latência por etapa
+select etapa, count(*), avg(latency_seconds)
+from generation_attempts
+group by etapa;
+</code></pre>
+<hr />
+<h2 id="9-segurança-operacional">9. Segurança operacional</h2>
+<p>Checklist mínimo para exposição remota:</p>
+<ol>
+<li><strong>Feche a API:</strong> defina <code>API_SECRET_KEY</code> e reinicie. Sem isso, <code>/api/v1/*</code> aceita requisições anônimas.</li>
+<li><strong>Não exponha <code>127.0.0.1</code> diretamente:</strong> use reverse proxy com TLS e repasse <code>Host</code>, <code>Origin</code> e <code>X-Forwarded-*</code> corretamente. A sessão local só é emitida para loopback; acesso remoto deve usar chave de API.</li>
+<li><strong>Proteja o <code>.env</code>:</strong> permissões restritas, fora do Git. O <code>.gitignore</code> já exclui <code>.env</code> e <code>data/</code>.</li>
+<li><strong>Backup da chave mestra:</strong> sem ela, credenciais cifradas são irrecuperáveis.</li>
+<li><strong>Rotação:</strong> não há endpoint de rotação de <code>CREDENTIALS_MASTER_KEY</code>; planeje recriptografia manual antes de trocar a chave.</li>
+<li><strong>Rate limit:</strong> não implementado. Coloque limite no proxy (nginx, Traefik, Cloudflare) se houver exposição pública.</li>
+<li><strong>Uploads/entradas:</strong> o tema não tem teto no backend; limite o tamanho no proxy para evitar payloads excessivos.</li>
+<li><strong>Webhook:</strong> valide <code>X-Signature</code> sobre os bytes crus e rejeite assinaturas inválidas.</li>
+<li><strong>Logs:</strong> evite registrar corpos de requisição com credenciais; a aplicação mascara valores em respostas administrativas.</li>
+</ol>
+<p>Itens já conhecidos e registrados: <a href="../../docs/security_audit_findings.md"><code>security_audit_findings.md</code></a>.</p>
+<hr />
+<h2 id="10-manutenção">10. Manutenção</h2>
+<ul>
+<li><strong>Crescimento do banco:</strong> <code>conteudo_coletado</code> e <code>generation_attempts</code> crescem por pesquisa. Monitore o tamanho de <code>data/deep_research.db</code>.</li>
+<li><strong>Coleta acumulada:</strong> cada rodada gera uma linha em <code>conteudo_coletado</code> (chave <code>id_pesquisa + ponto_id + rodada</code>), preservada para auditoria.</li>
+<li><strong>Reexecução segura:</strong> repetir <code>/search</code> cria nova rodada; repetir <code>/writer</code> com artefato íntegro e avaliação ≥ 11 usa cache e não reenvia webhook.</li>
+<li><strong>Atualização de dependências:</strong> <code>pip install -e ".[dev]"</code> e <code>npm ci</code>; valide com <code>pytest</code> e <code>npm run build</code>.</li>
+<li><strong>Migrações:</strong> aditivas e idempotentes no boot; não há ferramenta de rollback. Faça backup antes de atualizar versões que alterem schema.</li>
+</ul>
+  </article>
+  <footer class="page-footer">
+    <div class="pager"><a class="pager-link prev" href="api.html"><span class="pager-label">Anterior</span><span class="pager-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>API</span></a></div>
+    <a class="back-to-top" href="#top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></svg> Voltar ao topo</a>
+  </footer>
+</main>
+<aside class="docs-toc" aria-label="Nesta página"><p class="toc-title">Nesta página</p><nav><a class="toc-link" href="#1-requisitos">1. Requisitos</a><a class="toc-link" href="#2-variáveis-de-ambiente">2. Variáveis de ambiente</a><a class="toc-link" href="#3-modos-de-execução">3. Modos de execução</a><a class="toc-link" href="#4-banco-de-dados">4. Banco de dados</a><a class="toc-link" href="#5-verificação-de-saúde">5. Verificação de saúde</a><a class="toc-link" href="#6-testes">6. Testes</a><a class="toc-link" href="#7-diagnóstico">7. Diagnóstico</a><a class="toc-link" href="#8-observabilidade">8. Observabilidade</a><a class="toc-link" href="#9-segurança-operacional">9. Segurança operacional</a><a class="toc-link" href="#10-manutenção">10. Manutenção</a></nav></aside>
+</div>
+</div>
+
+<div class="search-overlay" id="search-overlay" aria-hidden="true">
+  <div class="search-modal" role="dialog" aria-modal="true" aria-labelledby="search-title">
+    <div class="search-field">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <label class="sr-only" id="search-title" for="search-input">Buscar na documentação</label>
+      <input id="search-input" type="search" placeholder="Buscar seções, endpoints, variáveis…" autocomplete="off" spellcheck="false">
+      <button class="search-close" id="search-close" type="button">ESC</button>
+    </div>
+    <div class="search-results" id="search-results" role="listbox" aria-label="Resultados da busca"></div>
+    <div class="search-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+      <span><kbd>Enter</kbd> abrir</span>
+      <span><kbd>Esc</kbd> fechar</span>
+      <span class="search-count" id="search-count"></span>
+    </div>
+  </div>
+</div>
+
+<script src="assets/search-index.js"></script>
+<script src="assets/docs.js"></script>
+</body>
+</html>

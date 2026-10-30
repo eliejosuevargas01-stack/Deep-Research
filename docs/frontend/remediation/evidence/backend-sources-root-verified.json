@@ -1,0 +1,9 @@
+{
+  "started_at": "2026-10-26T23:11:04.980222+00:00",
+  "elapsed_s": 68.624,
+  "exit_code": 0,
+  "database": "isolated SQLite test fixtures; no live database",
+  "providers": "pytest external-provider mock transports only; no live provider calls",
+  "log": "/home/eliezer/Escritorio/deep-research/Deep-Research/docs/frontend/remediation/evidence/backend-sources-root-verified.txt",
+  "log_sha256": "d8c488952eebae101864dcc66a3c7db7525a6b0602544ca671bbfbed4948221e"
+}

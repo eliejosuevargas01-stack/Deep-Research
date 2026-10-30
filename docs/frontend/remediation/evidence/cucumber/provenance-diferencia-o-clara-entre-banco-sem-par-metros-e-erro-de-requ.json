@@ -1,0 +1,13 @@
+{
+  "scenarioName": "Diferenciação clara entre banco sem parâmetros e erro de requisição",
+  "baseUrl": "http://localhost:3001",
+  "timestamp": "2026-10-29T18:22:14.479Z",
+  "mode": "test",
+  "loadedScripts": [
+    "http://localhost:3001/@vite/client",
+    "http://localhost:3001/src/main.tsx?t=1793297520105"
+  ],
+  "loadedStyles": [],
+  "screenshots": [],
+  "liveViolations": 0
+}

@@ -1,0 +1,141 @@
+{
+  "captured_at": "2026-10-26T23:16:17.112351+00:00",
+  "base_url": "http://127.0.0.1:3002",
+  "mode": "actual running dev API, existing published user report, readonly hydration",
+  "statuses": {
+    "/": 200,
+    "/app/session": 200,
+    "/api/v1/pipeline/dee9fa33-1205-4323-8715-ab388deb8747/sources": 200
+  },
+  "fontes": {
+    "id_pesquisa": "dee9fa33-1205-4323-8715-ab388deb8747",
+    "status": "completo",
+    "total_consultadas": 11,
+    "total_utilizadas": 9,
+    "total_nao_utilizadas": 2,
+    "consultadas": [
+      {
+        "url": "https://2021-2025.state.gov/venezuelan-supreme-court-rulings-and-the-barbados-agreement/",
+        "titulo": "Venezuelan Supreme Court Rulings and the Barbados Agreement - United States Department of State",
+        "dominio": "2021-2025.state.gov"
+      },
+      {
+        "url": "https://accesoalajusticia.org/tsj-avala-inhabilitacion-contra-maria-corina-machado-sin-publicar-sentencia-fuera-lapso/",
+        "titulo": "El TSJ avala la inhabilitación contra María Corina Machado sin publicar su sentencia y fuera de lapso │ Acceso a la Justicia",
+        "dominio": "accesoalajusticia.org"
+      },
+      {
+        "url": "https://www.bbc.com/mundo/articles/cw9e8n92y89o",
+        "titulo": "María Corina Machado: el Tribunal Supremo de Venezuela confirma inhabilitación de la candidata presidencial opositora",
+        "dominio": "www.bbc.com"
+      },
+      {
+        "url": "https://www.brasildefato.com.br/2024/01/26/justica-da-venezuela-confirma-inabilitacao-da-oposicionista-maria-corina-para-as-eleicoes/",
+        "titulo": "Justiça da Venezuela confirma inabilitação da oposicionista María Corina para as eleições",
+        "dominio": "www.brasildefato.com.br"
+      },
+      {
+        "url": "https://www.diplomacyandlaw.com/post/maria-corina-machado",
+        "titulo": "María Corina Machado Returns: Venezuela’s Missing Election and Her Right to Run",
+        "dominio": "www.diplomacyandlaw.com"
+      },
+      {
+        "url": "https://www.estadao.com.br/internacional/suprema-corte-da-venezuela-confirma-inabilitacao-da-lider-da-oposicao-maria-corina-machado/?srsltid=AYCX9vLH85tD8Q8bPdgryViInH4ESMT8RbJiFJebryj3NUjFjqsC5h91",
+        "titulo": "Suprema Corte da Venezuela confirma inabilitação da líder da oposição María Corina Machado",
+        "dominio": "www.estadao.com.br"
+      },
+      {
+        "url": "https://www.gazetadopovo.com.br/mundo/supremo-tribunal-da-venezuela-confirma-inabilitacao-de-maria-corina-machado-candidata-da-oposicao/",
+        "titulo": "Supremo da Venezuela confirma inabilitação de candidata da oposição",
+        "dominio": "www.gazetadopovo.com.br"
+      },
+      {
+        "url": "https://www.lemonde.fr/en/international/article/2024/01/27/venezuela-s-supreme-court-disqualifies-opposition-leader-from-running-for-president_6469941_4.html",
+        "titulo": "Venezuela's Supreme Court disqualifies opposition leader from running for president",
+        "dominio": "www.lemonde.fr"
+      },
+      {
+        "url": "https://www.pbs.org/newshour/world/venezuelan-opposition-candidate-blocked-by-court-calls-it-judicial-criminality-wont-abandon-race",
+        "titulo": "Venezuelan opposition candidate blocked by court calls it 'judicial criminality,' won't abandon race",
+        "dominio": "www.pbs.org"
+      },
+      {
+        "url": "https://www.telemundo.com/noticias/noticias-telemundo/internacional/el-tribunal-supremo-de-venezuela-ratifica-la-inhabilitacion-de-la-cand-rcna135965",
+        "titulo": "El Tribunal Supremo de Venezuela ratifica la inhabilitación de la candidata presidencial opositora María Corina Machado",
+        "dominio": "www.telemundo.com"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=PcP6EVKOLpI",
+        "titulo": "Machado’s party calls for ‘immediate’ reversal of political disqualification in Venezuela | AFP",
+        "dominio": "www.youtube.com"
+      }
+    ],
+    "utilizadas": [
+      {
+        "url": "https://2021-2025.state.gov/venezuelan-supreme-court-rulings-and-the-barbados-agreement/",
+        "titulo": "Venezuelan Supreme Court Rulings and the Barbados Agreement - United States Department of State",
+        "dominio": "2021-2025.state.gov"
+      },
+      {
+        "url": "https://accesoalajusticia.org/tsj-avala-inhabilitacion-contra-maria-corina-machado-sin-publicar-sentencia-fuera-lapso/",
+        "titulo": "El TSJ avala la inhabilitación contra María Corina Machado sin publicar su sentencia y fuera de lapso │ Acceso a la Justicia",
+        "dominio": "accesoalajusticia.org"
+      },
+      {
+        "url": "https://www.bbc.com/mundo/articles/cw9e8n92y89o",
+        "titulo": "María Corina Machado: el Tribunal Supremo de Venezuela confirma inhabilitación de la candidata presidencial opositora",
+        "dominio": "www.bbc.com"
+      },
+      {
+        "url": "https://www.brasildefato.com.br/2024/01/26/justica-da-venezuela-confirma-inabilitacao-da-oposicionista-maria-corina-para-as-eleicoes/",
+        "titulo": "Justiça da Venezuela confirma inabilitação da oposicionista María Corina para as eleições",
+        "dominio": "www.brasildefato.com.br"
+      },
+      {
+        "url": "https://www.diplomacyandlaw.com/post/maria-corina-machado",
+        "titulo": "María Corina Machado Returns: Venezuela’s Missing Election and Her Right to Run",
+        "dominio": "www.diplomacyandlaw.com"
+      },
+      {
+        "url": "https://www.estadao.com.br/internacional/suprema-corte-da-venezuela-confirma-inabilitacao-da-lider-da-oposicao-maria-corina-machado/?srsltid=AYCX9vLH85tD8Q8bPdgryViInH4ESMT8RbJiFJebryj3NUjFjqsC5h91",
+        "titulo": "Suprema Corte da Venezuela confirma inabilitação da líder da oposição María Corina Machado",
+        "dominio": "www.estadao.com.br"
+      },
+      {
+        "url": "https://www.gazetadopovo.com.br/mundo/supremo-tribunal-da-venezuela-confirma-inabilitacao-de-maria-corina-machado-candidata-da-oposicao/",
+        "titulo": "Supremo da Venezuela confirma inabilitação de candidata da oposição",
+        "dominio": "www.gazetadopovo.com.br"
+      },
+      {
+        "url": "https://www.lemonde.fr/en/international/article/2024/01/27/venezuela-s-supreme-court-disqualifies-opposition-leader-from-running-for-president_6469941_4.html",
+        "titulo": "Venezuela's Supreme Court disqualifies opposition leader from running for president",
+        "dominio": "www.lemonde.fr"
+      },
+      {
+        "url": "https://www.telemundo.com/noticias/noticias-telemundo/internacional/el-tribunal-supremo-de-venezuela-ratifica-la-inhabilitacion-de-la-cand-rcna135965",
+        "titulo": "El Tribunal Supremo de Venezuela ratifica la inhabilitación de la candidata presidencial opositora María Corina Machado",
+        "dominio": "www.telemundo.com"
+      }
+    ],
+    "nao_utilizadas": [
+      {
+        "url": "https://www.pbs.org/newshour/world/venezuelan-opposition-candidate-blocked-by-court-calls-it-judicial-criminality-wont-abandon-race",
+        "titulo": "Venezuelan opposition candidate blocked by court calls it 'judicial criminality,' won't abandon race",
+        "dominio": "www.pbs.org"
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=PcP6EVKOLpI",
+        "titulo": "Machado’s party calls for ‘immediate’ reversal of political disqualification in Venezuela | AFP",
+        "dominio": "www.youtube.com"
+      }
+    ],
+    "observacao": null,
+    "artifact_hash": "7dbf09a2686541721efeacd64533a0716fefc85e2de46da833fb81355dc893eb"
+  },
+  "report_artifact_match": true,
+  "report_sha256": "7dbf09a2686541721efeacd64533a0716fefc85e2de46da833fb81355dc893eb",
+  "generation_attempts_before": 24,
+  "generation_attempts_after": 24,
+  "no_research_rerun": true,
+  "service_source_sha256": "2f2452045a2436fb0ac939867b793ac1118eb1c15c780422e3a0cbb5d6dea323"
+}

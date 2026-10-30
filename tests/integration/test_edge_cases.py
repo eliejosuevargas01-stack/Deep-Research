@@ -8,6 +8,8 @@ Atende a RN-02, RN-07, RF-07 e RF-09.
 import uuid
 import httpx
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from app.config import get_settings
 
 
@@ -51,13 +53,30 @@ async def test_audit_without_collected_content_returns_400() -> None:
         # Dispara auditoria diretamente
         audit_resp = await client.post("/api/v1/audit", json={"id_pesquisa": id_pesquisa})
         assert audit_resp.status_code == 400
-        assert "SEARCH_NOT_COMPLETED" in str(audit_resp.json()) or "coleta" in str(audit_resp.json())
+        assert "SEARCH_NOT_COMPLETED" in str(audit_resp.json())
+
+    # RF02/EC01: recusa sem dados NÃO pode alterar estado (nenhum ponto reprovado)
+    engine = create_async_engine(get_settings().database_url)
+    factory = async_sessionmaker(bind=engine, expire_on_commit=False)
+    async with factory() as session:
+        from app.db.models import Ponto as PontoModel
+
+        pontos = (
+            await session.execute(
+                PontoModel.__table__.select().where(PontoModel.id_pesquisa == id_pesquisa)
+            )
+        ).fetchall()
+        assert len(pontos) >= 1
+        assert all(p.status != "reprovado" for p in pontos), "Pré-condição sem coleta não pode reprovar pontos"
 
 
 @pytest.mark.asyncio
 async def test_writer_blocked_when_points_pending_returns_400() -> None:
-    """Verifica bloqueio estrito de redação com HTTP 400 quando há pontos pendentes de auditoria (RN-07, RF-09)."""
+    """Verifica bloqueio estrito de redação com HTTP 400 e UNAPPROVED_POINTS quando o Writer
+    é acionado sem aprovação prévia da auditoria (RN-07, RF-09), provando que NENHUM
+    documento, nenhuma tentativa de redação e nem estado/contadores são alterados."""
     from app.main import app
+    from app.db.models import GenerationAttempt, Pesquisa, Ponto
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         # Cria plano e coleta, mas NÃO audita
@@ -65,10 +84,36 @@ async def test_writer_blocked_when_points_pending_returns_400() -> None:
         id_pesquisa = plan_resp.json()["id_pesquisa"]
         await client.post("/api/v1/search", json={"id_pesquisa": id_pesquisa})
 
-        # Tenta redigir diretamente: deve ser bloqueado com HTTP 400
+        # Tenta redigir diretamente: deve ser bloqueado com HTTP 400 e contrato atual
         writer_resp = await client.post("/api/v1/writer", json={"id_pesquisa": id_pesquisa})
         assert writer_resp.status_code == 400
-        assert "PENDING_AUDIT_POINTS" in str(writer_resp.json()) or "pendente" in str(writer_resp.json())
+        assert "UNAPPROVED_POINTS" in str(writer_resp.json())
+
+    # Prova de bloqueio real no SQLite: nada de dossiê, nenhuma tentativa, estado intacto
+    engine = create_async_engine(get_settings().database_url)
+    factory = async_sessionmaker(bind=engine, expire_on_commit=False)
+    async with factory() as session:
+        pesq = await session.get(Pesquisa, id_pesquisa)
+        assert pesq is not None
+        assert pesq.dossier_final is None, "Nenhum dossiê pode ser persistido por redação bloqueada"
+        assert pesq.concluido_em is None
+        assert pesq.status_pipeline in ("coletado", "buscando", "planejado"), "Estado legítimo pré-Writer preservado"
+        gas = (
+            await session.execute(
+                GenerationAttempt.__table__.select()
+                .where(GenerationAttempt.id_pesquisa == id_pesquisa)
+                .where(GenerationAttempt.etapa == "write")
+            )
+        ).fetchall()
+        assert len(gas) == 0, "Nenhuma tentativa de redação (etapa='write') pode ser fabricada quando o Writer é bloqueado"
+        pontos = (
+            await session.execute(
+                Ponto.__table__.select().where(Ponto.id_pesquisa == id_pesquisa)
+            )
+        ).fetchall()
+        assert len(pontos) >= 1
+        assert all(p.status != "aprovado" for p in pontos)
+    await engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -102,3 +147,23 @@ async def test_webhook_failure_preserves_dossier_in_database(
         assert dados["status"] == "concluido"
         assert dados["total_caracteres_dossier"] > 0
         assert dados["webhook_entrega"]["status"] in ("entregue", "falha_definitiva")
+
+        # Qualidade editorial estrita: vetor 12 completo com corte >= 11/12 e sem CoT público
+        qualidade = dados["qualidade_artigo"]
+        assert qualidade["avaliacao_valida"] is True
+        assert qualidade["criterios_aprovados"] >= 11
+        assert len(qualidade["criterios"]) == 12
+        assert [c["id"] for c in qualidade["criterios"]] == list(range(1, 13))
+        assert all("justificativa" in c for c in qualidade["criterios"])
+        assert dados["reasoning_dossier"] is None, "Raciocínio interno nunca é exposto (W11)"
+
+    # Persistência real do dossiê no SQLite mesmo com entrega falha
+    engine = create_async_engine(get_settings().database_url)
+    factory = async_sessionmaker(bind=engine, expire_on_commit=False)
+    async with factory() as session:
+        from app.db.models import Pesquisa as PesquisaModel
+
+        pesq = await session.get(PesquisaModel, id_pesquisa)
+        assert pesq is not None
+        assert pesq.dossier_final and len(pesq.dossier_final) > 0, "Dossiê deve persistir mesmo com webhook falho"
+    await engine.dispose()

@@ -1,0 +1,36 @@
+{
+  "state": "partial implementation diagnostic, not final independent audit",
+  "scope": "offline Request objects only; no network, no provider calls, no credential output",
+  "findings": [
+    {
+      "case": "Different port origin must reject",
+      "expected": false,
+      "observed": true,
+      "pass": false
+    },
+    {
+      "case": "Missing Origin/Referer/fetch metadata must reject unsafe cookie request",
+      "expected": false,
+      "observed": true,
+      "pass": false
+    },
+    {
+      "case": "Different scheme origin must reject",
+      "expected": false,
+      "observed": true,
+      "pass": false
+    },
+    {
+      "case": "Untrusted 127-prefix hostname must reject bootstrap",
+      "expected": false,
+      "observed": true,
+      "pass": false
+    },
+    {
+      "case": "Malformed Unicode cookie must be rejected without exception",
+      "expected": false,
+      "observed_exception": "UnicodeEncodeError",
+      "pass": false
+    }
+  ]
+}

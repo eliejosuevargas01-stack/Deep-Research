@@ -1,0 +1,41 @@
+{
+  "scope": "offline Request objects; no network/credentials output; partial source diagnostic only",
+  "source_sha256": "ac6a53029bf351dff33072de3f26911908295cffb23de62fc67edd779e56397c",
+  "cases": [
+    {
+      "case": "same_origin",
+      "expected": true,
+      "observed": true,
+      "pass": true
+    },
+    {
+      "case": "different_port",
+      "expected": false,
+      "observed": false,
+      "pass": true
+    },
+    {
+      "case": "missing_origin_and_metadata",
+      "expected": false,
+      "observed": false,
+      "pass": true
+    },
+    {
+      "case": "different_scheme",
+      "expected": false,
+      "observed": false,
+      "pass": true
+    },
+    {
+      "case": "untrusted_127_prefix_hostname",
+      "expected": false,
+      "observed": false,
+      "pass": true
+    },
+    {
+      "case": "malformed_unicode_cookie",
+      "observed": false,
+      "pass": true
+    }
+  ]
+}

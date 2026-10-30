@@ -1,0 +1,113 @@
+{
+  "round": 5,
+  "surface": "responsividade-coerencia",
+  "evaluator": "A",
+  "role": "independent_design_review",
+  "model": "ag/gemini-3.8-flash-high",
+  "reasoning": "high",
+  "provider": "9router",
+  "status": "CAPTURE_ONLY_READY_FOR_ROOT_NATIVE_ATTACHMENT",
+  "execution_phase": "CAPTURE_ONLY",
+  "score_approval_delivered": false,
+  "timestamp_verified_utc": "2026-10-27T00:37:30Z",
+  "target_url": "http://localhost:8011/",
+  "reference_url": "http://127.0.0.1:9015/",
+  "provider_mode": "fixture_simulated_external_providers",
+  "served_bundle_hashes": {
+    "frontend/dist/assets/index-DJ1sYgkX.js": "c74b7ad3de1eb3cc86080cd3a7c531c815352ca3816dac51b815dffd4c69f749",
+    "frontend/dist/assets/index-Wmy6xx4v.css": "4e3a5ca6dd1fb61d6cf96718b07cf6650d697e4eb9242b9563c5c19dfcf6d3ca"
+  },
+  "reference_hashes": {
+    "/home/eliezer/Escritorio/dominuslabs-codex/docs/index.html": "861cdb28dc093e40db1f34c49d216291da95093aabb0bffbbb5274c7b0a70570",
+    "/home/eliezer/Escritorio/dominuslabs-codex/docs-src/assets/docs.css": "e92d1c398327ed8e2d42fd81a9a3e137c64449bfcd119bf7e56f3894376699cd",
+    "/home/eliezer/Escritorio/dominuslabs-codex/docs-src/assets/extra.css": "b0216d8637c0f338058c85ebc4049502e1b5fc853ab596e6c5c55688e7fa314b"
+  },
+  "browser_harness": {
+    "tool": "Hermes browser_exec",
+    "session": "round5_eval_a",
+    "tab_management": "dedicated own tab created and closed cleanly"
+  },
+  "priority_captures": [
+    {
+      "priority": 1,
+      "role": "desktop_1440_workspace",
+      "viewport": [1440, 900],
+      "path": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/01_desktop_1440_workspace.png",
+      "sha256": "4a0d3ac4069f03423333143841a5c3e29f5c90d9b3acf4ab9c6b9df7f27d85e0",
+      "bytes": 119951,
+      "description": "Desktop 1440x900 representative workspace in initial state: top navbar with brand and local session indicator, 4 analytical sample topic cards, bottom composer with + preferences chip (1 ponto • 4 personas)."
+    },
+    {
+      "priority": 2,
+      "role": "mobile_375_composer_preferences",
+      "viewport": [375, 812],
+      "path": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/02_mobile_375_composer_preferences.png",
+      "sha256": "9e73691dbead0ce3285ce48f512358d2affafe98f74e71f139144dff260c3102",
+      "bytes": 291444,
+      "description": "Mobile 375x812 preferences popover open above composer: configured with 2 analytical points and active personas limited to only Historiador and Cético (Visionário and Futurista unchecked), chip label '2 pontos • 2 personas'."
+    },
+    {
+      "priority": 3,
+      "role": "actual_reference_9015",
+      "viewport": [1440, 900],
+      "path": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/03_actual_reference_9015.png",
+      "sha256": "dd07ef0b7ab27c2e485bb0cc31b3d52cf2369e966a59eaed2231d5e1ccc646a0",
+      "bytes": 129522,
+      "description": "Authoritative read-only DominusLabs API documentation served live at http://127.0.0.1:9015/ showing baseline typography (Outfit headers, Inter body, JetBrains Mono code) and color tokens (canvas #F9FAFB, text #0F172A/#374151)."
+    },
+    {
+      "priority": 4,
+      "role": "midwidth_837_916_plan",
+      "viewport": [837, 900],
+      "path": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/04_midwidth_837_916_plan.png",
+      "sha256": "59a07818280a03ff78af61dd4a52db9a061411fb801ecdddde015c2df316c281",
+      "bytes": 85961,
+      "description": "Midwidth 837x900 plan state: investigation plan with 2 points and 2 personas, soleStart action ('Iniciar pesquisa') visible and hittable, navbar navigation links cleanly hidden with mobile hamburger toggle active, zero collision."
+    }
+  ],
+  "additional_captures": [
+    {
+      "step": 5,
+      "role": "shortlaptop_1280x577",
+      "viewport": [1280, 577],
+      "path": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/05_shortlaptop_1280x577.png",
+      "sha256": "af75273a2dfee0e73fe0afbbf2c5bbde850643a1897cda85cb2b6f20460f0f3b",
+      "bytes": 70465,
+      "description": "Short laptop viewport 1280x577: plan and soleStart action fit inside initial fold; composer anchor sits below fold."
+    },
+    {
+      "step": 6,
+      "role": "dossier_source_breakdown",
+      "viewport": [1440, 900],
+      "path": "docs/frontend/remediation/critiques/validated-round-5/A-evidence/06_dossier_source_breakdown.png",
+      "sha256": "3dc6e95ad3ce300f31d7cd8ba7c223071eee1808cd683ae898aa19dbb1d1555f",
+      "bytes": 107105,
+      "description": "Completed research dossier with SourceBreakdown provenance section: consulted vs cited sources and source explanation note."
+    }
+  ],
+  "viewports_verified": [
+    "375x812",
+    "837x900",
+    "916x900",
+    "1280x577",
+    "1440x900"
+  ],
+  "action_results": {
+    "suggestion_input_focus": "PASS: sample card click populates textarea and transfers focus automatically",
+    "composer_wrap_resize": "PASS: textarea adapts between 1440 (68px) -> 375 (332px scrollHeight, clientHeight capped at 120px) -> 1440 (68px); short text 68px unclipped",
+    "preferences_popover": "PASS: opens near bottom at 375px viewport (y=111-631) without clipping; chip reflects 2 pontos • 2 personas",
+    "escape_focus_return": "PASS: native CDP Escape closes popover and returns active focus to #preferences-toggle-btn",
+    "sole_start_action": "PASS: sole continuation button 'Iniciar pesquisa' is unique (count=1), visible, and hittable via document.elementFromPoint at center (cx=908, cy=259 at 1440; cx=760 at 916; cx=148 at 837; cx=760 at 1280x577) with NO scroll helper",
+    "cancel_new_theme_flow": "DEFECT: clicking 'Cancelar' in 'Descartar plano' confirmation alertdialog preserves plan, but keyboard focus falls to document.body rather than returning to 'Novo tema' button",
+    "navbar_collision": "PASS: at 916px and 837px desktop nav links switch to display:none and mobile-nav-toggle becomes visible (44x44 target), zero text/button overlap",
+    "source_explanation_note_contrast": "DEFECT: computed color #6B7280 on actual parent background #F3F4F6 (.source-breakdown-card) yields 4.39:1, failing WCAG AA (4.5:1 required for 12.3px text)",
+    "true_200_percent_zoom": "UNPROVEN: CDP headless automation lacks native browser-level zoom reflow API (Ctrl++ equivalent); CSS zoom prohibited by directive"
+  },
+  "visual_provenance_guard": {
+    "primary_model_enforced": "ag/gemini-3.8-flash-high",
+    "native_vision_probe_pending": true,
+    "vision_analyze_bypassed": true,
+    "auxiliary_model_fallback_used": false,
+    "verdict": "CAPTURE_ONLY_PHASE_COMPLETE_AWAITING_ROOT_IMAGE_ATTACHMENTS"
+  }
+}

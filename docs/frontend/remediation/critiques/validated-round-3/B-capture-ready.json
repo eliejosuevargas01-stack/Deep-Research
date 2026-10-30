@@ -1,0 +1,133 @@
+{
+  "status": "capture_ready",
+  "phase": "round-3/configuracoes",
+  "assessment": "B",
+  "model": "ag/gemini-3.8-flash-high",
+  "provider": "9router",
+  "reasoning": "high",
+  "timestamp_utc": "2026-10-26T22:55:21Z",
+  "git_head": "94805ca859431a07636b2d41bf4d47d6b5c30c0a",
+  "target_url": "http://localhost:8011/#settings",
+  "browser_session": "session_b_round3",
+  "tab_id_closed": "BD23257118810A6C053A9D3B12464B31",
+  "detector": {
+    "command": "/home/eliezer/.claude/skills/impeccable/scripts/impeccable detect --json frontend/src",
+    "exit_code": 2,
+    "findings_count": 1,
+    "findings": [
+      {
+        "antipattern": "side-tab",
+        "name": "Side-tab accent border",
+        "description": "Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+        "severity": "warning",
+        "category": "slop",
+        "file": "/home/eliezer/Escritorio/deep-research/Deep-Research/frontend/src/styles/execution-view.css",
+        "line": 78,
+        "snippet": "border-left: 3px solid var(--color-indigo, #4F46E5)"
+      }
+    ]
+  },
+  "source_hashes": {
+    "frontend/src/App.tsx": "a1ad21aa1c30ac40e06f3fc6f0e0098e23cf4f9c2de1c1e4f5874b64a7ceff43",
+    "frontend/src/components/SettingsView.tsx": "a3d81ab27944ea8b7079d5a58908dfcbe449de528397ebbd2cf5a2d82402d566",
+    "frontend/src/styles/components.css": "20aa864d9477d5767334e135ff04f2b4db1a74db83a53605a62cc71b98b6726f",
+    "frontend/src/styles/tokens.css": "a2c6b1de2fbcb84a9ac4e3166375d664cbf5460495a3cf039dacc56699683239",
+    "frontend/src/styles/main.css": "5a85c4ca01425dd33dccbb6ef7c5d3a1e9cb00866aed0e057759a574c8f54399"
+  },
+  "bundle_hashes": {
+    "frontend/dist/assets/index-DDNXweTS.js": "6cf80eff40c98b1959439fd4de4df039abbcceaa12e2a1c5ce7931f9ed33138f",
+    "frontend/dist/assets/index-Ca6kLR37.css": "a3fee420c0b2d9f9430f1a4c3be398cacf470ab3cb36bdc0230992e4b83948e9",
+    "frontend/dist/index.html": "450c6af094408f293f68fcf87840c5fe09c765782555ff5625a372ab5eaf0f91"
+  },
+  "captured_evidence": [
+    {
+      "step": 1,
+      "filename": "01_settings_connection_verified.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-3/B-evidence/01_settings_connection_verified.png",
+      "bytes": 101640,
+      "sha256": "dfa224476a7707de9806181e43eb0653984044d7d2ac3ebec8b8a1501cbd500b",
+      "description": "Verificação do botão 'Testar Conexão com API': status atualizado para 'Comunicação ativa e autenticação com backend verificadas com sucesso.', pill em modo local e aviso de sessão HttpOnly SameSite=Strict",
+      "verified_dom": {
+        "status_text": "Comunicação ativa e autenticação com backend verificadas com sucesso.",
+        "pill": "Modo local",
+        "has_test_conn_btn": true
+      }
+    },
+    {
+      "step": 2,
+      "filename": "02_settings_field_validation_errors.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-3/B-evidence/02_settings_field_validation_errors.png",
+      "bytes": 73846,
+      "sha256": "c4becfb1db83b68b00cb9793547490f87ef41086e08740c04f01b223e4513d85",
+      "description": "Formulário rolado com erros de validação em campos inválidos: LLM_BASE_URL ('invalid-url-format'), JINA_BASE_URL ('ftp://s.jina.ai'), N_PONTOS ('-3'), CALLBACK_WEBHOOK_URL ('htp:/bad-url'); submissão bloqueada sem envio ao backend, classes .error, aria-invalid='true', spans role='alert' e banner de rascunho não salvo visível",
+      "verified_dom": {
+        "submitted": true,
+        "errors": {
+          "LLM_BASE_URL": "A URL deve ser válida e iniciar com http:// ou https://",
+          "JINA_BASE_URL": "A URL deve ser válida e iniciar com http:// ou https://",
+          "N_PONTOS": "O número de pontos deve ser um inteiro positivo maior ou igual a 1 (sem decimais)",
+          "CALLBACK_WEBHOOK_URL": "A URL deve ser válida e iniciar com http:// ou https://"
+        },
+        "input_errors": {
+          "llmHasClassError": true,
+          "jinaHasClassError": true,
+          "nPontosHasClassError": true,
+          "callbackHasClassError": true
+        },
+        "aria_invalids": {
+          "llm": "true",
+          "jina": "true",
+          "nPontos": "true",
+          "callback": "true"
+        },
+        "has_dirty_draft_banner": true
+      }
+    },
+    {
+      "step": 3,
+      "filename": "03_settings_draft_preserved_after_navigation.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-3/B-evidence/03_settings_draft_preserved_after_navigation.png",
+      "bytes": 71559,
+      "sha256": "a0fd139d4489183f52df21312379a98dc53515b50385f8ad66e30e2e9bd3fc82",
+      "description": "Preservação de rascunho em memória após navegação para #research e retorno para #settings: valores digitados permanecem nos inputs, banner de rascunho não salvo ativo com botão 'Descartar rascunho'; acionamento do descarte verificado em DOM limpando campos e ocultando banner",
+      "verified_dom": {
+        "navigated_to_research": true,
+        "navigated_back_to_settings": true,
+        "preserved_values": {
+          "LLM_BASE_URL": "invalid-url-format",
+          "JINA_BASE_URL": "ftp://s.jina.ai",
+          "N_PONTOS": "-3",
+          "CALLBACK_WEBHOOK_URL": "htp:/bad-url"
+        },
+        "has_dirty_draft_banner": true,
+        "discard_draft_tested": true
+      }
+    },
+    {
+      "step": 4,
+      "filename": "04_settings_active_origin_table.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-3/B-evidence/04_settings_active_origin_table.png",
+      "bytes": 56607,
+      "sha256": "6e03eec842f05aa975f2ece7417f6be12329eabd1adc82d461acc679b828bd95",
+      "description": "Tabela de parâmetros registrados e origem ativa (Cartão 3 rolado): cabeçalhos Chave, Tipo, Origem Ativa, Valor Sanitizado, Atualizado Em; exibição de badge 'Ambiente (.env)', sanitização [REDACTED], botão 'Atualizar lista' e distinção entre erro de requisição e lista vazia",
+      "verified_dom": {
+        "has_table": true,
+        "headers": ["Chave", "Tipo", "Origem Ativa", "Valor Sanitizado", "Atualizado Em"],
+        "row_count": 1,
+        "row_example": {
+          "chave": "N_PONTOS",
+          "tipo": "parametro",
+          "origem": "Ambiente (.env)",
+          "valor": "[REDACTED]"
+        },
+        "has_refresh_btn": true
+      }
+    }
+  ],
+  "visual_provenance_guard": {
+    "status": "pending_native_image_attachment_resumption",
+    "rule": "Saved screenshot path alone is NOT visual inspection. First turn stops now. Root will resume same session with explicit current screenshot attachment before final visual judgment.",
+    "final_verdict_delivered": false,
+    "score_delivered": false
+  }
+}

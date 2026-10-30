@@ -24,16 +24,31 @@ def test_plan_request_valid() -> None:
 
 
 def test_plan_request_tema_length_validation() -> None:
-    """Verifica restrições de tamanho mínimo (5) e máximo (500) no tema do plano."""
+    """Tema exige mínimo de 5 caracteres e NÃO possui limite máximo (PRD v2, I-2)."""
     from app.schemas.plan import PlanRequest
 
     # Tema curto (< 5 caracteres) deve falhar
     with pytest.raises(ValidationError):
         PlanRequest(tema="IA")
 
-    # Tema longo (> 500 caracteres) deve falhar
+    # Briefing longo deve ser aceito integralmente, sem truncamento nem rejeição
+    briefing = "A" * 501
+    req = PlanRequest(tema=briefing)
+    assert req.tema == briefing
+    assert len(req.tema) == 501
+
+    briefing_longo = "B" * 8000
+    assert PlanRequest(tema=briefing_longo).tema == briefing_longo
+
+
+def test_plan_request_execution_mode_contract() -> None:
+    """`execution_mode` aceita apenas parallel/sequential, com default parallel (I-3)."""
+    from app.schemas.plan import PlanRequest
+
+    assert PlanRequest(tema="Tema de teste").execution_mode == "parallel"
+    assert PlanRequest(tema="Tema de teste", execution_mode="sequential").execution_mode == "sequential"
     with pytest.raises(ValidationError):
-        PlanRequest(tema="A" * 501)
+        PlanRequest(tema="Tema de teste", execution_mode="turbo")
 
 
 def test_plan_response_serialization() -> None:
@@ -224,3 +239,76 @@ def test_admin_credential_create_request_validation() -> None:
     # Chave ou valor ausentes devem falhar
     with pytest.raises(ValidationError):
         CredentialCreateRequest(chave="", valor="val", tipo="llm")
+
+
+def test_credential_sanitized_mask_secret() -> None:
+    """Verifica mascaramento em CredentialSanitizedListItem sem vazamento de segredos de webhook (REV-SEC-001)."""
+    from app.schemas.admin import CredentialSanitizedListItem
+
+    # URL legítima deve permanecer sem máscara
+    url = "https://example.com/webhook"
+    assert CredentialSanitizedListItem.mask_secret(url, "webhook") == url
+
+    # Segredo de webhook NÃO deve vazar em texto claro
+    secret = "super-secret-hmac-token-xyz-123456"
+    masked = CredentialSanitizedListItem.mask_secret(secret, "webhook")
+    assert masked != secret
+    assert masked == "supe****3456"
+
+    # Segredo curto <= 8 caracteres
+    assert CredentialSanitizedListItem.mask_secret("12345678", "webhook") == "[REDACTED]"
+    assert CredentialSanitizedListItem.mask_secret("", "webhook") == "[REDACTED]"
+
+
+def test_plano_eixo_required_fields_omission_validation() -> None:
+    """Verifica que a omissão de qualquer campo investigativo essencial falha a validação (R2-F01)."""
+    from app.schemas.plan import PlanoEixo
+    from app.core.plan_validator import validate_and_parse_plan
+
+    valid_eixo_dict = {
+        "pergunta_principal": "Qual o impacto da computação quântica?",
+        "subperguntas": ["Como afeta criptografia?"],
+        "hipoteses": ["Criptografia RSA será quebrada."],
+        "consultas_iniciais": ["computacao quantica rsa"],
+        "fontes_primarias_desejadas": ["Artigos NIST"],
+        "riscos_de_vies": ["Hype tecnológico"],
+        "evidencias_que_refutariam": ["Novos algoritmos pós-quânticos"],
+        "criterio_de_conclusao": "Análise completa",
+        "investigabilidade": "Fontes públicas disponíveis",
+        "eixo_essencial": True,
+    }
+
+    # Deve validar com sucesso quando todos os campos estão presentes
+    eixo_valido = PlanoEixo.model_validate(valid_eixo_dict)
+    assert eixo_valido.pergunta_principal.startswith("Qual o impacto")
+
+    # Lista dos campos investigativos essenciais que NUNCA podem ser omitidos ou virar [] por default silencioso
+    essential_fields = [
+        "hipoteses",
+        "consultas_iniciais",
+        "fontes_primarias_desejadas",
+        "evidencias_que_refutariam",
+        "subperguntas",
+        "riscos_de_vies",
+    ]
+
+    for field in essential_fields:
+        eixo_sem_campo = dict(valid_eixo_dict)
+        del eixo_sem_campo[field]
+
+        # 1. Pydantic direto deve levantar ValidationError
+        with pytest.raises(ValidationError):
+            PlanoEixo.model_validate(eixo_sem_campo)
+
+        # 2. validate_and_parse_plan deve rejeitar e indicar motivo citando o campo
+        full_plan = {
+            "pedido_original": "Computação quântica",
+            "pedido_normalizado": "Computação quântica",
+            "publico": "Especialista",
+            "formato_entrega": "Artigo técnico",
+            "eixos": [eixo_sem_campo],
+        }
+        plano, motivo = validate_and_parse_plan(full_plan, 1, "Computação quântica")
+        assert plano is None, f"Plano com eixo sem campo '{field}' não deve ser aceito"
+        assert field in motivo or "inválido" in motivo or "obrigatór" in motivo
+

@@ -1,0 +1,13 @@
+{
+  "scenarioName": "Execução síncrona do fluxo completo com fontes verificadas",
+  "baseUrl": "http://localhost:3001",
+  "timestamp": "2026-10-29T18:18:00.162Z",
+  "mode": "test",
+  "loadedScripts": [
+    "http://localhost:3001/@vite/client",
+    "http://localhost:3001/src/main.tsx?t=1793297520105"
+  ],
+  "loadedStyles": [],
+  "screenshots": [],
+  "liveViolations": 0
+}

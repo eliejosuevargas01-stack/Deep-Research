@@ -1,0 +1,79 @@
+{
+  "round": 2,
+  "surface": "plano-relatorio",
+  "evaluator": "A",
+  "role": "independent_design_review",
+  "model": "ag/gemini-3.8-flash-high",
+  "reasoning": "high",
+  "provider": "9router",
+  "status": "VISUAL_EVALUATION_COMPLETE",
+  "score_approval_delivered": true,
+  "timestamp_initial_capture": "2026-10-26T18:56:39Z",
+  "timestamp_verified_utc": "2026-10-26T19:01:53Z",
+  "target_url": "http://localhost:8011/",
+  "provider_mode": "fixture_simulated_external_providers",
+  "test_topic": "Energia solar: plano extenso para verificação visual",
+  "requested_points": 2,
+  "requested_personas": ["historiador", "visionario", "cetico", "futurista"],
+  "served_bundle_hashes": {
+    "frontend/dist/assets/index-BjEAhB8N.js": "272239a3f48061e1c2312c0d965f51c8a07b989c5db66417999debe49446799a",
+    "frontend/dist/assets/index-BTro1C8g.css": "00535d433132c25d1fd002ec5eb179d9ddcc1f09b6c726b1d88702323a3b3197"
+  },
+  "source_hashes_at_capture": {
+    "frontend/src/App.tsx": "ef424550dc29034532bb7f8b3260a0a19c7b0c9edd1ec444490bd679b834e680",
+    "frontend/src/components/PlanView.tsx": "01b2a926f7435f115a3bbfe59ea84cbcf929d06bcf64188ea0ec51f531aa96d4",
+    "frontend/src/components/ExecutionView.tsx": "85eead009e4554b2d56a28ee7e8ca319cf83a2c5a083d8e5793e50772714c670",
+    "frontend/src/components/ReportView.tsx": "7fc4c2aa27fa8325efb319662bfe07d0f367e91eb704464c23f892a06180374e"
+  },
+  "browser_harness": {
+    "tool": "Hermes browser_exec",
+    "session": "validated_r2_a",
+    "tab_management": "dedicated own tab created and closed cleanly"
+  },
+  "evidence_files": [
+    {
+      "step": 1,
+      "name": "01_compact_plan.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-2/A-evidence/01_compact_plan.png",
+      "sha256": "145afb87aea0eebbbf82faa3a42463a5c17e5aede2c224c0dfd3628853de7b16",
+      "bytes": 129123,
+      "description": "Plano compacto com 2 pontos analíticos inicialmente recolhidos. Inspeção visual dos pixels revela que em viewport de 1280x577 o botão 'Iniciar pesquisa' NÃO está imediatamente visível na viewport (encontra-se abaixo da dobra) e o Ponto 2 está parcialmente cortado na borda inferior. Presença no DOM confirmada, mas visibilidade imediata sem rolagem classificada como NÃO COMPROVADA (UNPROVEN)."
+    },
+    {
+      "step": 2,
+      "name": "02_expanded_point.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-2/A-evidence/02_expanded_point.png",
+      "sha256": "9449ef17c6c841f1f30ddbc832b0ed67fc97a59c4c1e94184aef773656fd7b14",
+      "bytes": 133980,
+      "description": "Detalhamento progressivo do Ponto 1 expandido via toggle de acordeão: 6 subperguntas analíticas, hipóteses a verificar, tags de fontes canônicas prioritárias e critério de conclusão."
+    },
+    {
+      "step": 3,
+      "name": "03_execution_progress.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-2/A-evidence/03_execution_progress.png",
+      "sha256": "024647cc9b4a779850c82984568344288559eacf92beca295313f326ae66490c",
+      "bytes": 107644,
+      "description": "Execução síncrona da investigação: transição do plano para execução via GSAP, rastreador em 3 estágios (Busca -> Auditoria -> Redação) e badge de ciclo ativo."
+    },
+    {
+      "step": 4,
+      "name": "04_final_report.png",
+      "path": "docs/frontend/remediation/critiques/validated-round-2/A-evidence/04_final_report.png",
+      "sha256": "50a05b4a0599ae4f4c131a116154db761ec158046939237400d78b55ad12f186",
+      "bytes": 106235,
+      "description": "Dossiê final entregue com leitor posicionado no topo (scrollY=0). O texto exibido decorre da fixture estática de IA/educação servida pelo AcceptanceMockNetwork sob o tema de energia solar (registrado como limitação da fixture, sem falha do renderizador frontend). Botão 'Copiar Markdown' exibe feedback 'Copiado!' e botão 'Baixar Markdown' está presente (conteúdo do arquivo baixado em disco não inspecionado)."
+    }
+  ],
+  "verified_interactions": {
+    "topic_submitted_and_plan_generated": true,
+    "points_initially_collapsed_for_compactness": true,
+    "sole_continuation_action_present_in_dom": true,
+    "immediate_viewport_start_visible_above_fold": false,
+    "point_accordion_expand_collapse_functional": true,
+    "synchronous_pipeline_search_audit_writer_executed": true,
+    "report_view_rendered_at_top_of_dossier": true,
+    "copy_markdown_button_provides_user_feedback": true,
+    "download_markdown_button_present": true,
+    "download_file_contents_verified_on_disk": false
+  }
+}

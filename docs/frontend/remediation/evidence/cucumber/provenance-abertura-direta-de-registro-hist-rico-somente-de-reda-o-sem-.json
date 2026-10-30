@@ -1,0 +1,15 @@
+{
+  "scenarioName": "Abertura direta de registro histórico somente de redação sem plano",
+  "baseUrl": "http://localhost:3001",
+  "timestamp": "2026-10-29T18:23:11.491Z",
+  "mode": "test",
+  "loadedScripts": [
+    "http://localhost:3001/@vite/client",
+    "http://localhost:3001/src/main.tsx?t=1793297520105"
+  ],
+  "loadedStyles": [],
+  "screenshots": [
+    "desktop-history.png"
+  ],
+  "liveViolations": 0
+}

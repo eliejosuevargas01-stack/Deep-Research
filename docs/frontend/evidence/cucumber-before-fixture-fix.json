@@ -1,0 +1,9 @@
+{
+  "command": "BASE_URL=http://127.0.0.1:3001 npm run test:e2e",
+  "exit_code": 1,
+  "summary": [
+    "21 scenarios (1 failed, 20 passed)",
+    "100 steps (1 failed, 2 skipped, 97 passed)",
+    "0m53.372s (executing steps: 0m53.211s)"
+  ]
+}

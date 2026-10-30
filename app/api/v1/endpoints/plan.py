@@ -4,25 +4,38 @@ Atende a T033, RF-01, RF-02 e RN-02.
 """
 
 import os
+import asyncio
 import json
 from typing import Any, Dict, List, Optional, Union
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from starlette.responses import StreamingResponse
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.pipeline_runner import PipelineRunner
-from app.core.planner import Planner
+from app.core.planner import PlanAmbiguityError, PlanContractError, Planner
+from app.core.stream_context import stream_scope
 from app.db.research_repository import ResearchRepository
 from app.db.session import get_db
-from app.schemas.plan import PlanAsyncResponse, PlanPontoItem, PlanRequest, PlanResponse
+from app.schemas.plan import (
+    PlanAsyncResponse,
+    PlanPontoItem,
+    PlanPreferencias,
+    PlanRequest,
+    PlanResponse,
+    PlanoEixo,
+    PlanoInvestigacao,
+)
 from app.services.credential_resolver import (
     resolve_jina_base_url,
     resolve_key,
     resolve_n_pontos,
     resolve_personas,
 )
+from app.tools.errors import JinaError, LLMCallError
 from app.tools.jina_client import JinaClient
 from app.tools.llm_client import LLMClient
+from app.tools.llm_types import project_public_envelope, redact_sensitive_string
 
 router = APIRouter()
 
@@ -56,6 +69,8 @@ async def create_plan(
     """Formula N pontos focais para o tema e persiste a pesquisa no SQLite permanente."""
     transport = _get_transport()
     repo = ResearchRepository(session=db)
+    jina_client = None
+    llm_client = None
     try:
         jina_key = _clean_key(await resolve_key(db, "JINA_API_KEY", transport)) or (
             "jina-mock-key" if transport else None
@@ -78,18 +93,102 @@ async def create_plan(
             model_strong=model_strong,
             transport=transport,
         )
+
+        # Resolução de n_pontos e personas efetivos respeitando preferências por pesquisa
+        plan_n_pontos = payload.n_pontos if payload.n_pontos is not None else (None if transport else await resolve_n_pontos(db))
+
+        if payload.personas is not None:
+            effective_search_personas = list(payload.personas)
+        else:
+            resolved_personas_raw = None if transport else await resolve_personas(db)
+            if resolved_personas_raw:
+                effective_search_personas = [p for p in resolved_personas_raw if p in ("historiador", "visionario", "cetico", "futurista")]
+            else:
+                from app.config import get_settings
+                settings_p = getattr(get_settings(), "personas_config", None) or os.environ.get("PERSONAS_CONFIG")
+                if settings_p:
+                    effective_search_personas = [p.strip() for p in str(settings_p).split(",") if p.strip() in ("historiador", "visionario", "cetico", "futurista")]
+                else:
+                    effective_search_personas = ["historiador", "visionario", "cetico", "futurista"]
+            if not effective_search_personas:
+                effective_search_personas = ["historiador", "visionario", "cetico", "futurista"]
+
         planner = Planner(
             research_repo=repo,
             jina_client=jina_client,
             llm_client=llm_client,
-            n_pontos=None if transport else await resolve_n_pontos(db),
-            personas=None if transport else await resolve_personas(db),
+            n_pontos=plan_n_pontos,
+            personas=None,
         )
-        pesquisa = await planner.execute_plan(
-            tema=payload.tema,
-            id_pesquisa=payload.id_pesquisa,
-        )
+
+        preferencias_snapshot = {
+            "n_pontos": planner.n_pontos,
+            "personas": effective_search_personas,
+            "recencia": payload.recencia or "auto",
+        }
+
+        with stream_scope(payload.id_pesquisa, "plan", agent="planejador"):
+            pesquisa = await planner.execute_plan(
+                tema=payload.tema,
+                id_pesquisa=payload.id_pesquisa,
+                preferencias=preferencias_snapshot,
+                recencia=payload.recencia,
+            )
         pontos = await repo.list_points(pesquisa.id_pesquisa)
+        if len(pontos) != planner.n_pontos:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Divergência na quantidade de pontos gerados ({len(pontos)}) em relação ao solicitado ({planner.n_pontos}).",
+            )
+    except PlanAmbiguityError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "tipo": "ambiguidade_bloqueante",
+                "pergunta_de_esclarecimento": exc.pergunta,
+                "mensagem": str(exc),
+                "envelopes": [project_public_envelope(e) for e in exc.envelopes],
+            },
+        )
+    except LLMCallError as exc:
+        envs = (
+            [project_public_envelope(e) for e in exc.envelopes]
+            if exc.envelopes
+            else ([project_public_envelope(exc.envelope)] if exc.envelope else [])
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "tipo": "LLMCallError",
+                "mensagem": redact_sensitive_string(str(exc)),
+                "envelopes": envs,
+            },
+        )
+    except PlanContractError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "tipo": "PlanContractError",
+                "diagnostico": exc.motivo,
+                "mensagem": str(exc),
+                "envelopes": [project_public_envelope(e) for e in exc.envelopes],
+            },
+        )
+    except JinaError as exc:
+        status_code = (
+            status.HTTP_504_GATEWAY_TIMEOUT
+            if exc.http_status == 504
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail={
+                "tipo": "JinaError",
+                "categoria": exc.categoria,
+                "mensagem": str(exc),
+                "acao_corretiva": exc.acao_corretiva,
+            },
+        ) from exc
     except json.JSONDecodeError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -106,25 +205,72 @@ async def create_plan(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=msg,
         )
+    finally:
+        if llm_client:
+            await llm_client.aclose()
+        if jina_client:
+            await jina_client.aclose()
 
-    pontos_items = [
-        PlanPontoItem(
-            ponto_id=p.ponto_id,
-            ponto_n=p.ponto_n,
-            ponto=p.ponto,
-            status=p.status,
-            pontos_fracos=p.pontos_fracos,
-            reasoning_planejamento=p.reasoning_planejamento,
-            reasoning_auditoria=p.reasoning_auditoria,
+    pontos_items = []
+    for p in pontos:
+        eixo_obj = None
+        if getattr(p, "eixo_estruturado", None):
+            try:
+                eixo_obj = PlanoEixo.model_validate_json(p.eixo_estruturado)
+            except Exception:
+                pass
+        pontos_items.append(
+            PlanPontoItem(
+                ponto_id=p.ponto_id,
+                ponto_n=p.ponto_n,
+                ponto=p.ponto,
+                status=p.status,
+                pontos_fracos=p.pontos_fracos,
+                reasoning_planejamento=p.reasoning_planejamento,
+                reasoning_auditoria=p.reasoning_auditoria,
+                eixo_estruturado=eixo_obj,
+            )
         )
-        for p in pontos
-    ]
+
+    plano_estruturado = getattr(pesquisa, "_plano_estruturado", None)
+    if plano_estruturado is None and getattr(pesquisa, "plano_estruturado", None):
+        try:
+            plano_estruturado = PlanoInvestigacao.model_validate_json(pesquisa.plano_estruturado)
+        except Exception:
+            pass
+
+    metadados_modelo = getattr(pesquisa, "_metadados_modelo", None)
+    if metadados_modelo is None and getattr(pesquisa, "metadados_planejamento", None):
+        try:
+            metadados_modelo = json.loads(pesquisa.metadados_planejamento)
+        except Exception:
+            pass
+
+    # Pref snapshot para resposta
+    recencia_meta = {}
+    if isinstance(metadados_modelo, dict):
+        recencia_meta = metadados_modelo.get("recencia") or {}
+    pref_obj = PlanPreferencias(
+        n_pontos=len(pontos),
+        personas=effective_search_personas,
+        recencia=(preferencias_snapshot.get("recencia") or "auto"),
+        data_referencia=(
+            (plano_estruturado.data_referencia if plano_estruturado else None)
+            or recencia_meta.get("data_referencia")
+        ),
+        execution_mode=payload.execution_mode,
+    )
 
     # Se async_execute for True, agenda a execução ininterrupta em background
     if payload.async_execute:
         response.status_code = status.HTTP_202_ACCEPTED
         runner = PipelineRunner(transport=transport)
-        background_tasks.add_task(runner.run, pesquisa.id_pesquisa, payload.callback_url)
+        background_tasks.add_task(
+            runner.run,
+            pesquisa.id_pesquisa,
+            payload.callback_url,
+            payload.execution_mode,
+        )
         return PlanAsyncResponse(
             id_pesquisa=pesquisa.id_pesquisa,
             tema=pesquisa.tema,
@@ -133,6 +279,9 @@ async def create_plan(
             n_pontos=len(pontos),
             callback_url=payload.callback_url,
             pontos=pontos_items,
+            plano_estruturado=plano_estruturado,
+            metadados_modelo=metadados_modelo,
+            preferencias=pref_obj,
         )
 
     return PlanResponse(
@@ -142,4 +291,41 @@ async def create_plan(
         criado_em=pesquisa.criado_em,
         status_pipeline="planejado",
         pontos=pontos_items,
+        plano_estruturado=plano_estruturado,
+        metadados_modelo=metadados_modelo,
+        preferencias=pref_obj,
+    )
+
+
+@router.get("/plan/{id_pesquisa}/stream")
+async def stream_plan_reasoning(id_pesquisa: str, request: Request) -> StreamingResponse:
+    """Transmite o raciocínio do Planejador enquanto `POST /plan` ainda está em curso.
+
+    O `Planner` roda dentro de `stream_scope(id_pesquisa, "plan")`, então cada token do
+    provedor chega ao hub antes de a resposta HTTP existir. Este canal permite abrir a
+    tela intermediária de planejamento sem esperar o plano completo.
+    """
+    from app.core.pipeline_runner import get_pipeline_event_hub
+
+    async def event_generator():
+        hub = get_pipeline_event_hub()
+        queue = hub.subscribe(id_pesquisa)
+        try:
+            yield ": conectado\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event_name, payload = await asyncio.wait_for(queue.get(), timeout=15)
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"
+                    continue
+                yield f"event: {event_name}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        finally:
+            hub.unsubscribe(id_pesquisa, queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
     )

@@ -1,0 +1,146 @@
+{
+  "round": 4,
+  "evaluator": "A",
+  "phase": "CAPTURE_PHASE_A",
+  "timestamp_utc": "2026-10-26T23:41:18Z",
+  "log": [
+    {
+      "step": 1,
+      "action": "open_session_tab",
+      "tool": "browser_exec",
+      "session": "validated_r4_a",
+      "url": "http://localhost:8011",
+      "result": "Tab opened isolated at http://localhost:8011/, document.title='🐴 Deep Research — Workspace de Investigação Analítica'"
+    },
+    {
+      "step": 2,
+      "action": "inspect_initial_state",
+      "observed": {
+        "textarea": "empty",
+        "preferences": "1 ponto • 4 personas (default)",
+        "session_mode": "Modo local (session authenticated automatically via same-origin HttpOnly cookies)",
+        "composer_send_btn": "disabled (aria-label='Planejar investigação')"
+      }
+    },
+    {
+      "step": 3,
+      "action": "input_topic_and_create_plan",
+      "input_text": "Impacto da IA no ensino superior",
+      "dispatch": "fill_input('textarea', 'Impacto da IA no ensino superior')",
+      "click": "button.composer-send-btn",
+      "result": "Plan created successfully. Heading: 'Plano pronto para revisão', Point 1: 'Adoção de tutores inteligentes baseados em IA e impactos no letramento'."
+    },
+    {
+      "step": 4,
+      "action": "start_synchronous_research",
+      "click": "button.btn-start-research (aria-label='Iniciar pesquisa síncrona dos eixos formulados')",
+      "monitoring": "Poll pipelineStage -> completed in 2s with fixture mock providers",
+      "result": "Dossiê Concluído rendered, title='Impacto da IA no ensino superior', markdown dossier generated with 3 sections and sources."
+    },
+    {
+      "step": 5,
+      "action": "navigate_to_history",
+      "click": "a[href='#history'] in Navbar",
+      "observed": {
+        "heading": "Histórico de Investigações",
+        "cards_count": 1,
+        "title": "Impacto da IA no ensino superior",
+        "status": "concluido",
+        "meta": "26 de out. de 2026, 20:33 • 1 pontos • Dossiê disponível",
+        "has_open_btn": true
+      }
+    },
+    {
+      "step": 6,
+      "action": "reopen_report_from_history",
+      "click": "button 'Abrir' on history-item-card",
+      "result": "Hash updated to #research, ReportView hydrated with full original markdown text, artifact_hash computed and sources verified without mismatch banner."
+    },
+    {
+      "step": 7,
+      "action": "verify_source_accounting_and_keyboard",
+      "counters": {
+        "total_consultadas": "3",
+        "utilizadas_no_dossie": "3",
+        "consultadas_mas_nao_citadas": "0"
+      },
+      "badge": "EVIDÊNCIAS COMPLETAS",
+      "groups": [
+        {
+          "index": 0,
+          "summary": "Fontes Utilizadas no Dossiê 3",
+          "default_open": true,
+          "items_count": 3,
+          "domains": ["mec.gov.br", "unesdoc.unesco.org", "scielo.br"]
+        },
+        {
+          "index": 1,
+          "summary": "Fontes Consultadas mas Não Citadas 0",
+          "default_open": false,
+          "items_count": 0,
+          "empty_message": "Nenhuma fonte consultada permaneceu sem citação direta."
+        },
+        {
+          "index": 2,
+          "summary": "Todas as Fontes Consultadas com Leitura Confirmada 3",
+          "default_open": false,
+          "items_count": 3
+        }
+      ],
+      "keyboard_verification": {
+        "focus": "summary element for Group 2 focused (document.activeElement === summary)",
+        "native_cdp_enter": "cdp('Input.dispatchKeyEvent', key='Enter') dispatches key event",
+        "native_cdp_space": "cdp('Input.dispatchKeyEvent', key=' ') toggles <details> open/closed natively in Chromium",
+        "conclusion": "Native keyboard input verified and distinguished from synthetic event dispatch."
+      },
+      "screenshot_captured": "docs/frontend/remediation/critiques/validated-round-4/A-evidence/01_source_breakdown_after_history_reopen.png (61019 bytes)"
+    },
+    {
+      "step": 8,
+      "action": "navigate_to_documentation",
+      "click": "a[href='#docs'] in Navbar",
+      "observed": {
+        "title": "Guia Operacional e Documentação do Deep Research",
+        "cards": ["1. Planejamento (Plan)", "2. Busca Agêntica (Search)", "3. Auditoria (Audit)", "4. Redação (Writer)"],
+        "sections": [
+          "1. Visão Geral da Arquitetura",
+          "2. Como Formular Temas de Pesquisa",
+          "3. Personas Investigativas Especializadas",
+          "4. Auditoria de Qualidade e Limiar de Corte (11/12)",
+          "5. Credenciais, Segurança e Precedência (RN-10)",
+          "6. Integração com Webhook de Callback",
+          "7. Escopo dos Checkpoints"
+        ],
+        "security_policy": "RN-10 precedence (env > encrypted DB), AES-128-CBC + HMAC-SHA256 Fernet in SQLite, HttpOnly SameSite=Strict cookies, secret masking"
+      },
+      "screenshots_captured": [
+        "docs/frontend/remediation/critiques/validated-round-4/A-evidence/02_in_app_documentation_overview.png (96673 bytes)",
+        "docs/frontend/remediation/critiques/validated-round-4/A-evidence/03_in_app_documentation_criteria_and_security.png (94594 bytes)"
+      ]
+    },
+    {
+      "step": 9,
+      "action": "return_to_research_and_verify_preservation",
+      "click": "a[href='#research'] in Navbar",
+      "result": "ReportView preserved intact with title 'Impacto da IA no ensino superior', markdown content and source breakdown without data loss or re-fetch errors."
+    },
+    {
+      "step": 10,
+      "action": "capture_history_view",
+      "click": "a[href='#history'] in Navbar",
+      "screenshot_captured": "docs/frontend/remediation/critiques/validated-round-4/A-evidence/04_history_view_with_completed_report.png (45179 bytes)"
+    },
+    {
+      "step": 11,
+      "action": "reset_to_new_research",
+      "click": "button.btn-new-research",
+      "result": "Workspace cleanly reset to empty state and composer without faking backend cancellation; history record in localStorage completely preserved (1 record present)."
+    },
+    {
+      "step": 12,
+      "action": "cleanup_own_tab",
+      "tool": "browser_exec close_tab() in session validated_r4_a",
+      "result": "Dedicated session tab closed cleanly. Zero interference with root or user browser tabs."
+    }
+  ]
+}

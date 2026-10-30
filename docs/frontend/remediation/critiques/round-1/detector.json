@@ -1,0 +1,64 @@
+{
+  "scan_target": "frontend/src",
+  "evaluated_url": "http://localhost:8011/",
+  "timestamp": "2026-10-26T22:30:00-03:00",
+  "detector_cli": {
+    "command": "/home/eliezer/.claude/skills/impeccable/scripts/impeccable detect --json frontend/src",
+    "exit_code": 0,
+    "findings_count": 0,
+    "findings": []
+  },
+  "browser_live_overlay": {
+    "live_server_port": 8400,
+    "script_injected": "http://localhost:8400/detect.js",
+    "overlay_elements_detected": 4,
+    "findings": [
+      {
+        "rule": "line-length-too-long",
+        "severity": "suggestion",
+        "selector": "p.empty-state-text",
+        "bounding_box": {
+          "x": 593,
+          "y": 244,
+          "width": 692,
+          "height": 72.39
+        },
+        "evidence": "O texto descritivo do EmptyState estende-se por 692px de largura sem restrição max-width estreita, gerando linhas de leitura com mais de 85 caracteres por linha (acima da medida ideal de 60 a 75ch).",
+        "remediation_hint": "Adicionar max-width: 64ch ou max-width: 620px em .empty-state-text para melhorar o ritmo de leitura."
+      },
+      {
+        "rule": "tiny-body-text",
+        "severity": "minor",
+        "selector": "span.helper-info",
+        "bounding_box": {
+          "x": 265,
+          "y": 768.51,
+          "width": 351.51,
+          "height": 18
+        },
+        "evidence": "O texto de orientação abaixo do compositor ('Mínimo de 5 e máximo de 500 caracteres...') possui corpo renderizado abaixo do limiar confortável de leitura rápida.",
+        "remediation_hint": "Elevar font-size de 0.78rem para 0.82rem ou 0.85rem em .composer-helper-text mantendo contraste adequado."
+      },
+      {
+        "rule": "overused-font",
+        "severity": "informational",
+        "selector": "body",
+        "evidence": "Primary font: inter (52% de todo o texto renderizado na tela).",
+        "remediation_hint": "Esperado e alinhado com a especificação DESIGN.md (Inter para leitura, Outfit para headers e JetBrains Mono para código/tags)."
+      },
+      {
+        "rule": "monotonous-spacing",
+        "severity": "informational",
+        "selector": "app-container",
+        "evidence": "Espaçamento repetitivo: escala ~8px utilizada em 11 de 15 medições computadas (73%).",
+        "remediation_hint": "Variar o ritmo vertical com degraus de 12px, 16px e 24px entre blocos hierárquicos distintos."
+      }
+    ],
+    "console_messages": [
+      {
+        "level": "warn",
+        "message": "[impeccable] scan failed {}"
+      }
+    ]
+  }
+}

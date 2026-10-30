@@ -1,9 +1,10 @@
 """Endpoint POST /api/v1/audit para auditoria de qualidade analítica.
 
-Atende a T035, RF-06 e RF-07.
+Atende a T035, RF-06, RF-07 e adendo v5-audit.
 """
 
 import os
+import asyncio
 import json
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -16,18 +17,9 @@ from app.db.session import get_db
 from app.schemas.audit import AuditRequest, AuditResponse
 from app.services.credential_resolver import resolve_key, resolve_personas
 from app.tools.llm_client import LLMClient
+from app.tools.errors import LLMCallError
 
 router = APIRouter()
-
-
-async def _persona_prompt(db: AsyncSession, transport: object) -> str | None:
-    """Devolve o prompt da persona auditor; None se PERSONAS_CONFIG não contiver 'auditor'."""
-    if transport is not None:
-        return None
-    configuradas = await resolve_personas(db)
-    if "auditor" in configuradas:
-        return "Você é a persona auditor com rigor metodológico, objetividade e ceticismo analítico."
-    return None
 
 
 def _get_transport() -> Optional[httpx.AsyncBaseTransport]:
@@ -49,7 +41,6 @@ def _clean_key(val: Optional[str]) -> Optional[str]:
     return cleaned if cleaned else None
 
 
-# ponytail: auditoria atômica em bloco; suportar reavaliação parcial de ponto específico via query param
 @router.post("/audit", response_model=AuditResponse, status_code=status.HTTP_200_OK)
 async def audit_research(
     payload: AuditRequest,
@@ -58,6 +49,7 @@ async def audit_research(
     """Avalia o conteúdo coletado contra o checklist das 12 perguntas de qualidade via LLM forte."""
     transport = _get_transport()
     repo = ResearchRepository(session=db)
+    llm_client: Optional[LLMClient] = None
     try:
         llm_key = _clean_key(await resolve_key(db, "OPENAI_API_KEY", transport)) or (
             "openai-mock-key" if transport else None
@@ -73,12 +65,38 @@ async def audit_research(
             model_strong=model_strong,
             transport=transport,
         )
+
+        personas_config = None if transport else await resolve_personas(db)
+
         auditor = Auditor(
             research_repo=repo,
             llm_client=llm_client,
-            persona_prompt=await _persona_prompt(db, transport),
+            personas=personas_config,
         )
-        resumo = await auditor.execute_audit(id_pesquisa=payload.id_pesquisa)
+        resumo = await auditor.execute_audit(
+            id_pesquisa=payload.id_pesquisa,
+            ponto_id=payload.ponto_id,
+            criterios_minimos=payload.criterios_minimos,
+        )
+        return AuditResponse(**resumo)
+
+    except LLMCallError as exc:
+        # Falha do provedor LLM não é erro do cliente: 502, com o motivo real
+        # (ex.: content_filter) em vez de um 400 genérico de validação.
+        envelope = getattr(exc, "envelope", None)
+        motivo = getattr(envelope, "finish_reason", None)
+        detalhe = str(exc)
+        if motivo == "content_filter":
+            detalhe += (
+                " O provedor aplicou filtro de conteúdo sobre a evidência enviada."
+                " Tente novamente; se persistir, troque o modelo da auditoria ou"
+                " reduza a quantidade de fontes por ponto."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AUDIT_LLM_PROVIDER_ERROR: {detalhe}",
+        )
+
     except json.JSONDecodeError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -91,19 +109,31 @@ async def audit_research(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=msg,
             )
-        if "SEARCH_NOT_COMPLETED" in msg or "coleta" in msg:
+        if "CONCURRENT_EXECUTION" in msg:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail=msg,
             )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=msg,
         )
+    except HTTPException:
+        raise
+    except (TimeoutError, asyncio.TimeoutError) as exc:
+        # Sem mensagem própria, o TimeoutError virava "AUDIT_PROCESSING_ERROR: ".
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=(
+                "AUDIT_TIMEOUT: a auditoria excedeu o tempo limite do ponto. "
+                "A evidência foi preservada; repita a auditoria."
+            ),
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"AUDIT_PROCESSING_ERROR: {str(exc)}",
         )
-
-    return AuditResponse(**resumo)
+    finally:
+        if llm_client is not None:
+            await llm_client.aclose()

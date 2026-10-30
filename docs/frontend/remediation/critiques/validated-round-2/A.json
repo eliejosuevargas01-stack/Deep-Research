@@ -1,0 +1,158 @@
+{
+  "round": 2,
+  "surface": "Plano e Relatório",
+  "evaluator": "A",
+  "evaluation_type": "independent_design_review",
+  "provenance": {
+    "method": "dual_agent_isolated",
+    "agent": "Hermes ag/gemini-3.8-flash-high reasoning high via 9router",
+    "detector_seen": false,
+    "evaluator_b_seen": false,
+    "target_url": "http://localhost:8011/",
+    "provider_mode": "fixture_simulated_external_providers",
+    "timestamp_initial_capture": "2026-10-26T18:56:39Z",
+    "timestamp_verified_utc": "2026-10-26T19:01:53Z",
+    "visual_verdict_status": "COMPLETED",
+    "score_approval_delivered": true,
+    "attached_images_inspected": [
+      "docs/frontend/remediation/critiques/validated-round-2/A-evidence/01_compact_plan.png",
+      "docs/frontend/remediation/critiques/validated-round-2/A-evidence/04_final_report.png"
+    ],
+    "visual_evidence_provenance": "Inspeção visual direta dos pixels das duas imagens correntes anexadas. Em 01_compact_plan.png (1280x577), o plano de 2 pontos recolhidos é exibido com Ponto 1 completo e Ponto 2 com borda inferior cortada pela borda da tela; o botão 'Iniciar pesquisa' NÃO está imediatamente visível na viewport (está abaixo da dobra). A visibilidade imediata sem rolagem é classificada como NÃO COMPROVADA (UNPROVEN), embora o elemento exista no DOM e tenha sido acionado após rolagem. Em 04_final_report.png, a rolagem no topo (scrollY=0) e a fidelidade da renderização do Markdown foram comprovadas visualmente. O texto com tema de IA/educação sob o título de energia solar é reconhecido como limitação da fixture mockada, sem que o frontend tenha inventado o conteúdo."
+  },
+  "served_bundle_hashes": {
+    "bundle_js": "272239a3f48061e1c2312c0d965f51c8a07b989c5db66417999debe49446799a",
+    "bundle_css": "00535d433132c25d1fd002ec5eb179d9ddcc1f09b6c726b1d88702323a3b3197"
+  },
+  "source_hashes_at_capture": {
+    "frontend/src/App.tsx": "ef424550dc29034532bb7f8b3260a0a19c7b0c9edd1ec444490bd679b834e680",
+    "frontend/src/components/PlanView.tsx": "01b2a926f7435f115a3bbfe59ea84cbcf929d06bcf64188ea0ec51f531aa96d4",
+    "frontend/src/components/ExecutionView.tsx": "85eead009e4554b2d56a28ee7e8ca319cf83a2c5a083d8e5793e50772714c670",
+    "frontend/src/components/ReportView.tsx": "7fc4c2aa27fa8325efb319662bfe07d0f367e91eb704464c23f892a06180374e"
+  },
+  "design_specificity": {
+    "verdict": "highly_specific",
+    "notes": "A interface entre plano e relatório reflete de forma sólida um pipeline de inteligência analítica: eixos metodológicos decompostos em perguntas falseáveis, chips de snapshot imutáveis na pesquisa, rastreador de execução trifásico e dossiê final orientado a leitura e exportação direta."
+  },
+  "nielsen_heuristics": {
+    "applicable_max": 40,
+    "total_score": 32,
+    "rating_band": "Bom / Sólido (80.0%)",
+    "heuristics": [
+      {
+        "id": 1,
+        "name": "Visibility of System Status",
+        "score": 3,
+        "key_issue": "Botão 'Iniciar pesquisa' fica abaixo da dobra em viewport de 1280x577",
+        "findings": "Navbar indica modo de execução, ContextSidebar exibe 'Aguardando início', ID e carimbo de criação. Na execução, o rastreador de 3 etapas indica o ciclo. Deduzido 1 ponto porque na captura visual 01_compact_plan.png (1280x577), o botão 'Iniciar pesquisa' não está visível no viewport sem rolagem prévia, e o Ponto 2 sofre corte na borda inferior da tela."
+      },
+      {
+        "id": 2,
+        "name": "Match Between System and the Real World",
+        "score": 4,
+        "key_issue": "n/a",
+        "findings": "Vocabulário analítico autêntico: 'eixos investigativos', 'hipóteses falseáveis', 'fontes canônicas prioritárias', 'critério de conclusão'. Comunicação sem ambiguidades conceituais."
+      },
+      {
+        "id": 3,
+        "name": "User Control and Freedom",
+        "score": 3,
+        "key_issue": "Sem cancelamento durante execução; 'Novo tema' descarta plano sem confirmação",
+        "findings": "Acordeões permitem expansão individual ('Mais detalhes') ou global ('Expandir todos os detalhes'). Opção de editar o tema devolve o texto ao compositor. Deduzido 1 ponto pela ausência de ação de cancelamento na tela de execução e pela falta de confirmação ao clicar em 'Novo tema' com plano ativo."
+      },
+      {
+        "id": 4,
+        "name": "Consistency and Standards",
+        "score": 3,
+        "key_issue": "Layout de duas colunas (72%/28%) consome altura útil em telas de altura reduzida",
+        "findings": "Ícones Lucide e paleta violeta/índigo alinhados ao DESIGN.md. Stepper vertical bem demarcado com numeração circular. Deduzido 1 ponto pelo acúmulo de cabeçalhos verticais (navbar + query-banner + plan-header) que esgotam a altura antes da ação primária."
+      },
+      {
+        "id": 5,
+        "name": "Error Prevention",
+        "score": 3,
+        "key_issue": "Descarte acidental de plano elaborado por clique inadvertido em 'Novo tema'",
+        "findings": "Botões de ação desabilitados durante transição (`isStarting`), impedindo cliques concorrentes. Ação única de início evita bifurcações. Deduzido 1 ponto porque 'Novo tema' descarta o plano formulado sem diálogo de confirmação."
+      },
+      {
+        "id": 6,
+        "name": "Recognition Rather Than Recall",
+        "score": 4,
+        "key_issue": "n/a",
+        "findings": "Plano explicita visualmente todas as subperguntas e fontes de forma direta. A barra lateral direita mantém à vista o público-alvo, abrangência temporal e total de pontos."
+      },
+      {
+        "id": 7,
+        "name": "Flexibility and Efficiency of Use",
+        "score": 3,
+        "key_issue": "Falta atalho de teclado global para expandir pontos ou acionar o início",
+        "findings": "Botão 'Expandir todos os detalhes' acelera inspeção completa; ações rápidas de cópia de Markdown com feedback. Deduzido 1 ponto pela ausência de atalhos rápidos de teclado para alternar acordeões ou disparar a pesquisa diretamente."
+      },
+      {
+        "id": 8,
+        "name": "Aesthetic and Minimalist Design",
+        "score": 3,
+        "key_issue": "Densidade vertical excessiva do cabeçalho do plano em laptops",
+        "findings": "Superfícies limpas, tipografia Outfit/Inter e espaçamento arejado. Deduzido 1 ponto pela densidade vertical do cabeçalho que empurra o botão de ação principal para fora da viewport em 1280x577."
+      },
+      {
+        "id": 9,
+        "name": "Help Users Recognize, Diagnose, and Recover from Errors",
+        "score": 3,
+        "key_issue": "Ausência de detecção de anomalia semântica entre tema solicitado e payload retornado",
+        "findings": "Mensagens de erro de estágio e timeout implementadas em ExecutionView. Deduzido 1 ponto porque quando a fixture entregou texto de IA sob tema solar, o cliente não dispõe de sinalizador de divergência temática (limitação de fixture anotada)."
+      },
+      {
+        "id": 10,
+        "name": "Help and Documentation",
+        "score": 3,
+        "key_issue": "Falta de explicação dos 12 critérios de auditoria no rastreador",
+        "findings": "Descrição do plano e escopo temporal contextualizados. Link de Documentação disponível. Deduzido 1 ponto pela ausência de tooltip ou link explicando quais são os 12 critérios de auditoria citados no estágio 2 da execução."
+      }
+    ]
+  },
+  "cognitive_load": {
+    "plan_presentation": "Os pontos iniciam recolhidos para reduzir a sobrecarga de leitura inicial. O usuário decide quando abrir os detalhes de cada eixo investigativo.",
+    "context_sidebar": "Mantém metadados críticos (status, público, tempo, ID) em coluna separada à direita, liberando o canvas principal para a leitura do plano e do relatório.",
+    "sole_action_principle": "Apenas um botão primário de continuidade ('Iniciar pesquisa'), eliminando paralisia por excesso de opções."
+  },
+  "emotional_journey": {
+    "plan_review": "Sensação de controle e transparência metodológica ao revisar as hipóteses antes do disparo da busca.",
+    "execution_wait": "O rastreador trifásico e o indicador de ciclo minimizam a ansiedade de espera síncrona.",
+    "report_delivery": "A ancoragem no topo (scrollY=0) proporciona uma experiência de leitura natural e gratificante, evitando o desconcerto de ser jogado no final da bibliografia."
+  },
+  "strengths": [
+    "Adoção de divulgação progressiva com pontos inicialmente recolhidos, permitindo visualização estruturada dos eixos.",
+    "Rastreador de execução síncrona transparente em 3 etapas com indicador do ciclo ativo.",
+    "Foco e posicionamento corrigidos no topo do relatório (scrollY=0), acompanhados de ferramenta de cópia com feedback 'Copiado!'."
+  ],
+  "issues": [
+    {
+      "id": "ISSUE-R2-01",
+      "severity": "P1",
+      "title": "Botão 'Iniciar pesquisa' abaixo da dobra em viewport de 1280x577",
+      "evidence": "Na captura 01_compact_plan.png (1280x577), o botão '#start-research-btn' não está visível na tela sem rolagem; o Ponto 2 está parcialmente cortado na borda inferior.",
+      "remediation": "Reduzir o padding vertical do cabeçalho do plano ou fixar uma barra de ação adesiva (sticky footer) na base do PlanView quando o botão estiver fora da área visível."
+    },
+    {
+      "id": "ISSUE-R2-02",
+      "severity": "P2",
+      "title": "Divergência semântica nos dados mockados da fixture e download não verificado em disco",
+      "evidence": "Na captura 04_final_report.png, o corpo do dossiê reflete a fixture estática de IA/educação sob o tema de energia solar (limitação da fixture AcceptanceMockNetwork, não do frontend). O botão 'Baixar Markdown' está presente, mas o arquivo gerado em disco não foi inspecionado nesta rodada.",
+      "remediation": "Registrar como limitação explícita de ensaio mockado. Adicionar verificação ponta a ponta do blob transferido nas suites de aceitação."
+    },
+    {
+      "id": "ISSUE-R2-03",
+      "severity": "P3",
+      "title": "Ação 'Novo tema' descarta plano elaborado sem confirmação do usuário",
+      "evidence": "No topo do PlanView, clicar em 'Novo tema' reseta imediatamente o plano sem pedir confirmação, podendo causar perda involuntária de hipóteses já formuladas.",
+      "remediation": "Exibir diálogo de confirmação ou permitir desfazer (undo) ao resetar um plano elaborado."
+    }
+  ],
+  "personas_impact": {
+    "Sam": "Pesquisador ágil: aprecia a simplicidade da ação única 'Iniciar pesquisa', mas precisa rolar para encontrá-la em telas menores.",
+    "Jordan": "Pesquisador sênior: expande os acordeões para inspecionar hipóteses e critérios de conclusão com alto rigor metodológico.",
+    "Alex": "Usuário de teclado: navega bem pelos botões de acordeão, mas se beneficiaria de um atalho global de teclado para disparar o início da pesquisa.",
+    "Casey": "Usuário móvel: valoriza o scroll no topo do relatório e a cópia direta para a área de transferência em dispositivos portáteis."
+  }
+}

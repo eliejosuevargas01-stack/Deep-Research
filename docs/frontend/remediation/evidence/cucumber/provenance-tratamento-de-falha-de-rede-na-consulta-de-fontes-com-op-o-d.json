@@ -1,0 +1,13 @@
+{
+  "scenarioName": "Tratamento de falha de rede na consulta de fontes com opção de nova tentativa",
+  "baseUrl": "http://localhost:3001",
+  "timestamp": "2026-10-29T18:24:28.110Z",
+  "mode": "test",
+  "loadedScripts": [
+    "http://localhost:3001/@vite/client",
+    "http://localhost:3001/src/main.tsx?t=1793297520105"
+  ],
+  "loadedStyles": [],
+  "screenshots": [],
+  "liveViolations": 0
+}

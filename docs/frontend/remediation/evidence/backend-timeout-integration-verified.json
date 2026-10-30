@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/home/eliezer/Escritorio/deep-research/Deep-Research/.venv/bin/pytest",
+    "tests/integration/test_web_app.py",
+    "tests/integration/test_research_preferences.py",
+    "tests/integration/test_web_timeout.py",
+    "-q"
+  ],
+  "exit_code": 0,
+  "isolation": "explicit temporarySQLite; outside IPC-restricting sandbox; external-provider fixtures",
+  "source_hashes": {
+    "app/core/searcher.py": "3e92f8b03f3da1e4de14be906e276e0171c4b9868c036b3fd723cede9a4e2cbf",
+    "app/api/v1/endpoints/search.py": "294cb5f43945905bad3f09878febdf28c451c95bf8435dc9c1b3280b338f70e0",
+    "app/tools/errors.py": "ac66d158de24429da518695b9c6fcf665ff8d60552b41b8a9e519810fc0cc261",
+    "tests/integration/test_web_timeout.py": "a9514b01d696a5b74f4503b7c86c130971d5233d6623c104ac00f381f66dfe7f"
+  }
+}

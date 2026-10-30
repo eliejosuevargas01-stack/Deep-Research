@@ -110,11 +110,17 @@ class WebhookClient:
         payload: Dict[str, Any],
         id_pesquisa: str,
         research_repo: Optional[Any] = None,
+        persist_repo_status: bool = True,
     ) -> Dict[str, Any]:
         """Dispara requisição HTTP POST assinada com política de 1+3 retries.
 
         Calcula assinatura HMAC-SHA256 sobre raw bytes (DT-04, RN-09).
         Atualiza o status para 'entregue' ou 'falha_definitiva' sem levantar exceção em caso de exaustão.
+
+        persist_repo_status=True (default) preserva o comportamento dos demais usuários do
+        cliente. O Writer usa persist_repo_status=False: a persistência dele é EXCLUSIVAMENTE
+        o update condicional por artifact_hash (update_webhook_delivery), impedindo gravação
+        incondicional de entrega em estado novo sem artefato (adendo v6, W10/W11).
         """
         if not url or not url.strip():
             raise ValueError("Configuração ausente: URL de webhook não informada.")
@@ -151,12 +157,13 @@ class WebhookClient:
                 # A lista acima continua existindo só para decidir RETRY, nunca para
                 # decidir que a entrega ocorreu.
                 status_result = "entregue" if res.is_success else "falha_definitiva"
-                await self._update_repo_status(
-                    repo=repo,
-                    id_pesquisa=id_pesquisa,
-                    status=status_result,
-                    resposta=res.text,
-                )
+                if persist_repo_status:
+                    await self._update_repo_status(
+                        repo=repo,
+                        id_pesquisa=id_pesquisa,
+                        status=status_result,
+                        resposta=res.text,
+                    )
                 return {
                     "status": status_result,
                     "http_status_code": res.status_code,
@@ -174,12 +181,13 @@ class WebhookClient:
 
         # Retries esgotados: registra 'falha_definitiva' preservando dados (RF-10, RN-09)
         status_result = "falha_definitiva"
-        await self._update_repo_status(
-            repo=repo,
-            id_pesquisa=id_pesquisa,
-            status=status_result,
-            resposta=last_error_message,
-        )
+        if persist_repo_status:
+            await self._update_repo_status(
+                repo=repo,
+                id_pesquisa=id_pesquisa,
+                status=status_result,
+                resposta=last_error_message,
+            )
         return {
             "status": status_result,
             "http_status_code": last_status_code,

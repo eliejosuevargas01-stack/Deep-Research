@@ -55,3 +55,28 @@ test-results/
 # Frontend
 node_modules/
 *.tsbuildinfo
+
+# Artefatos de evidência e dumps de navegador
+frontend-recovery-browser-evidence/
+*.har
+*.cookies
+*.webarchive
+
+# Certificados e chaves privadas
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Configuração de runtime de ferramentas
+.dev.vars
+.wrangler/
+*.vars
+
+# Artefatos de ferramentas locais e caches
+.impeccable/
+scripts/.shim_cache/
+*.shim_cache/
+.shim_cache/

@@ -1,0 +1,11 @@
+{
+  "command": "BASE_URL=http://127.0.0.1:3001 npm run test:e2e",
+  "exit_code": 0,
+  "summary": [
+    "21 scenarios (21 passed)",
+    "101 steps (101 passed)",
+    "0m30.708s (executing steps: 0m30.572s)"
+  ],
+  "after_audit": "docs/frontend/audits/review-r3.md",
+  "note": "Audited baseline screenshots retained at their original paths; new run captures stored in this post-audit directory."
+}

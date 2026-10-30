@@ -132,3 +132,40 @@ async def test_llm_exhausted_retries_raises_exception() -> None:
         await client.generate_light(messages=[{"role": "user", "content": "teste"}])
 
     assert len(mock_net.requests) == 4
+
+
+@pytest.mark.asyncio
+async def test_llm_json_sanitizes_markdown_bullets_and_trailing_commas() -> None:
+    """Verifica sanitização de marcadores markdown e trailing commas que quebram JSON."""
+    from app.tools.llm_client import LLMClient, _sanitize_json_text
+    import httpx
+
+    # 1. Teste direto da função de sanitização
+    broken_raw = '{\n  "acao": "concluir",\n  - "evidencias": ["chk_1", "chk_2",],\n}'
+    sanitized = _sanitize_json_text(broken_raw)
+    parsed = json.loads(sanitized)
+    assert parsed["acao"] == "concluir"
+    assert parsed["evidencias"] == ["chk_1", "chk_2"]
+
+    # 2. Teste integrado via generate_json
+    mock_net = MockNetwork()
+    mock_net.custom_handlers["chat/completions"] = lambda req: httpx.Response(
+        200,
+        json={
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": '```json\n{\n  "status": "ok",\n  - "conclusoes": ["c1", "c2"]\n}\n```',
+                },
+                "finish_reason": "stop",
+            }],
+            "usage": {"total_tokens": 20},
+        },
+    )
+    transport = create_mock_transport(mock_net)
+    client = LLMClient(api_key="mock-key", transport=transport)
+    res = await client.generate_json(model_type="light", messages=[{"role": "user", "content": "teste"}])
+    assert isinstance(res, dict)
+    assert res["status"] == "ok"
+    assert res["conclusoes"] == ["c1", "c2"]
+

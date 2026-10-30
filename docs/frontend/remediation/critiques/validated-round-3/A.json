@@ -1,0 +1,156 @@
+{
+  "round": 3,
+  "surface": "Configurações",
+  "evaluator": "A",
+  "evaluation_type": "independent_design_review",
+  "provenance": {
+    "method": "dual_agent_isolated",
+    "agent": "Hermes ag/gemini-3.8-flash-high reasoning high via 9router",
+    "detector_seen": false,
+    "evaluator_b_seen": false,
+    "target_url": "http://localhost:8011/#settings",
+    "provider_mode": "fixture_simulated_external_providers",
+    "timestamp_initial_capture": "2026-10-26T19:13:53Z",
+    "timestamp_verified_utc": "2026-10-26T22:38:16Z",
+    "visual_verdict_status": "COMPLETED",
+    "score_approval_delivered": true,
+    "attached_images_inspected": [
+      "docs/frontend/remediation/critiques/validated-round-3/A-evidence/01_settings_form_overview.png",
+      "docs/frontend/remediation/critiques/validated-round-3/A-evidence/04_save_points_feedback.png"
+    ],
+    "visual_coverage_limitations": "As duas capturas anexadas registram a porção superior do painel (navbar, título, Cartão 1 de Sessão e topo do Cartão 2 com o banner azul da regra RN-10 e rótulos iniciais do formulário). Os campos inferiores do formulário, mensagens de erro em vermelho, banner verde de sucesso e tabela de credenciais sanitizadas situam-se abaixo da dobra (scrollY=0) e não são visíveis como pixels diretos nestas capturas específicas. A comprovação de tais interações decorre estritamente dos ensaios de DOM e API registrados durante a execução com browser_exec."
+  },
+  "served_bundle_hashes": {
+    "bundle_js": "0e304977c1a73001030004b18e95eaebc5ac3600ec46e06b51a2052bec89e322",
+    "bundle_css": "00535d433132c25d1fd002ec5eb179d9ddcc1f09b6c726b1d88702323a3b3197"
+  },
+  "source_hashes_at_capture": {
+    "frontend/src/App.tsx": "ef424550dc29034532bb7f8b3260a0a19c7b0c9edd1ec444490bd679b834e680",
+    "frontend/src/components/SettingsView.tsx": "dfbca12ef5d8ea1a8ca964b4fe2b45053648419dc1c81fc474586dbbafe3135c"
+  },
+  "design_specificity": {
+    "verdict": "highly_specific",
+    "notes": "O painel de configurações atende de forma rigorosa e contextualizada às necessidades de governança técnica de uma plataforma analítica: autenticação de sessão integrada via cookies seguros HttpOnly, parametrização de múltiplos provedores (OpenAI, Jina, Webhook), gestão de segredos cifrados com Fernet/AES no backend e explicitação inequívoca da Regra de Precedência RN-10 (variáveis de ambiente sobrepõem o banco)."
+  },
+  "nielsen_heuristics": {
+    "applicable_max": 40,
+    "total_score": 36,
+    "rating_band": "Sólido / Excelente (90.0%)",
+    "heuristics": [
+      {
+        "id": 1,
+        "name": "Visibility of System Status",
+        "score": 3,
+        "key_issue": "Feedback de salvamento e tabela de parâmetros exigem rolagem extensa para visualização",
+        "findings": "Status de sessão visível de imediato na navbar ('● Modo local') e no Cartão 1 ('● Sessão ativa' em verde). Teste de conexão fornece status dinâmico com spinner. Deduzido 1 ponto porque em resoluções de altura reduzida, os banners de sucesso/erro de gravação e a tabela de parâmetros situam-se na base e não entram na viewport inicial sem rolagem considerável."
+      },
+      {
+        "id": 2,
+        "name": "Match Between System and the Real World",
+        "score": 4,
+        "key_issue": "n/a",
+        "findings": "Vocabulário técnico exato e compreensível para engenheiros e analistas: 'Variáveis de ambiente (.env)', 'Banco Cifrado (AES-128-CBC)', 'Regra de Precedência RN-10', 'HttpOnly SameSite=Strict'. Comunicação técnica precisa e sem condescendência."
+      },
+      {
+        "id": 3,
+        "name": "User Control and Freedom",
+        "score": 4,
+        "key_issue": "n/a",
+        "findings": "Preservação exemplar de rascunho em memória através de navegação interna por hash (#settings -> #research -> #settings), acompanhada de ação explícita e desobstrutiva 'Descartar rascunho'. Prevenção contra fechamento de aba via evento beforeunload quando há rascunho não salvo."
+      },
+      {
+        "id": 4,
+        "name": "Consistency and Standards",
+        "score": 4,
+        "key_issue": "n/a",
+        "findings": "Padrões visuais consistentes com o restante da aplicação e com a identidade DominusLabs: cartões brancos com sombras suaves, botões com cantos arredondados, paleta violeta/índigo nos elementos ativos e ícones Lucide contextuais (Server, Shield, RefreshCw, Save)."
+      },
+      {
+        "id": 5,
+        "name": "Error Prevention",
+        "score": 4,
+        "key_issue": "n/a",
+        "findings": "Excelente prevenção: campos mascarados impedem vazamento de chaves sensíveis; validação prévia de esquemas de URL (http/https) e restrição estrita de N_PONTOS a inteiros positivos; ausência de persistência de segredos no storage inseguro do navegador."
+      },
+      {
+        "id": 6,
+        "name": "Recognition Rather Than Recall",
+        "score": 4,
+        "key_issue": "n/a",
+        "findings": "Rótulos acompanhados de hints descritivos ('Chave de LLM', 'Endpoint do LLM', 'Busca web e scraping', 'Segredo de assinatura'); aviso da regra RN-10 explica a ordem de precedência diretamente acima do formulário, eliminando necessidade de consulta externa à documentação."
+      },
+      {
+        "id": 7,
+        "name": "Flexibility and Efficiency of Use",
+        "score": 3,
+        "key_issue": "Ausência de atalho de teclado global (Ctrl+S / Cmd+S) para salvar parâmetros",
+        "findings": "O formulário permite gravação granular de apenas um campo sem exigir o preenchimento de todos; botão 'Atualizar lista' permite revalidação instantânea. Deduzido 1 ponto pela falta de atalho universal de teclado para submissão direta do formulário."
+      },
+      {
+        "id": 8,
+        "name": "Aesthetic and Minimalist Design",
+        "score": 3,
+        "key_issue": "Densidade vertical elevada com 10 campos empilhados em grade única",
+        "findings": "Aparência limpa, respiro visual adequado e contraste confortável. Deduzido 1 ponto porque o formulário lista 10 campos sucessivos em grid vertical contínua, o que gera uma página extensa antes de alcançar a tabela de parâmetros cadastrados."
+      },
+      {
+        "id": 9,
+        "name": "Help Users Recognize, Diagnose, and Recover from Errors",
+        "score": 3,
+        "key_issue": "Erros de validação em campos inferiores não recebem scroll/foco automático",
+        "findings": "Validação em linha com mensagens claras em vermelho ('A URL deve ser válida e iniciar com http:// ou https://', 'O número de pontos deve ser um inteiro positivo...'), com role='alert' e aria-invalid='true'. Distinção transparente entre erro de requisição (banner com botão 'Tentar novamente') e lista vazia de parâmetros. Deduzido 1 ponto pela ausência de foco automático no primeiro campo inválido."
+      },
+      {
+        "id": 10,
+        "name": "Help and Documentation",
+        "score": 4,
+        "key_issue": "n/a",
+        "findings": "Orientações contextuais densas e de alta qualidade: explicações sobre cookies de sessão, cifragem AES no backend, precedência de variáveis de ambiente e link permanente para 'Documentação' na barra superior."
+      }
+    ]
+  },
+  "cognitive_load": {
+    "organization": "Segregação em 3 seções bem delineadas: 1. Comunicação e Sessão; 2. Parâmetros e Formulário; 3. Parâmetros Registrados e Origem Ativa.",
+    "draft_awareness": "Banner amarelo conciso alerta visualmente sobre alterações pendentes em memória, reduzindo a ansiedade de navegação interna.",
+    "precedence_clarity": "A regra RN-10 é explicada em destaque antes dos campos, evitando dúvidas conceituais sobre o motivo de um parâmetro do .env prevalecer sobre o banco."
+  },
+  "emotional_journey": {
+    "security": "Sensação imediata de segurança institucional ao notar que o cliente não exige API_SECRET_KEY manual e que a sessão opera com cookies protegidos.",
+    "control": "O mecanismo de rascunho em memória transmite tranquilidade, permitindo que o usuário consulte a aba de pesquisa ou histórico sem perder dados já digitados.",
+    "transparency": "A indicação da 'Origem Ativa' de cada parâmetro na tabela confere previsibilidade e transparência à governança das variáveis."
+  },
+  "strengths": [
+    "Preservação do rascunho de configurações em memória através de rotas por hash (#settings -> #research), complementada por botão explícito de descarte.",
+    "Explicitação didática da Regra de Precedência RN-10 com exibição clara da origem ativa (Ambiente vs Banco Cifrado) e mascaramento de segredos.",
+    "Validação acessível em linha com WAI-ARIA (role='alert', aria-invalid, aria-describedby) e segregação honesta entre erro de requisição e lista vazia."
+  ],
+  "issues": [
+    {
+      "id": "ISSUE-R3-01",
+      "severity": "P1",
+      "title": "Extensão vertical do formulário requer rolagem para visualização de feedbacks e tabela",
+      "evidence": "Nas capturas de tela (01 e 04), o topo do formulário ocupa a totalidade da viewport capturada (1280x577), ocultando os campos inferiores, banners de salvamento e a tabela de parâmetros cadastrados sem aviso de rolagem.",
+      "remediation": "Modularizar o formulário em abas ou seções retráteis por escopo (ex: 'Modelos LLM', 'Busca Web (Jina)', 'Parâmetros Analíticos', 'Webhooks') e fixar atalho de navegação rápida para a tabela de credenciais ativas."
+    },
+    {
+      "id": "ISSUE-R3-02",
+      "severity": "P2",
+      "title": "Ausência de foco automático no primeiro campo inválido após submissão incorreta",
+      "evidence": "Ao clicar em 'Salvar alterações' com URLs ou números inválidos, os textos de erro são exibidos em linha, mas o foco do navegador permanece no botão de submissão, exigindo que o usuário role para localizar os erros.",
+      "remediation": "Adicionar auto-foco no primeiro input com erro de validação (ex: element.focus() no primeiro campo com aria-invalid='true')."
+    },
+    {
+      "id": "ISSUE-R3-03",
+      "severity": "P3",
+      "title": "Falta de atalho universal de teclado para salvar configurações (Ctrl+S / Cmd+S)",
+      "evidence": "Em fluxos de edição rápida de configurações por analistas avançados, pressionar Ctrl+S aciona o diálogo padrão de salvamento de página do navegador em vez de submeter o formulário.",
+      "remediation": "Implementar listener de teclado (keydown) que capture Ctrl+S / Cmd+S e acione handleSaveCredentials com preventDefault."
+    }
+  ],
+  "personas_impact": {
+    "Sam": "Pesquisador focado em tarefas rápidas: não precisa mexer em configurações graças à sessão automática, mas ao testar a conexão recebe feedback imediato.",
+    "Jordan": "Pesquisador analítico sênior: ajusta N_PONTOS e modelos LLM com total clareza sobre a precedência das variáveis de ambiente e segurança dos segredos.",
+    "Alex": "Usuário de teclado e acessibilidade: navega pelos campos via Tab e se orienta pelos atributos aria-invalid e mensagens vinculadas por aria-describedby.",
+    "Casey": "Pesquisador móvel: confia na retenção do rascunho em memória caso navegue temporariamente para consultar dados em outra aba do workspace."
+  }
+}

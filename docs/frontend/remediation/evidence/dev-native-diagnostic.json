@@ -1,0 +1,61 @@
+{
+  "status": "partial implementation diagnostic; not acceptance or one of final five critiques",
+  "url": "http://127.0.0.1:3002/",
+  "frontend": "npm run dev, actual source via Vite; proxy8010",
+  "observed_http": {
+    "index": 200,
+    "health": 200,
+    "app_session": {
+      "authenticated": true,
+      "mode": "local",
+      "n_pontos": 1,
+      "personas": [
+        "historiador",
+        "visionario",
+        "cetico",
+        "futurista"
+      ]
+    }
+  },
+  "native_actions": [
+    {
+      "action": "click energy suggestion",
+      "result": "topic filled and native AX focus moved to Tema de pesquisa textarea"
+    },
+    {
+      "action": "click + preferences",
+      "result": "panel expanded; point radio options and four checked persona inputs rendered"
+    },
+    {
+      "action": "select2 points then select Visionario",
+      "result": "not conclusive: Vite config HMR restart reset view between actions; checkbox locator not found; no false functional failure assigned"
+    }
+  ],
+  "viewport": [
+    916,
+    900
+  ],
+  "identity_observed": {
+    "background": "#F9FAFB",
+    "body": "Inter",
+    "headings": "Outfit",
+    "primary": "visible violet actions and selected states"
+  },
+  "open_findings": [
+    {
+      "id": "DEV-NAV-916",
+      "severity": "P1",
+      "observation": "Documentation link [709.44,853.36] overlaps session badge [793.22,892] in native screenshot; all fit in document scroll width but content is clipped behind badge. Current collapse breakpoint880 too late.",
+      "required": "Ensure nav and status never overlap at916/837 and nearby widths, keyboard and200% zoom; layout coherent, not hide arbitrary content."
+    }
+  ],
+  "native_screenshot": "viewed inline; no saved PNG claimed",
+  "source_hashes": {
+    "frontend/src/components/Navbar.tsx": "df071d50c07769a354f5c77cf01a0906f9541f5a01c14a81f07e516211b0d89e",
+    "frontend/src/styles/components.css": "7b288ab8841c1c74fc69c4b0c298823d2d746ee2d854f6f57b21bb49c406ba59"
+  },
+  "limitations": [
+    "Source still changing via Hermes; a stable-source recheck and actual provider browserflow remain necessary.",
+    "No claim that a research executed, persona snapshot applied or writer completed."
+  ]
+}
