@@ -82,18 +82,7 @@ function derivarPersonaDeTexto(texto: string): PersonaType | null {
   if (p.includes('futurista')) return 'futurista';
   if (p.includes('auditor')) return 'auditor';
   if (p.includes('redator')) return 'redator';
-  if (p.includes('busca')) return 'planejador'; // fallback tipado correto
   return null;
-}
-
-function mapearPersonaParaTipo(persona: string): PersonaType {
-  const derivada = derivarPersonaDeTexto(persona);
-  if (derivada) return derivada;
-  // Sem fallback silencioso para 'cetico' - derivar de padrões comuns
-  const p = normalizarTexto(persona);
-  if (p.includes('search') || p.includes('pesquisa')) return 'planejador';
-  if (p.includes('planner')) return 'planejador';
-  return 'planejador';
 }
 
 /** Resumo do cartão recolhido. Em streaming mostra a cauda: é o progresso. */
@@ -183,26 +172,12 @@ export const ReasoningCardItem = React.memo(function ReasoningCardItem({
   const duracao = formatDuration(
     typeof detalhes.duration_ms === 'number' ? (detalhes.duration_ms as number) : null
   );
-  const rolBruto = `${item.agentName} ${item.title}`;
-  const persona: string = item.agentType === 'busca'
-    ? rolBruto.includes('cético') || rolBruto.includes('cetico') ? 'cetico'
-      : rolBruto.includes('futurista') ? 'futurista'
-        : rolBruto.includes('visionário') || rolBruto.includes('visionario') ? 'visionario'
-          : rolBruto.includes('historiador') ? 'historiador'
-            : rolBruto.includes('auditor') ? 'auditor'
-              : rolBruto.includes('redator') ? 'redator'
-                : rolBruto.includes('planejador') ? 'planejador' : 'planejador'
-    : item.agentType;
-  // Derivar persona do nome/agente/titulo explicitamente - tentar passar persona pelo item se existir
-  const personaExplicita = (detalhes.persona as string) || (item as any).persona || (item as any).rolePersona;
-  const fontePersona = personaExplicita || `${item.agentName} ${item.title} ${item.agentType} ${persona}`;
-  let personaTipo = derivarPersonaDeTexto(fontePersona);
-  if (!personaTipo) {
-    personaTipo = mapearPersonaParaTipo(fontePersona);
-  }
-  if (!personaTipo) {
-    personaTipo = 'planejador';
-  }
+  const personaExplicita = (detalhes.persona as string) || (item as unknown as { persona?: string }).persona;
+  const fontePersona = `${personaExplicita || ''} ${item.agentName} ${item.title}`;
+  const personaTipo: PersonaType =
+    derivarPersonaDeTexto(fontePersona) ??
+    derivarPersonaDeTexto(item.agentType) ??
+    (item.agentType === 'auditor' ? 'auditor' : item.agentType === 'redator' ? 'redator' : 'planejador');
   // Pílulas de domínio/consulta extraídas da telemetria real do agente
   // (`Ferramenta · SERP` e URLs citadas no raciocínio). Sem fabricar fontes.
   const consultas = Array.from(item.reasoning.matchAll(/Ferramenta · SERP\*\*\s*`([^`]+)`/g))
