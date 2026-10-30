@@ -6,6 +6,8 @@ import './styles/main.css';
 import './styles/components.css';
 import './styles/planning-view.css';
 import './styles/clean-theme.css';
+import './styles/ambient-cursor.css';
+import './styles/theme-contrast.css';
 import './styles/open-canvas.css';
 import './styles/world.css';
 import './styles/linear-timeline.css';
