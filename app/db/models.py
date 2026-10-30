@@ -1,12 +1,16 @@
 """Modelos ORM relacionais com SQLAlchemy 2.0.
 
-Define as tabelas pesquisa, pontos, conteudo_coletado e credenciais,
-com chaves estrangeiras com CASCADE, índices de desempenho e restrições de unicidade.
-Atende a RF-02, RF-05, RF-12 e DT-02.
+Define as tabelas pesquisa, pontos, conteudo_coletado, credenciais e a fundação
+de observabilidade e persistência estruturada (DR-005, DR-006, DR-013, DR-015):
+- generation_attempts: registro imutável de cada envelope de inferência LLM
+
+Atende a RF-02, RF-05, RF-12, DT-02, DR-005, DR-006, DR-013 e DR-015.
 """
 
 from typing import List, Optional
 from sqlalchemy import (
+    Boolean,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -41,8 +45,26 @@ class Pesquisa(Base):
     concluido_em: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     webhook_status: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     webhook_resposta: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    status_pipeline: Mapped[str] = mapped_column(String(30), nullable=False, default="planejado", server_default="planejado")
+    status_pipeline: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="planejado",
+        server_default="planejado",
+    )
     erro_pipeline: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # DR-006 / DR-015: Plano estruturado integral e metadados de execução do modelo
+    plano_estruturado: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    metadados_planejamento: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # W08 / W13: Reserva atômica, metadados do artefato e avaliação real da redação
+    metadados_redacao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # W08 / W13: Reserva atômica, metadados do artefato e avaliação real da redação
+    erro_pipeline: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tokens_prompt: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    tokens_completion: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    tokens_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
     # Relacionamentos com deleção em cascata
     pontos: Mapped[List["Ponto"]] = relationship(
@@ -54,6 +76,12 @@ class Pesquisa(Base):
     conteudos: Mapped[List["ConteudoColetado"]] = relationship(
         "ConteudoColetado",
         back_populates="pesquisa",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    generation_attempts: Mapped[List["GenerationAttempt"]] = relationship(
+        "GenerationAttempt",
+        back_populates="pesquisa_rel",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
@@ -85,6 +113,10 @@ class Ponto(Base):
     tentativas_auditoria: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     criado_em: Mapped[str] = mapped_column(String(30), nullable=False)
     atualizado_em: Mapped[str] = mapped_column(String(30), nullable=False)
+    lease_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    # DR-006: Detalhes estruturados do PlanoEixo
+    eixo_estruturado: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     pesquisa: Mapped["Pesquisa"] = relationship("Pesquisa", back_populates="pontos")
     conteudos: Mapped[List["ConteudoColetado"]] = relationship(
@@ -125,6 +157,9 @@ class ConteudoColetado(Base):
     urls_fonte: Mapped[str] = mapped_column(Text, nullable=False)
     criado_em: Mapped[str] = mapped_column(String(30), nullable=False)
 
+    # DR-008: Metadados estruturados de proveniência de leitura
+    metadados_coleta: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     pesquisa: Mapped["Pesquisa"] = relationship("Pesquisa", back_populates="conteudos")
     ponto_rel: Mapped["Ponto"] = relationship("Ponto", back_populates="conteudos")
 
@@ -151,4 +186,47 @@ class Credencial(Base):
         Index("idx_credenciais_chave", "chave"),
     )
 
-# ponytail: campos de auditoria de usuário (created_by) podem ser adicionados se autenticação multiusuário for exigida
+
+class GenerationAttempt(Base):
+    """Envelope imutável de chamada ao LLM para telemetria e auditoria (DR-005, DR-013)."""
+
+    __tablename__ = "generation_attempts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    id_pesquisa: Mapped[Optional[str]] = mapped_column(
+        String(36),
+        ForeignKey("pesquisa.id_pesquisa", ondelete="CASCADE"),
+        nullable=True,
+    )
+    ponto_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    etapa: Mapped[str] = mapped_column(String(30), nullable=False)  # plan, search, audit, write
+    persona: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    model_requested: Mapped[str] = mapped_column(String(100), nullable=False)
+    model_used: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    prompt_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_version: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    system_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    messages_json: Mapped[str] = mapped_column(Text, nullable=False)
+    content_final: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reasoning_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    finish_reason: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    is_regular_finish: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    usage_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    cost_estimated: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    cost_currency: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    cost_source: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    request_params_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    downstream_router_mutations: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=None)
+    latency_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    errors_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tool_calls_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    criado_em: Mapped[str] = mapped_column(String(30), nullable=False)
+
+    pesquisa_rel: Mapped[Optional["Pesquisa"]] = relationship("Pesquisa", back_populates="generation_attempts")
+
+    __table_args__ = (
+        Index("idx_gen_attempts_pesquisa", "id_pesquisa"),
+        Index("idx_gen_attempts_etapa", "etapa"),
+    )
+

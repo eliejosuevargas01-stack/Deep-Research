@@ -30,6 +30,68 @@ const formatar = (ms: number): string => {
  * Tela intermediária do planejamento: aparece no instante em que o tema é enviado,
  * antes de `POST /plan` responder, e mostra o raciocínio do Planejador em tempo real.
  */
+const ROTULOS: Record<string, string> = {
+  tema: 'Tema',
+  objetivo: 'Objetivo',
+  pedido: 'Pedido',
+  justificativa: 'Por que dividir assim',
+  resumo: 'Resumo',
+  tese: 'Tese',
+  publico: 'Público',
+  formato_entrega: 'Entrega',
+  escopo: 'Escopo',
+  pressupostos: 'Pressupostos',
+  ambiguidades: 'Ambiguidades',
+  riscos: 'Riscos',
+  pontos: 'Pontos de investigação',
+  criterios: 'Critérios',
+};
+
+function valorLegivel(v: unknown): string {
+  if (v == null) return '';
+  if (Array.isArray(v)) {
+    return v
+      .map((item) => {
+        if (item && typeof item === 'object') {
+          const o = item as Record<string, unknown>;
+          return String(o.titulo ?? o.pergunta ?? o.texto ?? o.descricao ?? JSON.stringify(o));
+        }
+        return String(item);
+      })
+      .join('\n• ');
+  }
+  if (typeof v === 'object') {
+    return Object.entries(v as Record<string, unknown>)
+      .map(([k, item]) => `${ROTULOS[k] ?? k}: ${valorLegivel(item)}`)
+      .join(' · ');
+  }
+  return String(v);
+}
+
+/** O planejador devolve JSON; a tela mostra texto, não chaves cruas. */
+export function raciocinioLegivel(bruto: string): string {
+  const texto = (bruto || '').trim();
+  if (!texto.startsWith('{')) return bruto;
+  let dados: unknown;
+  try {
+    dados = JSON.parse(texto);
+  } catch {
+    return bruto;
+  }
+  if (!dados || typeof dados !== 'object') return bruto;
+  const obj = dados as Record<string, unknown>;
+  const linhas = Object.keys(ROTULOS)
+    .filter((k) => obj[k] != null)
+    .map((k) => {
+      const valor = valorLegivel(obj[k]);
+      if (!valor) return '';
+      const lista = Array.isArray(obj[k]);
+      return `${ROTULOS[k]}:\n${lista ? '• ' : ''}${valor}`;
+    })
+    .filter(Boolean);
+  return linhas.length > 0 ? linhas.join('\n\n') : bruto;
+}
+
 export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, raciocinio, erro, onRetry }) => {
   const [agora, setAgora] = useState<number>(() => Date.now());
 
@@ -89,7 +151,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ tema, iniciadoEm, ra
       <div className="planning-reasoning">
         <p className="planning-reasoning-label">Raciocínio do planejador</p>
         {raciocinio ? (
-          <pre className="planning-reasoning-text">{raciocinio}</pre>
+          <pre className="planning-reasoning-text">{raciocinioLegivel(raciocinio)}</pre>
         ) : (
           <p className="planning-reasoning-empty">
             {erro ? 'Sem raciocínio registrado para esta tentativa.' : 'Aguardando o primeiro token do modelo…'}

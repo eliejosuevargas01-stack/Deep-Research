@@ -144,6 +144,8 @@
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
   font-family: var(--font-sans);
   font-size: 13.5px;
   line-height: 1.7;
