@@ -143,7 +143,7 @@ export const ArchitectureGraph: React.FC = () => {
       </header>
 
       <div className="arch-graph-canvas" data-compact={narrow ? 'true' : 'false'}>
-        <svg viewBox={viewBox} role="group" aria-label="Fluxo entre plano, busca, auditoria, redação e dossiê">
+        <svg viewBox={viewBox} role="group" aria-label="Fluxo entre plano, busca, auditoria, redação e dossiê" focusable="false">
           <defs>
             <marker id="arch-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" className="arch-arrow-head" />
@@ -155,7 +155,7 @@ export const ArchitectureGraph: React.FC = () => {
             const to = byId[e.to];
             const lit = active === e.from || active === e.to;
             return (
-              <g key={`${e.from}-${e.to}`} className={`arch-edge ${e.loop ? 'is-loop' : ''} ${lit ? 'is-lit' : ''}`}>
+              <g key={`${e.from}-${e.to}`} className={`arch-edge ${e.loop ? 'is-loop' : ''} ${lit ? 'is-lit' : ''}`} aria-hidden="true">
                 <path d={edgePath(from, to, Boolean(e.loop), narrow)} markerEnd="url(#arch-arrow)" />
               </g>
             );

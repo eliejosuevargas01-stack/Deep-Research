@@ -5,7 +5,6 @@ import { BookOpen, ShieldCheck, Search, PenTool, Compass } from 'lucide-react';
 export const DocsView: React.FC = () => {
   return (
     <div className="docs-view">
-      <ArchitectureGraph />
       <header style={{ marginBottom: '28px', borderBottom: '1px solid var(--color-border)', paddingBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <BookOpen size={24} color="var(--color-primary)" aria-hidden="true" />
@@ -17,6 +16,7 @@ export const DocsView: React.FC = () => {
           As quatro etapas, do plano ao dossiê.
         </p>
       </header>
+      <ArchitectureGraph />
 
       <div className="markdown-body">
         <h2>1. Visão Geral da Arquitetura</h2>

@@ -938,17 +938,6 @@ export function DeepResearchCharacters({
                   strokeDasharray="3 4"
                   opacity={ceticoCares ? '0.85' : '0.35'}
                 />
-                <text
-                  x="0"
-                  y={-CETICO_RADIUS - 6}
-                  textAnchor="middle"
-                  fill={ceticoCares ? '#f43f5e' : ui.strokeSecondary}
-                  fontSize="8.5"
-                  fontFamily="monospace"
-                  opacity="0.85"
-                >
-                  15cm
-                </text>
               </g>
             )}
 

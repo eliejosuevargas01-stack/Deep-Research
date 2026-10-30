@@ -527,7 +527,9 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
             // O dossiê costuma começar com "# Título", o que geraria um segundo <h1>
             // ao lado do <h1> da página. Rebaixa todos os níveis em um degrau.
             h1: ({ children }) => <h2>{children}</h2>,
-            h2: ({ children }) => <h3>{children}</h3>,
+            h2: ({ children }) => <h2>{children}</h2>,
+            h3: ({ children }) => <h3>{children}</h3>,
+            h4: ({ children }) => <h4>{children}</h4>,
             a: ({ href, children, ...props }) => {
               const safe = isSafeUrl(href);
               if (!safe) {
