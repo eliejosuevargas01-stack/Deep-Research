@@ -1063,7 +1063,7 @@ export const App: React.FC = () => {
   } | null>(null);
 
   useEffect(() => {
-    if (!activeResearchId || !isExecuting) return;
+    if (!activeResearchId) return;
     let cancelado = false;
     const consultar = async () => {
       try {
@@ -1082,10 +1082,11 @@ export const App: React.FC = () => {
       }
     };
     void consultar();
-    const timer = setInterval(consultar, 3000);
+    // Com o pipeline rodando vale consultar de novo; parado, uma leitura basta.
+    const timer = isExecuting ? setInterval(consultar, 3000) : null;
     return () => {
       cancelado = true;
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
     };
   }, [activeResearchId, isExecuting]);
   const [asyncConsultando, setAsyncConsultando] = useState(false);

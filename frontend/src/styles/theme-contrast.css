@@ -128,3 +128,13 @@ hr.divider {
 .reasoning-card .reasoning-card-stats {
   font-size: 13px;
 }
+
+/* Divisórias dos cards: 14% de alfa sumia no escuro. */
+.reasoning-card {
+  border-color: color-mix(in srgb, var(--color-text-primary) 22%, transparent);
+}
+
+.reasoning-card-header,
+.reasoning-card-footer {
+  border-color: color-mix(in srgb, var(--color-text-primary) 18%, transparent);
+}
