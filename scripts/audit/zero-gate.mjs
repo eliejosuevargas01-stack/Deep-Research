@@ -17,7 +17,7 @@ const base = (process.argv[2] || 'http://127.0.0.1:3002').replace(/\/$/, '');
 const asJson = process.argv.includes('--json');
 const DETECT = '/home/eliezer/.claude/skills/impeccable/scripts/impeccable';
 
-const ROUTES = ['/', '/#research', '/#history', '/#settings', '/#docs', '/#execution-search', '/#execution-audit', '/#execution-rejected', '/#harness', '/#plan'];
+const ROUTES = ['/', '/#research', '/#history', '/#settings', '/#docs', '/#execution-search', '/#execution-audit', '/#execution-rejected', '/#execution-failed', '/#harness', '/#plan'];
 const VIEWPORTS = [
   [1440, 900],
   [768, 900],

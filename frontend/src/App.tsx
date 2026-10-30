@@ -413,7 +413,7 @@ export const App: React.FC = () => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') || 'research';
       const rotas = ['research', 'history', 'settings', 'docs'];
-      if (import.meta.env.DEV) rotas.push('harness', 'plan', 'execution-search', 'execution-audit', 'execution-rejected');
+      if (import.meta.env.DEV) rotas.push('harness', 'plan', 'execution-search', 'execution-audit', 'execution-rejected', 'execution-failed');
       if (rotas.includes(hash)) {
         setCurrentRoute(hash);
       }
@@ -1621,6 +1621,9 @@ export const App: React.FC = () => {
         )}
         {import.meta.env.DEV && currentRoute === 'execution-audit' && (
           <ExecutionHarness stage="auditing" />
+        )}
+        {import.meta.env.DEV && currentRoute === 'execution-failed' && (
+          <ExecutionHarness stage="failed" />
         )}
         {import.meta.env.DEV && currentRoute === 'execution-rejected' && (
           <ExecutionHarness stage="rejected" />

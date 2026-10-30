@@ -11,8 +11,11 @@ import type { ModeloMetadados } from '../types/api';
 
 export function formatCompactTokens(n: unknown): string {
   if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) return '—';
+  if (n >= 1_000_000) {
+    return `${(n / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mi`;
+  }
   if (n >= 1000) {
-    return `${(n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}k`;
+    return `${(n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil`;
   }
   return n.toLocaleString('pt-BR');
 }

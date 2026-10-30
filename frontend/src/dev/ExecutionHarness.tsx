@@ -242,6 +242,9 @@ export const ExecutionHarness: React.FC<Props> = ({ stage }) => (
           cycleNumber={stage === 'auditing' ? 2 : 1}
           maxCycles={4}
           reasoningItems={ITEMS}
+          failedStage={stage === 'failed' ? 'writing' : null}
+          errorMessage={stage === 'failed' ? 'O provedor derrubou a conexão durante a redação (HTTP 502).' : null}
+          onRetry={stage === 'failed' ? () => undefined : undefined}
           onReset={() => undefined}
         />
       </div>
