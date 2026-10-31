@@ -208,7 +208,7 @@ export function DeepResearchCharacters({
   isTyping = false,
   typingProgress = 0.5,
   theme = 'dark',
-  showCeticoRadius = true,
+  showCeticoRadius = false,
   className = ''
 }) {
   const isDark = theme === 'dark';
@@ -654,34 +654,7 @@ export function DeepResearchCharacters({
                 </g>
               </g>
             </g>
-
-            <g transform="translate(0, 74)">
-              <rect
-                x="-46"
-                y="-10"
-                width="92"
-                height="22"
-                rx="6"
-                fill={isHovered ? '#a855f7' : ui.headFill}
-                fillOpacity={isHovered ? '0.2' : '0.8'}
-                stroke={isHovered ? '#a855f7' : ui.stageFloor}
-                strokeWidth="1.2"
-              />
-              <g transform="translate(-38, -7) scale(0.65)" className="text-purple-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.planejador }} />
-              </g>
-              <text
-                x="6"
-                y="4"
-                textAnchor="middle"
-                fill={ui.strokeMain}
-                fontSize="10"
-                fontFamily="monospace"
-                fontWeight="600"
-              >
-                Planejador
-              </text>
-            </g>
+            <title>Planejador</title>
           </g>
         );
       })()}
@@ -751,12 +724,7 @@ export function DeepResearchCharacters({
                 />
               </g>
             </g>
-
-            <g transform="translate(0, 67)">
-              <g transform="translate(-8, -8) scale(0.68)" className="text-amber-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.historiador }} />
-              </g>
-            </g>
+            <title>Historiador</title>
           </g>
         );
       })()}
@@ -822,12 +790,7 @@ export function DeepResearchCharacters({
                 </g>
               </g>
             </g>
-
-            <g transform="translate(0, 81)">
-              <g transform="translate(-8, -8) scale(0.68)" className="text-sky-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.visionario }} />
-              </g>
-            </g>
+            <title>Visionário</title>
           </g>
         );
       })()}
@@ -910,12 +873,7 @@ export function DeepResearchCharacters({
                 <line x1="-4" y1="9" x2="5" y2="8" stroke={ui.strokeMain} strokeWidth="2" strokeLinecap="round" />
               </g>
             </g>
-
-            <g transform="translate(0, 69)">
-              <g transform="translate(-8, -8) scale(0.68)" className="text-indigo-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.futurista }} />
-              </g>
-            </g>
+            <title>Futurista</title>
           </g>
         );
       })()}
@@ -1119,34 +1077,7 @@ export function DeepResearchCharacters({
                 />
               </g>
             </g>
-
-            <g transform="translate(0, 67)">
-              <rect
-                x="-40"
-                y="-10"
-                width="80"
-                height="22"
-                rx="6"
-                fill={ceticoCares || isHovered ? '#f43f5e' : ui.headFill}
-                fillOpacity={ceticoCares || isHovered ? '0.2' : '0.8'}
-                stroke={ceticoCares || isHovered ? '#f43f5e' : ui.stageFloor}
-                strokeWidth="1.2"
-              />
-              <g transform="translate(-32, -7) scale(0.65)" className="text-rose-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.cetico }} />
-              </g>
-              <text
-                x="6"
-                y="4"
-                textAnchor="middle"
-                fill={ui.strokeMain}
-                fontSize="10"
-                fontFamily="monospace"
-                fontWeight="600"
-              >
-                Cético
-              </text>
-            </g>
+            <title>Cético</title>
           </g>
         );
       })()}
@@ -1354,34 +1285,7 @@ export function DeepResearchCharacters({
                 </g>
               </g>
             </g>
-
-            <g transform="translate(0, 63)">
-              <rect
-                x="-42"
-                y="-10"
-                width="84"
-                height="22"
-                rx="6"
-                fill={isAuditorBlowingWhistle || isHovered ? '#fbbf24' : ui.headFill}
-                fillOpacity={isAuditorBlowingWhistle || isHovered ? '0.22' : '0.8'}
-                stroke={isAuditorBlowingWhistle || isHovered ? '#fbbf24' : ui.stageFloor}
-                strokeWidth="1.2"
-              />
-              <g transform="translate(-34, -7) scale(0.65)" className="text-amber-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.auditor }} />
-              </g>
-              <text
-                x="6"
-                y="4"
-                textAnchor="middle"
-                fill={ui.strokeMain}
-                fontSize="10"
-                fontFamily="monospace"
-                fontWeight="600"
-              >
-                Auditor
-              </text>
-            </g>
+            <title>Auditor</title>
           </g>
         );
       })()}
@@ -1510,34 +1414,7 @@ export function DeepResearchCharacters({
                 />
               </g>
             </g>
-
-            <g transform="translate(0, 73)">
-              <rect
-                x="-42"
-                y="-10"
-                width="84"
-                height="22"
-                rx="6"
-                fill={isHovered || phase === 'synthesis' ? '#34d399' : ui.headFill}
-                fillOpacity={isHovered || phase === 'synthesis' ? '0.2' : '0.8'}
-                stroke={isHovered || phase === 'synthesis' ? '#34d399' : ui.stageFloor}
-                strokeWidth="1.2"
-              />
-              <g transform="translate(-34, -7) scale(0.65)" className="text-emerald-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.redator }} />
-              </g>
-              <text
-                x="6"
-                y="4"
-                textAnchor="middle"
-                fill={ui.strokeMain}
-                fontSize="10"
-                fontFamily="monospace"
-                fontWeight="600"
-              >
-                Redator
-              </text>
-            </g>
+            <title>Redator</title>
           </g>
         );
       })()}
