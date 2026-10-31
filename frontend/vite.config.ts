@@ -1,14 +1,26 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const backendPort = process.env.BACKEND_PORT || '8010';
-const target = `http://127.0.0.1:${backendPort}`;
+// BACKEND_URL aponta o dev server para o backend publicado (https) e
+// BACKEND_API_KEY injeta a credencial no proxy (server-side), sem expor no bundle.
+// Lidos de variavel de ambiente ou de frontend/.env.local (gitignored).
+export default defineConfig(({ mode }) => {
+  const fileEnv = loadEnv(mode, process.cwd(), '');
+  const backendPort = process.env.BACKEND_PORT || fileEnv.BACKEND_PORT || '8010';
+  const target =
+    process.env.BACKEND_URL || fileEnv.BACKEND_URL || `http://127.0.0.1:${backendPort}`;
+  const backendApiKey = process.env.BACKEND_API_KEY || fileEnv.BACKEND_API_KEY || '';
+  const injectedHeaders: Record<string, string> = backendApiKey
+    ? { 'x-api-key': backendApiKey }
+    : {};
 
 // O backend só emite sessão para Host loopback. No dev, o proxy se apresenta
 // como 127.0.0.1 para permitir testar pelo celular via túnel/LAN.
 const proxy = {
   '/app': {
     target,
+    secure: false,
+    headers: injectedHeaders,
     changeOrigin: true,
     configure: (proxy) => {
       proxy.on('proxyReq', (req) => {
@@ -22,6 +34,8 @@ const proxy = {
   },
   '/api': {
     target,
+    secure: false,
+    headers: injectedHeaders,
     changeOrigin: true,
     configure: (proxy) => {
       proxy.on('proxyReq', (req) => {
@@ -35,11 +49,13 @@ const proxy = {
   },
   '/health': {
     target,
+    secure: false,
+    headers: injectedHeaders,
     changeOrigin: true,
   },
 };
 
-export default defineConfig({
+return {
   plugins: [react()],
   server: {
     allowedHosts: true,
@@ -72,4 +88,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });
