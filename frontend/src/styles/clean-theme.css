@@ -718,7 +718,29 @@
   margin-top: 10px;
 }
 
-/* Pílulas de tema: abaixo do compositor, compactas e alinhadas ao centro. */
+/* Pílulas de tema: compactas e alinhadas ao centro. */
+.topic-pills-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 760px;
+  margin: 10px auto 0;
+  padding: 0 16px;
+  position: relative;
+}
+
+.topic-pills-track {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+
+.topic-pill-nav-btn {
+  display: none;
+}
+
 .topic-pills {
   display: flex;
   flex-wrap: wrap;
