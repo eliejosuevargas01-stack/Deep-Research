@@ -208,7 +208,7 @@ export function DeepResearchCharacters({
   isTyping = false,
   typingProgress = 0.5,
   theme = 'dark',
-  showCeticoRadius = false,
+  showCeticoRadius = true,
   className = ''
 }) {
   const isDark = theme === 'dark';
@@ -331,23 +331,57 @@ export function DeepResearchCharacters({
     }
   };
 
-  const getLookVector = (charX: number, charY: number, maxDx = 11, maxDy = 7.5) => {
+  const getLookVector = (charX: number, charY: number, maxDx = 9, maxDy = 3.5) => {
     const dx = renderState.mx - charX;
     const dy = renderState.my - charY;
     const dist = Math.hypot(dx, dy) || 1;
     const factor = clamp(dist / 40, 0, 1);
+
+    // Vetor base em direção ao cursor
+    const rawOx = (dx / dist) * maxDx * factor;
+    const rawOy = (dy / dist) * maxDy * factor;
+
+    // ============================================================
+    // CAMPO DE NÃO-REAÇÃO / OLHAR FRONTAL PARA A CÂMERA (PONTO CENTRAL)
+    // Cada especialista tem seu ponto central (charX, charY).
+    // Quando o mouse está logo acima dele (dy < 40 e |dx| < 80)
+    // ou na proximidade da cabeça (dist < 55),
+    // ele não deve seguir o mouse para cima, e sim olhar
+    // diretamente para a câmera (olhar neutro centralizado ox: 0, oy: 0).
+    // O mesmo vale para o Planejador (x: 105), Redator (x: 895) e todos os 7.
+    // ============================================================
+    let cameraBlend = 0;
+
+    // Cone vertical acima do especialista
+    if (dy < 40 && Math.abs(dx) < 80) {
+      const xRatio = Math.abs(dx) / 80;
+      const xWeight = 1 - Math.pow(xRatio, 1.4);
+      const yWeight = dy <= 0 ? 1 : Math.max(0, (40 - dy) / 40);
+      cameraBlend = Math.max(cameraBlend, xWeight * yWeight);
+    }
+
+    // Raio de proximidade imediata ao redor do ponto central
+    if (dist < 55) {
+      cameraBlend = Math.max(cameraBlend, 1 - Math.pow(dist / 55, 1.4));
+    }
+
+    // Suaviza transição para o ponto central (ox: 0, oy: 0)
+    const ox = rawOx * (1 - cameraBlend);
+    const oy = rawOy * (1 - cameraBlend);
+
     return {
-      ox: (dx / dist) * maxDx * factor,
-      oy: (dy / dist) * maxDy * factor,
+      ox,
+      oy,
       angle: Math.atan2(dy, dx) * (180 / Math.PI),
-      dist
+      dist,
+      cameraBlend
     };
   };
 
   const { mx, my, time } = renderState;
 
-  // Zona de 15cm do Cético reduzida em 3x (raio = 44px centrado entre o rosto e o livro em x=492, y=155)
-  const CETICO_RADIUS = 72;
+  // Zona de 15cm do Cético (raio = 44px centrado entre o rosto e o livro em x=492, y=155)
+  const CETICO_RADIUS = 44;
   const ceticoDist = Math.hypot(mx - 492, my - 155);
   const ceticoCares =
     ceticoDist < CETICO_RADIUS ||
@@ -484,10 +518,10 @@ export function DeepResearchCharacters({
       </g>
 
       {/* ============================================================
-          1. PLANEJADOR (x: 105, y: 185)
+          1. PLANEJADOR (x: 105, y: 185) — Ponto Central: (105, 141)
       ============================================================ */}
       {(() => {
-        const look = getLookVector(105, 138, 12, 8);
+        const look = getLookVector(105, 141, 9, 3.5);
         const bob = Math.sin(time * 2.1) * 2.2;
         const isHovered = hoveredPersona === 'planejador';
         // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
@@ -619,9 +653,9 @@ export function DeepResearchCharacters({
                   <line x1="-9" y1="-5" x2="-6" y2="-6" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
                   <line x1="5" y1="-5" x2="8" y2="-6" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
 
-                  {/* Pupilas altamente responsivas ao mouse */}
-                  <circle cx={-6.5 + clamp(look.ox * 0.7, -4.8, 4.8)} cy={-2 + clamp(look.oy * 0.7, -3.2, 3.2)} r="2.4" fill={ui.strokeMain} />
-                  <circle cx={7.5 + clamp(look.ox * 0.7, -4.8, 4.8)} cy={-2 + clamp(look.oy * 0.7, -3.2, 3.2)} r="2.4" fill={ui.strokeMain} />
+                  {/* Pupilas dentro das lentes dos óculos, acima da boca */}
+                  <circle cx={-6.5 + clamp(look.ox * 0.5, -3.2, 3.2)} cy={-2 + clamp(look.oy * 0.4, -1.5, 1.5)} r="2.4" fill={ui.strokeMain} />
+                  <circle cx={7.5 + clamp(look.ox * 0.5, -3.2, 3.2)} cy={-2 + clamp(look.oy * 0.4, -1.5, 1.5)} r="2.4" fill={ui.strokeMain} />
 
                   <line x1="-12" y1="-5.5" x2="-1" y2="-5.5" stroke={ui.headFill} strokeWidth="2.2" />
                 </g>
@@ -660,10 +694,10 @@ export function DeepResearchCharacters({
       })()}
 
       {/* ============================================================
-          2. HISTORIADOR (x: 262, y: 192) — 1º do Trio Colado
+          2. HISTORIADOR (x: 262, y: 192) — Ponto Central: (262, 152)
       ============================================================ */}
       {(() => {
-        const look = getLookVector(262, 148, 11, 7.5);
+        const look = getLookVector(262, 152, 9, 3.5);
         const bob = Math.sin(time * 2.4 + 1) * 2;
         // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
         const histHeadTilt = clamp(look.ox * 0.25, -3.5, 3.5);
@@ -709,9 +743,9 @@ export function DeepResearchCharacters({
                 <circle cx="0" cy="0" r="20" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="3" />
                 <path d="M -18 -12 Q 0 -24 19 -11 Z" fill="#78350f" stroke="#451a03" strokeWidth="1.5" />
 
-                {/* Pupilas com forte resposta ao mouse */}
-                <circle cx={-6 + clamp(look.ox * 0.75, -5, 5)} cy={-2 + clamp(look.oy * 0.75, -3.2, 3.2)} r="2.3" fill={ui.strokeMain} />
-                <circle cx={6 + clamp(look.ox * 0.75, -5, 5)} cy={-2 + clamp(look.oy * 0.75, -3.2, 3.2)} r="2.5" fill={ui.strokeMain} />
+                {/* Pupilas dentro da órbita/monóculo, bem acima da boca */}
+                <circle cx={-6 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-2 + clamp(look.oy * 0.4, -1.5, 1.5)} r="2.3" fill={ui.strokeMain} />
+                <circle cx={6 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-2 + clamp(look.oy * 0.4, -1.5, 1.5)} r="2.5" fill={ui.strokeMain} />
                 <circle cx={6} cy={-2} r="6.2" fill="none" stroke="#fbbf24" strokeWidth="1.8" />
                 <path d="M 11 2 Q 14 12 8 18" stroke="#fbbf24" strokeWidth="1.2" fill="none" strokeDasharray="1.5 1.5" />
 
@@ -730,10 +764,10 @@ export function DeepResearchCharacters({
       })()}
 
       {/* ============================================================
-          3. VISIONÁRIO (x: 326, y: 178) — 2º (Centro) do Trio Colado
+          3. VISIONÁRIO (x: 326, y: 178) — Ponto Central: (326, 136)
       ============================================================ */}
       {(() => {
-        const look = getLookVector(326, 130, 11, 7.5);
+        const look = getLookVector(326, 136, 9, 3.5);
         const bounce = Math.abs(Math.sin(time * 3.2)) * -5;
         // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
         const visHeadTilt = clamp(look.ox * 0.25, -3.5, 3.5);
@@ -769,11 +803,11 @@ export function DeepResearchCharacters({
                 <circle cx="-7" cy="-12" r="5.5" fill="#38bdf8" fillOpacity="0.35" stroke="#0284c7" strokeWidth="2" />
                 <circle cx="7" cy="-12" r="5.5" fill="#38bdf8" fillOpacity="0.35" stroke="#0284c7" strokeWidth="2" />
 
-                {/* Olhos bem expressivos seguindo o mouse */}
-                <circle cx={-6 + clamp(look.ox * 0.8, -5.5, 5.5)} cy={1 + clamp(look.oy * 0.75, -3.5, 3.5)} r="3.4" fill={ui.strokeMain} />
-                <circle cx={6 + clamp(look.ox * 0.8, -5.5, 5.5)} cy={1 + clamp(look.oy * 0.75, -3.5, 3.5)} r="3.4" fill={ui.strokeMain} />
-                <circle cx={-7 + clamp(look.ox * 0.8, -5.5, 5.5)} cy={-0.5 + clamp(look.oy * 0.75, -3.5, 3.5)} r="1.2" fill="#ffffff" />
-                <circle cx={5 + clamp(look.ox * 0.8, -5.5, 5.5)} cy={-0.5 + clamp(look.oy * 0.75, -3.5, 3.5)} r="1.2" fill="#ffffff" />
+                {/* Olhos na órbita correta, sem descer até a boca */}
+                <circle cx={-6 + clamp(look.ox * 0.55, -3.5, 3.5)} cy={-2.5 + clamp(look.oy * 0.4, -1.5, 1.5)} r="3" fill={ui.strokeMain} />
+                <circle cx={6 + clamp(look.ox * 0.55, -3.5, 3.5)} cy={-2.5 + clamp(look.oy * 0.4, -1.5, 1.5)} r="3" fill={ui.strokeMain} />
+                <circle cx={-7 + clamp(look.ox * 0.55, -3.5, 3.5)} cy={-4 + clamp(look.oy * 0.4, -1.5, 1.5)} r="1.1" fill="#ffffff" />
+                <circle cx={5 + clamp(look.ox * 0.55, -3.5, 3.5)} cy={-4 + clamp(look.oy * 0.4, -1.5, 1.5)} r="1.1" fill="#ffffff" />
 
                 <path
                   d="M -5 9 Q 0 15 6 9"
@@ -796,10 +830,10 @@ export function DeepResearchCharacters({
       })()}
 
       {/* ============================================================
-          4. FUTURISTA (x: 390, y: 190) — 3º do Trio Colado
+          4. FUTURISTA (x: 390, y: 190) — Ponto Central: (392, 150)
       ============================================================ */}
       {(() => {
-        const look = getLookVector(390, 146, 11, 7.5);
+        const look = getLookVector(392, 150, 9, 3.5);
         const bob = Math.sin(time * 2.7 + 2) * 2;
         // Cabeça firme: micro-inclinação anatômica de no máx 3°
         const futHeadTilt = clamp(look.ox * 0.2, -3, 3);
@@ -852,18 +886,18 @@ export function DeepResearchCharacters({
                   stroke="#818cf8"
                   strokeWidth="2"
                 />
-                {/* Feixe laser e pupila cibernética reagindo aos olhos */}
+                {/* Feixe laser cibernético fixo no visor, sem descer */}
                 <circle
-                  cx={clamp(look.ox * 1.6, -10, 10)}
-                  cy={clamp(-2 + look.oy * 0.5, -4.5, 0.5)}
+                  cx={clamp(look.ox * 1.4, -9, 9)}
+                  cy={clamp(-2 + look.oy * 0.25, -3.5, -0.5)}
                   r="2.8"
                   fill="#38bdf8"
                   filter="url(#softGlow)"
                 />
                 <line
-                  x1={clamp(look.ox * 1.6 - 5, -13, 5)}
+                  x1={clamp(look.ox * 1.4 - 5, -12, 4)}
                   y1="-2"
-                  x2={clamp(look.ox * 1.6 + 5, -5, 13)}
+                  x2={clamp(look.ox * 1.4 + 5, -4, 12)}
                   y2="-2"
                   stroke="#38bdf8"
                   strokeWidth="1.2"
@@ -879,16 +913,10 @@ export function DeepResearchCharacters({
       })()}
 
       {/* ============================================================
-          5. CÉTICO (x: 472, y: 192) — Mais próximo do Futurista!
-          AJUSTES EXATOS:
-          - Mais perto do Futurista (472 vs 390).
-          - Mãos desinvertidas:
-            * Braço Esquerdo (ombro de trás/direita na perspectiva 35°) sobe para apoiar o QUEIXO.
-            * Braço Direito (ombro da frente/esquerda na perspectiva 35°) passa pela frente segurando o LIVRO DE CAPA MARROM aberto a 15cm do rosto.
-          - Círculo de 15cm 3x menor (r = 44px).
+          5. CÉTICO (x: 472, y: 192) — Ponto Central: (480, 150)
       ============================================================ */}
       {(() => {
-        const rawLook = getLookVector(472, 148, 11, 7.5);
+        const rawLook = getLookVector(480, 150, 9, 3.5);
         const eyeX = rawLook.ox;
         const eyeY = rawLook.oy;
         // Cabeça firme no queixo: micro-inclinação anatômica de no máx 3.5°
@@ -990,10 +1018,10 @@ export function DeepResearchCharacters({
                   strokeLinejoin="round"
                 />
 
-                {/* Olhos Desconfiados que reagem fortemente ao cursor */}
-                <g transform="translate(4, -1)">
-                  <circle cx={-5 + clamp(eyeX * 0.75, -5, 5)} cy={clamp(eyeY * 0.7, -3.5, 3.5)} r="2.3" fill={ui.strokeMain} />
-                  <circle cx={6 + clamp(eyeX * 0.75, -5, 5)} cy={clamp(eyeY * 0.7, -3.5, 3.5)} r="2.3" fill={ui.strokeMain} />
+                {/* Olhos Desconfiados na órbita correta, sem descer até a boca */}
+                <g transform="translate(4, -2.5)">
+                  <circle cx={-5 + clamp(eyeX * 0.55, -3.2, 3.2)} cy={clamp(eyeY * 0.35, -1.4, 1.4)} r="2.3" fill={ui.strokeMain} />
+                  <circle cx={6 + clamp(eyeX * 0.55, -3.2, 3.2)} cy={clamp(eyeY * 0.35, -1.4, 1.4)} r="2.3" fill={ui.strokeMain} />
 
                   <path
                     d={
@@ -1006,8 +1034,8 @@ export function DeepResearchCharacters({
                     strokeLinecap="round"
                   />
 
-                  <line x1="-9" y1="3.5" x2="-1" y2="3" stroke={ui.strokeSecondary} strokeWidth="1.5" />
-                  <line x1="2" y1="3" x2="10" y2="3.5" stroke={ui.strokeSecondary} strokeWidth="1.5" />
+                  <line x1="-9" y1="4" x2="-1" y2="3.5" stroke={ui.strokeSecondary} strokeWidth="1.5" />
+                  <line x1="2" y1="3.5" x2="10" y2="4" stroke={ui.strokeSecondary} strokeWidth="1.5" />
                 </g>
 
                 {/* Boca torta cética */}
@@ -1083,10 +1111,10 @@ export function DeepResearchCharacters({
       })()}
 
       {/* ============================================================
-          6. AUDITOR (x: 765, y: 196) — Quase uma bolinha!
+          6. AUDITOR (x: 765, y: 196) — Ponto Central: (765, 150)
       ============================================================ */}
       {(() => {
-        const look = getLookVector(765, 160, 11, 7.5);
+        const look = getLookVector(765, 150, 9, 3.5);
         const glareX = look.ox;
         const glareY = look.oy * 0.7;
         // Cabeça firme: micro-inclinação anatômica de no máx 3°
@@ -1175,9 +1203,9 @@ export function DeepResearchCharacters({
                   strokeLinecap="round"
                 />
 
-                {/* Olhos do auditor reagindo fortemente ao mouse */}
-                <circle cx={-10 + clamp(glareX * 0.7, -5.5, 5.5)} cy={1 + clamp(glareY * 0.8, -3.2, 3.2)} r="2.8" fill={ui.strokeMain} />
-                <circle cx={3 + clamp(glareX * 0.7, -5.5, 5.5)} cy={1 + clamp(glareY * 0.8, -3.2, 3.2)} r="2.8" fill={ui.strokeMain} />
+                {/* Olhos do auditor na órbita superior, bem longe da boca */}
+                <circle cx={-10 + clamp(glareX * 0.55, -3.5, 3.5)} cy={-3.5 + clamp(glareY * 0.35, -1.4, 1.4)} r="2.8" fill={ui.strokeMain} />
+                <circle cx={3 + clamp(glareX * 0.55, -3.5, 3.5)} cy={-3.5 + clamp(glareY * 0.35, -1.4, 1.4)} r="2.8" fill={ui.strokeMain} />
 
                 {isAuditorBlowingWhistle ? (
                   <g>
@@ -1291,10 +1319,10 @@ export function DeepResearchCharacters({
       })()}
 
       {/* ============================================================
-          7. REDATOR (x: 895, y: 186) — Nas costas do Auditor
+          7. REDATOR (x: 895, y: 186) — Ponto Central: (890, 144)
       ============================================================ */}
       {(() => {
-        const look = getLookVector(895, 142, 11, 7.5);
+        const look = getLookVector(890, 144, 9, 3.5);
         const bob = Math.sin(time * 2.3 + 0.7) * 2.2;
         // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
         const redatorHeadTilt = clamp(look.ox * 0.25, -3.5, 3.5);
@@ -1396,11 +1424,11 @@ export function DeepResearchCharacters({
                   strokeLinecap="round"
                 />
 
-                {/* Pupilas e reflexos bem expressivos */}
-                <circle cx={-6 + clamp(look.ox * 0.75, -5, 5)} cy={-2 + clamp(look.oy * 0.7, -3.2, 3.2)} r="2.6" fill={ui.strokeMain} />
-                <circle cx={6 + clamp(look.ox * 0.75, -5, 5)} cy={-2 + clamp(look.oy * 0.7, -3.2, 3.2)} r="2.6" fill={ui.strokeMain} />
-                <circle cx={-7 + clamp(look.ox * 0.75, -5, 5)} cy={-3 + clamp(look.oy * 0.7, -3.2, 3.2)} r="1" fill="#ffffff" />
-                <circle cx={5 + clamp(look.ox * 0.75, -5, 5)} cy={-3 + clamp(look.oy * 0.7, -3.2, 3.2)} r="1" fill="#ffffff" />
+                {/* Pupilas e reflexos bem posicionados, longe da boca */}
+                <circle cx={-6 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-3.5 + clamp(look.oy * 0.35, -1.4, 1.4)} r="2.6" fill={ui.strokeMain} />
+                <circle cx={6 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-3.5 + clamp(look.oy * 0.35, -1.4, 1.4)} r="2.6" fill={ui.strokeMain} />
+                <circle cx={-7 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-4.5 + clamp(look.oy * 0.35, -1.4, 1.4)} r="1" fill="#ffffff" />
+                <circle cx={5 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-4.5 + clamp(look.oy * 0.35, -1.4, 1.4)} r="1" fill="#ffffff" />
 
                 <circle cx="-12" cy="4" r="3" fill="#34d399" opacity="0.28" />
                 <circle cx="12" cy="4" r="3" fill="#34d399" opacity="0.28" />
