@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Sliders, X, Info } from 'lucide-react';
+import { Sliders, X, Info, Minus, Plus } from 'lucide-react';
 import type { RecenciaPolitica } from '../types/api';
 import { RIGOR_MAXIMO, RIGOR_MINIMO, RIGOR_PADRAO, normalizarRigor, validarCallbackUrl } from '../services/api';
 
@@ -251,18 +251,38 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
             <label htmlFor="custom-points-input" style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
               Quantidade:
             </label>
-            <input
-              id="custom-points-input"
-              type="number"
-              min={1}
-              max={20}
-              className="points-custom-input"
-              value={nPontos}
-              onChange={handleCustomPointChange}
-              disabled={disabled}
-              title="Digite a quantidade exata de pontos desejada (1 a 20)"
-              aria-label="Quantidade exata de pontos analíticos (1 a 20)"
-            />
+            <div className="points-stepper" role="group" aria-label="Ajustar quantidade de pontos">
+              <button
+                type="button"
+                className="point-stepper-btn point-stepper-btn-minus"
+                onClick={() => handlePointSelect(Math.max(1, nPontos - 1))}
+                disabled={disabled || nPontos <= 1}
+                aria-label="Diminuir pontos"
+              >
+                <Minus size={14} aria-hidden="true" />
+              </button>
+              <input
+                id="custom-points-input"
+                type="number"
+                min={1}
+                max={20}
+                className="points-custom-input"
+                value={nPontos}
+                onChange={handleCustomPointChange}
+                disabled={disabled}
+                title="Digite a quantidade exata de pontos desejada (1 a 20)"
+                aria-label="Quantidade exata de pontos analíticos (1 a 20)"
+              />
+              <button
+                type="button"
+                className="point-stepper-btn point-stepper-btn-plus"
+                onClick={() => handlePointSelect(Math.min(20, nPontos + 1))}
+                disabled={disabled || nPontos >= 20}
+                aria-label="Aumentar pontos"
+              >
+                <Plus size={14} aria-hidden="true" />
+              </button>
+            </div>
           </div>
         </div>
         <p className="preferences-helper">
@@ -495,6 +515,42 @@ export const ResearchPreferences: React.FC<ResearchPreferencesProps> = ({
   onChangeCallbackUrl = () => {},
 }) => {
   const triggerBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Lock de rolagem do body no mobile quando a folha de preferências estiver aberta (evita duplo scroll)
+  useEffect(() => {
+    if (!isOpen) {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      document.body.classList.remove('preferences-open');
+      document.documentElement.classList.remove('preferences-open');
+      return;
+    }
+
+    const updateScrollLock = () => {
+      const isMobile = window.innerWidth <= 640 || (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches);
+      if (isMobile) {
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        document.body.classList.add('preferences-open');
+        document.documentElement.classList.add('preferences-open');
+      } else {
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+        document.body.classList.remove('preferences-open');
+        document.documentElement.classList.remove('preferences-open');
+      }
+    };
+
+    updateScrollLock();
+    window.addEventListener('resize', updateScrollLock);
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      document.body.classList.remove('preferences-open');
+      document.documentElement.classList.remove('preferences-open');
+      window.removeEventListener('resize', updateScrollLock);
+    };
+  }, [isOpen]);
 
   return (
     <div className="preferences-wrapper">

@@ -176,6 +176,42 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasSettingsDraft]);
 
+  // Lock de rolagem do body no mobile quando a folha de preferências estiver aberta (evita duplo scroll)
+  useEffect(() => {
+    if (!isPreferencesOpen) {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      document.body.classList.remove('preferences-open');
+      document.documentElement.classList.remove('preferences-open');
+      return;
+    }
+
+    const updateScrollLock = () => {
+      const isMobile = window.innerWidth <= 640 || (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches);
+      if (isMobile) {
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        document.body.classList.add('preferences-open');
+        document.documentElement.classList.add('preferences-open');
+      } else {
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+        document.body.classList.remove('preferences-open');
+        document.documentElement.classList.remove('preferences-open');
+      }
+    };
+
+    updateScrollLock();
+    window.addEventListener('resize', updateScrollLock);
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      document.body.classList.remove('preferences-open');
+      document.documentElement.classList.remove('preferences-open');
+      window.removeEventListener('resize', updateScrollLock);
+    };
+  }, [isPreferencesOpen]);
+
   // Histórico local do navegador
   const [historyRecords, setHistoryRecords] = useState<ResearchHistoryRecord[]>([]);
   // Pesquisa aberta no workspace (espelha activeResearchIdRef para a navegação lateral)

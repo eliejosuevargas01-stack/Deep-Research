@@ -1,0 +1,253 @@
+/* ==========================================================================
+   Scoped Polish for PlanView and SettingsView
+   Craft-floor polish without modifying shared CSS files.
+   ========================================================================== */
+
+/* --- PlanView: Preflight card per DESIGN.md §8 --- */
+.gdr-plan-preflight {
+  background: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, #E4E6E1);
+  border-radius: var(--radius-lg, 10px);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gdr-plan-preflight-summary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary, #4A5254);
+}
+
+.gdr-phases {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gdr-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border, #E4E6E1);
+  border-radius: 9999px;
+  background: var(--color-surface-subtle, #F6F7F4);
+  min-height: 28px;
+}
+
+.gdr-phase-num {
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--color-text-muted, #5F6868);
+}
+
+.gdr-phase-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary, #2F3737);
+}
+
+.gdr-phase-meta {
+  font-size: 11px;
+  color: var(--color-text-muted, #5F6868);
+}
+
+.gdr-plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-subtle, #EDEFEA);
+}
+
+.gdr-plan-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+}
+
+.gdr-plan-action--outline {
+  background: var(--color-surface, #FFFFFF);
+  color: var(--color-text-primary, #2F3737);
+  border: 1px solid var(--color-border, #E4E6E1);
+}
+
+.gdr-plan-action--outline:hover:not(:disabled) {
+  background: var(--color-surface-subtle, #F6F7F4);
+  border-color: var(--color-border-strong, #C9CCC6);
+}
+
+.gdr-plan-action--primary {
+  background: var(--color-primary, #6D28D9);
+  color: var(--color-primary-fg, #FFFFFF);
+  border: 1px solid var(--color-primary, #6D28D9);
+}
+
+.gdr-plan-action--primary:hover:not(:disabled) {
+  background: var(--color-primary-hover, #5B21B6);
+  border-color: var(--color-primary-hover, #5B21B6);
+}
+
+.gdr-plan-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gdr-plan-action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring, 0 0 0 2px #FFFFFF, 0 0 0 4px var(--violet-2));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gdr-plan-action {
+    transition: none !important;
+  }
+}
+
+.plan-header--compact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.plan-header-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4, 16px);
+  flex-wrap: wrap;
+}
+
+.plan-header-text {
+  flex: 1 1 540px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+}
+
+.plan-header-primary-action {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.plan-header-primary-action .btn-start-research {
+  min-height: 44px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+}
+
+/* Query Banner: Safe Reset Confirmation dialog */
+.query-confirm-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background-color: var(--color-surface);
+  padding: 4px 10px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--violet-line);
+  box-shadow: var(--shadow-sm);
+}
+
+.confirm-reset-text {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.confirm-reset-buttons {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.query-action-btn.danger {
+  color: var(--color-danger-text);
+  border-color: var(--color-danger-border);
+  background-color: var(--color-danger-bg);
+}
+
+.query-action-btn.danger:hover:not(:disabled) {
+  background-color: var(--color-danger-border);
+  border-color: var(--color-danger-text);
+}
+
+/* Responsive adjustment for short/narrow screens */
+@media (max-width: 768px) {
+  .plan-header-main-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3, 12px);
+  }
+
+  .plan-header-primary-action {
+    width: 100%;
+  }
+
+  .plan-header-primary-action .btn-start-research {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* WCAG 2.5.8 touch targets (min 44px) on mobile <= 640px */
+@media (max-width: 640px) {
+  .gdr-plan-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .gdr-plan-action {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 10px 16px;
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .context-panel-header {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+  }
+}
+
+/* --- SettingsView: Accessible Focus & Validation Polish --- */
+.form-input.error {
+  border-color: var(--color-danger-text) !important;
+  background-color: var(--color-danger-bg) !important;
+}
+
+.form-input.error:focus {
+  outline: 2px solid var(--color-danger-text) !important;
+  box-shadow: 0 0 0 3px var(--color-danger-border) !important;
+}
+
+.form-field-error {
+  color: var(--color-danger-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 4px;
+  display: block;
+}
