@@ -73,7 +73,7 @@
   --color-accent-solid: var(--violet-2);
 
   --color-surface-muted: #F1F3EF;
-  --color-text-tertiary: #6B7273;
+  --color-text-tertiary: #5F6868;
 
   --color-indigo: var(--indigo);
   --color-indigo-tint: var(--indigo-tint);
@@ -105,7 +105,7 @@
   --shadow-composer: 0 1px 0 0 rgba(47, 55, 55, 0.04), 0 10px 28px -22px rgba(31, 41, 38, 0.28);
 
   /* ---------- Tipografia ---------- */
-  --display: "Outfit", system-ui, sans-serif;
+  --display: "Outfit", "Plus Jakarta Sans", system-ui, sans-serif;
   --sans: "Outfit", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
 
@@ -199,7 +199,7 @@
   --color-accent-solid: var(--violet);
 
   --color-surface-muted: #232323;
-  --color-text-tertiary: #8B9090;
+  --color-text-tertiary: #9A9F9F;
 
   --color-success-bg: var(--green-tint);
   --color-success-border: #1F5138;
