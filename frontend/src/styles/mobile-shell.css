@@ -337,14 +337,14 @@
     overflow: hidden !important;
   }
 
-  /* 1. Animação ampliada e centralizada (com remoção do cabeçalho de texto/ícone) */
+  /* 1. Animação restaurada e centralizada */
   .workspace-main:has(.empty-state) > .empty-state {
     margin: auto 0 !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     align-items: center !important;
-    flex: 1 1 auto !important;
+    flex: 0 0 auto !important;
     width: 100% !important;
     padding-bottom: 0 !important;
   }
@@ -354,7 +354,7 @@
     max-width: 390px !important;
     margin: 0 auto !important;
     padding: 0 !important;
-    overflow: visible !important;
+    overflow: hidden !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
@@ -362,10 +362,11 @@
 
   .empty-state-hero svg {
     width: 100% !important;
+    max-width: 390px !important;
     height: auto !important;
-    min-height: 170px !important;
-    max-height: 220px !important;
-    transform: scale(1.30) !important;
+    min-height: 110px !important;
+    max-height: 155px !important;
+    transform: scale(1.05) !important;
     transform-origin: center center !important;
   }
 
