@@ -241,7 +241,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
       aria-label={PANEL_LABELS[open]}
     >
       <header className="dock-panel-head">
-        <h2>{PANEL_LABELS[open]}</h2>
+        <h2>{isMobile ? 'Ferramentas' : PANEL_LABELS[open]}</h2>
         <button
           type="button"
           className="dock-close"
@@ -272,8 +272,8 @@ export const BottomDock: React.FC<BottomDockProps> = ({
       {open === 'look' && (
         <div className="dock-fields">
           <div className="dock-field">
-            <span className="dock-label">Tema</span>
-            <div className="dock-segment">
+            <span className="dock-label">Tema da interface</span>
+            <div className="dock-segment" role="group" aria-label="Tema da interface">
               <button
                 type="button"
                 className={theme === 'light' ? 'is-on' : ''}
@@ -292,11 +292,20 @@ export const BottomDock: React.FC<BottomDockProps> = ({
               </button>
             </div>
           </div>
-          <label className="dock-switch">
-            <input type="checkbox" checked={ambientOn} onChange={onToggleAmbient} />
-            <span>
-              Ambientação viva
-              <small>auroras lentas no fundo; desligue para economizar bateria</small>
+          <label className="dock-switch-card">
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={ambientOn}
+              onChange={onToggleAmbient}
+              aria-label="Ativar ambientação viva com auroras animadas"
+            />
+            <div className="dock-switch-text">
+              <span className="dock-switch-title">Ambientação viva</span>
+              <small className="dock-switch-desc">Auroras animadas no fundo; desligue para economizar bateria.</small>
+            </div>
+            <span className={`dock-toggle-track ${ambientOn ? 'is-active' : ''}`} aria-hidden="true">
+              <span className="dock-toggle-thumb" />
             </span>
           </label>
         </div>
@@ -304,21 +313,40 @@ export const BottomDock: React.FC<BottomDockProps> = ({
 
       {open === 'keys' && (
         <ul className="dock-keys">
-          <li><kbd>Enter</kbd><span>Formular o plano do tema digitado</span></li>
-          <li><kbd>Shift</kbd><kbd>Enter</kbd><span>Quebrar linha sem enviar</span></li>
-          <li><kbd>Esc</kbd><span>Fechar este painel</span></li>
-          <li><kbd>Tab</kbd><span>Percorrer controles na ordem visível</span></li>
-          <li><kbd>/</kbd><span>Focar o campo de tema de qualquer tela</span></li>
+          <li>
+            <span>Formular plano</span>
+            <kbd>Enter</kbd>
+          </li>
+          <li>
+            <span>Quebrar linha sem enviar</span>
+            <div className="kbd-combo">
+              <kbd>Shift</kbd>
+              <span>+</span>
+              <kbd>Enter</kbd>
+            </div>
+          </li>
+          <li>
+            <span>Fechar este painel</span>
+            <kbd>Esc</kbd>
+          </li>
+          <li>
+            <span>Percorrer controles</span>
+            <kbd>Tab</kbd>
+          </li>
+          <li>
+            <span>Focar campo de pesquisa</span>
+            <kbd>/</kbd>
+          </li>
         </ul>
       )}
 
       {open === 'session' && (
         <div className="dock-fields">
-          <p className={`dock-status ${sessionAuthenticated ? 'is-ok' : 'is-warn'}`}>
+          <div className={`dock-status ${sessionAuthenticated ? 'is-ok' : 'is-warn'}`}>
             <span className="dock-status-dot" aria-hidden="true" />
-            {sessionAuthenticated ? 'Sessão sincronizada. Pode investigar.' : 'Sessão pendente: o servidor não respondeu'}
-          </p>
-          <p className="dock-note">As chaves ficam cifradas no servidor. Nenhum provedor é chamado sem você enviar o tema.</p>
+            <span>{sessionAuthenticated ? 'Sessão conectada e sincronizada.' : 'Sessão pendente: servidor não respondeu'}</span>
+          </div>
+          <p className="dock-note">As chaves de API ficam cifradas no servidor. Nenhum provedor é chamado sem você enviar o tema.</p>
           <button type="button" className="btn-secondary dock-action" onClick={onOpenSettings}>
             Abrir configurações
           </button>
