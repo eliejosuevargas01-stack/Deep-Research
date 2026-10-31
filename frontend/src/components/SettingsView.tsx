@@ -12,7 +12,7 @@ import { api } from '../services/api';
 import { ErrorNotice } from './ErrorNotice';
 import { apresentarErro } from '../utils/erros';
 import { CredentialSanitizedListItem } from '../types/api';
-import './plan-settings-polish.css';
+import '../styles/plan-settings-polish.css';
 
 const FIELD_ORDER = [
   'LLM_BASE_URL',

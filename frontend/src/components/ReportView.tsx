@@ -528,7 +528,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
         className="markdown-body markdown-content report-content"
         aria-label="Conteúdo do dossiê"
         style={{
-          maxWidth: '72ch',
+          maxWidth: '56ch',
           marginLeft: 'auto',
           marginRight: 'auto',
         }}
@@ -547,7 +547,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
                 {...props}
                 className="markdown-content report-content"
                 style={{
-                  maxWidth: '72ch',
+                  maxWidth: '56ch',
                   marginLeft: 'auto',
                   marginRight: 'auto',
                   lineHeight: 1.6,
@@ -555,6 +555,17 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
               >
                 {children}
               </p>
+            ),
+            li: ({ children, node: _node, ...props }) => (
+              <li
+                {...props}
+                style={{
+                  maxWidth: '56ch',
+                  lineHeight: 1.55,
+                }}
+              >
+                {children}
+              </li>
             ),
             a: ({ href, children, ...props }) => {
               const safe = isSafeUrl(href);

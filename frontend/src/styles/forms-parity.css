@@ -370,3 +370,28 @@
   }
 }
 
+/* WCAG 2.5.8 Touch Targets Mobile (<= 640px) */
+@media (max-width: 640px) {
+  .point-stepper-btn,
+  .dock-stepper button {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 10px 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  .points-custom-input,
+  .point-option-btn {
+    min-height: 44px !important;
+    box-sizing: border-box !important;
+  }
+
+  .persona-checkbox-label {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+    padding: 8px 12px !important;
+  }
+}
+

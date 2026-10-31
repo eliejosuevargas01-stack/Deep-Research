@@ -151,6 +151,13 @@
   color: var(--color-text-secondary);
 }
 
+@media (max-width: 640px) {
+  .planning-reasoning-text {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
 .planning-reasoning-empty {
   margin: 0;
   font-size: 13px;
