@@ -44,7 +44,7 @@
   border: none;
   outline: none;
   resize: none;
-  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
+  font-family: var(--font-sans, system-ui, sans-serif);
   font-size: 0.98rem;
   line-height: 1.55;
   color: var(--color-text-primary, #2F3737);
