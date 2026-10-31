@@ -1,36 +1,28 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SlidersHorizontal, Palette, Keyboard, ShieldCheck, Minus, Plus, X } from 'lucide-react';
+import { SlidersHorizontal, Palette, Keyboard, ShieldCheck, X } from 'lucide-react';
 
 export interface BottomDockProps {
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   ambientOn: boolean;
   onToggleAmbient: () => void;
-  nPontos: number;
-  onChangeNPontos: (n: number) => void;
-  personas: { id: string; label: string }[];
-  selectedPersonas: string[];
-  onChangePersonas: (ids: string[]) => void;
-  executionMode: 'parallel' | 'sequential';
-  onChangeExecutionMode: (mode: 'parallel' | 'sequential') => void;
+  nPontos?: number;
+  onChangeNPontos?: (n: number) => void;
+  personas?: { id: string; label: string }[];
+  selectedPersonas?: string[];
+  onChangePersonas?: (ids: string[]) => void;
+  executionMode?: 'parallel' | 'sequential';
+  onChangeExecutionMode?: (mode: 'parallel' | 'sequential') => void;
   disabled?: boolean;
   sessionAuthenticated: boolean;
   onOpenSettings: () => void;
 }
 
-type PanelId = 'params' | 'look' | 'keys' | 'session';
+type PanelId = 'look' | 'keys' | 'session';
 type OpenPanel = PanelId | null;
 
-const PERSONA_LABELS: Record<string, string> = {
-  historiador: 'Historiador',
-  visionario: 'Visionário',
-  cetico: 'Cético',
-  futurista: 'Futurista',
-};
-
 const PANEL_LABELS: Record<PanelId, string> = {
-  params: 'Parâmetros',
   look: 'Aparência',
   keys: 'Atalhos',
   session: 'Sessão',
@@ -76,14 +68,6 @@ export const BottomDock: React.FC<BottomDockProps> = ({
   onToggleTheme,
   ambientOn,
   onToggleAmbient,
-  nPontos,
-  onChangeNPontos,
-  personas,
-  selectedPersonas,
-  onChangePersonas,
-  executionMode,
-  onChangeExecutionMode,
-  disabled = false,
   sessionAuthenticated,
   onOpenSettings,
 }) => {
@@ -184,16 +168,6 @@ export const BottomDock: React.FC<BottomDockProps> = ({
     setOpen((cur) => (cur === id ? null : id));
   };
 
-  const personaIds = personas.map((p) => p.id);
-  const togglePersona = (id: string) => {
-    if (selectedPersonas.includes(id)) {
-      if (selectedPersonas.length === 1) return; // nunca deixa zero personas
-      onChangePersonas(selectedPersonas.filter((p) => p !== id));
-    } else {
-      onChangePersonas([...selectedPersonas, id]);
-    }
-  };
-
   const triggers = (
     <div
       className={`dock-triggers ${isMobile ? 'is-mobile' : ''}`}
@@ -204,32 +178,19 @@ export const BottomDock: React.FC<BottomDockProps> = ({
       {isMobile ? (
         <button
           type="button"
-          ref={(el) => { triggerRefs.current.params = el; }}
+          ref={(el) => { triggerRefs.current.sheet = el; }}
           className={`dock-btn dock-sheet-trigger ${open ? 'is-open' : ''}`}
           aria-expanded={open !== null}
           aria-controls={`${baseId}-sheet`}
           aria-haspopup="dialog"
-          onClick={() => (open ? close(true) : setOpen('params'))}
-          title="Parâmetros, aparência, atalhos e sessão"
+          onClick={() => (open ? close(true) : setOpen('look'))}
+          title="Aparência, atalhos e sessão"
         >
           <span className="dock-btn-icon" aria-hidden="true"><SlidersHorizontal size={15} /></span>
           <span className="dock-btn-label">Ferramentas</span>
         </button>
       ) : (
         <>
-          <button
-            type="button"
-            ref={(el) => { triggerRefs.current.params = el; }}
-            className={`dock-btn ${open === 'params' ? 'is-open' : ''}`}
-            aria-expanded={open === 'params'}
-            aria-controls={`${baseId}-params`}
-            onClick={() => toggle('params')}
-            disabled={disabled}
-            title="Pontos, personas e modo de execução"
-          >
-            <span className="dock-btn-icon" aria-hidden="true"><SlidersHorizontal size={15} /></span>
-            <span className="dock-btn-label">Parâmetros</span>
-          </button>
           <button
             type="button"
             ref={(el) => { triggerRefs.current.look = el; }}
@@ -305,75 +266,6 @@ export const BottomDock: React.FC<BottomDockProps> = ({
               {PANEL_LABELS[id]}
             </button>
           ))}
-        </div>
-      )}
-
-      {open === 'params' && (
-        <div className="dock-fields">
-          <div className="dock-field">
-            <span className="dock-label" id={`${baseId}-pts`}>Pontos analíticos</span>
-            <div className="dock-stepper" role="group" aria-labelledby={`${baseId}-pts`}>
-              <button
-                type="button"
-                onClick={() => onChangeNPontos(Math.max(1, nPontos - 1))}
-                disabled={nPontos <= 1}
-                aria-label="Diminuir pontos"
-              >
-                <Minus size={13} aria-hidden="true" />
-              </button>
-              <output aria-live="polite">{nPontos}</output>
-              <button
-                type="button"
-                onClick={() => onChangeNPontos(Math.min(10, nPontos + 1))}
-                disabled={nPontos >= 10}
-                aria-label="Aumentar pontos"
-              >
-                <Plus size={13} aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-
-          <div className="dock-field">
-            <span className="dock-label" id={`${baseId}-per`}>Personas na busca</span>
-            <div className="dock-chips" role="group" aria-labelledby={`${baseId}-per`}>
-              {personaIds.map((id) => {
-                const on = selectedPersonas.includes(id);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    className={`dock-chip ${on ? 'is-on' : ''}`}
-                    aria-pressed={on}
-                    onClick={() => togglePersona(id)}
-                  >
-                    {PERSONA_LABELS[id] || personas.find((p) => p.id === id)?.label || id}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="dock-field">
-            <span className="dock-label" id={`${baseId}-mode`}>Execução</span>
-            <div className="dock-segment" role="group" aria-labelledby={`${baseId}-mode`}>
-              <button
-                type="button"
-                className={executionMode === 'parallel' ? 'is-on' : ''}
-                aria-pressed={executionMode === 'parallel'}
-                onClick={() => onChangeExecutionMode('parallel')}
-              >
-                Paralelo
-              </button>
-              <button
-                type="button"
-                className={executionMode === 'sequential' ? 'is-on' : ''}
-                aria-pressed={executionMode === 'sequential'}
-                onClick={() => onChangeExecutionMode('sequential')}
-              >
-                Sequencial
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
