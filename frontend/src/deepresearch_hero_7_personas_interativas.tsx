@@ -397,14 +397,12 @@ export function DeepResearchCharacters({
 
   const { mx, my, time } = renderState;
 
-  // Zona de 15cm do Cético (raio = 44px centrado entre o rosto e o livro em x=492, y=155)
+  // Zona de 15cm do Cético (raio = 44px centrado estritamente no círculo de foco do livro em x=508, y=155)
   const CETICO_RADIUS = 44;
-  const ceticoDist = Math.hypot(mx - 492, my - 155);
-  const ceticoCares =
-    ceticoDist < CETICO_RADIUS ||
-    ceticoGlareActive ||
-    hoveredPersona === 'cetico' ||
-    phase === 'audit_fail';
+  const ceticoDist = Math.hypot(mx - 508, my - 155);
+  // O Cético SOMENTE reage e segue o mouse quando o cursor entrar dentro do seu círculo de 15cm
+  const isInsideCeticoCircle = ceticoDist <= CETICO_RADIUS;
+  const ceticoCares = isInsideCeticoCircle || ceticoGlareActive || phase === 'audit_fail';
 
   const isAuditorBlowingWhistle =
     whistleActive || phase === 'audit_fail' || hoveredPersona === 'auditor';
@@ -714,27 +712,28 @@ export function DeepResearchCharacters({
             </g>
 
             {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 68)">
+            <g transform="translate(0, 71)">
               <rect
-                x="-34"
-                y="-8.5"
-                width="68"
-                height="17"
-                rx="4.5"
+                x="-37"
+                y="-9"
+                width="74"
+                height="18"
+                rx="5"
                 fill={isHovered ? '#a855f7' : ui.headFill}
                 fillOpacity={isHovered ? '0.25' : '0.85'}
                 stroke={isHovered ? '#a855f7' : ui.stageFloor}
                 strokeWidth="1.2"
               />
-              <g transform="translate(-28, -6) scale(0.5)" className="text-purple-400">
+              <g transform="translate(-31, -5.5) scale(0.44)" className="text-purple-400">
                 <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.planejador }} />
               </g>
               <text
-                x="4.5"
-                y="3"
-                textAnchor="middle"
+                x="-15"
+                y="1"
+                textAnchor="start"
+                dominantBaseline="central"
                 fill={ui.strokeMain}
-                fontSize="9"
+                fontSize="8.2"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
               >
@@ -747,10 +746,10 @@ export function DeepResearchCharacters({
       })()}
 
       {/* ============================================================
-          2. HISTORIADOR (x: 262, y: 192) — Ponto Central: (262, 152)
+          2. HISTORIADOR (x: 245, y: 192) — Ponto Central: (245, 152)
       ============================================================ */}
       {(() => {
-        const look = getLookVector(262, 152, 9, 3.5);
+        const look = getLookVector(245, 152, 9, 3.5);
         const bob = Math.sin(time * 2.4 + 1) * 2;
         const isHovered = hoveredPersona === 'historiador';
         // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
@@ -758,7 +757,7 @@ export function DeepResearchCharacters({
 
         return (
           <g
-            transform="translate(262, 192)"
+            transform="translate(245, 192)"
             className="cursor-pointer"
             onClick={() => handleCharacterClick('historiador')}
             onMouseEnter={() => setHoveredPersona('historiador')}
@@ -821,27 +820,28 @@ export function DeepResearchCharacters({
             </g>
 
             {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 63)">
+            <g transform="translate(0, 64)">
               <rect
-                x="-26"
-                y="-8.5"
-                width="52"
-                height="17"
-                rx="4.5"
+                x="-33"
+                y="-9"
+                width="66"
+                height="18"
+                rx="5"
                 fill={isHovered ? '#d97706' : ui.headFill}
                 fillOpacity={isHovered ? '0.25' : '0.85'}
                 stroke={isHovered ? '#d97706' : ui.stageFloor}
                 strokeWidth="1.2"
               />
-              <g transform="translate(-21, -6) scale(0.5)" className="text-amber-400">
+              <g transform="translate(-27, -5.5) scale(0.44)" className="text-amber-400">
                 <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.historiador }} />
               </g>
               <text
-                x="3.5"
-                y="3"
-                textAnchor="middle"
+                x="-11"
+                y="1"
+                textAnchor="start"
+                dominantBaseline="central"
                 fill={ui.strokeMain}
-                fontSize="8"
+                fontSize="7.8"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
               >
@@ -854,10 +854,10 @@ export function DeepResearchCharacters({
       })()}
 
       {/* ============================================================
-          3. VISIONÁRIO (x: 326, y: 178) — Ponto Central: (326, 136)
+          3. VISIONÁRIO (x: 325, y: 178) — Ponto Central: (325, 136)
       ============================================================ */}
       {(() => {
-        const look = getLookVector(326, 136, 9, 3.5);
+        const look = getLookVector(325, 136, 9, 3.5);
         const bounce = Math.abs(Math.sin(time * 3.2)) * -5;
         const isHovered = hoveredPersona === 'visionario';
         // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
@@ -865,7 +865,7 @@ export function DeepResearchCharacters({
 
         return (
           <g
-            transform="translate(326, 178)"
+            transform="translate(325, 178)"
             className="cursor-pointer"
             onClick={() => handleCharacterClick('visionario')}
             onMouseEnter={() => setHoveredPersona('visionario')}
@@ -924,27 +924,28 @@ export function DeepResearchCharacters({
             </g>
 
             {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 77)">
+            <g transform="translate(0, 78)">
               <rect
-                x="-25"
-                y="-8.5"
-                width="50"
-                height="17"
-                rx="4.5"
+                x="-32"
+                y="-9"
+                width="64"
+                height="18"
+                rx="5"
                 fill={isHovered ? '#0284c7' : ui.headFill}
                 fillOpacity={isHovered ? '0.25' : '0.85'}
                 stroke={isHovered ? '#0284c7' : ui.stageFloor}
                 strokeWidth="1.2"
               />
-              <g transform="translate(-20, -6) scale(0.5)" className="text-sky-400">
+              <g transform="translate(-26, -5.5) scale(0.44)" className="text-sky-400">
                 <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.visionario }} />
               </g>
               <text
-                x="3.5"
-                y="3"
-                textAnchor="middle"
+                x="-10"
+                y="1"
+                textAnchor="start"
+                dominantBaseline="central"
                 fill={ui.strokeMain}
-                fontSize="8"
+                fontSize="7.8"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
               >
@@ -957,10 +958,10 @@ export function DeepResearchCharacters({
       })()}
 
       {/* ============================================================
-          4. FUTURISTA (x: 390, y: 190) — Ponto Central: (392, 150)
+          4. FUTURISTA (x: 405, y: 190) — Ponto Central: (405, 150)
       ============================================================ */}
       {(() => {
-        const look = getLookVector(392, 150, 9, 3.5);
+        const look = getLookVector(405, 150, 9, 3.5);
         const bob = Math.sin(time * 2.7 + 2) * 2;
         const isHovered = hoveredPersona === 'futurista';
         // Cabeça firme: micro-inclinação anatômica de no máx 3°
@@ -968,7 +969,7 @@ export function DeepResearchCharacters({
 
         return (
           <g
-            transform="translate(390, 190)"
+            transform="translate(405, 190)"
             className="cursor-pointer"
             onClick={() => handleCharacterClick('futurista')}
             onMouseEnter={() => setHoveredPersona('futurista')}
@@ -1037,27 +1038,28 @@ export function DeepResearchCharacters({
             </g>
 
             {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 63)">
+            <g transform="translate(0, 66)">
               <rect
-                x="-24"
-                y="-8.5"
-                width="48"
-                height="17"
-                rx="4.5"
+                x="-31"
+                y="-9"
+                width="62"
+                height="18"
+                rx="5"
                 fill={isHovered ? '#818cf8' : ui.headFill}
                 fillOpacity={isHovered ? '0.25' : '0.85'}
                 stroke={isHovered ? '#818cf8' : ui.stageFloor}
                 strokeWidth="1.2"
               />
-              <g transform="translate(-19, -6) scale(0.5)" className="text-indigo-400">
+              <g transform="translate(-25, -5.5) scale(0.44)" className="text-indigo-400">
                 <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.futurista }} />
               </g>
               <text
-                x="3.5"
-                y="3"
-                textAnchor="middle"
+                x="-9"
+                y="1"
+                textAnchor="start"
+                dominantBaseline="central"
                 fill={ui.strokeMain}
-                fontSize="8"
+                fontSize="7.8"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
               >
@@ -1070,14 +1072,14 @@ export function DeepResearchCharacters({
       })()}
 
       {/* ============================================================
-          5. CÉTICO (x: 472, y: 192) — Ponto Central: (480, 150)
+          5. CÉTICO (x: 485, y: 192) — Ponto Central: (485, 150)
           POLISH IMPECCABLE:
           - Somente reage e segue o mouse quando entrar no círculo de 15cm
           - Fora do círculo, permanece imerso na leitura do seu livro
       ============================================================ */}
       {(() => {
-        const rawLook = getLookVector(480, 150, 9, 3.5);
-        // O Cético somente reage e segue o mouse quando o cursor entrar no seu círculo de 15cm
+        const rawLook = getLookVector(485, 150, 9, 3.5);
+        // O Cético somente reage e segue o mouse quando o cursor entrar estritamente no seu círculo de 15cm
         const eyeX = ceticoCares ? rawLook.ox : 3.2;
         const eyeY = ceticoCares ? rawLook.oy : -0.6;
         // Cabeça firme no queixo: micro-inclinação anatômica de no máx 4° somente quando reage
@@ -1085,19 +1087,17 @@ export function DeepResearchCharacters({
         // Livro abaixa 14px quando reage ao intruso dentro do círculo
         const bookDropY = ceticoCares ? 14 : 0;
         const bob = Math.sin(time * 1.8) * 1.5;
-        const isHovered = hoveredPersona === 'cetico';
+        const isHovered = isInsideCeticoCircle;
 
         return (
           <g
-            transform="translate(472, 192)"
+            transform="translate(485, 192)"
             className="cursor-pointer"
             onClick={() => handleCharacterClick('cetico')}
-            onMouseEnter={() => setHoveredPersona('cetico')}
-            onMouseLeave={() => setHoveredPersona(null)}
           >
             {/* ANEL DE PROXIMIDADE DE 15CM (3X MENOR: r=44) */}
             {showCeticoRadius && (
-              <g transform="translate(20, -37)" className="pointer-events-none">
+              <g transform="translate(23, -37)" className="pointer-events-none">
                 <circle
                   cx="0"
                   cy="0"
@@ -1232,17 +1232,21 @@ export function DeepResearchCharacters({
                 strokeWidth="2.2"
               />
 
-              {/* BRAÇO DIREITO (ombro da frente/esquerda na rotação 35°) SEGURANDO O LIVRO ABERTO NA MÃO DIREITA */}
+              {/* BRAÇO DIREITO SEGURANDO O LIVRO ABERTO */}
               <path
-                d={`M -3 -11 C 6 2, 22 -8, 35 ${-25 + bookDropY}`}
+                d={`M -3 -11 C 6 2, 22 ${ceticoCares ? 4 : -8}, 35 ${-25 + (ceticoCares ? 20 : 0)}`}
                 stroke={ui.strokeMain}
                 strokeWidth="3.1"
                 fill="none"
                 strokeLinecap="round"
               />
 
-              {/* LIVRO DE CAPA MARROM ABERTO NA MÃO DIREITA (~15cm do rosto) */}
-              <g transform={`translate(39, ${-32 + bookDropY}) rotate(-10)`}>
+              {/* LIVRO: Erguido lendo (-10°) vs Baixado e inclinado ao reagir (+25°) */}
+              <g
+                transform={`translate(${39 + (ceticoCares ? 4 : 0)}, ${
+                  -32 + (ceticoCares ? 22 : 0)
+                }) rotate(${ceticoCares ? 25 : -10})`}
+              >
                 {/* Páginas abertas */}
                 <path
                   d="M -11 -12 L 2 -9 L 11 -13 L 11 9 L 2 12 L -11 8 Z"
@@ -1281,27 +1285,28 @@ export function DeepResearchCharacters({
             </g>
 
             {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 63)">
+            <g transform="translate(0, 64)">
               <rect
-                x="-23"
-                y="-8.5"
-                width="46"
-                height="17"
-                rx="4.5"
+                x="-27"
+                y="-9"
+                width="54"
+                height="18"
+                rx="5"
                 fill={ceticoCares || isHovered ? '#f43f5e' : ui.headFill}
                 fillOpacity={ceticoCares || isHovered ? '0.25' : '0.85'}
                 stroke={ceticoCares || isHovered ? '#f43f5e' : ui.stageFloor}
                 strokeWidth="1.2"
               />
-              <g transform="translate(-18, -6) scale(0.5)" className="text-rose-400">
+              <g transform="translate(-21, -5.5) scale(0.44)" className="text-rose-400">
                 <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.cetico }} />
               </g>
               <text
-                x="3.5"
-                y="3"
-                textAnchor="middle"
+                x="-5"
+                y="1"
+                textAnchor="start"
+                dominantBaseline="central"
                 fill={ui.strokeMain}
-                fontSize="8.5"
+                fontSize="8.2"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
               >
@@ -1525,27 +1530,28 @@ export function DeepResearchCharacters({
             </g>
 
             {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 59)">
+            <g transform="translate(0, 60)">
               <rect
-                x="-25"
-                y="-8.5"
-                width="50"
-                height="17"
-                rx="4.5"
+                x="-30"
+                y="-9"
+                width="60"
+                height="18"
+                rx="5"
                 fill={isAuditorBlowingWhistle || isHovered ? '#fbbf24' : ui.headFill}
                 fillOpacity={isAuditorBlowingWhistle || isHovered ? '0.25' : '0.85'}
                 stroke={isAuditorBlowingWhistle || isHovered ? '#fbbf24' : ui.stageFloor}
                 strokeWidth="1.2"
               />
-              <g transform="translate(-20, -6) scale(0.5)" className="text-amber-400">
+              <g transform="translate(-24, -5.5) scale(0.44)" className="text-amber-400">
                 <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.auditor }} />
               </g>
               <text
-                x="3.5"
-                y="3"
-                textAnchor="middle"
+                x="-8"
+                y="1"
+                textAnchor="start"
+                dominantBaseline="central"
                 fill={ui.strokeMain}
-                fontSize="8.5"
+                fontSize="8.2"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
               >
@@ -1755,27 +1761,28 @@ export function DeepResearchCharacters({
             </g>
 
             {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 69)">
+            <g transform="translate(0, 70)">
               <rect
-                x="-25"
-                y="-8.5"
-                width="50"
-                height="17"
-                rx="4.5"
+                x="-30"
+                y="-9"
+                width="60"
+                height="18"
+                rx="5"
                 fill={isHovered || phase === 'synthesis' ? '#34d399' : ui.headFill}
                 fillOpacity={isHovered || phase === 'synthesis' ? '0.25' : '0.85'}
                 stroke={isHovered || phase === 'synthesis' ? '#34d399' : ui.stageFloor}
                 strokeWidth="1.2"
               />
-              <g transform="translate(-20, -6) scale(0.5)" className="text-emerald-400">
+              <g transform="translate(-24, -5.5) scale(0.44)" className="text-emerald-400">
                 <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.redator }} />
               </g>
               <text
-                x="3.5"
-                y="3"
-                textAnchor="middle"
+                x="-8"
+                y="1"
+                textAnchor="start"
+                dominantBaseline="central"
                 fill={ui.strokeMain}
-                fontSize="8.5"
+                fontSize="8.2"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
               >
