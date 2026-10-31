@@ -149,7 +149,7 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
 
   return (
     <section
-      className="source-breakdown-card sources-card"
+      className="source-breakdown-card"
       aria-label="De onde vêm as fontes"
     >
       <header className="source-breakdown-header">

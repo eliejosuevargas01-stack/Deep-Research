@@ -524,7 +524,15 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
       </div>
 
       {/* Corpo Formatado do Dossiê */}
-      <section className="markdown-body" aria-label="Conteúdo do dossiê">
+      <section
+        className="markdown-body markdown-content report-content"
+        aria-label="Conteúdo do dossiê"
+        style={{
+          maxWidth: '72ch',
+          marginLeft: 'auto',
+          marginRight: 'auto',
+        }}
+      >
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -534,6 +542,20 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
             h2: ({ children }) => <h2>{children}</h2>,
             h3: ({ children }) => <h3>{children}</h3>,
             h4: ({ children }) => <h4>{children}</h4>,
+            p: ({ children, node: _node, ...props }) => (
+              <p
+                {...props}
+                className="markdown-content report-content"
+                style={{
+                  maxWidth: '72ch',
+                  marginLeft: 'auto',
+                  marginRight: 'auto',
+                  lineHeight: 1.6,
+                }}
+              >
+                {children}
+              </p>
+            ),
             a: ({ href, children, ...props }) => {
               const safe = isSafeUrl(href);
               if (!safe) {

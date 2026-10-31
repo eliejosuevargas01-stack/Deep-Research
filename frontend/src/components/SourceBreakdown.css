@@ -4,12 +4,13 @@
  */
 
 .source-breakdown-card {
-  margin-top: 24px;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg, 12px);
-  padding: 20px 24px;
-  box-shadow: var(--shadow-sm);
+  background-color: transparent;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 24px 0 0 0;
+  margin-top: 32px;
 }
 
 .source-breakdown-header {
@@ -365,4 +366,22 @@
 .source-item-row {
   content-visibility: auto;
   contain-intrinsic-size: 0 auto 72px;
+}
+
+/* Contenção de leitura para Markdown do Dossiê (#report) */
+.markdown-content,
+.report-content {
+  max-width: 72ch;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+.markdown-content p,
+.report-content p,
+.report-card .markdown-body p {
+  max-width: 72ch;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
 }
