@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Sliders, X, Info, Minus, Plus } from 'lucide-react';
 import type { RecenciaPolitica } from '../types/api';
 import { RIGOR_MAXIMO, RIGOR_MINIMO, RIGOR_PADRAO, normalizarRigor, validarCallbackUrl } from '../services/api';
@@ -89,26 +90,6 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-
-  // Bounded panel positioning: garante que o painel e o cabeçalho nunca ultrapassem o topo do viewport (isTopClipped: false)
-  useEffect(() => {
-    const updateBounds = () => {
-      if (!panelRef.current || !triggerElement) return;
-      const triggerRect = triggerElement.getBoundingClientRect();
-      const margin = 12; // margem de segurança mínima do topo do viewport
-      // Usa todo o espaço acima do gatilho: o teto fixo de 520px cortava a
-      // última persona em telas onde havia espaço de sobra.
-      const maxAvailable = Math.max(160, triggerRect.top - margin - 10);
-      panelRef.current.style.maxHeight = `${maxAvailable}px`;
-    };
-    updateBounds();
-    window.addEventListener('resize', updateBounds);
-    window.addEventListener('scroll', updateBounds, true);
-    return () => {
-      window.removeEventListener('resize', updateBounds);
-      window.removeEventListener('scroll', updateBounds, true);
-    };
-  }, [triggerElement]);
 
   // Abertura animada em CSS (keyframe `prefs-enter`), uma vez na montagem.
   useEffect(() => {
@@ -572,28 +553,41 @@ export const ResearchPreferences: React.FC<ResearchPreferencesProps> = ({
         </span>
       </button>
 
-      {isOpen && (
-        <PreferencesPopoverContent
-          onClose={onClose}
-          triggerElement={triggerBtnRef.current}
-          nPontos={nPontos}
-          onChangeNPontos={onChangeNPontos}
-          selectedPersonas={selectedPersonas}
-          onChangePersonas={onChangePersonas}
-          disabled={disabled}
-          currentPlanActive={currentPlanActive}
-          executionMode={executionMode}
-          onChangeExecutionMode={onChangeExecutionMode}
-          recencia={recencia}
-          onChangeRecencia={onChangeRecencia}
-          criteriosMinimos={normalizarRigor(criteriosMinimos)}
-          onChangeCriteriosMinimos={onChangeCriteriosMinimos}
-          asyncExecute={asyncExecute}
-          onChangeAsyncExecute={onChangeAsyncExecute}
-          callbackUrl={callbackUrl}
-          onChangeCallbackUrl={onChangeCallbackUrl}
-        />
-      )}
+      {isOpen &&
+        createPortal(
+          <div
+            className="modal-backdrop preferences-modal-backdrop"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                onClose();
+                triggerBtnRef.current?.focus();
+              }
+            }}
+            role="presentation"
+          >
+            <PreferencesPopoverContent
+              onClose={onClose}
+              triggerElement={triggerBtnRef.current}
+              nPontos={nPontos}
+              onChangeNPontos={onChangeNPontos}
+              selectedPersonas={selectedPersonas}
+              onChangePersonas={onChangePersonas}
+              disabled={disabled}
+              currentPlanActive={currentPlanActive}
+              executionMode={executionMode}
+              onChangeExecutionMode={onChangeExecutionMode}
+              recencia={recencia}
+              onChangeRecencia={onChangeRecencia}
+              criteriosMinimos={normalizarRigor(criteriosMinimos)}
+              onChangeCriteriosMinimos={onChangeCriteriosMinimos}
+              asyncExecute={asyncExecute}
+              onChangeAsyncExecute={onChangeAsyncExecute}
+              callbackUrl={callbackUrl}
+              onChangeCallbackUrl={onChangeCallbackUrl}
+            />
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

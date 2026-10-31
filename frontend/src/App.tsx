@@ -1660,6 +1660,11 @@ export const App: React.FC = () => {
               </div>
             )}
 
+            {/* Pílulas de temas recomendados: posicionadas acima do card de input, entre o card e a animação */}
+            {!isPlanning && !isExecuting && !currentPlan && !writerResult && pipelineStage === 'idle' && (
+              <TopicPills onSelect={handleSelectTopicSuggestion} />
+            )}
+
             {/* Compositor só fora de execução: durante o planejamento a tela
                 intermediária assume, sem input duplicado nem aviso de Enter. */}
             {!isPlanning && !isExecuting && (
@@ -1703,9 +1708,6 @@ export const App: React.FC = () => {
                   : 'Descreva um novo tema de pesquisa (ex: O futuro da matriz energética no Brasil)...'
               }
             />
-            )}
-            {!isPlanning && !isExecuting && !currentPlan && !writerResult && pipelineStage === 'idle' && (
-              <TopicPills onSelect={handleSelectTopicSuggestion} />
             )}
 
             {!isPlanning && !isExecuting && (
