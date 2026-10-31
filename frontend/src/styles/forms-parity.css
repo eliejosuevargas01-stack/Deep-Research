@@ -236,6 +236,83 @@
   .composer-counter {
     margin-left: auto;
   }
+
+  /* Alvos de toque WCAG 2.5.8 (mínimo 44x44px no mobile <= 640px) */
+  .point-stepper-btn,
+  .point-option-btn,
+  .dock-stepper button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px 8px;
+    box-sizing: border-box;
+  }
+
+  .points-custom-input {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  .persona-checkbox-label {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+  }
+
+  .persona-checkbox-input {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+  }
+
+  .preferences-close-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+  }
+
+  /* Lock de rolagem do body quando folha de preferências estiver aberta no mobile */
+  body.preferences-open,
+  html.preferences-open {
+    overflow: hidden !important;
+  }
+}
+
+/* Stepper de pontos analíticos */
+.points-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.point-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border, #E4E6E1);
+  background-color: var(--color-surface, #FFFFFF);
+  color: var(--color-text-secondary, #4A5254);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.point-stepper-btn:hover:not(:disabled) {
+  border-color: var(--violet-line, #8B5CF6);
+  background-color: var(--violet-tint, rgba(139, 92, 246, 0.08));
+  color: var(--violet, #6D28D9);
+}
+
+.point-stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Preferences/QuickSheet/BottomDock parity */
@@ -247,6 +324,7 @@
 
 .preferences-toggle-btn,
 .point-option-btn,
+.point-stepper-btn,
 .persona-checkbox-label,
 .dock-btn,
 .dock-chip,
@@ -258,6 +336,7 @@
 
 .preferences-toggle-btn:focus-visible,
 .point-option-btn:focus-visible,
+.point-stepper-btn:focus-visible,
 .persona-checkbox-label:focus-visible,
 .preferences-close-btn:focus-visible,
 .dock-btn:focus-visible,

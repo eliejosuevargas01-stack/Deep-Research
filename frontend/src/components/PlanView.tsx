@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { PlanResponse } from '../types/api';
-import './plan-settings-polish.css';
+import '../styles/plan-settings-polish.css';
 import { formatarTitulo } from '../utils/texto';
 
 interface PlanViewProps {
@@ -501,6 +501,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
               className="context-panel-header"
               onClick={() => setContextOpen(!contextOpen)}
               aria-expanded={contextOpen}
+              aria-label="Contexto e parâmetros da pesquisa"
             >
               <div className="context-panel-header-left">
                 <Layers size={16} aria-hidden="true" />
