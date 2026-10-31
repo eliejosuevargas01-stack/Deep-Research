@@ -490,7 +490,8 @@ export function DeepResearchCharacters({
         const look = getLookVector(105, 138, 12, 8);
         const bob = Math.sin(time * 2.1) * 2.2;
         const isHovered = hoveredPersona === 'planejador';
-        const headTilt = clamp(look.ox * 2.2, -22, 22);
+        // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
+        const headTilt = clamp(look.ox * 0.25, -3.5, 3.5);
         const hatLift = hatTipActive || isHovered ? -7 : 0;
         const hatRotate = hatTipActive ? -14 : isHovered ? -5 : -2;
 
@@ -569,7 +570,8 @@ export function DeepResearchCharacters({
                 strokeLinecap="round"
               />
 
-              <g transform={`translate(${look.ox * 0.75}, ${-44 + look.oy * 0.25}) rotate(${headTilt})`}>
+              {/* Cabeça firme no pescoço (sem translação flutuante) */}
+              <g transform={`translate(0, -44) rotate(${headTilt})`}>
                 <circle
                   cx="0"
                   cy="0"
@@ -580,21 +582,21 @@ export function DeepResearchCharacters({
                 />
 
                 <path
-                  d={`M ${-11 + look.ox * 0.4} ${-8 + look.oy * 0.3} Q ${-6 + look.ox * 0.4} ${-11 + look.oy * 0.3} ${-2 + look.ox * 0.4} ${-8 + look.oy * 0.3}`}
+                  d={`M -11 -8 Q -6 ${-11 + clamp(look.oy * 0.2, -1.5, 1.5)} -2 -8`}
                   stroke={ui.strokeMain}
                   strokeWidth="2"
                   fill="none"
                   strokeLinecap="round"
                 />
                 <path
-                  d={`M ${3 + look.ox * 0.4} ${-9 + look.oy * 0.3} Q ${8 + look.ox * 0.4} ${-15 + look.oy * 0.3} ${13 + look.ox * 0.4} ${-10 + look.oy * 0.3}`}
+                  d={`M 3 -9 Q 8 ${-15 + clamp(look.oy * 0.2, -1.5, 1.5)} 13 -10`}
                   stroke={ui.strokeMain}
                   strokeWidth="2.2"
                   fill="none"
                   strokeLinecap="round"
                 />
 
-                <g transform={`translate(${look.ox * 0.55}, ${look.oy * 0.8})`}>
+                <g transform="translate(0, 0)">
                   <circle
                     cx="-6.5"
                     cy="-2"
@@ -617,8 +619,9 @@ export function DeepResearchCharacters({
                   <line x1="-9" y1="-5" x2="-6" y2="-6" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
                   <line x1="5" y1="-5" x2="8" y2="-6" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
 
-                  <circle cx={-6.5 + clamp(look.ox * 0.45, -3.8, 3.8)} cy={-2 + clamp(look.oy * 0.45, -2.5, 2.5)} r="2.2" fill={ui.strokeMain} />
-                  <circle cx={7.5 + clamp(look.ox * 0.45, -3.8, 3.8)} cy={-2 + clamp(look.oy * 0.45, -2.5, 2.5)} r="2.2" fill={ui.strokeMain} />
+                  {/* Pupilas altamente responsivas ao mouse */}
+                  <circle cx={-6.5 + clamp(look.ox * 0.7, -4.8, 4.8)} cy={-2 + clamp(look.oy * 0.7, -3.2, 3.2)} r="2.4" fill={ui.strokeMain} />
+                  <circle cx={7.5 + clamp(look.ox * 0.7, -4.8, 4.8)} cy={-2 + clamp(look.oy * 0.7, -3.2, 3.2)} r="2.4" fill={ui.strokeMain} />
 
                   <line x1="-12" y1="-5.5" x2="-1" y2="-5.5" stroke={ui.headFill} strokeWidth="2.2" />
                 </g>
@@ -689,7 +692,8 @@ export function DeepResearchCharacters({
       {(() => {
         const look = getLookVector(262, 148, 11, 7.5);
         const bob = Math.sin(time * 2.4 + 1) * 2;
-        const histHeadTilt = clamp(look.ox * 2.0, -20, 20);
+        // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
+        const histHeadTilt = clamp(look.ox * 0.25, -3.5, 3.5);
 
         return (
           <g
@@ -716,31 +720,33 @@ export function DeepResearchCharacters({
               <rect x="-22" y="2" width="12" height="15" rx="2" fill="#fde68a" stroke="#b45309" strokeWidth="1.4" />
 
               <path
-                d={`M 3 -12 C 16 -16, 22 -24, ${19 + look.ox * 1.1} ${-28 + look.oy * 1.1}`}
+                d={`M 3 -12 C 16 -16, 22 -24, ${19 + look.ox * 0.3} ${-28 + look.oy * 0.3}`}
                 stroke={ui.strokeMain}
                 strokeWidth="2.8"
                 fill="none"
                 strokeLinecap="round"
               />
-              <g transform={`translate(${22 + look.ox * 1.4}, ${-34 + look.oy * 1.4}) rotate(${15 + look.ox * 1.8})`}>
+              <g transform={`translate(${22 + look.ox * 0.4}, ${-34 + look.oy * 0.4}) rotate(${15 + look.ox * 0.4})`}>
                 <line x1="0" y1="6" x2="4" y2="14" stroke="#92400e" strokeWidth="3" strokeLinecap="round" />
                 <circle cx="0" cy="0" r="7.5" fill="#38bdf8" fillOpacity="0.2" stroke="#f59e0b" strokeWidth="2.2" />
               </g>
 
-              <g transform={`translate(${look.ox * 0.75}, ${-40 + look.oy * 0.25}) rotate(${histHeadTilt})`}>
+              {/* Cabeça firme no tronco, olhos reativos com monóculo */}
+              <g transform={`translate(0, -40) rotate(${histHeadTilt})`}>
                 <circle cx="0" cy="0" r="20" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="3" />
                 <path d="M -18 -12 Q 0 -24 19 -11 Z" fill="#78350f" stroke="#451a03" strokeWidth="1.5" />
 
-                <circle cx={-6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-2 + clamp(look.oy * 0.65, -3, 3)} r="2.2" fill={ui.strokeMain} />
-                <circle cx={6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-2 + clamp(look.oy * 0.65, -3, 3)} r="2.4" fill={ui.strokeMain} />
-                <circle cx={6 + clamp(look.ox * 0.4, -3, 3)} cy={-2 + clamp(look.oy * 0.4, -2, 2)} r="6.2" fill="none" stroke="#fbbf24" strokeWidth="1.8" />
+                {/* Pupilas com forte resposta ao mouse */}
+                <circle cx={-6 + clamp(look.ox * 0.75, -5, 5)} cy={-2 + clamp(look.oy * 0.75, -3.2, 3.2)} r="2.3" fill={ui.strokeMain} />
+                <circle cx={6 + clamp(look.ox * 0.75, -5, 5)} cy={-2 + clamp(look.oy * 0.75, -3.2, 3.2)} r="2.5" fill={ui.strokeMain} />
+                <circle cx={6} cy={-2} r="6.2" fill="none" stroke="#fbbf24" strokeWidth="1.8" />
                 <path d="M 11 2 Q 14 12 8 18" stroke="#fbbf24" strokeWidth="1.2" fill="none" strokeDasharray="1.5 1.5" />
 
                 <path d="M -11 -8 L -2 -6" stroke={ui.strokeMain} strokeWidth="2.5" strokeLinecap="round" />
                 <path d="M 2 -8 L 12 -9" stroke={ui.strokeMain} strokeWidth="2.5" strokeLinecap="round" />
 
                 <path
-                  d={`M ${-11 + look.ox * 0.3} 7 Q 0 2 ${11 + look.ox * 0.3} 7 Q 5 11 0 8 Q -5 11 ${-11 + look.ox * 0.3} 7 Z`}
+                  d="M -11 7 Q 0 2 11 7 Q 5 11 0 8 Q -5 11 -11 7 Z"
                   fill={ui.strokeSecondary}
                 />
               </g>
@@ -761,7 +767,8 @@ export function DeepResearchCharacters({
       {(() => {
         const look = getLookVector(326, 130, 11, 7.5);
         const bounce = Math.abs(Math.sin(time * 3.2)) * -5;
-        const visHeadTilt = clamp(look.ox * 2.2, -20, 20);
+        // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
+        const visHeadTilt = clamp(look.ox * 0.25, -3.5, 3.5);
 
         return (
           <g
@@ -786,20 +793,22 @@ export function DeepResearchCharacters({
               <path d="M 0 -12 L -16 -24" stroke={ui.strokeMain} strokeWidth="2.8" strokeLinecap="round" />
               <path d="M 0 -12 L 18 -26" stroke={ui.strokeMain} strokeWidth="2.8" strokeLinecap="round" />
 
-              <g transform={`translate(${look.ox * 0.75}, ${-42 + look.oy * 0.25}) rotate(${visHeadTilt})`}>
+              {/* Cabeça firme no tronco, olhos grandes bem expressivos */}
+              <g transform={`translate(0, -42) rotate(${visHeadTilt})`}>
                 <circle cx="0" cy="0" r="20.5" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="3" />
 
                 <path d="M -19 -9 Q 0 -14 19 -9" stroke="#0284c7" strokeWidth="2.5" fill="none" />
                 <circle cx="-7" cy="-12" r="5.5" fill="#38bdf8" fillOpacity="0.35" stroke="#0284c7" strokeWidth="2" />
                 <circle cx="7" cy="-12" r="5.5" fill="#38bdf8" fillOpacity="0.35" stroke="#0284c7" strokeWidth="2" />
 
-                <circle cx={-6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={1 + clamp(look.oy * 0.65, -3, 3)} r="3.4" fill={ui.strokeMain} />
-                <circle cx={6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={1 + clamp(look.oy * 0.65, -3, 3)} r="3.4" fill={ui.strokeMain} />
-                <circle cx={-7 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-0.5 + clamp(look.oy * 0.65, -3, 3)} r="1.2" fill="#ffffff" />
-                <circle cx={5 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-0.5 + clamp(look.oy * 0.65, -3, 3)} r="1.2" fill="#ffffff" />
+                {/* Olhos bem expressivos seguindo o mouse */}
+                <circle cx={-6 + clamp(look.ox * 0.8, -5.5, 5.5)} cy={1 + clamp(look.oy * 0.75, -3.5, 3.5)} r="3.4" fill={ui.strokeMain} />
+                <circle cx={6 + clamp(look.ox * 0.8, -5.5, 5.5)} cy={1 + clamp(look.oy * 0.75, -3.5, 3.5)} r="3.4" fill={ui.strokeMain} />
+                <circle cx={-7 + clamp(look.ox * 0.8, -5.5, 5.5)} cy={-0.5 + clamp(look.oy * 0.75, -3.5, 3.5)} r="1.2" fill="#ffffff" />
+                <circle cx={5 + clamp(look.ox * 0.8, -5.5, 5.5)} cy={-0.5 + clamp(look.oy * 0.75, -3.5, 3.5)} r="1.2" fill="#ffffff" />
 
                 <path
-                  d={`M ${-5 + look.ox * 0.4} 9 Q 0 15 ${6 + look.ox * 0.4} 9`}
+                  d="M -5 9 Q 0 15 6 9"
                   stroke={ui.strokeMain}
                   strokeWidth="2.2"
                   fill="none"
@@ -829,7 +838,8 @@ export function DeepResearchCharacters({
       {(() => {
         const look = getLookVector(390, 146, 11, 7.5);
         const bob = Math.sin(time * 2.7 + 2) * 2;
-        const futHeadTilt = clamp(look.ox * 2.2, -20, 20);
+        // Cabeça firme: micro-inclinação anatômica de no máx 3°
+        const futHeadTilt = clamp(look.ox * 0.2, -3, 3);
 
         return (
           <g
@@ -862,7 +872,8 @@ export function DeepResearchCharacters({
                 <circle cx="0" cy="0" r="1.8" fill="#38bdf8" />
               </g>
 
-              <g transform={`translate(${2 + look.ox * 0.75}, ${-40 + look.oy * 0.25}) rotate(${futHeadTilt})`}>
+              {/* Cabeça firme no corpo, mira/laser do visor corre livremente */}
+              <g transform={`translate(2, -40) rotate(${futHeadTilt})`}>
                 <circle cx="0" cy="0" r="20" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="3" />
 
                 <line x1="-18" y1="-6" x2="-22" y2="-18" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" />
@@ -878,17 +889,18 @@ export function DeepResearchCharacters({
                   stroke="#818cf8"
                   strokeWidth="2"
                 />
+                {/* Feixe laser e pupila cibernética reagindo aos olhos */}
                 <circle
-                  cx={clamp(look.ox * 1.4, -9.5, 9.5)}
+                  cx={clamp(look.ox * 1.6, -10, 10)}
                   cy={clamp(-2 + look.oy * 0.5, -4.5, 0.5)}
                   r="2.8"
                   fill="#38bdf8"
                   filter="url(#softGlow)"
                 />
                 <line
-                  x1={clamp(look.ox * 1.4 - 5, -12, 4)}
+                  x1={clamp(look.ox * 1.6 - 5, -13, 5)}
                   y1="-2"
-                  x2={clamp(look.ox * 1.4 + 5, -4, 12)}
+                  x2={clamp(look.ox * 1.6 + 5, -5, 13)}
                   y2="-2"
                   stroke="#38bdf8"
                   strokeWidth="1.2"
@@ -921,7 +933,8 @@ export function DeepResearchCharacters({
         const rawLook = getLookVector(472, 148, 11, 7.5);
         const eyeX = rawLook.ox;
         const eyeY = rawLook.oy;
-        const ceticoHeadTilt = clamp(rawLook.ox * 2.0, -18, 18);
+        // Cabeça firme no queixo: micro-inclinação anatômica de no máx 3.5°
+        const ceticoHeadTilt = clamp(rawLook.ox * 0.25, -3.5, 3.5);
         const bookDropY = ceticoCares ? 8 : 0;
         const bob = Math.sin(time * 1.8) * 1.5;
         const isHovered = hoveredPersona === 'cetico';
@@ -980,7 +993,7 @@ export function DeepResearchCharacters({
               />
 
               {/* CABEÇA DE CÍRCULO (Velhote Careca no topo + Cabelo dos 2 lados + 35° p/ Direita) */}
-              <g transform={`translate(${8 + rawLook.ox * 0.7}, ${-42 + rawLook.oy * 0.25}) rotate(${ceticoHeadTilt})`}>
+              <g transform={`translate(8, -42) rotate(${ceticoHeadTilt})`}>
                 <circle
                   cx="0"
                   cy="0"
@@ -1019,10 +1032,10 @@ export function DeepResearchCharacters({
                   strokeLinejoin="round"
                 />
 
-                {/* Olhos Desconfiados */}
+                {/* Olhos Desconfiados que reagem fortemente ao cursor */}
                 <g transform="translate(4, -1)">
-                  <circle cx={-5 + clamp(eyeX * 0.65, -4.5, 4.5)} cy={clamp(eyeY * 0.65, -3, 3)} r="2.3" fill={ui.strokeMain} />
-                  <circle cx={6 + clamp(eyeX * 0.65, -4.5, 4.5)} cy={clamp(eyeY * 0.65, -3, 3)} r="2.3" fill={ui.strokeMain} />
+                  <circle cx={-5 + clamp(eyeX * 0.75, -5, 5)} cy={clamp(eyeY * 0.7, -3.5, 3.5)} r="2.3" fill={ui.strokeMain} />
+                  <circle cx={6 + clamp(eyeX * 0.75, -5, 5)} cy={clamp(eyeY * 0.7, -3.5, 3.5)} r="2.3" fill={ui.strokeMain} />
 
                   <path
                     d={
@@ -1145,7 +1158,8 @@ export function DeepResearchCharacters({
         const look = getLookVector(765, 160, 11, 7.5);
         const glareX = look.ox;
         const glareY = look.oy * 0.7;
-        const auditorHeadTilt = clamp(look.ox * 1.8, -16, 16);
+        // Cabeça firme: micro-inclinação anatômica de no máx 3°
+        const auditorHeadTilt = clamp(look.ox * 0.2, -3, 3);
         const angryBounce = isAuditorBlowingWhistle
           ? Math.abs(Math.sin(time * 14)) * -6
           : Math.sin(time * 2.6) * 2;
@@ -1230,8 +1244,9 @@ export function DeepResearchCharacters({
                   strokeLinecap="round"
                 />
 
-                <circle cx={-10 + clamp(glareX * 0.55, -4.5, 4.5)} cy={1 + clamp(glareY, -3, 3)} r="2.8" fill={ui.strokeMain} />
-                <circle cx={3 + clamp(glareX * 0.55, -4.5, 4.5)} cy={1 + clamp(glareY, -3, 3)} r="2.8" fill={ui.strokeMain} />
+                {/* Olhos do auditor reagindo fortemente ao mouse */}
+                <circle cx={-10 + clamp(glareX * 0.7, -5.5, 5.5)} cy={1 + clamp(glareY * 0.8, -3.2, 3.2)} r="2.8" fill={ui.strokeMain} />
+                <circle cx={3 + clamp(glareX * 0.7, -5.5, 5.5)} cy={1 + clamp(glareY * 0.8, -3.2, 3.2)} r="2.8" fill={ui.strokeMain} />
 
                 {isAuditorBlowingWhistle ? (
                   <g>
@@ -1377,7 +1392,8 @@ export function DeepResearchCharacters({
       {(() => {
         const look = getLookVector(895, 142, 11, 7.5);
         const bob = Math.sin(time * 2.3 + 0.7) * 2.2;
-        const redatorHeadTilt = clamp(look.ox * 2.0, -18, 18);
+        // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
+        const redatorHeadTilt = clamp(look.ox * 0.25, -3.5, 3.5);
         const isHovered = hoveredPersona === 'redator';
         const waveAngle =
           redatorWaveActive || isHovered || phase === 'synthesis'
@@ -1449,7 +1465,8 @@ export function DeepResearchCharacters({
               </g>
               <line x1="6" y1="6" x2="22" y2="-6" stroke="#34d399" strokeWidth="3" strokeLinecap="round" />
 
-              <g transform={`translate(${-5 + look.ox * 0.75}, ${-42 + look.oy * 0.25}) rotate(${redatorHeadTilt})`}>
+              {/* Cabeça firme no tronco, olhos reativos com brilho */}
+              <g transform={`translate(-5, -42) rotate(${redatorHeadTilt})`}>
                 <circle
                   cx="0"
                   cy="0"
@@ -1475,10 +1492,11 @@ export function DeepResearchCharacters({
                   strokeLinecap="round"
                 />
 
-                <circle cx={-6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-2 + clamp(look.oy * 0.65, -3, 3)} r="2.6" fill={ui.strokeMain} />
-                <circle cx={6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-2 + clamp(look.oy * 0.65, -3, 3)} r="2.6" fill={ui.strokeMain} />
-                <circle cx={-7 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-3 + clamp(look.oy * 0.65, -3, 3)} r="1" fill="#ffffff" />
-                <circle cx={5 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-3 + clamp(look.oy * 0.65, -3, 3)} r="1" fill="#ffffff" />
+                {/* Pupilas e reflexos bem expressivos */}
+                <circle cx={-6 + clamp(look.ox * 0.75, -5, 5)} cy={-2 + clamp(look.oy * 0.7, -3.2, 3.2)} r="2.6" fill={ui.strokeMain} />
+                <circle cx={6 + clamp(look.ox * 0.75, -5, 5)} cy={-2 + clamp(look.oy * 0.7, -3.2, 3.2)} r="2.6" fill={ui.strokeMain} />
+                <circle cx={-7 + clamp(look.ox * 0.75, -5, 5)} cy={-3 + clamp(look.oy * 0.7, -3.2, 3.2)} r="1" fill="#ffffff" />
+                <circle cx={5 + clamp(look.ox * 0.75, -5, 5)} cy={-3 + clamp(look.oy * 0.7, -3.2, 3.2)} r="1" fill="#ffffff" />
 
                 <circle cx="-12" cy="4" r="3" fill="#34d399" opacity="0.28" />
                 <circle cx="12" cy="4" r="3" fill="#34d399" opacity="0.28" />
