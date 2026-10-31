@@ -331,6 +331,23 @@ export function DeepResearchCharacters({
     }
   };
 
+  /**
+   * Círculo (invisível) onde os olhos se movem livremente em 360° com liberdade ampliada,
+   * garantindo que a pupila nunca escape da órbita nem desça até a boca.
+   */
+  const getOrbitalEye = (ox: number, oy: number, maxRx = 4.2, maxRy = 2.1) => {
+    const nx = ox / maxRx;
+    const ny = oy / maxRy;
+    const mag = Math.hypot(nx, ny);
+    if (mag > 1) {
+      return {
+        x: (nx / mag) * maxRx,
+        y: (ny / mag) * maxRy
+      };
+    }
+    return { x: ox, y: oy };
+  };
+
   const getLookVector = (charX: number, charY: number, maxDx = 9, maxDy = 3.5) => {
     const dx = renderState.mx - charX;
     const dy = renderState.my - charY;
@@ -344,25 +361,25 @@ export function DeepResearchCharacters({
     // ============================================================
     // CAMPO DE NÃO-REAÇÃO / OLHAR FRONTAL PARA A CÂMERA (PONTO CENTRAL)
     // Cada especialista tem seu ponto central (charX, charY).
-    // Quando o mouse está logo acima dele (dy < 40 e |dx| < 80)
-    // ou na proximidade da cabeça (dist < 55),
+    // Quando o mouse está logo acima dele no eixo central (dy < 20 e |dx| < 45)
+    // ou na proximidade imediata da cabeça (dist < 34),
     // ele não deve seguir o mouse para cima, e sim olhar
     // diretamente para a câmera (olhar neutro centralizado ox: 0, oy: 0).
-    // O mesmo vale para o Planejador (x: 105), Redator (x: 895) e todos os 7.
+    // O mesmo vale para o Planejador (x: 105), Redator (x: 890) e todos os 7.
     // ============================================================
     let cameraBlend = 0;
 
-    // Cone vertical acima do especialista
-    if (dy < 40 && Math.abs(dx) < 80) {
-      const xRatio = Math.abs(dx) / 80;
+    // Cone vertical acima do especialista (estrito ao eixo do personagem)
+    if (dy < 20 && Math.abs(dx) < 45) {
+      const xRatio = Math.abs(dx) / 45;
       const xWeight = 1 - Math.pow(xRatio, 1.4);
-      const yWeight = dy <= 0 ? 1 : Math.max(0, (40 - dy) / 40);
+      const yWeight = dy <= 0 ? 1 : Math.max(0, (20 - dy) / 20);
       cameraBlend = Math.max(cameraBlend, xWeight * yWeight);
     }
 
     // Raio de proximidade imediata ao redor do ponto central
-    if (dist < 55) {
-      cameraBlend = Math.max(cameraBlend, 1 - Math.pow(dist / 55, 1.4));
+    if (dist < 34) {
+      cameraBlend = Math.max(cameraBlend, 1 - Math.pow(dist / 34, 1.4));
     }
 
     // Suaviza transição para o ponto central (ox: 0, oy: 0)
@@ -653,9 +670,16 @@ export function DeepResearchCharacters({
                   <line x1="-9" y1="-5" x2="-6" y2="-6" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
                   <line x1="5" y1="-5" x2="8" y2="-6" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
 
-                  {/* Pupilas dentro das lentes dos óculos, acima da boca */}
-                  <circle cx={-6.5 + clamp(look.ox * 0.5, -3.2, 3.2)} cy={-2 + clamp(look.oy * 0.4, -1.5, 1.5)} r="2.4" fill={ui.strokeMain} />
-                  <circle cx={7.5 + clamp(look.ox * 0.5, -3.2, 3.2)} cy={-2 + clamp(look.oy * 0.4, -1.5, 1.5)} r="2.4" fill={ui.strokeMain} />
+                  {/* Círculo orbital onde os olhos se movem livremente */}
+                  {(() => {
+                    const eye = getOrbitalEye(look.ox * 0.65, look.oy * 0.5, 3.8, 1.8);
+                    return (
+                      <>
+                        <circle cx={-6.5 + eye.x} cy={-2 + eye.y} r="2.4" fill={ui.strokeMain} />
+                        <circle cx={7.5 + eye.x} cy={-2 + eye.y} r="2.4" fill={ui.strokeMain} />
+                      </>
+                    );
+                  })()}
 
                   <line x1="-12" y1="-5.5" x2="-1" y2="-5.5" stroke={ui.headFill} strokeWidth="2.2" />
                 </g>
@@ -743,9 +767,16 @@ export function DeepResearchCharacters({
                 <circle cx="0" cy="0" r="20" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="3" />
                 <path d="M -18 -12 Q 0 -24 19 -11 Z" fill="#78350f" stroke="#451a03" strokeWidth="1.5" />
 
-                {/* Pupilas dentro da órbita/monóculo, bem acima da boca */}
-                <circle cx={-6 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-2 + clamp(look.oy * 0.4, -1.5, 1.5)} r="2.3" fill={ui.strokeMain} />
-                <circle cx={6 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-2 + clamp(look.oy * 0.4, -1.5, 1.5)} r="2.5" fill={ui.strokeMain} />
+                {/* Círculo orbital onde os olhos se movem livremente */}
+                {(() => {
+                  const eye = getOrbitalEye(look.ox * 0.7, look.oy * 0.5, 3.8, 1.8);
+                  return (
+                    <>
+                      <circle cx={-6 + eye.x} cy={-2 + eye.y} r="2.3" fill={ui.strokeMain} />
+                      <circle cx={6 + eye.x} cy={-2 + eye.y} r="2.5" fill={ui.strokeMain} />
+                    </>
+                  );
+                })()}
                 <circle cx={6} cy={-2} r="6.2" fill="none" stroke="#fbbf24" strokeWidth="1.8" />
                 <path d="M 11 2 Q 14 12 8 18" stroke="#fbbf24" strokeWidth="1.2" fill="none" strokeDasharray="1.5 1.5" />
 
@@ -803,11 +834,18 @@ export function DeepResearchCharacters({
                 <circle cx="-7" cy="-12" r="5.5" fill="#38bdf8" fillOpacity="0.35" stroke="#0284c7" strokeWidth="2" />
                 <circle cx="7" cy="-12" r="5.5" fill="#38bdf8" fillOpacity="0.35" stroke="#0284c7" strokeWidth="2" />
 
-                {/* Olhos na órbita correta, sem descer até a boca */}
-                <circle cx={-6 + clamp(look.ox * 0.55, -3.5, 3.5)} cy={-2.5 + clamp(look.oy * 0.4, -1.5, 1.5)} r="3" fill={ui.strokeMain} />
-                <circle cx={6 + clamp(look.ox * 0.55, -3.5, 3.5)} cy={-2.5 + clamp(look.oy * 0.4, -1.5, 1.5)} r="3" fill={ui.strokeMain} />
-                <circle cx={-7 + clamp(look.ox * 0.55, -3.5, 3.5)} cy={-4 + clamp(look.oy * 0.4, -1.5, 1.5)} r="1.1" fill="#ffffff" />
-                <circle cx={5 + clamp(look.ox * 0.55, -3.5, 3.5)} cy={-4 + clamp(look.oy * 0.4, -1.5, 1.5)} r="1.1" fill="#ffffff" />
+                {/* Círculo orbital onde os olhos se movem livremente */}
+                {(() => {
+                  const eye = getOrbitalEye(look.ox * 0.7, look.oy * 0.5, 4.0, 1.8);
+                  return (
+                    <>
+                      <circle cx={-6 + eye.x} cy={-2.5 + eye.y} r="3" fill={ui.strokeMain} />
+                      <circle cx={6 + eye.x} cy={-2.5 + eye.y} r="3" fill={ui.strokeMain} />
+                      <circle cx={-7 + eye.x} cy={-4 + eye.y} r="1.1" fill="#ffffff" />
+                      <circle cx={5 + eye.x} cy={-4 + eye.y} r="1.1" fill="#ffffff" />
+                    </>
+                  );
+                })()}
 
                 <path
                   d="M -5 9 Q 0 15 6 9"
@@ -1018,10 +1056,17 @@ export function DeepResearchCharacters({
                   strokeLinejoin="round"
                 />
 
-                {/* Olhos Desconfiados na órbita correta, sem descer até a boca */}
+                {/* Olhos Desconfiados em círculo orbital livre */}
                 <g transform="translate(4, -2.5)">
-                  <circle cx={-5 + clamp(eyeX * 0.55, -3.2, 3.2)} cy={clamp(eyeY * 0.35, -1.4, 1.4)} r="2.3" fill={ui.strokeMain} />
-                  <circle cx={6 + clamp(eyeX * 0.55, -3.2, 3.2)} cy={clamp(eyeY * 0.35, -1.4, 1.4)} r="2.3" fill={ui.strokeMain} />
+                  {(() => {
+                    const eye = getOrbitalEye(eyeX * 0.7, eyeY * 0.5, 3.8, 1.8);
+                    return (
+                      <>
+                        <circle cx={-5 + eye.x} cy={eye.y} r="2.3" fill={ui.strokeMain} />
+                        <circle cx={6 + eye.x} cy={eye.y} r="2.3" fill={ui.strokeMain} />
+                      </>
+                    );
+                  })()}
 
                   <path
                     d={
@@ -1203,9 +1248,16 @@ export function DeepResearchCharacters({
                   strokeLinecap="round"
                 />
 
-                {/* Olhos do auditor na órbita superior, bem longe da boca */}
-                <circle cx={-10 + clamp(glareX * 0.55, -3.5, 3.5)} cy={-3.5 + clamp(glareY * 0.35, -1.4, 1.4)} r="2.8" fill={ui.strokeMain} />
-                <circle cx={3 + clamp(glareX * 0.55, -3.5, 3.5)} cy={-3.5 + clamp(glareY * 0.35, -1.4, 1.4)} r="2.8" fill={ui.strokeMain} />
+                {/* Olhos do auditor em círculo orbital livre */}
+                {(() => {
+                  const eye = getOrbitalEye(glareX * 0.7, glareY * 0.5, 3.8, 1.8);
+                  return (
+                    <>
+                      <circle cx={-10 + eye.x} cy={-3.5 + eye.y} r="2.8" fill={ui.strokeMain} />
+                      <circle cx={3 + eye.x} cy={-3.5 + eye.y} r="2.8" fill={ui.strokeMain} />
+                    </>
+                  );
+                })()}
 
                 {isAuditorBlowingWhistle ? (
                   <g>
@@ -1320,17 +1372,39 @@ export function DeepResearchCharacters({
 
       {/* ============================================================
           7. REDATOR (x: 895, y: 186) — Ponto Central: (890, 144)
+          IMPECCABLE POLISH:
+          - Reage em uníssono e conjunto com os outros especialistas
+          - Reage ao apito/alerta do Auditor olhando para ele com espanto
+          - Cavidades oculares definidas e pupilas em círculo orbital 360°
+          - Prancheta e caneta reativas com anotações e escrita em tempo real
       ============================================================ */}
       {(() => {
         const look = getLookVector(890, 144, 9, 3.5);
+        const isStartled = isAuditorBlowingWhistle;
+
+        // Quando o Auditor apita, o Redator se volta com espanto para o Auditor à esquerda
+        const effectiveOx = isStartled ? -6.5 : look.ox;
+        const effectiveOy = isStartled ? -0.8 : look.oy;
+
         const bob = Math.sin(time * 2.3 + 0.7) * 2.2;
-        // Cabeça firme: micro-inclinação anatômica de no máx 3.5°
-        const redatorHeadTilt = clamp(look.ox * 0.25, -3.5, 3.5);
+        // Cabeça expressiva virando sutilmente na direção do grupo ou do alerta
+        const redatorHeadTilt = isStartled ? -6 : clamp(effectiveOx * 0.35, -4.5, 4.5);
         const isHovered = hoveredPersona === 'redator';
+        const isNear = look.dist < 120;
         const waveAngle =
-          redatorWaveActive || isHovered || phase === 'synthesis'
+          redatorWaveActive || isHovered || (isNear && effectiveOx > 0) || phase === 'synthesis'
             ? Math.sin(time * 12) * 18
+            : isStartled
+            ? -25 + Math.sin(time * 14) * 8
             : Math.sin(time * 2) * 4;
+
+        // Prancheta e caneta reativas ao olhar e ao grupo
+        const clipboardTilt = 10 + effectiveOx * 0.4;
+        const penAngle = Math.sin(time * 6) * 4 + effectiveOx * 0.6;
+        const penScribble = isTyping || phase === 'synthesis'
+          ? Math.sin(time * 16) * 2.2
+          : Math.sin(time * 7) * 1.4;
+        const bodyLean = isStartled ? -3 : effectiveOx * 0.2;
 
         return (
           <g
@@ -1342,6 +1416,7 @@ export function DeepResearchCharacters({
           >
             <ellipse cx="0" cy="56" rx="23" ry="4.5" fill={ui.strokeMain} opacity="0.12" />
 
+            {/* Pernas do redator */}
             <path
               d="M -5 18 L -8 55 M 6 18 L 10 55"
               stroke={ui.strokeMain}
@@ -1349,7 +1424,8 @@ export function DeepResearchCharacters({
               strokeLinecap="round"
             />
 
-            <g transform={`translate(0, ${bob})`}>
+            {/* Tronco com leve conexão anatômica ao grupo */}
+            <g transform={`translate(${bodyLean}, ${bob})`}>
               <path
                 d="M 2 18 Q -3 -2 -5 -20"
                 stroke={ui.strokeMain}
@@ -1362,6 +1438,7 @@ export function DeepResearchCharacters({
                 fill="#34d399"
               />
 
+              {/* Braço acenando / reagindo à proximidade ou recuando no susto */}
               <g transform={`translate(-6, -12) rotate(${waveAngle})`}>
                 <path
                   d="M 0 0 C -16 -8, -22 -20, -16 -30"
@@ -1373,32 +1450,52 @@ export function DeepResearchCharacters({
                 <circle cx="-16" cy="-30" r="3.5" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="2" />
               </g>
 
+              {/* Braço segurando prancheta de síntese com inclinação reativa */}
               <path
-                d="M -2 -10 C 14 -4, 20 6, 12 12"
+                d="M -2 -10 C 12 -4, 18 4, 12 10"
                 stroke={ui.strokeMain}
                 strokeWidth="2.8"
                 fill="none"
                 strokeLinecap="round"
               />
-              <g transform="translate(18, 6) rotate(12)">
+              <g transform={`translate(16, 4) rotate(${clipboardTilt})`}>
+                {/* Base da prancheta */}
                 <rect
-                  x="-9"
-                  y="-12"
-                  width="18"
-                  height="23"
-                  rx="2.5"
+                  x="-10"
+                  y="-14"
+                  width="20"
+                  height="26"
+                  rx="3"
                   fill={ui.headFill}
                   stroke="#34d399"
-                  strokeWidth="1.8"
+                  strokeWidth="2"
                 />
-                <line x1="-5" y1="-6" x2="5" y2="-6" stroke="#34d399" strokeWidth="1.5" />
-                <line x1="-5" y1="-1" x2="5" y2="-1" stroke={ui.strokeSecondary} strokeWidth="1.2" />
-                <line x1="-5" y1="4" x2="2" y2="4" stroke={ui.strokeSecondary} strokeWidth="1.2" />
-              </g>
-              <line x1="6" y1="6" x2="22" y2="-6" stroke="#34d399" strokeWidth="3" strokeLinecap="round" />
+                {/* Clipe metálico no topo */}
+                <rect x="-5" y="-16" width="10" height="4" rx="1.5" fill="#94a3b8" stroke="#475569" strokeWidth="1" />
+                {/* Linhas de anotações */}
+                <line x1="-6" y1="-7" x2="6" y2="-7" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="-6" y1="-2" x2="6" y2="-2" stroke={ui.strokeSecondary} strokeWidth="1.2" strokeLinecap="round" />
+                <line x1="-6" y1="3" x2="3" y2="3" stroke={ui.strokeSecondary} strokeWidth="1.2" strokeLinecap="round" />
 
-              {/* Cabeça firme no tronco, olhos reativos com brilho */}
-              <g transform={`translate(-5, -42) rotate(${redatorHeadTilt})`}>
+                {/* Traço de anotação caligráfica ativa */}
+                <path
+                  d="M -5 7 Q -2 5 2 8"
+                  stroke="#10b981"
+                  strokeWidth="1.4"
+                  strokeDasharray="2 2"
+                  fill="none"
+                />
+              </g>
+
+              {/* Mão e caneta esmeralda anotando com movimento ativo */}
+              <g transform={`translate(${16 + effectiveOx * 0.25}, ${4 + penScribble}) rotate(${penAngle})`}>
+                <line x1="8" y1="-14" x2="-2" y2="0" stroke="#34d399" strokeWidth="3" strokeLinecap="round" />
+                <polygon points="-2,0 -4,3 -1,4" fill="#10b981" />
+                <circle cx="6" cy="-10" r="3" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="1.8" />
+              </g>
+
+              {/* Cabeça firme no tronco com micro-tilt anatômico */}
+              <g transform={`translate(${-5 + effectiveOx * 0.2}, -42) rotate(${redatorHeadTilt})`}>
                 <circle
                   cx="0"
                   cy="0"
@@ -1408,6 +1505,7 @@ export function DeepResearchCharacters({
                   strokeWidth="3"
                 />
 
+                {/* Cabelo e topete estilizado */}
                 <path
                   d="M -6 -20 Q -2 -28 6 -23 Q 11 -27 12 -19"
                   stroke={ui.strokeMain}
@@ -1416,30 +1514,56 @@ export function DeepResearchCharacters({
                   strokeLinecap="round"
                 />
 
+                {/* Sobrancelhas expressivas (reagem com espanto se o Auditor apita) */}
                 <path
-                  d="M -12 -9 Q -7 -13 -3 -9 M 3 -9 Q 7 -13 12 -9"
+                  d={
+                    isStartled
+                      ? 'M -12 -12 Q -7 -16 -3 -12 M 3 -12 Q 7 -16 12 -12'
+                      : 'M -12 -9 Q -7 -13 -3 -9 M 3 -9 Q 7 -13 12 -9'
+                  }
                   stroke={ui.strokeMain}
                   strokeWidth="2"
                   fill="none"
                   strokeLinecap="round"
                 />
 
-                {/* Pupilas e reflexos bem posicionados, longe da boca */}
-                <circle cx={-6 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-3.5 + clamp(look.oy * 0.35, -1.4, 1.4)} r="2.6" fill={ui.strokeMain} />
-                <circle cx={6 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-3.5 + clamp(look.oy * 0.35, -1.4, 1.4)} r="2.6" fill={ui.strokeMain} />
-                <circle cx={-7 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-4.5 + clamp(look.oy * 0.35, -1.4, 1.4)} r="1" fill="#ffffff" />
-                <circle cx={5 + clamp(look.ox * 0.55, -3.2, 3.2)} cy={-4.5 + clamp(look.oy * 0.35, -1.4, 1.4)} r="1" fill="#ffffff" />
+                {/* Cavidades oculares definidas e pupilas em círculo orbital 360° */}
+                {(() => {
+                  const eye = getOrbitalEye(effectiveOx * 0.75, effectiveOy * 0.55, 4.2, 2.1);
+                  return (
+                    <g>
+                      {/* Cavidade orbital esquerda */}
+                      <ellipse cx="-6" cy="-3.5" rx="5" ry="3.8" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="1.4" />
+                      {/* Cavidade orbital direita */}
+                      <ellipse cx="6" cy="-3.5" rx="5" ry="3.8" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="1.4" />
 
+                      {/* Pupilas escuras nítidas que navegam livremente no círculo */}
+                      <circle cx={-6 + eye.x} cy={-3.5 + eye.y} r="2.5" fill={ui.strokeMain} />
+                      <circle cx={6 + eye.x} cy={-3.5 + eye.y} r="2.5" fill={ui.strokeMain} />
+
+                      {/* Brilhos especulares brancos que dão vida e foco ao olhar */}
+                      <circle cx={-6.8 + eye.x} cy={-4.4 + eye.y} r="0.9" fill="#ffffff" />
+                      <circle cx={5.2 + eye.x} cy={-4.4 + eye.y} r="0.9" fill="#ffffff" />
+                    </g>
+                  );
+                })()}
+
+                {/* Blush esmeralda sutil */}
                 <circle cx="-12" cy="4" r="3" fill="#34d399" opacity="0.28" />
                 <circle cx="12" cy="4" r="3" fill="#34d399" opacity="0.28" />
 
-                <path
-                  d={`M ${-8 + look.ox * 0.3} 5 Q 0 15 ${8 + look.ox * 0.3} 5`}
-                  stroke={ui.strokeMain}
-                  strokeWidth="2.4"
-                  fill="none"
-                  strokeLinecap="round"
-                />
+                {/* Expressão da boca: aberta em espanto com apito do auditor, ou sorriso sutil */}
+                {isStartled ? (
+                  <ellipse cx="0" cy="7" rx="3.2" ry="4.2" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="2.2" />
+                ) : (
+                  <path
+                    d={`M ${-8 + effectiveOx * 0.3} 5 Q 0 15 ${8 + effectiveOx * 0.3} 5`}
+                    stroke={ui.strokeMain}
+                    strokeWidth="2.4"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                )}
               </g>
             </g>
             <title>Redator</title>
