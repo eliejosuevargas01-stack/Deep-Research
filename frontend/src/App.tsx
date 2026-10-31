@@ -22,7 +22,7 @@ const DocsView = React.lazy(() =>
   import('./components/DocsView').then((m) => ({ default: m.DocsView }))
 );
 import { ReasoningHarness } from './dev/ReasoningHarness';
-import { ExecutionHarness } from './dev/ExecutionHarness';
+import { ExecutionHarness, HARNESS_REPORT } from './dev/ExecutionHarness';
 import { SimulatedResearch } from './dev/SimulatedResearch';
 import { PlanHarness } from './dev/PlanHarness';
 import { api, RIGOR_PADRAO, normalizarRigor, validarCallbackUrl } from './services/api';
@@ -507,7 +507,7 @@ export const App: React.FC = () => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') || 'research';
       const rotas = ['research', 'history', 'settings', 'docs'];
-      if (import.meta.env.DEV) rotas.push('harness', 'plan', 'execution-search', 'execution-audit', 'execution-rejected', 'execution-failed', 'research-sim');
+      if (import.meta.env.DEV) rotas.push('harness', 'plan', 'planning', 'execution-search', 'execution-audit', 'execution-writing', 'report', 'execution-rejected', 'execution-failed', 'research-sim');
 
       // Deep link: #research/<id_pesquisa>
       if (hash.startsWith('research/')) {
@@ -1749,14 +1749,29 @@ export const App: React.FC = () => {
 
         {import.meta.env.DEV && currentRoute === 'harness' && <ReasoningHarness />}
         {import.meta.env.DEV && currentRoute === 'plan' && <PlanHarness />}
+        {import.meta.env.DEV && currentRoute === 'planning' && (
+          <PlanningView
+            tema="Automação bancária no Brasil: impactos no emprego e na requalificação profissional entre 2010 e 2026"
+            iniciadoEm={Date.now() - 15000}
+            raciocinio='{"objetivo": "Analisar a transição digital dos bancos", "escopo": "2010 a 2026", "pontos": ["Fechamento de agências físicas", "Programas de requalificação"]}'
+          />
+        )}
         {import.meta.env.DEV && currentRoute === 'execution-search' && (
           <ExecutionHarness stage="searching" />
         )}
         {import.meta.env.DEV && currentRoute === 'execution-audit' && (
           <ExecutionHarness stage="auditing" />
         )}
+        {import.meta.env.DEV && currentRoute === 'execution-writing' && (
+          <ExecutionHarness stage="writing" />
+        )}
         {import.meta.env.DEV && currentRoute === 'research-sim' && (
           <SimulatedResearch />
+        )}
+        {import.meta.env.DEV && currentRoute === 'report' && (
+          <Suspense fallback={<div className="route-loading">Carregando dossiê…</div>}>
+            <ReportView report={HARNESS_REPORT} onReset={() => { window.location.hash = '#research'; }} />
+          </Suspense>
         )}
         {import.meta.env.DEV && currentRoute === 'execution-failed' && (
           <ExecutionHarness stage="failed" />

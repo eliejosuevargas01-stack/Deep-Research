@@ -1,7 +1,7 @@
 import React from 'react';
 import { ExecutionView, PipelineStage } from '../components/ExecutionView';
 import { ContextSidebar } from '../components/ContextSidebar';
-import { AuditResponse, PlanResponse, SearchResponse } from '../types/api';
+import { AuditResponse, PlanResponse, SearchResponse, WriterResponse } from '../types/api';
 import { ReasoningFeedItem } from '../types/stream';
 
 /**
@@ -230,6 +230,59 @@ export const HARNESS_ITEMS: ReasoningFeedItem[] = [
 interface Props {
   stage: PipelineStage;
 }
+
+export const HARNESS_DOSSIER = `# Dossiê Analítico: Automação Bancária no Brasil (2010-2026)
+
+## Sumário Executivo
+Entre 2010 e 2026, o setor bancário brasileiro passou pela mais profunda reestruturação operacional da sua história. A consolidação dos canais digitais e a implementação do Pix aceleraram o fechamento de 23% das agências físicas, transformando as remanescentes em postos de consultoria de crédito e investimentos.
+
+## 1. Evolução de Agências e Postos de Atendimento
+- **Fechamento de unidades físicas:** Segundo séries estatísticas do Banco Central do Brasil, a rede de agências reduziu de 23.192 unidades em 2014 para 17.840 no encerramento de 2024.
+- **Transição de funções operacionais:** Os postos tradicionais de escriturários e caixas foram descontinuados em ritmo superior a 7% ao ano.
+- **Compensação setorial:** Houve expansão contínua em áreas de segurança da informação, análise de dados e suporte a plataformas remotas.
+
+## 2. Requalificação e Cláusulas Coletivas
+As negociações entre a Fenaban e entidades representativas estabeleceram 41 cláusulas direcionadas à requalificação. Registros apontam que apenas 34% dos trabalhadores migraram internamente com êxito comprovado.
+
+## 3. Disparidades Regionais
+A retração concentrou-se inicialmente em capitais e eixos metropolitanos (61% do volume total de fechamentos). No interior, a expansão de correspondentes bancários supriu a presença física com custos operacionais reduzidos.
+
+## Conclusões
+A transição tecnológica bancária estabeleceu ganho expressivo de eficiência com forte pressão sobre postos analógicos e migração para unidades de retaguarda técnica.`;
+
+export const HARNESS_REPORT: WriterResponse = {
+  id_pesquisa: 'harness-0001',
+  tema: 'Automação bancária no Brasil: impactos no emprego e na requalificação profissional entre 2010 e 2026',
+  status: 'concluido',
+  total_caracteres_dossier: HARNESS_DOSSIER.length,
+  concluido_em: '2026-10-31T15:00:00Z',
+  dossier_final: HARNESS_DOSSIER,
+  dossier_resumo: 'Dossiê analítico sobre o impacto da automação e do fechamento de agências no setor bancário entre 2010 e 2026.',
+  fontes: {
+    id_pesquisa: 'harness-0001',
+    status: 'completo',
+    total_consultadas: 5,
+    total_utilizadas: 3,
+    total_nao_utilizadas: 2,
+    artifact_hash: '186a8b3809849332d3fe5c5dd247de4eedcdb0b2ec69375ef1bd3ff82f22123d',
+    consultadas: [
+      { url: 'https://www.bcb.gov.br/estabilidadefinanceira/agencias', titulo: 'Banco Central - Séries de Agências', dominio: 'bcb.gov.br' },
+      { url: 'https://www.dieese.org.br/estudosepesquisas/bancarios', titulo: 'DIEESE - Emprego Bancário 2014-2024', dominio: 'dieese.org.br' },
+      { url: 'https://www.contrafcut.org.br/acordos-coletivos', titulo: 'Contraf-CUT - Cláusulas de Requalificação', dominio: 'contrafcut.org.br' },
+      { url: 'https://noticias.exemplo.com/mercado-financeiro', titulo: 'Notícia de mercado', dominio: 'noticias.exemplo.com' },
+      { url: 'https://blog.exemplo.com/opiniao-financas', titulo: 'Opinião de analista', dominio: 'blog.exemplo.com' },
+    ],
+    utilizadas: [
+      { url: 'https://www.bcb.gov.br/estabilidadefinanceira/agencias', titulo: 'Banco Central - Séries de Agências', dominio: 'bcb.gov.br' },
+      { url: 'https://www.dieese.org.br/estudosepesquisas/bancarios', titulo: 'DIEESE - Emprego Bancário 2014-2024', dominio: 'dieese.org.br' },
+      { url: 'https://www.contrafcut.org.br/acordos-coletivos', titulo: 'Contraf-CUT - Cláusulas de Requalificação', dominio: 'contrafcut.org.br' },
+    ],
+    nao_utilizadas: [
+      { url: 'https://noticias.exemplo.com/mercado-financeiro', titulo: 'Notícia de mercado', dominio: 'noticias.exemplo.com' },
+      { url: 'https://blog.exemplo.com/opiniao-financas', titulo: 'Opinião de analista', dominio: 'blog.exemplo.com' },
+    ],
+  },
+};
 
 export const ExecutionHarness: React.FC<Props> = ({ stage }) => (
   <div className="workspace-grid">
