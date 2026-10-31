@@ -42,16 +42,17 @@ const proxy = {
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: ['.ngrok-free.dev', '.ngrok-free.app', '.ngrok.io'],
-    port: 3000,
+    allowedHosts: true,
+    port: 3002,
     strictPort: true,
-    host: '127.0.0.1',
+    host: '0.0.0.0',
     proxy,
   },
   preview: {
-    port: 3000,
+    allowedHosts: true,
+    port: 3002,
     strictPort: true,
-    host: '127.0.0.1',
+    host: '0.0.0.0',
     proxy,
   },
   build: {
