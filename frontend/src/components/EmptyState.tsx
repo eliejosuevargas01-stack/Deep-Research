@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Compass, ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { DeepResearchCharacters } from '../deepresearch_hero_7_personas_interativas';
 
 interface EmptyStateProps {
@@ -49,7 +49,7 @@ const SAMPLE_TOPICS = [
 export const EmptyState: React.FC<EmptyStateHeroProps> = ({ tema, rascunho }) => {
   const escrevendo = rascunho.trim().length > 0;
   return (
-    <section className="empty-state" aria-labelledby="empty-state-title">
+    <section className="empty-state" aria-label="Personas analíticas da investigação Deep Research">
       <div className="empty-state-hero">
         <DeepResearchCharacters
           phase={escrevendo ? 'planning' : 'interactive'}
@@ -57,16 +57,6 @@ export const EmptyState: React.FC<EmptyStateHeroProps> = ({ tema, rascunho }) =>
           typingProgress={Math.min(1, rascunho.trim().length / 120)}
           theme={tema}
         />
-      </div>
-      <div className="empty-state-header">
-        <div className="empty-state-badge" aria-hidden="true">
-          <Compass size={20} />
-        </div>
-        <div>
-          <h1 id="empty-state-title" className="empty-state-title">
-            Investigue a fundo. Audite cada ponto.
-          </h1>
-        </div>
       </div>
     </section>
   );
@@ -82,7 +72,6 @@ export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [currentPage, setCurrentPage] = useState(0);
 
   const updateScrollState = () => {
     const el = scrollRef.current;
@@ -91,11 +80,6 @@ export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => {
     const maxScroll = el.scrollWidth - el.clientWidth;
     setCanScrollLeft(scrollLeft > 8);
     setCanScrollRight(scrollLeft < maxScroll - 8);
-
-    const firstPill = el.querySelector<HTMLElement>('.topic-pill');
-    const step = firstPill ? (firstPill.offsetWidth + 8) * 2 : 264;
-    const page = Math.min(3, Math.max(0, Math.round(scrollLeft / step)));
-    setCurrentPage(page);
   };
 
   useEffect(() => {
@@ -109,14 +93,6 @@ export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => {
       window.removeEventListener('resize', updateScrollState);
     };
   }, []);
-
-  const scrollToPage = (pageIndex: number) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const firstPill = el.querySelector<HTMLElement>('.topic-pill');
-    const step = firstPill ? (firstPill.offsetWidth + 8) * 2 : 264;
-    el.scrollTo({ left: pageIndex * step, behavior: 'smooth' });
-  };
 
   const handleNext = () => {
     const el = scrollRef.current;
@@ -154,7 +130,7 @@ export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => {
         title="Ver recomendações anteriores"
         tabIndex={canScrollLeft ? 0 : -1}
       >
-        <ChevronLeft size={16} aria-hidden="true" />
+        <ChevronLeft size={20} strokeWidth={2.4} aria-hidden="true" />
       </button>
 
       <div
@@ -178,30 +154,15 @@ export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => {
         ))}
       </div>
 
-      <div className="topic-pills-nav-cluster">
-        <button
-          type="button"
-          className="topic-pill-nav-btn topic-pill-nav-next"
-          onClick={handleNext}
-          aria-label="Próximas recomendações de temas"
-          title="Ver próximas recomendações"
-        >
-          <ChevronRight size={16} aria-hidden="true" />
-        </button>
-
-        <div className="topic-pills-pagination" aria-hidden="true">
-          {[0, 1, 2, 3].map((page) => (
-            <button
-              key={page}
-              type="button"
-              className={`topic-pagination-dot ${currentPage === page ? 'active' : ''}`}
-              onClick={() => scrollToPage(page)}
-              aria-label={`Ir para sugestões página ${page + 1}`}
-              tabIndex={-1}
-            />
-          ))}
-        </div>
-      </div>
+      <button
+        type="button"
+        className="topic-pill-nav-btn topic-pill-nav-next"
+        onClick={handleNext}
+        aria-label="Próximas recomendações de temas"
+        title="Ver próximas recomendações"
+      >
+        <ChevronRight size={20} strokeWidth={2.4} aria-hidden="true" />
+      </button>
     </div>
   );
 };

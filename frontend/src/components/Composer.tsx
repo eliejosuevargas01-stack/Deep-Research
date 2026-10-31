@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { ArrowUp, CornerDownLeft, Keyboard, Loader2, Sparkles } from 'lucide-react';
 import { ResearchPreferences, ResearchPreferencesProps } from './ResearchPreferences';
 import '../styles/forms-parity.css';
@@ -41,8 +41,10 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
   modelLabel = 'Auto',
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
   const length = value.trim().length;
   const isValid = length >= 5 && length <= 500;
+  const isExpanded = isFocused || length > 0;
 
   // Copy do prompt: estado vazio explica o formato; estados de erro dizem
   // exatamente quanto falta ou quanto sobra, sem repetir a mesma frase.
@@ -117,7 +119,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
   };
 
   return (
-    <div className="composer-anchor" role="region" aria-label="Entrada de tema de pesquisa">
+    <div className={`composer-anchor ${isExpanded ? 'is-expanded' : 'is-idle'}`} role="region" aria-label="Entrada de tema de pesquisa">
       {/* Nota de plano ativo: 11px, sem números que os controles já mostram. */}
       {currentPlanActive && (
         <p className="composer-toolbar" role="note">
@@ -128,7 +130,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
         </p>
       )}
 
-      <div className={`composer-box ${disabled || isSubmitting ? 'disabled' : ''}`}>
+      <div className={`composer-box ${isExpanded ? 'is-expanded' : 'is-idle'} ${disabled || isSubmitting ? 'disabled' : ''}`}>
         {/* Linha 1: acessórios na própria barra — sem faixa de status separada. */}
         <div
           className="composer-accessories"
@@ -170,6 +172,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
             className="composer-input"
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             rows={1}
