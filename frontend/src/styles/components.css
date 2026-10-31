@@ -81,6 +81,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  min-height: 44px;
+  padding: 6px 8px;
   text-decoration: none;
   color: var(--color-text-primary);
   font-family: var(--font-display);
@@ -115,7 +117,8 @@
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease;
-  min-height: 40px;
+  min-height: 44px;
+  min-width: 44px;
   white-space: nowrap;
 }
 
@@ -135,14 +138,15 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 8px 12px;
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
   text-decoration: none;
   font-family: var(--font-sans);
   font-size: 0.9rem;
   font-weight: 500;
-  min-height: 40px;
+  min-height: 44px;
+  min-width: 44px;
   transition: color 0.15s ease, background-color 0.15s ease;
   white-space: nowrap;
 }
@@ -171,6 +175,10 @@
 
 .btn-pill-action {
   cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 10px;
+  justify-content: center;
   background: var(--amber-tint);
   border: 1px solid var(--amber-line);
 }
@@ -2147,8 +2155,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   margin-left: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full, 999px);

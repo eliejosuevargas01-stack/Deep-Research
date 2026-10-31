@@ -272,7 +272,7 @@
 .audit-diagnostics-disclosure {
   background: transparent;
   border: 0;
-  border-left: 2px solid var(--color-warning-text);
+  border-left: 1px solid var(--color-warning-text);
   border-radius: 0;
   padding: 2px 0 2px 16px;
   margin: 4px 0 18px;
@@ -496,7 +496,7 @@
 .settings-container .alert-banner {
   border-radius: 0;
   border: 0;
-  border-left: 2px solid var(--violet);
+  border-left: 1px solid var(--violet);
   background: transparent;
   padding: 4px 0 4px 16px;
 }
@@ -528,7 +528,7 @@
 .settings-container .alert-banner.warning {
   background: transparent !important;
   border: 0 !important;
-  border-left: 2px solid var(--color-primary) !important;
+  border-left: 1px solid var(--color-primary) !important;
   border-radius: 0 !important;
   padding: 2px 0 2px 16px !important;
   color: var(--color-text-secondary);
