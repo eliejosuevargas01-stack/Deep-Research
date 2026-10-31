@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Minus, Plus } from 'lucide-react';
 import type { RecenciaPolitica } from '../types/api';
+import { RIGOR_MAXIMO, RIGOR_MINIMO, RIGOR_PADRAO, normalizarRigor } from '../services/api';
 
 export const ALL_PERSONAS = [
   { id: 'historiador', label: 'Historiador', desc: 'Antecedentes, precedentes e séries históricas' },
@@ -53,6 +54,14 @@ interface PreferencesPopoverContentProps {
   currentPlanActive?: boolean;
   executionMode?: 'parallel' | 'sequential';
   onChangeExecutionMode?: (mode: 'parallel' | 'sequential') => void;
+  recencia?: RecenciaPolitica;
+  onChangeRecencia?: (recencia: RecenciaPolitica) => void;
+  criteriosMinimos?: number;
+  onChangeCriteriosMinimos?: (n: number) => void;
+  asyncExecute?: boolean;
+  onChangeAsyncExecute?: (async: boolean) => void;
+  callbackUrl?: string;
+  onChangeCallbackUrl?: (url: string) => void;
 }
 
 const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
@@ -66,6 +75,14 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
   currentPlanActive = false,
   executionMode = 'parallel',
   onChangeExecutionMode = () => {},
+  recencia = 'auto',
+  onChangeRecencia = () => {},
+  criteriosMinimos = RIGOR_PADRAO,
+  onChangeCriteriosMinimos = () => {},
+  asyncExecute = false,
+  onChangeAsyncExecute = () => {},
+  callbackUrl = '',
+  onChangeCallbackUrl = () => {},
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -131,16 +148,18 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
     }
   };
 
+  const rigorAtual = normalizarRigor(criteriosMinimos);
+
   return (
     <div
       ref={panelRef}
       id="preferences-popover-panel"
-      className="preferences-panel dock-panel"
+      className="preferences-panel"
       role="dialog"
       aria-label="Parâmetros de pesquisa"
     >
       <header className="dock-panel-head">
-        <h2>Parâmetros</h2>
+        <h2>Parâmetros da Pesquisa</h2>
         <button
           type="button"
           className="dock-close"
@@ -167,8 +186,8 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
             <output aria-live="polite">{nPontos}</output>
             <button
               type="button"
-              onClick={() => onChangeNPontos(Math.min(10, nPontos + 1))}
-              disabled={disabled || currentPlanActive || nPontos >= 10}
+              onClick={() => onChangeNPontos(Math.min(20, nPontos + 1))}
+              disabled={disabled || currentPlanActive || nPontos >= 20}
               aria-label="Aumentar pontos"
             >
               <Plus size={13} aria-hidden="true" />
@@ -177,9 +196,9 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
         </div>
 
         {/* Campo 2: Personas na busca */}
-        <div className="dock-field">
+        <div className="dock-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
           <span className="dock-label">Personas na busca</span>
-          <div className="dock-chips" role="group" aria-label="Personas na busca">
+          <div className="dock-chips" style={{ width: '100%', justifyContent: 'flex-start' }} role="group" aria-label="Personas na busca">
             {ALL_PERSONAS.map(({ id, label }) => {
               const on = selectedPersonas.includes(id);
               return (
@@ -200,7 +219,7 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
 
         {/* Campo 3: Execução */}
         <div className="dock-field">
-          <span className="dock-label">Execução</span>
+          <span className="dock-label">Execução da busca</span>
           <div className="dock-segment" role="group" aria-label="Modo de execução">
             <button
               type="button"
@@ -222,6 +241,102 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Campo 4: Recência da pesquisa */}
+        <div className="dock-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <span className="dock-label">Recência da pesquisa</span>
+            <span style={{ fontSize: '0.74rem', color: 'var(--color-text-muted)' }}>
+              {RECENCIA_OPCOES.find((o) => o.id === recencia)?.desc ?? 'Período aceito'}
+            </span>
+          </div>
+          <div className="dock-chips" style={{ width: '100%', justifyContent: 'flex-start' }} role="group" aria-label="Recência da pesquisa">
+            {RECENCIA_OPCOES.map((opcao) => {
+              const on = recencia === opcao.id;
+              return (
+                <button
+                  key={opcao.id}
+                  type="button"
+                  className={`dock-chip ${on ? 'is-on' : ''}`}
+                  aria-pressed={on}
+                  onClick={() => onChangeRecencia(opcao.id)}
+                  disabled={disabled || currentPlanActive}
+                  title={opcao.desc}
+                >
+                  {opcao.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Campo 5: Rigor da auditoria */}
+        <div className="dock-field">
+          <span className="dock-label">Rigor da auditoria</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="dock-stepper" role="group" aria-label="Rigor da auditoria">
+              <button
+                type="button"
+                onClick={() => onChangeCriteriosMinimos(Math.max(RIGOR_MINIMO, rigorAtual - 1))}
+                disabled={disabled || currentPlanActive || rigorAtual <= RIGOR_MINIMO}
+                aria-label="Diminuir rigor"
+              >
+                <Minus size={13} aria-hidden="true" />
+              </button>
+              <output aria-live="polite">{rigorAtual}</output>
+              <button
+                type="button"
+                onClick={() => onChangeCriteriosMinimos(Math.min(RIGOR_MAXIMO, rigorAtual + 1))}
+                disabled={disabled || currentPlanActive || rigorAtual >= RIGOR_MAXIMO}
+                aria-label="Aumentar rigor"
+              >
+                <Plus size={13} aria-hidden="true" />
+              </button>
+            </div>
+            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>/ 12 critérios</span>
+          </div>
+        </div>
+
+        {/* Campo 6: Modo de entrega */}
+        <div className="dock-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+          <span className="dock-label">Entrega do dossiê</span>
+          <div className="dock-segment" style={{ width: '100%', display: 'flex' }} role="group" aria-label="Modo de entrega">
+            <button
+              type="button"
+              style={{ flex: 1 }}
+              className={!asyncExecute ? 'is-on' : ''}
+              aria-pressed={!asyncExecute}
+              onClick={() => onChangeAsyncExecute(false)}
+              disabled={disabled || currentPlanActive}
+            >
+              Stream (Sync)
+            </button>
+            <button
+              type="button"
+              style={{ flex: 1 }}
+              className={asyncExecute ? 'is-on' : ''}
+              aria-pressed={asyncExecute}
+              onClick={() => onChangeAsyncExecute(true)}
+              disabled={disabled || currentPlanActive}
+            >
+              Webhook (Async)
+            </button>
+          </div>
+          {asyncExecute && (
+            <div style={{ width: '100%', marginTop: '4px' }}>
+              <input
+                type="url"
+                className="points-custom-input"
+                style={{ width: '100%', boxSizing: 'border-box', height: '34px', padding: '0 10px', fontSize: '0.82rem' }}
+                value={callbackUrl}
+                onChange={(e) => onChangeCallbackUrl(e.target.value)}
+                placeholder="https://api.exemplo.com/webhook/pesquisa"
+                disabled={disabled || currentPlanActive}
+                aria-label="URL de callback do webhook"
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -239,6 +354,14 @@ export const ResearchPreferences: React.FC<ResearchPreferencesProps> = ({
   currentPlanActive = false,
   executionMode = 'parallel',
   onChangeExecutionMode = () => {},
+  recencia = 'auto',
+  onChangeRecencia = () => {},
+  criteriosMinimos = RIGOR_PADRAO,
+  onChangeCriteriosMinimos = () => {},
+  asyncExecute = false,
+  onChangeAsyncExecute = () => {},
+  callbackUrl = '',
+  onChangeCallbackUrl = () => {},
 }) => {
   const triggerBtnRef = useRef<HTMLButtonElement>(null);
   const [isMobile, setIsMobile] = useState(() => {
@@ -301,6 +424,14 @@ export const ResearchPreferences: React.FC<ResearchPreferencesProps> = ({
       currentPlanActive={currentPlanActive}
       executionMode={executionMode}
       onChangeExecutionMode={onChangeExecutionMode}
+      recencia={recencia}
+      onChangeRecencia={onChangeRecencia}
+      criteriosMinimos={criteriosMinimos}
+      onChangeCriteriosMinimos={onChangeCriteriosMinimos}
+      asyncExecute={asyncExecute}
+      onChangeAsyncExecute={onChangeAsyncExecute}
+      callbackUrl={callbackUrl}
+      onChangeCallbackUrl={onChangeCallbackUrl}
     />
   );
 
@@ -313,10 +444,10 @@ export const ResearchPreferences: React.FC<ResearchPreferencesProps> = ({
         className={`preferences-toggle-btn ${isOpen ? 'active' : ''}`}
         onClick={onToggle}
         disabled={disabled}
-        aria-label="Parâmetros de investigação (pontos, personas e execução)"
+        aria-label="Parâmetros de investigação (pontos, personas, execução, recência e rigor)"
         aria-expanded={isOpen}
         aria-controls="preferences-popover-panel"
-        title="Configurar pontos analíticos, personas e execução"
+        title="Configurar pontos analíticos, personas, execução, recência e rigor"
       >
         <span className="plus-icon" aria-hidden="true">+</span>
         <span className="preferences-chip-label">

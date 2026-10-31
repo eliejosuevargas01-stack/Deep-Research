@@ -1257,25 +1257,36 @@
 }
 
 .preferences-panel {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 0;
-  width: min(420px, calc(100vw - 32px));
-  /* 86dvh cabe o conteúdo inteiro (656px) em telefone de 844px; antes o corte
-     em 520px deixava a última persona pela metade. */
-  max-height: min(86dvh, 680px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: var(--space-4);
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  pointer-events: auto;
+  position: absolute !important;
+  bottom: calc(100% + 10px) !important;
+  left: 0 !important;
+  width: min(440px, calc(100vw - 32px)) !important;
+  max-height: min(78vh, 540px) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  background-color: var(--color-surface) !important;
+  border: 1px solid var(--color-border-strong) !important;
+  border-radius: var(--radius-xl, 14px) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+  padding: 16px !important;
+  z-index: 200 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+  animation: prefsOverlayIn 160ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes prefsOverlayIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .preferences-header {
