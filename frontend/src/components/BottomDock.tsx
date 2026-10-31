@@ -148,8 +148,11 @@ export const BottomDock: React.FC<BottomDockProps> = ({
     document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onClick);
 
+    const isMobileNow = window.innerWidth <= 640;
     const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    if (isMobileNow) {
+      document.body.style.overflow = 'hidden';
+    }
 
     const frame = window.requestAnimationFrame(() => {
       const p = panelRef.current;
@@ -168,7 +171,9 @@ export const BottomDock: React.FC<BottomDockProps> = ({
     });
 
     return () => {
-      document.body.style.overflow = prevOverflow;
+      if (isMobileNow) {
+        document.body.style.overflow = prevOverflow;
+      }
       window.cancelAnimationFrame(frame);
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('mousedown', onClick);
@@ -445,18 +450,20 @@ export const BottomDock: React.FC<BottomDockProps> = ({
     <>
       {createPortal(triggers, slots.tools)}
       {open
-        ? createPortal(
-            <div
-              className="modal-backdrop dock-modal-backdrop"
-              onClick={(e) => {
-                if (e.target === e.currentTarget) close(true);
-              }}
-              role="presentation"
-            >
-              {panel}
-            </div>,
-            document.body
-          )
+        ? isMobile
+          ? createPortal(
+              <div
+                className="modal-backdrop dock-modal-backdrop"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) close(true);
+                }}
+                role="presentation"
+              >
+                {panel}
+              </div>,
+              document.body
+            )
+          : createPortal(panel, slots.panel)
         : null}
     </>
   );

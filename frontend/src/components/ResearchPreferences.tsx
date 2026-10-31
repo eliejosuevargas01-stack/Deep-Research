@@ -91,6 +91,27 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
+  // Bounded panel positioning no desktop: garante que o painel e o cabeçalho nunca ultrapassem o topo do viewport
+  useEffect(() => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
+    if (isMobile) return;
+
+    const updateBounds = () => {
+      if (!panelRef.current || !triggerElement) return;
+      const triggerRect = triggerElement.getBoundingClientRect();
+      const margin = 12;
+      const maxAvailable = Math.max(160, triggerRect.top - margin - 10);
+      panelRef.current.style.maxHeight = `${maxAvailable}px`;
+    };
+    updateBounds();
+    window.addEventListener('resize', updateBounds);
+    window.addEventListener('scroll', updateBounds, true);
+    return () => {
+      window.removeEventListener('resize', updateBounds);
+      window.removeEventListener('scroll', updateBounds, true);
+    };
+  }, [triggerElement]);
+
   // Abertura animada em CSS (keyframe `prefs-enter`), uma vez na montagem.
   useEffect(() => {
 
@@ -496,6 +517,17 @@ export const ResearchPreferences: React.FC<ResearchPreferencesProps> = ({
   onChangeCallbackUrl = () => {},
 }) => {
   const triggerBtnRef = useRef<HTMLButtonElement>(null);
+  const [isMobile, setIsMobile] = React.useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth <= 640 : false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Lock de rolagem do body no mobile quando a folha de preferências estiver aberta (evita duplo scroll)
   useEffect(() => {
@@ -508,8 +540,8 @@ export const ResearchPreferences: React.FC<ResearchPreferencesProps> = ({
     }
 
     const updateScrollLock = () => {
-      const isMobile = window.innerWidth <= 640 || (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches);
-      if (isMobile) {
+      const isMobileNow = window.innerWidth <= 640 || (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches);
+      if (isMobileNow) {
         document.body.style.overflow = 'hidden';
         document.documentElement.style.overflow = 'hidden';
         document.body.classList.add('preferences-open');
@@ -533,6 +565,29 @@ export const ResearchPreferences: React.FC<ResearchPreferencesProps> = ({
     };
   }, [isOpen]);
 
+  const popoverContent = (
+    <PreferencesPopoverContent
+      onClose={onClose}
+      triggerElement={triggerBtnRef.current}
+      nPontos={nPontos}
+      onChangeNPontos={onChangeNPontos}
+      selectedPersonas={selectedPersonas}
+      onChangePersonas={onChangePersonas}
+      disabled={disabled}
+      currentPlanActive={currentPlanActive}
+      executionMode={executionMode}
+      onChangeExecutionMode={onChangeExecutionMode}
+      recencia={recencia}
+      onChangeRecencia={onChangeRecencia}
+      criteriosMinimos={normalizarRigor(criteriosMinimos)}
+      onChangeCriteriosMinimos={onChangeCriteriosMinimos}
+      asyncExecute={asyncExecute}
+      onChangeAsyncExecute={onChangeAsyncExecute}
+      callbackUrl={callbackUrl}
+      onChangeCallbackUrl={onChangeCallbackUrl}
+    />
+  );
+
   return (
     <div className="preferences-wrapper">
       <button
@@ -554,40 +609,25 @@ export const ResearchPreferences: React.FC<ResearchPreferencesProps> = ({
       </button>
 
       {isOpen &&
-        createPortal(
-          <div
-            className="modal-backdrop preferences-modal-backdrop"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                onClose();
-                triggerBtnRef.current?.focus();
-              }
-            }}
-            role="presentation"
-          >
-            <PreferencesPopoverContent
-              onClose={onClose}
-              triggerElement={triggerBtnRef.current}
-              nPontos={nPontos}
-              onChangeNPontos={onChangeNPontos}
-              selectedPersonas={selectedPersonas}
-              onChangePersonas={onChangePersonas}
-              disabled={disabled}
-              currentPlanActive={currentPlanActive}
-              executionMode={executionMode}
-              onChangeExecutionMode={onChangeExecutionMode}
-              recencia={recencia}
-              onChangeRecencia={onChangeRecencia}
-              criteriosMinimos={normalizarRigor(criteriosMinimos)}
-              onChangeCriteriosMinimos={onChangeCriteriosMinimos}
-              asyncExecute={asyncExecute}
-              onChangeAsyncExecute={onChangeAsyncExecute}
-              callbackUrl={callbackUrl}
-              onChangeCallbackUrl={onChangeCallbackUrl}
-            />
-          </div>,
-          document.body
-        )}
+        (isMobile ? (
+          createPortal(
+            <div
+              className="modal-backdrop preferences-modal-backdrop"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  onClose();
+                  triggerBtnRef.current?.focus();
+                }
+              }}
+              role="presentation"
+            >
+              {popoverContent}
+            </div>,
+            document.body
+          )
+        ) : (
+          popoverContent
+        ))}
     </div>
   );
 };
