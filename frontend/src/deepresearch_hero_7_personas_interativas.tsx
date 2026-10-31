@@ -227,28 +227,19 @@ export function DeepResearchCharacters({
     time: 0
   });
 
-  // Loop de física: ~30fps, sem redesenhar quando o alvo já foi alcançado.
-  const fisicaRef = useRef({ ultimo: 0, mx: 520, my: 140, start: performance.now() });
+  // Loop de física: suave a 60fps, com animações contínuas de respiração e rastreamento de mouse
+  const fisicaRef = useRef({ mx: 520, my: 140, start: performance.now(), userInteracted: false });
   useEffect(() => {
-    let rafId;
+    let rafId: number;
     fisicaRef.current.start = performance.now();
 
-    const tick = (now) => {
-      const inicio = fisicaRef.current.start;
-      const elapsed = (now - inicio) / 1000;
-      if (now - fisicaRef.current.ultimo < 33) {
-        rafId = requestAnimationFrame(tick);
-        return;
-      }
-      fisicaRef.current.ultimo = now;
+    const tick = (now: number) => {
+      const elapsed = (now - fisicaRef.current.start) / 1000;
 
       let targetX = targetMouse.current.x;
       let targetY = targetMouse.current.y;
 
-      if (isTyping && !targetMouse.current.inside) {
-        targetX = 260 + clamp(typingProgress, 0, 1) * 520;
-        targetY = 320;
-      } else if (phase === 'planning') {
+      if (phase === 'planning') {
         targetX = 150 + Math.sin(elapsed * 2.2) * 60;
         targetY = 160;
       } else if (phase === 'searching') {
@@ -260,22 +251,21 @@ export function DeepResearchCharacters({
       } else if (phase === 'synthesis') {
         targetX = 895;
         targetY = 175;
+      } else if (isTyping && !fisicaRef.current.userInteracted) {
+        targetX = 260 + clamp(typingProgress, 0, 1) * 520;
+        targetY = 320;
       }
 
-      smoothMouse.current.x += (targetX - smoothMouse.current.x) * 0.18;
-      smoothMouse.current.y += (targetY - smoothMouse.current.y) * 0.18;
+      // Interpolação responsiva e fluida (lerp 0.28 para resposta imediata)
+      smoothMouse.current.x += (targetX - smoothMouse.current.x) * 0.28;
+      smoothMouse.current.y += (targetY - smoothMouse.current.y) * 0.28;
 
-      const dx = Math.abs(smoothMouse.current.x - fisicaRef.current.mx);
-      const dy = Math.abs(smoothMouse.current.y - fisicaRef.current.my);
-      if (dx > 0.15 || dy > 0.15) {
-        fisicaRef.current.mx = smoothMouse.current.x;
-        fisicaRef.current.my = smoothMouse.current.y;
-        setRenderState({
-          mx: smoothMouse.current.x,
-          my: smoothMouse.current.y,
-          time: elapsed
-        });
-      }
+      // Atualiza sempre para manter vivas as micro-animações ociosas (respiração/bobbing)
+      setRenderState({
+        mx: smoothMouse.current.x,
+        my: smoothMouse.current.y,
+        time: elapsed
+      });
 
       rafId = requestAnimationFrame(tick);
     };
@@ -284,33 +274,48 @@ export function DeepResearchCharacters({
     return () => cancelAnimationFrame(rafId);
   }, [isTyping, typingProgress, phase]);
 
-  // A seta conta em qualquer ponto da tela: o olhar vai até a borda do desenho.
+  // Rastreamento confiável do mouse/toque em qualquer ponto da janela
   useEffect(() => {
-    const aoMover = (e) => {
+    const aoMover = (e: MouseEvent | PointerEvent | Touch) => {
       if (!svgRef.current) return;
       const rect = svgRef.current.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       const x = (e.clientX - rect.left) * (1020 / rect.width);
       const y = (e.clientY - rect.top) * (290 / rect.height);
-      const dentro = e.clientX >= rect.left && e.clientX <= rect.right
-        && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      fisicaRef.current.userInteracted = true;
       targetMouse.current = {
-        x: clamp(x, -220, 1240),
-        y: clamp(y, -120, 410),
-        inside: dentro,
+        x: clamp(x, -350, 1370),
+        y: clamp(y, -250, 540),
+        inside: true,
       };
     };
-    window.addEventListener('pointermove', aoMover, { passive: true });
-    return () => window.removeEventListener('pointermove', aoMover);
+
+    const handlePointer = (e: PointerEvent) => aoMover(e);
+    const handleMouse = (e: MouseEvent) => aoMover(e);
+    const handleTouch = (e: TouchEvent) => {
+      if (e.touches && e.touches[0]) aoMover(e.touches[0]);
+    };
+
+    window.addEventListener('pointermove', handlePointer, { passive: true });
+    window.addEventListener('mousemove', handleMouse, { passive: true });
+    window.addEventListener('touchmove', handleTouch, { passive: true });
+    window.addEventListener('touchstart', handleTouch, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointer);
+      window.removeEventListener('mousemove', handleMouse);
+      window.removeEventListener('touchmove', handleTouch);
+      window.removeEventListener('touchstart', handleTouch);
+    };
   }, []);
 
   const handlePointerMove = () => undefined;
 
   const handlePointerLeave = () => {
-    targetMouse.current.inside = false;
+    // Mantém o olhar suave na última direção
   };
 
-  const handleCharacterClick = (id) => {
+  const handleCharacterClick = (id: string) => {
     if (id === 'auditor') {
       setWhistleActive(true);
       setTimeout(() => setWhistleActive(false), 2200);
@@ -326,11 +331,11 @@ export function DeepResearchCharacters({
     }
   };
 
-  const getLookVector = (charX, charY, maxDx = 5.5, maxDy = 4) => {
+  const getLookVector = (charX: number, charY: number, maxDx = 11, maxDy = 7.5) => {
     const dx = renderState.mx - charX;
     const dy = renderState.my - charY;
     const dist = Math.hypot(dx, dy) || 1;
-    const factor = clamp(dist / 150, 0, 1);
+    const factor = clamp(dist / 40, 0, 1);
     return {
       ox: (dx / dist) * maxDx * factor,
       oy: (dy / dist) * maxDy * factor,
@@ -342,7 +347,7 @@ export function DeepResearchCharacters({
   const { mx, my, time } = renderState;
 
   // Zona de 15cm do Cético reduzida em 3x (raio = 44px centrado entre o rosto e o livro em x=492, y=155)
-  const CETICO_RADIUS = 44;
+  const CETICO_RADIUS = 72;
   const ceticoDist = Math.hypot(mx - 492, my - 155);
   const ceticoCares =
     ceticoDist < CETICO_RADIUS ||
@@ -482,10 +487,10 @@ export function DeepResearchCharacters({
           1. PLANEJADOR (x: 105, y: 185)
       ============================================================ */}
       {(() => {
-        const look = getLookVector(105, 138, 5, 3.5);
+        const look = getLookVector(105, 138, 12, 8);
         const bob = Math.sin(time * 2.1) * 2.2;
         const isHovered = hoveredPersona === 'planejador';
-        const headTilt = clamp(look.ox * 1.9 - 4, -13, 10);
+        const headTilt = clamp(look.ox * 2.2, -22, 22);
         const hatLift = hatTipActive || isHovered ? -7 : 0;
         const hatRotate = hatTipActive ? -14 : isHovered ? -5 : -2;
 
@@ -564,7 +569,7 @@ export function DeepResearchCharacters({
                 strokeLinecap="round"
               />
 
-              <g transform={`translate(${look.ox * 0.6}, -44) rotate(${headTilt})`}>
+              <g transform={`translate(${look.ox * 0.75}, ${-44 + look.oy * 0.25}) rotate(${headTilt})`}>
                 <circle
                   cx="0"
                   cy="0"
@@ -612,8 +617,8 @@ export function DeepResearchCharacters({
                   <line x1="-9" y1="-5" x2="-6" y2="-6" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
                   <line x1="5" y1="-5" x2="8" y2="-6" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
 
-                  <circle cx={-6.5 + look.ox * 0.8} cy={-2 + look.oy * 0.8} r="2.1" fill={ui.strokeMain} />
-                  <circle cx={7.5 + look.ox * 0.8} cy={-2 + look.oy * 0.8} r="2.1" fill={ui.strokeMain} />
+                  <circle cx={-6.5 + clamp(look.ox * 0.45, -3.8, 3.8)} cy={-2 + clamp(look.oy * 0.45, -2.5, 2.5)} r="2.2" fill={ui.strokeMain} />
+                  <circle cx={7.5 + clamp(look.ox * 0.45, -3.8, 3.8)} cy={-2 + clamp(look.oy * 0.45, -2.5, 2.5)} r="2.2" fill={ui.strokeMain} />
 
                   <line x1="-12" y1="-5.5" x2="-1" y2="-5.5" stroke={ui.headFill} strokeWidth="2.2" />
                 </g>
@@ -682,8 +687,9 @@ export function DeepResearchCharacters({
           2. HISTORIADOR (x: 262, y: 192) — 1º do Trio Colado
       ============================================================ */}
       {(() => {
-        const look = getLookVector(262, 148, 4.5, 3.5);
+        const look = getLookVector(262, 148, 11, 7.5);
         const bob = Math.sin(time * 2.4 + 1) * 2;
+        const histHeadTilt = clamp(look.ox * 2.0, -20, 20);
 
         return (
           <g
@@ -716,18 +722,18 @@ export function DeepResearchCharacters({
                 fill="none"
                 strokeLinecap="round"
               />
-              <g transform={`translate(${22 + look.ox * 1.2}, ${-34 + look.oy * 1.2}) rotate(15)`}>
+              <g transform={`translate(${22 + look.ox * 1.4}, ${-34 + look.oy * 1.4}) rotate(${15 + look.ox * 1.8})`}>
                 <line x1="0" y1="6" x2="4" y2="14" stroke="#92400e" strokeWidth="3" strokeLinecap="round" />
                 <circle cx="0" cy="0" r="7.5" fill="#38bdf8" fillOpacity="0.2" stroke="#f59e0b" strokeWidth="2.2" />
               </g>
 
-              <g transform={`translate(${look.ox * 0.5}, -40)`}>
+              <g transform={`translate(${look.ox * 0.75}, ${-40 + look.oy * 0.25}) rotate(${histHeadTilt})`}>
                 <circle cx="0" cy="0" r="20" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="3" />
                 <path d="M -18 -12 Q 0 -24 19 -11 Z" fill="#78350f" stroke="#451a03" strokeWidth="1.5" />
 
-                <circle cx={-6 + look.ox * 0.9} cy={-2 + look.oy * 0.8} r="2.1" fill={ui.strokeMain} />
-                <circle cx={6 + look.ox * 0.9} cy={-2 + look.oy * 0.8} r="2.3" fill={ui.strokeMain} />
-                <circle cx={6 + look.ox * 0.5} cy={-2 + look.oy * 0.5} r="6.2" fill="none" stroke="#fbbf24" strokeWidth="1.8" />
+                <circle cx={-6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-2 + clamp(look.oy * 0.65, -3, 3)} r="2.2" fill={ui.strokeMain} />
+                <circle cx={6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-2 + clamp(look.oy * 0.65, -3, 3)} r="2.4" fill={ui.strokeMain} />
+                <circle cx={6 + clamp(look.ox * 0.4, -3, 3)} cy={-2 + clamp(look.oy * 0.4, -2, 2)} r="6.2" fill="none" stroke="#fbbf24" strokeWidth="1.8" />
                 <path d="M 11 2 Q 14 12 8 18" stroke="#fbbf24" strokeWidth="1.2" fill="none" strokeDasharray="1.5 1.5" />
 
                 <path d="M -11 -8 L -2 -6" stroke={ui.strokeMain} strokeWidth="2.5" strokeLinecap="round" />
@@ -753,8 +759,9 @@ export function DeepResearchCharacters({
           3. VISIONÁRIO (x: 326, y: 178) — 2º (Centro) do Trio Colado
       ============================================================ */}
       {(() => {
-        const look = getLookVector(326, 130, 5.5, 4);
+        const look = getLookVector(326, 130, 11, 7.5);
         const bounce = Math.abs(Math.sin(time * 3.2)) * -5;
+        const visHeadTilt = clamp(look.ox * 2.2, -20, 20);
 
         return (
           <g
@@ -779,17 +786,17 @@ export function DeepResearchCharacters({
               <path d="M 0 -12 L -16 -24" stroke={ui.strokeMain} strokeWidth="2.8" strokeLinecap="round" />
               <path d="M 0 -12 L 18 -26" stroke={ui.strokeMain} strokeWidth="2.8" strokeLinecap="round" />
 
-              <g transform={`translate(${look.ox * 0.65}, -42)`}>
+              <g transform={`translate(${look.ox * 0.75}, ${-42 + look.oy * 0.25}) rotate(${visHeadTilt})`}>
                 <circle cx="0" cy="0" r="20.5" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="3" />
 
                 <path d="M -19 -9 Q 0 -14 19 -9" stroke="#0284c7" strokeWidth="2.5" fill="none" />
                 <circle cx="-7" cy="-12" r="5.5" fill="#38bdf8" fillOpacity="0.35" stroke="#0284c7" strokeWidth="2" />
                 <circle cx="7" cy="-12" r="5.5" fill="#38bdf8" fillOpacity="0.35" stroke="#0284c7" strokeWidth="2" />
 
-                <circle cx={-6 + look.ox * 0.8} cy={1 + look.oy * 0.8} r="3.4" fill={ui.strokeMain} />
-                <circle cx={6 + look.ox * 0.8} cy={1 + look.oy * 0.8} r="3.4" fill={ui.strokeMain} />
-                <circle cx={-7 + look.ox * 0.8} cy={-0.5 + look.oy * 0.8} r="1.2" fill="#ffffff" />
-                <circle cx={5 + look.ox * 0.8} cy={-0.5 + look.oy * 0.8} r="1.2" fill="#ffffff" />
+                <circle cx={-6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={1 + clamp(look.oy * 0.65, -3, 3)} r="3.4" fill={ui.strokeMain} />
+                <circle cx={6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={1 + clamp(look.oy * 0.65, -3, 3)} r="3.4" fill={ui.strokeMain} />
+                <circle cx={-7 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-0.5 + clamp(look.oy * 0.65, -3, 3)} r="1.2" fill="#ffffff" />
+                <circle cx={5 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-0.5 + clamp(look.oy * 0.65, -3, 3)} r="1.2" fill="#ffffff" />
 
                 <path
                   d={`M ${-5 + look.ox * 0.4} 9 Q 0 15 ${6 + look.ox * 0.4} 9`}
@@ -820,8 +827,9 @@ export function DeepResearchCharacters({
           4. FUTURISTA (x: 390, y: 190) — 3º do Trio Colado
       ============================================================ */}
       {(() => {
-        const look = getLookVector(390, 146, 6, 3.5);
+        const look = getLookVector(390, 146, 11, 7.5);
         const bob = Math.sin(time * 2.7 + 2) * 2;
+        const futHeadTilt = clamp(look.ox * 2.2, -20, 20);
 
         return (
           <g
@@ -854,7 +862,7 @@ export function DeepResearchCharacters({
                 <circle cx="0" cy="0" r="1.8" fill="#38bdf8" />
               </g>
 
-              <g transform={`translate(${2 + look.ox * 0.55}, -40)`}>
+              <g transform={`translate(${2 + look.ox * 0.75}, ${-40 + look.oy * 0.25}) rotate(${futHeadTilt})`}>
                 <circle cx="0" cy="0" r="20" fill={ui.headFill} stroke={ui.strokeMain} strokeWidth="3" />
 
                 <line x1="-18" y1="-6" x2="-22" y2="-18" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" />
@@ -871,16 +879,16 @@ export function DeepResearchCharacters({
                   strokeWidth="2"
                 />
                 <circle
-                  cx={clamp(look.ox * 1.6, -9, 9)}
-                  cy={clamp(-2 + look.oy * 0.4, -4, 0)}
+                  cx={clamp(look.ox * 1.4, -9.5, 9.5)}
+                  cy={clamp(-2 + look.oy * 0.5, -4.5, 0.5)}
                   r="2.8"
                   fill="#38bdf8"
                   filter="url(#softGlow)"
                 />
                 <line
-                  x1={clamp(look.ox * 1.6 - 5, -12, 4)}
+                  x1={clamp(look.ox * 1.4 - 5, -12, 4)}
                   y1="-2"
-                  x2={clamp(look.ox * 1.6 + 5, -4, 12)}
+                  x2={clamp(look.ox * 1.4 + 5, -4, 12)}
                   y2="-2"
                   stroke="#38bdf8"
                   strokeWidth="1.2"
@@ -910,9 +918,10 @@ export function DeepResearchCharacters({
           - Círculo de 15cm 3x menor (r = 44px).
       ============================================================ */}
       {(() => {
-        const rawLook = getLookVector(472, 148, 6, 4);
-        const eyeX = ceticoCares ? rawLook.ox : 5.5;
-        const eyeY = ceticoCares ? rawLook.oy : 2.5;
+        const rawLook = getLookVector(472, 148, 11, 7.5);
+        const eyeX = rawLook.ox;
+        const eyeY = rawLook.oy;
+        const ceticoHeadTilt = clamp(rawLook.ox * 2.0, -18, 18);
         const bookDropY = ceticoCares ? 8 : 0;
         const bob = Math.sin(time * 1.8) * 1.5;
         const isHovered = hoveredPersona === 'cetico';
@@ -971,7 +980,7 @@ export function DeepResearchCharacters({
               />
 
               {/* CABEÇA DE CÍRCULO (Velhote Careca no topo + Cabelo dos 2 lados + 35° p/ Direita) */}
-              <g transform="translate(8, -42)">
+              <g transform={`translate(${8 + rawLook.ox * 0.7}, ${-42 + rawLook.oy * 0.25}) rotate(${ceticoHeadTilt})`}>
                 <circle
                   cx="0"
                   cy="0"
@@ -1012,8 +1021,8 @@ export function DeepResearchCharacters({
 
                 {/* Olhos Desconfiados */}
                 <g transform="translate(4, -1)">
-                  <circle cx={-5 + eyeX * 0.65} cy={eyeY * 0.65} r="2.3" fill={ui.strokeMain} />
-                  <circle cx={6 + eyeX * 0.65} cy={eyeY * 0.65} r="2.3" fill={ui.strokeMain} />
+                  <circle cx={-5 + clamp(eyeX * 0.65, -4.5, 4.5)} cy={clamp(eyeY * 0.65, -3, 3)} r="2.3" fill={ui.strokeMain} />
+                  <circle cx={6 + clamp(eyeX * 0.65, -4.5, 4.5)} cy={clamp(eyeY * 0.65, -3, 3)} r="2.3" fill={ui.strokeMain} />
 
                   <path
                     d={
@@ -1133,9 +1142,10 @@ export function DeepResearchCharacters({
           6. AUDITOR (x: 765, y: 196) — Quase uma bolinha!
       ============================================================ */}
       {(() => {
-        const look = getLookVector(765, 160, 5, 3.5);
-        const glareX = clamp(look.ox - 3.5, -7, 2);
-        const glareY = look.oy * 0.6;
+        const look = getLookVector(765, 160, 11, 7.5);
+        const glareX = look.ox;
+        const glareY = look.oy * 0.7;
+        const auditorHeadTilt = clamp(look.ox * 1.8, -16, 16);
         const angryBounce = isAuditorBlowingWhistle
           ? Math.abs(Math.sin(time * 14)) * -6
           : Math.sin(time * 2.6) * 2;
@@ -1164,7 +1174,7 @@ export function DeepResearchCharacters({
               strokeLinecap="round"
             />
 
-            <g transform={`translate(0, ${angryBounce})`}>
+            <g transform={`translate(0, ${angryBounce}) rotate(${auditorHeadTilt})`}>
               <circle
                 cx="0"
                 cy="-12"
@@ -1220,8 +1230,8 @@ export function DeepResearchCharacters({
                   strokeLinecap="round"
                 />
 
-                <circle cx={-10 + glareX * 0.5} cy={1 + glareY} r="2.8" fill={ui.strokeMain} />
-                <circle cx={3 + glareX * 0.5} cy={1 + glareY} r="2.8" fill={ui.strokeMain} />
+                <circle cx={-10 + clamp(glareX * 0.55, -4.5, 4.5)} cy={1 + clamp(glareY, -3, 3)} r="2.8" fill={ui.strokeMain} />
+                <circle cx={3 + clamp(glareX * 0.55, -4.5, 4.5)} cy={1 + clamp(glareY, -3, 3)} r="2.8" fill={ui.strokeMain} />
 
                 {isAuditorBlowingWhistle ? (
                   <g>
@@ -1365,8 +1375,9 @@ export function DeepResearchCharacters({
           7. REDATOR (x: 895, y: 186) — Nas costas do Auditor
       ============================================================ */}
       {(() => {
-        const look = getLookVector(895, 142, 5.5, 4);
+        const look = getLookVector(895, 142, 11, 7.5);
         const bob = Math.sin(time * 2.3 + 0.7) * 2.2;
+        const redatorHeadTilt = clamp(look.ox * 2.0, -18, 18);
         const isHovered = hoveredPersona === 'redator';
         const waveAngle =
           redatorWaveActive || isHovered || phase === 'synthesis'
@@ -1438,7 +1449,7 @@ export function DeepResearchCharacters({
               </g>
               <line x1="6" y1="6" x2="22" y2="-6" stroke="#34d399" strokeWidth="3" strokeLinecap="round" />
 
-              <g transform={`translate(${-5 + look.ox * 0.6}, -42)`}>
+              <g transform={`translate(${-5 + look.ox * 0.75}, ${-42 + look.oy * 0.25}) rotate(${redatorHeadTilt})`}>
                 <circle
                   cx="0"
                   cy="0"
@@ -1464,10 +1475,10 @@ export function DeepResearchCharacters({
                   strokeLinecap="round"
                 />
 
-                <circle cx={-6 + look.ox * 0.9} cy={-2 + look.oy * 0.8} r="2.6" fill={ui.strokeMain} />
-                <circle cx={6 + look.ox * 0.9} cy={-2 + look.oy * 0.8} r="2.6" fill={ui.strokeMain} />
-                <circle cx={-7 + look.ox * 0.9} cy={-3 + look.oy * 0.8} r="1" fill="#ffffff" />
-                <circle cx={5 + look.ox * 0.9} cy={-3 + look.oy * 0.8} r="1" fill="#ffffff" />
+                <circle cx={-6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-2 + clamp(look.oy * 0.65, -3, 3)} r="2.6" fill={ui.strokeMain} />
+                <circle cx={6 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-2 + clamp(look.oy * 0.65, -3, 3)} r="2.6" fill={ui.strokeMain} />
+                <circle cx={-7 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-3 + clamp(look.oy * 0.65, -3, 3)} r="1" fill="#ffffff" />
+                <circle cx={5 + clamp(look.ox * 0.65, -4.5, 4.5)} cy={-3 + clamp(look.oy * 0.65, -3, 3)} r="1" fill="#ffffff" />
 
                 <circle cx="-12" cy="4" r="3" fill="#34d399" opacity="0.28" />
                 <circle cx="12" cy="4" r="3" fill="#34d399" opacity="0.28" />

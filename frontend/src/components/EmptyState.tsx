@@ -52,7 +52,7 @@ export const EmptyState: React.FC<EmptyStateHeroProps> = ({ tema, rascunho }) =>
     <section className="empty-state" aria-label="Personas analíticas da investigação Deep Research">
       <div className="empty-state-hero">
         <DeepResearchCharacters
-          phase={escrevendo ? 'planning' : 'interactive'}
+          phase="interactive"
           isTyping={escrevendo}
           typingProgress={Math.min(1, rascunho.trim().length / 120)}
           theme={tema}
