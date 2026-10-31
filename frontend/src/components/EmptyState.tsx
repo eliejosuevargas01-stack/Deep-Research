@@ -73,20 +73,29 @@ export const EmptyState: React.FC<EmptyStateHeroProps> = ({ tema, rascunho }) =>
 };
 
 /**
- * Pílulas de temas recomendados em carrossel deslizável:
+ * Pílulas de temas recomendados em carrossel deslizável polido:
  * - Exibe exatamente 2 pílulas completas e a 3ª cortada pela metade com gradiente de transparência.
  * - Botão '>' avança suavemente para as próximas 2 recomendações deslizando as primeiras para o lado esquerdo transparente.
+ * - Micro-indicador de pares e botão '<' flutuante sem causar layout shift (CLS 0).
  */
 export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
 
   const updateScrollState = () => {
     const el = scrollRef.current;
     if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 10);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 10);
+    const scrollLeft = el.scrollLeft;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    setCanScrollLeft(scrollLeft > 8);
+    setCanScrollRight(scrollLeft < maxScroll - 8);
+
+    const firstPill = el.querySelector<HTMLElement>('.topic-pill');
+    const step = firstPill ? (firstPill.offsetWidth + 8) * 2 : 264;
+    const page = Math.min(3, Math.max(0, Math.round(scrollLeft / step)));
+    setCurrentPage(page);
   };
 
   useEffect(() => {
@@ -101,13 +110,22 @@ export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => {
     };
   }, []);
 
+  const scrollToPage = (pageIndex: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const firstPill = el.querySelector<HTMLElement>('.topic-pill');
+    const step = firstPill ? (firstPill.offsetWidth + 8) * 2 : 264;
+    el.scrollTo({ left: pageIndex * step, behavior: 'smooth' });
+  };
+
   const handleNext = () => {
     const el = scrollRef.current;
     if (!el) return;
     const firstPill = el.querySelector<HTMLElement>('.topic-pill');
-    const step = firstPill ? (firstPill.offsetWidth + 8) * 2 : 280;
+    const step = firstPill ? (firstPill.offsetWidth + 8) * 2 : 264;
+    const maxScroll = el.scrollWidth - el.clientWidth;
 
-    if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 15) {
+    if (el.scrollLeft >= maxScroll - 16) {
       el.scrollTo({ left: 0, behavior: 'smooth' });
     } else {
       el.scrollBy({ left: step, behavior: 'smooth' });
@@ -118,7 +136,7 @@ export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => {
     const el = scrollRef.current;
     if (!el) return;
     const firstPill = el.querySelector<HTMLElement>('.topic-pill');
-    const step = firstPill ? (firstPill.offsetWidth + 8) * 2 : 280;
+    const step = firstPill ? (firstPill.offsetWidth + 8) * 2 : 264;
     el.scrollBy({ left: -step, behavior: 'smooth' });
   };
 
@@ -128,23 +146,23 @@ export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => {
         canScrollRight ? 'has-right-fade' : ''
       }`}
     >
-      {canScrollLeft && (
-        <button
-          type="button"
-          className="topic-pill-nav-btn topic-pill-nav-prev"
-          onClick={handlePrev}
-          aria-label="Recomendações anteriores"
-          title="Ver recomendações anteriores"
-        >
-          <ChevronLeft size={16} aria-hidden="true" />
-        </button>
-      )}
+      <button
+        type="button"
+        className={`topic-pill-nav-btn topic-pill-nav-prev ${canScrollLeft ? 'is-visible' : 'is-hidden'}`}
+        onClick={handlePrev}
+        aria-label="Recomendações anteriores"
+        title="Ver recomendações anteriores"
+        tabIndex={canScrollLeft ? 0 : -1}
+      >
+        <ChevronLeft size={16} aria-hidden="true" />
+      </button>
 
       <div
         ref={scrollRef}
         className="topic-pills-track"
         role="region"
-        aria-label="Sugestões de temas investigativos"
+        aria-label="Sugestões de temas para investigação técnica"
+        tabIndex={0}
       >
         {SAMPLE_TOPICS.map((item, idx) => (
           <button
@@ -154,20 +172,36 @@ export const TopicPills: React.FC<EmptyStateProps> = ({ onSelect }) => {
             onClick={() => onSelect(item.title)}
             title={item.description}
           >
+            <span className="topic-pill-dot" aria-hidden="true" />
             <span className="topic-pill-text">{item.title}</span>
           </button>
         ))}
       </div>
 
-      <button
-        type="button"
-        className="topic-pill-nav-btn topic-pill-nav-next"
-        onClick={handleNext}
-        aria-label="Próximas recomendações"
-        title="Ver próximas recomendações"
-      >
-        <ChevronRight size={16} aria-hidden="true" />
-      </button>
+      <div className="topic-pills-nav-cluster">
+        <button
+          type="button"
+          className="topic-pill-nav-btn topic-pill-nav-next"
+          onClick={handleNext}
+          aria-label="Próximas recomendações de temas"
+          title="Ver próximas recomendações"
+        >
+          <ChevronRight size={16} aria-hidden="true" />
+        </button>
+
+        <div className="topic-pills-pagination" aria-hidden="true">
+          {[0, 1, 2, 3].map((page) => (
+            <button
+              key={page}
+              type="button"
+              className={`topic-pagination-dot ${currentPage === page ? 'active' : ''}`}
+              onClick={() => scrollToPage(page)}
+              aria-label={`Ir para sugestões página ${page + 1}`}
+              tabIndex={-1}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

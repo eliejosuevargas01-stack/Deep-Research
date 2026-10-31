@@ -741,6 +741,19 @@
   display: none;
 }
 
+.topic-pills-nav-cluster {
+  display: none;
+}
+
+.topic-pill-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--violet, #6D28D9);
+  opacity: 0.6;
+  flex: 0 0 5px;
+}
+
 .topic-pills {
   display: flex;
   flex-wrap: wrap;
