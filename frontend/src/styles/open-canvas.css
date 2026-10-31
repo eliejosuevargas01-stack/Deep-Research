@@ -272,7 +272,7 @@
 .audit-diagnostics-disclosure {
   background: transparent;
   border: 0;
-  border-left: 1px solid var(--color-warning-text);
+  border-left: 2px solid var(--color-warning-text);
   border-radius: 0;
   padding: 2px 0 2px 16px;
   margin: 4px 0 18px;
@@ -496,7 +496,7 @@
 .settings-container .alert-banner {
   border-radius: 0;
   border: 0;
-  border-left: 1px solid var(--violet);
+  border-left: 2px solid var(--violet);
   background: transparent;
   padding: 4px 0 4px 16px;
 }
@@ -528,7 +528,7 @@
 .settings-container .alert-banner.warning {
   background: transparent !important;
   border: 0 !important;
-  border-left: 1px solid var(--color-primary) !important;
+  border-left: 2px solid var(--color-primary) !important;
   border-radius: 0 !important;
   padding: 2px 0 2px 16px !important;
   color: var(--color-text-secondary);
@@ -923,5 +923,26 @@
   .execution-card .tl-linear {
     max-height: none;
     overflow: visible;
+  }
+}
+
+/* FIX P1-layout: empilha a coluna direita abaixo de 1280px nas views de execução,
+   evitando sobreposição com o conteúdo principal. */
+@media (max-width: 1280px) {
+  .workspace-main:has(.execution-card) .workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace-main:has(.execution-card) .workspace-grid > .sidebar-container.rr-rail {
+    position: static !important;
+    top: auto;
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin-top: 16px;
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
   }
 }

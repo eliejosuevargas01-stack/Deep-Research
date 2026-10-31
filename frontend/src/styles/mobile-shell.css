@@ -80,7 +80,7 @@
 
   .workspace-grid > .sidebar-container.rr-rail--collapsed {
     top: auto;
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(120px + env(safe-area-inset-bottom, 0px));
     right: 12px;
     width: auto;
     background: transparent;
@@ -204,6 +204,18 @@
   .workspace-grid > .sidebar-container.rr-rail .rr-rail__collapse {
     width: 44px;
     min-width: 44px;
+  }
+}
+
+/* FIX P1-layout: folga inferior para a bottom nav (e botão flutuante) no mobile. */
+@media (max-width: 899px) {
+  .workspace-main,
+  .app-main {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .execution-card .tl-linear {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   }
 }
 
