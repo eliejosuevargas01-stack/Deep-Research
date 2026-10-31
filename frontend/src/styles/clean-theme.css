@@ -718,70 +718,171 @@
   margin-top: 10px;
 }
 
-/* Pílulas de tema: compactas e alinhadas ao centro. */
+/* Pílulas de tema: carrossel horizontal de 1 única linha com setinhas e transparência nas bordas */
 .topic-pills-wrapper {
   display: flex;
   align-items: center;
-  gap: 8px;
-  max-width: 760px;
-  margin: 10px auto 0;
-  padding: 0 16px;
   position: relative;
+  width: 100%;
+  max-width: 840px;
+  margin: 12px auto 0;
+  padding: 0 4px;
+  box-sizing: border-box;
 }
 
+/* Trilho horizontal contínuo de 1 única linha */
 .topic-pills-track {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-items: center;
   gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
   flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px 0;
 }
 
-.topic-pill-nav-btn {
+.topic-pills-track::-webkit-scrollbar {
   display: none;
 }
 
-.topic-pills-nav-cluster {
-  display: none;
+/* Gradiente de transparência ao desaparecer da tela (Fade masks) */
+.topic-pills-wrapper.has-right-fade .topic-pills-track {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 72px), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - 72px), transparent 100%);
+}
+
+.topic-pills-wrapper.has-left-fade.has-right-fade .topic-pills-track {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 48px, black calc(100% - 72px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 48px, black calc(100% - 72px), transparent 100%);
+}
+
+.topic-pills-wrapper.has-left-fade:not(.has-right-fade) .topic-pills-track {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 48px, black 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 48px, black 100%);
+}
+
+/* Pílula: 1 única linha de texto, altura compacta, cantos arredondados */
+.topic-pills-track .topic-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  min-height: 34px;
+  max-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
+  scroll-snap-align: start;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.topic-pills-track .topic-pill:hover,
+.topic-pills-track .topic-pill:focus-visible {
+  border-color: var(--violet, #6D28D9);
+  color: var(--color-text-primary);
+  background: var(--color-surface-hover, #F7F5F0);
+  box-shadow: 0 2px 8px rgba(109, 40, 217, 0.12);
+}
+
+.topic-pills-track .topic-pill:active {
+  transform: scale(0.97);
 }
 
 .topic-pill-dot {
   width: 5px;
   height: 5px;
+  min-width: 5px;
+  min-height: 5px;
   border-radius: 50%;
   background: var(--violet, #6D28D9);
-  opacity: 0.6;
+  opacity: 0.75;
   flex: 0 0 5px;
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.topic-pills {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  max-width: 760px;
-  margin: 10px auto 0;
-  padding: 0 16px;
+.topic-pill:hover .topic-pill-dot,
+.topic-pill:focus-visible .topic-pill-dot {
+  opacity: 1;
+  transform: scale(1.3);
 }
 
-.topic-pill {
-  appearance: none;
-  border: 1px solid color-mix(in srgb, var(--color-text-primary) 18%, transparent);
-  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
-  color: var(--color-text-secondary);
-  border-radius: 999px;
-  padding: 7px 14px;
+.topic-pill-text {
+  white-space: nowrap;
   font-size: 0.8125rem;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+  line-height: 32px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
 }
 
-.topic-pill:hover,
-.topic-pill:focus-visible {
-  color: var(--color-text-primary);
-  border-color: color-mix(in srgb, var(--color-accent, var(--violet)) 55%, transparent);
-  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+/* Setinhas de navegação: ZERO box-in-box, puro contraste */
+.topic-pill-nav-btn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 150ms ease, transform 150ms ease;
+  box-sizing: border-box;
+  padding: 0;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.topic-pill-nav-btn.topic-pill-nav-prev {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.topic-pill-nav-prev.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.topic-pill-nav-prev.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.topic-pill-nav-btn:hover {
+  color: var(--violet, #6D28D9);
+  transform: scale(1.15);
+}
+
+.topic-pill-nav-btn:active {
+  transform: scale(0.92);
 }
 
 @media (max-width: 640px) {
