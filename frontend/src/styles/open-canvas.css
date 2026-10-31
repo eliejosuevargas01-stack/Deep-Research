@@ -914,3 +914,14 @@
     box-shadow: none;
   }
 }
+
+/* FIX P1-2: garantir rolagem em telas baixas e permitir ver timeline */
+@media (max-height: 800px) {
+  .workspace-main {
+    overflow-y: auto;
+  }
+  .execution-card .tl-linear {
+    max-height: none;
+    overflow: visible;
+  }
+}

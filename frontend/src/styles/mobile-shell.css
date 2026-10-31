@@ -227,3 +227,12 @@
     background: var(--color-surface-hover);
   }
 }
+
+/* FIX P1-1b: dossiê não deve ter composer flutuante sobre texto */
+@media (min-width: 901px) {
+  .workspace-main:has(.report-card) .composer-anchor {
+    position: static !important;
+    margin-top: 32px;
+    padding-bottom: 40px;
+  }
+}

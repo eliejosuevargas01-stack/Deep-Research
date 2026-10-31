@@ -2361,3 +2361,18 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* FIX P1-2b: timeline acessível em viewports baixos */
+@media (max-height: 768px) {
+  .workspace-main {
+    overflow-y: auto;
+    padding-bottom: 120px;
+  }
+  .tl-linear {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .execution-card {
+    overflow: visible;
+  }
+}

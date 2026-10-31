@@ -227,3 +227,15 @@
 
   --focus-ring: 0 0 0 2px #0F0F0F, 0 0 0 4px var(--violet-2);
 }
+
+/* FIX: tokens faltantes */
+:root {
+  --color-bg: var(--color-canvas, #fbfcf9);
+  --danger: var(--color-danger-text, #9B2C2C);
+}
+
+:root[data-theme='dark'],
+[data-theme='dark'] {
+  --color-bg: var(--color-canvas, #0f0f0f);
+  --danger: var(--color-danger-text, #FCA5A5);
+}

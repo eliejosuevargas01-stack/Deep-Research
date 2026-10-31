@@ -295,3 +295,8 @@
     padding: 0 10px;
   }
 }
+
+/* FIX: remover side-tab accent border (AI-slop) */
+.error-notice {
+  border-left-width: 1px;
+}
