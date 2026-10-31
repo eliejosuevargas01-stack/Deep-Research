@@ -1234,3 +1234,15 @@
   font-weight: 600;
   color: var(--color-text-secondary);
 }
+
+/* FIX P1-1: composer não sobrepõe dossiê (report-card) */
+.workspace-main:has(.report-card) .workspace-grid {
+  padding-bottom: 260px;
+}
+
+.workspace-main:has(.report-card) .composer-anchor {
+  position: static;
+  margin-top: 32px;
+  padding-bottom: 48px;
+  z-index: auto;
+}
