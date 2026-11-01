@@ -38,6 +38,7 @@ const DELTAS = [
 
 export const SimulatedResearch: React.FC = () => {
   const [segundos, setSegundos] = useState(0);
+  const [isRailOpen, setIsRailOpen] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setSegundos((s) => s + 1), 1000);
@@ -125,6 +126,9 @@ export const SimulatedResearch: React.FC = () => {
           maxCycles={4}
           reasoningItems={reasoningItems}
           elapsedSeconds={segundos}
+          tokensAoVivo={tokensAoVivo}
+          sourcesCount={fontesSimuladas.length}
+          onToggleRail={() => setIsRailOpen((prev) => !prev)}
           onReset={() => setSegundos(0)}
           onRetry={() => setSegundos(0)}
           failedStage={null}
@@ -137,6 +141,8 @@ export const SimulatedResearch: React.FC = () => {
         maxCycles={4}
         collectedPoints={stage === 'searching' ? 1 : 2}
         auditSummary={auditoria}
+        isCollapsed={!isRailOpen}
+        onToggleCollapse={() => setIsRailOpen(false)}
         metadadosModelo={{
           model_used: 'deepseek-v4.1-flash',
           usage_total: { prompt_tokens: tokensAoVivo.prompt_tokens, completion_tokens: tokensAoVivo.completion_tokens, total_tokens: tokensAoVivo.total_tokens },

@@ -456,3 +456,100 @@
     max-width: 360px !important;
   }
 }
+
+/* ==========================================================================
+   Barra de Telemetria Ao Vivo (Tokens, Fontes e Acesso Rápido ao Painel)
+   ========================================================================== */
+
+.exec-telemetry-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 6px 10px;
+  background: var(--color-surface-subtle, rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.07));
+  border-radius: 10px;
+}
+
+.exec-telemetry-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  min-height: 30px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.2;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
+.exec-telemetry-icon {
+  flex-shrink: 0;
+}
+
+.exec-telemetry-arrow {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.exec-telemetry-chip--tokens {
+  color: var(--color-primary, #6366f1);
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+}
+
+button.exec-telemetry-chip {
+  cursor: pointer;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  transition: all 140ms ease;
+}
+
+button.exec-telemetry-chip:hover {
+  background: var(--color-surface-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--color-border-hover, rgba(0, 0, 0, 0.25));
+  color: var(--color-text-primary);
+}
+
+button.exec-telemetry-chip:active {
+  transform: scale(0.98);
+}
+
+.exec-telemetry-chip--fontes {
+  color: var(--color-accent, #0284c7) !important;
+  background: rgba(14, 165, 233, 0.08) !important;
+  border-color: rgba(14, 165, 233, 0.25) !important;
+}
+
+button.exec-telemetry-chip--fontes:hover {
+  background: rgba(14, 165, 233, 0.14) !important;
+  border-color: rgba(14, 165, 233, 0.4) !important;
+  color: #0369a1 !important;
+}
+
+.exec-telemetry-chip--toggle {
+  margin-left: auto;
+}
+
+/* Backdrop da gaveta de contexto no mobile */
+@media (max-width: 899px) {
+  .rr-rail-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 55;
+    animation: fadeIn 150ms ease-out;
+  }
+}
+
+@media (min-width: 900px) {
+  .rr-rail-backdrop {
+    display: none !important;
+  }
+}

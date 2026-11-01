@@ -302,11 +302,17 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   }
 
   return (
-    <aside
-      className="sidebar-container context-sidebar right-rail right-rail--sticky rr-rail"
-      aria-label="Contexto da pesquisa"
-      aria-expanded={true}
-    >
+    <>
+      <div
+        className="rr-rail-backdrop"
+        onClick={() => handleToggle(true)}
+        aria-hidden="true"
+      />
+      <aside
+        className="sidebar-container context-sidebar right-rail right-rail--sticky rr-rail"
+        aria-label="Contexto da pesquisa"
+        aria-expanded={true}
+      >
       <div className="rr-rail__panel" id={RAIL_PANEL_ID}>
         <header className="rr-rail__head">
           <h2 className="rr-rail__title" title={titulo}>
@@ -411,6 +417,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
         </div>
       </div>
     </aside>
+    </>
   );
 };
 

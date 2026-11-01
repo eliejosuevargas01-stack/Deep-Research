@@ -5,6 +5,10 @@ import {
   RefreshCw,
   Clock,
   ShieldCheck,
+  Sparkles,
+  BookOpen,
+  ChevronRight,
+  PanelRight,
 } from 'lucide-react';
 import { AuditResponse, PlanResponse, SearchResponse } from '../types/api';
 import { ReasoningFeedItem } from '../types/stream';
@@ -379,6 +383,12 @@ interface ExecutionViewProps {
   elapsedSeconds?: number | null;
   /** Timestamp de início da pesquisa (ms ou ISO string). */
   startedAt?: string | number | null;
+  /** Consumo de tokens ao vivo para exibição compacta no cabeçalho */
+  tokensAoVivo?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null;
+  /** Total de fontes catalogadas ou lidas */
+  sourcesCount?: number;
+  /** Callback para alternar a gaveta lateral de fontes e contexto */
+  onToggleRail?: () => void;
 }
 
 export const ExecutionView: React.FC<ExecutionViewProps> = ({
@@ -401,6 +411,9 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
   pontoEmReprocesso = null,
   elapsedSeconds = null,
   startedAt = null,
+  tokensAoVivo = null,
+  sourcesCount,
+  onToggleRail,
 }) => {
   // Cronômetro visível: tempo desde o início da execução. A região é
   // aria-live="off" para não narrar cada segundo no leitor de tela.
@@ -611,6 +624,54 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
           rotulo="Redação do dossiê"
         />
       </p>
+
+      {/* Barra de telemetria compacta: tokens e fontes ao vivo com gatilho para o painel lateral */}
+      {(Boolean(tokensAoVivo && tokensAoVivo.total_tokens > 0) || typeof sourcesCount === 'number' || Boolean(onToggleRail)) && (
+        <div className="exec-telemetry-bar" aria-label="Telemetria ao vivo da pesquisa">
+          {tokensAoVivo && tokensAoVivo.total_tokens > 0 && (
+            <div
+              className="exec-telemetry-chip exec-telemetry-chip--tokens"
+              title={`Tokens: ${tokensAoVivo.total_tokens.toLocaleString('pt-BR')} (Entrada: ${tokensAoVivo.prompt_tokens.toLocaleString('pt-BR')} · Saída: ${tokensAoVivo.completion_tokens.toLocaleString('pt-BR')})`}
+            >
+              <Sparkles size={12} className="exec-telemetry-icon" aria-hidden="true" />
+              <span className="exec-telemetry-val">
+                {tokensAoVivo.total_tokens >= 1000
+                  ? `${(tokensAoVivo.total_tokens / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil`
+                  : tokensAoVivo.total_tokens}{' '}
+                tokens
+              </span>
+            </div>
+          )}
+
+          {typeof sourcesCount === 'number' && (
+            <button
+              type="button"
+              className="exec-telemetry-chip exec-telemetry-chip--fontes"
+              onClick={onToggleRail}
+              aria-label={`Ver ${sourcesCount} fontes catalogadas`}
+              title="Abrir painel lateral de fontes"
+            >
+              <BookOpen size={12} className="exec-telemetry-icon" aria-hidden="true" />
+              <span className="exec-telemetry-val">
+                {sourcesCount === 1 ? '1 fonte' : `${sourcesCount} fontes`}
+              </span>
+              <ChevronRight size={12} className="exec-telemetry-arrow" aria-hidden="true" />
+            </button>
+          )}
+
+          {onToggleRail && (
+            <button
+              type="button"
+              className="exec-telemetry-chip exec-telemetry-chip--toggle"
+              onClick={onToggleRail}
+              aria-label="Alternar painel lateral com contexto e fontes completas"
+            >
+              <PanelRight size={12} className="exec-telemetry-icon" aria-hidden="true" />
+              <span>Painel</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Queda do canal ao vivo: o servidor continua trabalhando */}
       {streamError && stage !== 'failed' && (

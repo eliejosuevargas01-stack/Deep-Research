@@ -1548,10 +1548,14 @@ export const App: React.FC = () => {
         isBootstrapping={isBootstrapping}
         theme={tema}
         onToggleTheme={() => setTema((atual) => (atual === 'dark' ? 'light' : 'dark'))}
-        hasActiveContext={Boolean(currentPlan)}
+        hasActiveContext={Boolean(currentPlan) || currentRoute === 'research-sim' || currentRoute.startsWith('execution-')}
         isRailOpen={isRailOpen}
         onToggleRail={() => setIsRailOpen((prev) => !prev)}
-        sourcesCount={searchResult?.resumo_coletas?.length ?? 0}
+        sourcesCount={
+          currentRoute === 'research-sim' || currentRoute.startsWith('execution-')
+            ? 4
+            : searchResult?.resumo_coletas?.length ?? 0
+        }
       />
 
       {/* Falha ao abrir a sessão: diz o que aconteceu, o que sobrou e o próximo passo */}
@@ -1702,6 +1706,9 @@ export const App: React.FC = () => {
                       onRefazerBuscaPonto={currentPlan ? handleRefazerBuscaPonto : undefined}
                       onReauditarPonto={currentPlan ? handleReauditarPonto : undefined}
                       pontoEmReprocesso={pontoEmReprocesso}
+                      tokensAoVivo={tokensAoVivo ?? tokensEfetivos}
+                      sourcesCount={searchResult?.resumo_coletas?.length ?? 0}
+                      onToggleRail={() => setIsRailOpen((prev) => !prev)}
                     />
                   )}
 
