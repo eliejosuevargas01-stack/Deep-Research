@@ -31,6 +31,7 @@ import { apresentarErro } from './utils/erros';
 import { rotuloStatus } from './utils/texto';
 import {
   AuditResponse,
+  FontesResumo,
   PipelineStatusResumo,
   PlanResponse,
   RecenciaPolitica,
@@ -38,6 +39,7 @@ import {
   SearchResponse,
   WriterResponse,
 } from './types/api';
+import { converterFontesResumoParaExplorer } from './components/SourcesExplorer';
 import { usePipelineStream, formatPersonaTitle } from './hooks/usePipelineStream';
 import { RefreshCw, RotateCcw } from 'lucide-react';
 
@@ -46,12 +48,16 @@ const DRAFT_PLAN_KEY = 'deepResearch.draftPlan';
 const THEME_KEY = 'deepResearch.theme';
 const STAGE_POR_STATUS: Record<string, PipelineStage> = {
   buscando: 'searching',
+  em_andamento: 'searching',
   // 'coletado' é o estado gravado quando a varredura termina e a auditoria ainda não começou;
   // sem ele, recarregar a página nesse intervalo caía no workspace vazio.
   coletado: 'auditing',
   auditando: 'auditing',
   redigindo: 'writing',
   bloqueado: 'rejected',
+  reprovado: 'rejected',
+  incompleto: 'failed',
+  falha: 'failed',
 };
 
 export const App: React.FC = () => {
@@ -149,6 +155,7 @@ export const App: React.FC = () => {
   const [auditResult, setAuditResult] = useState<AuditResponse | null>(null);
   const [auditCycleNumber, setAuditCycleNumber] = useState<number | null>(null);
   const [writerResult, setWriterResult] = useState<WriterResponse | null>(null);
+  const [fontesPersistidas, setFontesPersistidas] = useState<FontesResumo | null>(null);
   const [cycleNumber, setCycleNumber] = useState(1);
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [failedStage, setFailedStage] = useState<'searching' | 'auditing' | 'writing' | null>(null);
@@ -668,11 +675,47 @@ export const App: React.FC = () => {
         setActiveResearchId(idAtivo);
         const estagio = status.status_pipeline ? STAGE_POR_STATUS[status.status_pipeline] : undefined;
         if (estagio) {
-          setCurrentPlan(registro.planResponse);
+          const planComDatas = {
+            ...registro.planResponse,
+            criado_em: status.criado_em || registro.planResponse.criado_em,
+            concluido_em: status.concluido_em || registro.planResponse.concluido_em,
+          };
+          setCurrentPlan(planComDatas);
           setPipelineStage(estagio);
           // Reata o canal ao vivo e a telemetria de tokens da pesquisa retomada.
           activeResearchIdRef.current = idAtivo;
           setActiveResearchId(idAtivo);
+
+          // Restaura tokens salvos no banco de dados para evitar reset na tela
+          const totalTokens = Number(status.tokens_total ?? 0);
+          if (totalTokens > 0) {
+            setTokensAoVivo({
+              prompt_tokens: Number(status.tokens_prompt ?? 0),
+              completion_tokens: Number(status.tokens_completion ?? 0),
+              total_tokens: totalTokens,
+            });
+          } else if (registro.tokens && registro.tokens.total_tokens > 0) {
+            setTokensAoVivo(registro.tokens);
+          }
+
+          // Restaura fontes persistidas para evitar contagem zero e lista vazia
+          if (registro.fontes && ((registro.fontes.consultadas?.length ?? 0) > 0 || (registro.fontes.total_consultadas ?? 0) > 0)) {
+            setFontesPersistidas(registro.fontes);
+          }
+          api.getSources(idAtivo).then((f) => {
+            if (f && ((f.consultadas && f.consultadas.length > 0) || (f.total_consultadas && f.total_consultadas > 0))) {
+              setFontesPersistidas(f);
+              historyService.save({
+                ...registro,
+                tokens: totalTokens > 0 ? {
+                  prompt_tokens: Number(status.tokens_prompt ?? 0),
+                  completion_tokens: Number(status.tokens_completion ?? 0),
+                  total_tokens: totalTokens,
+                } : registro.tokens,
+                fontes: f,
+              });
+            }
+          }).catch(() => {});
         } else if (status.status_pipeline === 'concluido' && registro.writerResponse) {
           setCurrentPlan(registro.planResponse);
           setPipelineStage('completed');
@@ -1331,6 +1374,19 @@ export const App: React.FC = () => {
             total_tokens: total,
           });
         }
+        if (s.criado_em) {
+          setCurrentPlan((prev) => {
+            if (prev && (!prev.criado_em || prev.criado_em !== s.criado_em)) {
+              return { ...prev, criado_em: s.criado_em };
+            }
+            return prev;
+          });
+        }
+        api.getSources(activeResearchId).then((f) => {
+          if (f && ((f.consultadas && f.consultadas.length > 0) || (f.total_consultadas && f.total_consultadas > 0))) {
+            setFontesPersistidas(f);
+          }
+        }).catch(() => {});
       } catch {
         /* status é acessório: falhar aqui não muda a tela */
       }
@@ -1716,8 +1772,14 @@ export const App: React.FC = () => {
                       onRefazerBuscaPonto={currentPlan ? handleRefazerBuscaPonto : undefined}
                       onReauditarPonto={currentPlan ? handleReauditarPonto : undefined}
                       pontoEmReprocesso={pontoEmReprocesso}
+                      startedAt={currentPlan?.criado_em}
                       tokensAoVivo={tokensAoVivo ?? tokensEfetivos}
-                      sourcesCount={searchResult?.resumo_coletas?.length ?? 0}
+                      sourcesCount={
+                        searchResult?.resumo_coletas?.length ||
+                        fontesPersistidas?.total_consultadas ||
+                        fontesPersistidas?.consultadas?.length ||
+                        0
+                      }
                       isRailOpen={isRailOpen}
                       onToggleRail={handleToggleRail}
                     />
@@ -1765,6 +1827,7 @@ export const App: React.FC = () => {
                     }
                     metadadosModelo={currentPlan.metadados_modelo ?? null}
                     tokensAoVivo={tokensAoVivo ?? tokensEfetivos}
+                    fontes={fontesPersistidas ? converterFontesResumoParaExplorer(fontesPersistidas) : null}
                     searchResult={searchResult}
                     fontesAtivas={pipelineStage === 'searching' || pipelineStage === 'auditing'}
                     reasoningItems={reasoningItems}

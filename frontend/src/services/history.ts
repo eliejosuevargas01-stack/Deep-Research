@@ -222,6 +222,34 @@ function sanitizeRecord(record: ResearchHistoryRecord): ResearchHistoryRecord | 
     };
   }
 
+  let sanitizedFontesResumo: FontesResumo | undefined = undefined;
+  if (record.fontes && typeof record.fontes === 'object') {
+    const rawF = (record.fontes as unknown) as Record<string, unknown>;
+    sanitizedFontesResumo = {
+      id_pesquisa: rawF.id_pesquisa ? String(rawF.id_pesquisa) : null,
+      status: (rawF.status as FontesStatus) || 'completo',
+      total_consultadas: sanitizeCount(rawF.total_consultadas),
+      total_utilizadas: sanitizeCount(rawF.total_utilizadas),
+      total_nao_utilizadas: sanitizeCount(rawF.total_nao_utilizadas),
+      consultadas: sanitizeFonteList(rawF.consultadas),
+      utilizadas: sanitizeFonteList(rawF.utilizadas),
+      nao_utilizadas: sanitizeFonteList(rawF.nao_utilizadas),
+      observacao: rawF.observacao ? String(rawF.observacao) : null,
+      artifact_hash: rawF.artifact_hash ? String(rawF.artifact_hash) : null,
+    };
+  }
+
+  let sanitizedTokens: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | undefined = undefined;
+  if (record.tokens && typeof record.tokens === 'object') {
+    const rawT = record.tokens as Record<string, unknown>;
+    const p = sanitizeCount(rawT.prompt_tokens) || 0;
+    const c = sanitizeCount(rawT.completion_tokens) || 0;
+    const t = sanitizeCount(rawT.total_tokens) || p + c;
+    if (t > 0) {
+      sanitizedTokens = { prompt_tokens: p, completion_tokens: c, total_tokens: t };
+    }
+  }
+
   return {
     id_pesquisa: record.id_pesquisa,
     tema: String(record.tema),
@@ -232,6 +260,8 @@ function sanitizeRecord(record: ResearchHistoryRecord): ResearchHistoryRecord | 
     planResponse: sanitizedPlan,
     writerResponse: sanitizedWriter,
     auditResponse: sanitizedAudit,
+    tokens: sanitizedTokens,
+    fontes: sanitizedFontesResumo,
   };
 }
 

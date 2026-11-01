@@ -185,6 +185,10 @@ async def stream_pipeline_progress(
                 "id_pesquisa": id_pesquisa,
                 "status_pipeline": status_pipe,
                 "timestamp": getattr(pesquisa, "atualizado_em", None) or getattr(pesquisa, "criado_em", None) or _format_iso_utc(),
+                "criado_em": pesquisa.criado_em,
+                "tokens_prompt": int(getattr(pesquisa, "tokens_prompt", 0) or 0),
+                "tokens_completion": int(getattr(pesquisa, "tokens_completion", 0) or 0),
+                "tokens_total": int(getattr(pesquisa, "tokens_total", 0) or 0),
             })
 
             # Pontos e suas auditorias

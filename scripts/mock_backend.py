@@ -57,8 +57,10 @@ class MockHandler(BaseHTTPRequestHandler):
             tokens_total = 12500 + (elapsed % 300) * 850
             prompt = max(1000, tokens_total - 6200)
             completion = tokens_total - prompt
+            created_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(START_TIME))
             self.wfile.write(json.dumps({
                 "status_pipeline": "buscando",
+                "criado_em": created_iso,
                 "tokens_prompt": prompt,
                 "tokens_completion": completion,
                 "tokens_total": tokens_total

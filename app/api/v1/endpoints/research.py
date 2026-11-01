@@ -162,5 +162,8 @@ async def get_research_detail(
         "metadados_redacao": metadados_redacao,
         "fontes": fontes,
         "auditoria": auditoria,
+        "tokens_prompt": int(getattr(pesquisa, "tokens_prompt", 0) or 0),
+        "tokens_completion": int(getattr(pesquisa, "tokens_completion", 0) or 0),
+        "tokens_total": int(getattr(pesquisa, "tokens_total", 0) or 0),
     }
     return result

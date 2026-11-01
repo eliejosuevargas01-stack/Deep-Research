@@ -345,4 +345,12 @@ export interface ResearchHistoryRecord {
   writerResponse?: WriterResponse;
   /** Auditoria persistida: reabrir uma pesquisa reprovada mostra os critérios que falharam. */
   auditResponse?: AuditResponse;
+  /** Telemetria persistida: garante que recarregar a tela não zere a contagem de tokens */
+  tokens?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  } | null;
+  /** Fontes catalogadas persistidas: garante que recarregar a tela não zere as fontes coletadas */
+  fontes?: FontesResumo | null;
 }

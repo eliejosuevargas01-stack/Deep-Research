@@ -1,5 +1,6 @@
 import React from 'react';
 import { Favicon } from './Favicon';
+import { FontesResumo } from '../types/api';
 
 export type FonteExplorerStatus = 'lendo' | 'processado' | 'invalidado';
 
@@ -217,4 +218,52 @@ export function derivarFontesParaExplorer(
   }
 
   return itens;
+}
+
+/**
+ * Converte um FontesResumo retornado pelo backend em itens para o SourcesExplorer,
+ * garantindo que recarregar a página preserve a listagem completa de fontes.
+ */
+export function converterFontesResumoParaExplorer(resumo?: FontesResumo | null): FonteExplorerItem[] {
+  if (!resumo) return [];
+  const items: FonteExplorerItem[] = [];
+  const vistos = new Set<string>();
+
+  const processList = (lista: unknown[] | undefined, status: FonteExplorerStatus) => {
+    if (!Array.isArray(lista)) return;
+    for (const item of lista) {
+      const rawUrl =
+        typeof item === 'string'
+          ? item
+          : item && typeof item === 'object' && 'url' in item
+          ? String((item as { url: unknown }).url)
+          : '';
+      const url = rawUrl.trim();
+      if (!url || !/^https?:\/\//i.test(url)) continue;
+      const normalizada = url.replace(/^http:\/\//i, 'https://');
+      if (vistos.has(normalizada)) continue;
+      vistos.add(normalizada);
+      let dominio: string | null = null;
+      try {
+        dominio = new URL(normalizada).hostname.replace(/^www\./, '');
+      } catch {
+        dominio = null;
+      }
+      const rawTitulo = item && typeof item === 'object' && 'titulo' in item ? (item as { titulo: unknown }).titulo : null;
+      const titulo = typeof rawTitulo === 'string' ? rawTitulo : null;
+      items.push({
+        url: normalizada,
+        titulo,
+        dominio,
+        status,
+        ponto_n: null,
+      });
+    }
+  };
+
+  processList(resumo.utilizadas, 'processado');
+  processList(resumo.consultadas, 'processado');
+  processList(resumo.nao_utilizadas, 'invalidado');
+
+  return items;
 }
