@@ -711,21 +711,39 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação Limpo & Elegante (Zero Box-in-Box, perfeitamente centralizado) */}
-            <g transform="translate(0, 62)" className="pointer-events-none select-none">
-              <circle
-                cx="0"
-                cy="-7.5"
-                r={isHovered ? 2.4 : 1.8}
-                fill="#a855f7"
-                opacity={isHovered ? 1 : 0.65}
+            {/* Pílula Redesenhada Elegante & Centralizada */}
+            <g
+              className="persona-pill select-none"
+              transform="translate(0, 56)"
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x="-34"
+                y="-10"
+                width="68"
+                height="20"
+                rx="8"
+                ry="8"
+                fill={
+                  isDark
+                    ? isHovered
+                      ? 'var(--color-surface, #18181b)'
+                      : 'rgba(24, 24, 27, 0.75)'
+                    : isHovered
+                    ? 'var(--color-surface, #ffffff)'
+                    : 'rgba(255, 255, 255, 0.75)'
+                }
+                stroke="#a855f7"
+                strokeWidth="1"
+                strokeOpacity={isHovered ? 0.9 : 0.4}
               />
               <text
                 x="0"
-                y="5"
+                y="0"
                 textAnchor="middle"
+                dominantBaseline="central"
                 fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
-                fontSize="9.5"
+                fontSize="8.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
                 letterSpacing="0.02em"
@@ -812,21 +830,39 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação Limpo & Elegante */}
-            <g transform="translate(0, 56)" className="pointer-events-none select-none">
-              <circle
-                cx="0"
-                cy="-7.5"
-                r={isHovered ? 2.4 : 1.8}
-                fill="#d97706"
-                opacity={isHovered ? 1 : 0.65}
+            {/* Pílula Redesenhada Elegante & Centralizada */}
+            <g
+              className="persona-pill select-none"
+              transform="translate(0, 56)"
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x="-34"
+                y="-10"
+                width="68"
+                height="20"
+                rx="8"
+                ry="8"
+                fill={
+                  isDark
+                    ? isHovered
+                      ? 'var(--color-surface, #18181b)'
+                      : 'rgba(24, 24, 27, 0.75)'
+                    : isHovered
+                    ? 'var(--color-surface, #ffffff)'
+                    : 'rgba(255, 255, 255, 0.75)'
+                }
+                stroke="#d97706"
+                strokeWidth="1"
+                strokeOpacity={isHovered ? 0.9 : 0.4}
               />
               <text
                 x="0"
-                y="5"
+                y="0"
                 textAnchor="middle"
+                dominantBaseline="central"
                 fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
-                fontSize="9.5"
+                fontSize="8.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
                 letterSpacing="0.02em"
@@ -909,21 +945,39 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação Limpo & Elegante */}
-            <g transform="translate(0, 70)" className="pointer-events-none select-none">
-              <circle
-                cx="0"
-                cy="-7.5"
-                r={isHovered ? 2.4 : 1.8}
-                fill="#0284c7"
-                opacity={isHovered ? 1 : 0.65}
+            {/* Pílula Redesenhada Elegante & Centralizada */}
+            <g
+              className="persona-pill select-none"
+              transform="translate(0, 56)"
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x="-33"
+                y="-10"
+                width="66"
+                height="20"
+                rx="8"
+                ry="8"
+                fill={
+                  isDark
+                    ? isHovered
+                      ? 'var(--color-surface, #18181b)'
+                      : 'rgba(24, 24, 27, 0.75)'
+                    : isHovered
+                    ? 'var(--color-surface, #ffffff)'
+                    : 'rgba(255, 255, 255, 0.75)'
+                }
+                stroke="#8b5cf6"
+                strokeWidth="1"
+                strokeOpacity={isHovered ? 0.9 : 0.4}
               />
               <text
                 x="0"
-                y="5"
+                y="0"
                 textAnchor="middle"
+                dominantBaseline="central"
                 fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
-                fontSize="9.5"
+                fontSize="8.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
                 letterSpacing="0.02em"
@@ -1016,24 +1070,42 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação Limpo & Elegante */}
-            <g transform="translate(0, 58)" className="pointer-events-none select-none">
-              <circle
-                cx="0"
-                cy="-7.5"
-                r={isHovered ? 2.4 : 1.8}
-                fill="#818cf8"
-                opacity={isHovered ? 1 : 0.65}
+            {/* Pílula Redesenhada Elegante & Centralizada */}
+            <g
+              className="persona-pill select-none"
+              transform="translate(0, 56)"
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x="-30"
+                y="-10"
+                width="60"
+                height="20"
+                rx="8"
+                ry="8"
+                fill={
+                  isDark
+                    ? isHovered
+                      ? 'var(--color-surface, #18181b)'
+                      : 'rgba(24, 24, 27, 0.75)'
+                    : isHovered
+                    ? 'var(--color-surface, #ffffff)'
+                    : 'rgba(255, 255, 255, 0.75)'
+                }
+                stroke="#06b6d4"
+                strokeWidth="1"
+                strokeOpacity={isHovered ? 0.9 : 0.4}
               />
               <text
                 x="0"
-                y="5"
+                y="0"
                 textAnchor="middle"
-                fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
-                fontSize="9.5"
+                dominantBaseline="central"
+                fontSize="8.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
                 letterSpacing="0.02em"
+                fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
               >
                 Futurista
               </text>
@@ -1256,21 +1328,39 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação Limpo & Elegante (ancorado sob o centro de massa cabeça+livro) */}
-            <g transform="translate(20, 56)" className="pointer-events-none select-none">
-              <circle
-                cx="0"
-                cy="-7.5"
-                r={ceticoCares || isHovered ? 2.4 : 1.8}
-                fill="#f43f5e"
-                opacity={ceticoCares || isHovered ? 1 : 0.65}
+            {/* Pílula Redesenhada Elegante & Centralizada (ancorado sob o centro de massa cabeça+livro) */}
+            <g
+              className="persona-pill select-none"
+              transform="translate(20, 56)"
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x="-27"
+                y="-10"
+                width="54"
+                height="20"
+                rx="8"
+                ry="8"
+                fill={
+                  isDark
+                    ? ceticoCares || isHovered
+                      ? 'var(--color-surface, #18181b)'
+                      : 'rgba(24, 24, 27, 0.75)'
+                    : ceticoCares || isHovered
+                    ? 'var(--color-surface, #ffffff)'
+                    : 'rgba(255, 255, 255, 0.75)'
+                }
+                stroke="#64748b"
+                strokeWidth="1"
+                strokeOpacity={ceticoCares || isHovered ? 0.9 : 0.4}
               />
               <text
                 x="0"
-                y="5"
+                y="0"
                 textAnchor="middle"
+                dominantBaseline="central"
                 fill={ceticoCares || isHovered ? ui.strokeMain : ui.strokeSecondary}
-                fontSize="9.5"
+                fontSize="8.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
                 letterSpacing="0.02em"
@@ -1494,21 +1584,39 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação Limpo & Elegante */}
-            <g transform="translate(0, 52)" className="pointer-events-none select-none">
-              <circle
-                cx="0"
-                cy="-7.5"
-                r={isAuditorBlowingWhistle || isHovered ? 2.4 : 1.8}
-                fill="#fbbf24"
-                opacity={isAuditorBlowingWhistle || isHovered ? 1 : 0.65}
+            {/* Pílula Redesenhada Elegante & Centralizada */}
+            <g
+              className="persona-pill select-none"
+              transform="translate(0, 56)"
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x="-28"
+                y="-10"
+                width="56"
+                height="20"
+                rx="8"
+                ry="8"
+                fill={
+                  isDark
+                    ? isAuditorBlowingWhistle || isHovered
+                      ? 'var(--color-surface, #18181b)'
+                      : 'rgba(24, 24, 27, 0.75)'
+                    : isAuditorBlowingWhistle || isHovered
+                    ? 'var(--color-surface, #ffffff)'
+                    : 'rgba(255, 255, 255, 0.75)'
+                }
+                stroke="#ef4444"
+                strokeWidth="1"
+                strokeOpacity={isAuditorBlowingWhistle || isHovered ? 0.9 : 0.4}
               />
               <text
                 x="0"
-                y="5"
+                y="0"
                 textAnchor="middle"
+                dominantBaseline="central"
                 fill={isAuditorBlowingWhistle || isHovered ? ui.strokeMain : ui.strokeSecondary}
-                fontSize="9.5"
+                fontSize="8.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
                 letterSpacing="0.02em"
@@ -1718,21 +1826,39 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação Limpo & Elegante */}
-            <g transform="translate(0, 62)" className="pointer-events-none select-none">
-              <circle
-                cx="0"
-                cy="-7.5"
-                r={isHovered || phase === 'synthesis' ? 2.4 : 1.8}
-                fill="#34d399"
-                opacity={isHovered || phase === 'synthesis' ? 1 : 0.65}
+            {/* Pílula Redesenhada Elegante & Centralizada */}
+            <g
+              className="persona-pill select-none"
+              transform="translate(0, 56)"
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x="-28"
+                y="-10"
+                width="56"
+                height="20"
+                rx="8"
+                ry="8"
+                fill={
+                  isDark
+                    ? isHovered || phase === 'synthesis'
+                      ? 'var(--color-surface, #18181b)'
+                      : 'rgba(24, 24, 27, 0.75)'
+                    : isHovered || phase === 'synthesis'
+                    ? 'var(--color-surface, #ffffff)'
+                    : 'rgba(255, 255, 255, 0.75)'
+                }
+                stroke="#10b981"
+                strokeWidth="1"
+                strokeOpacity={isHovered || phase === 'synthesis' ? 0.9 : 0.4}
               />
               <text
                 x="0"
-                y="5"
+                y="0"
                 textAnchor="middle"
+                dominantBaseline="central"
                 fill={isHovered || phase === 'synthesis' ? ui.strokeMain : ui.strokeSecondary}
-                fontSize="9.5"
+                fontSize="8.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
                 letterSpacing="0.02em"
