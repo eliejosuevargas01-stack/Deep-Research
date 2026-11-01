@@ -424,7 +424,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
     if (elapsedSeconds != null) return null;
     if (startedAt != null) {
       const ts = typeof startedAt === 'number' ? startedAt : new Date(startedAt).getTime();
-      if (!Number.isNaN(ts) && ts > 0) return ts;
+      if (!Number.isNaN(ts) && ts > 0 && Math.abs(Date.now() - ts) < 24 * 3600 * 1000) return ts;
     }
     if (plan?.criado_em) {
       const ts = new Date(plan.criado_em).getTime();
@@ -440,7 +440,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
     if (emAndamento) {
       if (startedAt != null) {
         const ts = typeof startedAt === 'number' ? startedAt : new Date(startedAt).getTime();
-        if (!Number.isNaN(ts) && ts > 0) {
+        if (!Number.isNaN(ts) && ts > 0 && Math.abs(Date.now() - ts) < 24 * 3600 * 1000) {
           setInicioExecucao(ts);
           return;
         }

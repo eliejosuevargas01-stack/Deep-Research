@@ -39,7 +39,7 @@ import {
   SearchResponse,
   WriterResponse,
 } from './types/api';
-import { converterFontesResumoParaExplorer } from './components/SourcesExplorer';
+import { converterFontesResumoParaExplorer, derivarFontesParaExplorer } from './components/SourcesExplorer';
 import { usePipelineStream, formatPersonaTitle } from './hooks/usePipelineStream';
 import { RefreshCw, RotateCcw } from 'lucide-react';
 
@@ -421,6 +421,21 @@ export const App: React.FC = () => {
     }
   }, [pipelineStage]);
 
+  // Telemetria ao vivo: tokens e timestamp real de execução (B-07, B-09)
+  const [tokensAoVivo, setTokensAoVivo] = useState<{
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  } | null>(null);
+  const [executionStartedAt, setExecutionStartedAt] = useState<string | null>(null);
+
+  const resetTelemetryAndSourcesState = useCallback(() => {
+    setFontesPersistidas(null);
+    setTokensAoVivo(null);
+    setExecutionStartedAt(null);
+    clearReasoningItems();
+  }, [clearReasoningItems]);
+
   // Bootstrap inicial da sessão integrada via GET /app/session
   const bootstrapSession = async (): Promise<boolean> => {
     setIsBootstrapping(true);
@@ -470,6 +485,7 @@ export const App: React.FC = () => {
     deepLinkCarregadoRef.current = id;
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+    resetTelemetryAndSourcesState();
     try {
       // A sessão (cookie) nasce em /app/session; sem esperar, o deep link toma 401.
       await bootstrapPromiseRef.current;
@@ -923,6 +939,7 @@ export const App: React.FC = () => {
       setExecutionError(null);
       setSearchResult(null);
       setAuditResult(null);
+      resetTelemetryAndSourcesState();
       setAuditCycleNumber(null);
       setWriterResult(null);
       setPipelineStage('idle');
@@ -1365,6 +1382,13 @@ export const App: React.FC = () => {
   // Início explícito da execução síncrona
   const handleStartExecution = async () => {
     if (!currentPlan || isExecutingRef.current || isPlanningRef.current) return;
+    const nowIso = new Date().toISOString();
+    setExecutionStartedAt(nowIso);
+    try {
+      sessionStorage.setItem(`exec_start_${currentPlan.id_pesquisa}`, nowIso);
+    } catch {
+      /* storage bloqueado */
+    }
     // Feedback imediato: o feed nunca abre vazio enquanto o backend não emite o primeiro delta.
     upsertReasoningItem({
       id: `planner-start-${currentPlan.id_pesquisa}`,
@@ -1510,11 +1534,62 @@ export const App: React.FC = () => {
 
   // Telemetria ao vivo: o SSE não carrega tokens, então consultamos o status
   // enquanto o pipeline roda. 3s basta para o número parecer contínuo.
-  const [tokensAoVivo, setTokensAoVivo] = useState<{
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  } | null>(null);
+  const effectiveStartedAt = useMemo(() => {
+    const raw =
+      executionStartedAt ||
+      (activeResearchId
+        ? (() => {
+            try {
+              return sessionStorage.getItem(`exec_start_${activeResearchId}`);
+            } catch {
+              return null;
+            }
+          })()
+        : null) ||
+      currentPlan?.criado_em;
+    if (!raw) return undefined;
+    const ts = new Date(raw).getTime();
+    if (isNaN(ts)) return undefined;
+    if (Math.abs(Date.now() - ts) > 24 * 3600 * 1000) return undefined;
+    return raw;
+  }, [executionStartedAt, activeResearchId, currentPlan?.criado_em]);
+
+  // Mescla de fontes derivadas ao vivo (com metadados ricos) e fontes persistidas pelo backend (B-03)
+  const itensFontesMerged = useMemo(() => {
+    const aoVivo = derivarFontesParaExplorer(searchResult, {
+      emColeta: pipelineStage === 'searching' || pipelineStage === 'auditing',
+      pontosReprovados: auditResult
+        ? new Set(
+            auditResult.auditorias
+              .filter((a) => a.status === 'reprovado')
+              .map((a) => a.ponto_id),
+          )
+        : null,
+      reasoningItems,
+    });
+    if (!fontesPersistidas) return aoVivo;
+    const persistidas = converterFontesResumoParaExplorer(fontesPersistidas);
+    const vistos = new Set(
+      aoVivo.map((f) => f.url.trim().replace(/\/+$/, '').toLowerCase()),
+    );
+    const combinadas = [...aoVivo];
+    for (const p of persistidas) {
+      const chave = p.url.trim().replace(/\/+$/, '').toLowerCase();
+      if (!vistos.has(chave)) {
+        vistos.add(chave);
+        combinadas.push(p);
+      }
+    }
+    return combinadas;
+  }, [searchResult, pipelineStage, auditResult, reasoningItems, fontesPersistidas]);
+
+  const effectiveSourcesCount = useMemo(() => {
+    return Math.max(
+      itensFontesMerged.length,
+      fontesPersistidas?.total_consultadas ?? 0,
+      fontesPersistidas?.consultadas?.length ?? 0,
+    );
+  }, [itensFontesMerged, fontesPersistidas]);
 
   const tokensEfetivos = useMemo(() => {
     if (tokensAoVivo && tokensAoVivo.total_tokens > 0) return tokensAoVivo;
@@ -1601,6 +1676,7 @@ export const App: React.FC = () => {
     }
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+    resetTelemetryAndSourcesState();
     activeResearchIdRef.current = record.id_pesquisa;
     setActiveResearchId(record.id_pesquisa);
     activeExecutionTokenRef.current = null;
@@ -1696,12 +1772,12 @@ export const App: React.FC = () => {
     }
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+    resetTelemetryAndSourcesState();
     activeResearchIdRef.current = null;
     setActiveResearchId(null);
     activeExecutionTokenRef.current = null;
     isExecutingRef.current = false;
     setIsRetrying(false);
-    clearReasoningItems();
     setCurrentPlan(null);
     try {
       localStorage.removeItem(ACTIVE_RESEARCH_KEY);
@@ -1796,7 +1872,7 @@ export const App: React.FC = () => {
         sourcesCount={
           currentRoute === 'research-sim' || currentRoute.startsWith('execution-')
             ? 4
-            : searchResult?.resumo_coletas?.length ?? 0
+            : effectiveSourcesCount
         }
       />
 
@@ -1948,14 +2024,9 @@ export const App: React.FC = () => {
                       onRefazerBuscaPonto={currentPlan ? handleRefazerBuscaPonto : undefined}
                       onReauditarPonto={currentPlan ? handleReauditarPonto : undefined}
                       pontoEmReprocesso={pontoEmReprocesso}
-                      startedAt={currentPlan?.criado_em}
+                      startedAt={effectiveStartedAt}
                       tokensAoVivo={tokensAoVivo ?? tokensEfetivos}
-                      sourcesCount={
-                        searchResult?.resumo_coletas?.length ||
-                        fontesPersistidas?.total_consultadas ||
-                        fontesPersistidas?.consultadas?.length ||
-                        0
-                      }
+                      sourcesCount={effectiveSourcesCount}
                       isRailOpen={isRailOpen}
                       onToggleRail={handleToggleRail}
                     />
@@ -2003,7 +2074,7 @@ export const App: React.FC = () => {
                     }
                     metadadosModelo={currentPlan.metadados_modelo ?? null}
                     tokensAoVivo={tokensAoVivo ?? tokensEfetivos}
-                    fontes={fontesPersistidas ? converterFontesResumoParaExplorer(fontesPersistidas) : null}
+                    fontes={itensFontesMerged}
                     searchResult={searchResult}
                     fontesAtivas={pipelineStage === 'searching' || pipelineStage === 'auditing'}
                     reasoningItems={reasoningItems}
