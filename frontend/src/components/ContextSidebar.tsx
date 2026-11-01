@@ -5,6 +5,8 @@ import { TokenUsageMeter } from './TokenUsageMeter';
 import { SourcesExplorer, derivarFontesParaExplorer, FonteExplorerItem } from './SourcesExplorer';
 import '../styles/right-rail.css';
 
+export type RailMode = 'contexto' | 'fontes';
+
 interface ContextSidebarProps {
   plan?: PlanResponse | null;
   pipelineStatus?: string | null;
@@ -31,9 +33,9 @@ interface ContextSidebarProps {
   }>;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  initialMode?: RailMode;
+  mode?: RailMode;
 }
-
-type RailMode = 'contexto' | 'fontes';
 
 const RAIL_MODE_KEY = 'deepResearch.railMode';
 const RAIL_PANEL_ID = 'rr-rail-panel';
@@ -137,6 +139,8 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   reasoningItems,
   isCollapsed,
   onToggleCollapse,
+  initialMode,
+  mode: modeProp,
 }) => {
   const [collapsedInternal, setCollapsedInternal] = useState(false);
   const collapsed = isCollapsed !== undefined ? isCollapsed : collapsedInternal;
@@ -155,6 +159,18 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
       setCollapsedInternal(true);
     }
   }, [isCollapsed]);
+
+  useEffect(() => {
+    if (collapsed) return;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const isMobile = window.matchMedia('(max-width: 899px)').matches;
+    if (!isMobile) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [collapsed]);
   const tabRefs = useRef<Record<RailMode, HTMLButtonElement | null>>({
     contexto: null,
     fontes: null,
@@ -170,12 +186,21 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
     });
   const temFontesColetadas = Array.isArray(itensFontes) && itensFontes.length > 0;
 
+  const effectiveInitial = initialMode ?? modeProp;
   const [mode, setMode] = useState<RailMode>(() => {
+    if (effectiveInitial) return effectiveInitial;
     const stored = readStoredMode();
     if (stored) return stored;
     return temFontesColetadas ? 'fontes' : 'contexto';
   });
   const userChangedModeRef = useRef(false);
+
+  useEffect(() => {
+    const targetMode = initialMode ?? modeProp;
+    if (targetMode) {
+      setMode(targetMode);
+    }
+  }, [initialMode, modeProp, collapsed]);
 
   useEffect(() => {
     if (userChangedModeRef.current) {
@@ -311,7 +336,6 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
       <aside
         className="sidebar-container context-sidebar right-rail right-rail--sticky rr-rail"
         aria-label="Contexto da pesquisa"
-        aria-expanded={true}
       >
       <div className="rr-rail__panel" id={RAIL_PANEL_ID}>
         <header className="rr-rail__head">
@@ -392,6 +416,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
                       aria-label={copiado ? 'ID copiado' : 'Copiar ID da pesquisa'}
                       title={copiado ? 'Copiado' : 'Copiar ID completo'}
                       onClick={copiarId}
+                      style={{ padding: '6px', minWidth: '28px', minHeight: '28px' }}
                     >
                       {copiado ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
                     </button>

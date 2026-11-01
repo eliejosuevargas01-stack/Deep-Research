@@ -158,6 +158,16 @@ export const App: React.FC = () => {
   const [isRailOpen, setIsRailOpen] = useState(() => {
     return typeof window !== 'undefined' ? window.innerWidth > 899 : true;
   });
+  const [railMode, setRailMode] = useState<'contexto' | 'fontes'>('contexto');
+
+  const handleToggleRail = (targetTab?: 'contexto' | 'fontes') => {
+    if (targetTab) {
+      setRailMode(targetTab);
+      setIsRailOpen((prev) => (prev && railMode === targetTab ? false : true));
+    } else {
+      setIsRailOpen((prev) => !prev);
+    }
+  };
 
   // Rascunho em memória de configurações preservado entre navegações internas por hash
   const [settingsDraft, setSettingsDraft] = useState<SettingsFormData>(initialSettingsFormData);
@@ -1550,7 +1560,7 @@ export const App: React.FC = () => {
         onToggleTheme={() => setTema((atual) => (atual === 'dark' ? 'light' : 'dark'))}
         hasActiveContext={Boolean(currentPlan) || currentRoute === 'research-sim' || currentRoute.startsWith('execution-')}
         isRailOpen={isRailOpen}
-        onToggleRail={() => setIsRailOpen((prev) => !prev)}
+        onToggleRail={() => handleToggleRail()}
         sourcesCount={
           currentRoute === 'research-sim' || currentRoute.startsWith('execution-')
             ? 4
@@ -1708,7 +1718,8 @@ export const App: React.FC = () => {
                       pontoEmReprocesso={pontoEmReprocesso}
                       tokensAoVivo={tokensAoVivo ?? tokensEfetivos}
                       sourcesCount={searchResult?.resumo_coletas?.length ?? 0}
-                      onToggleRail={() => setIsRailOpen((prev) => !prev)}
+                      isRailOpen={isRailOpen}
+                      onToggleRail={handleToggleRail}
                     />
                   )}
 
@@ -1733,6 +1744,8 @@ export const App: React.FC = () => {
                     plan={currentPlan}
                     isCollapsed={!isRailOpen}
                     onToggleCollapse={() => setIsRailOpen(false)}
+                    initialMode={railMode}
+                    mode={railMode}
                     pipelineStatus={pipelineStage !== 'idle' ? pipelineStage : currentPlan.status_pipeline}
                     cycleNumber={cycleNumber}
                     maxCycles={4}

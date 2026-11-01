@@ -388,7 +388,9 @@ interface ExecutionViewProps {
   /** Total de fontes catalogadas ou lidas */
   sourcesCount?: number;
   /** Callback para alternar a gaveta lateral de fontes e contexto */
-  onToggleRail?: () => void;
+  onToggleRail?: (targetTab?: 'contexto' | 'fontes') => void;
+  /** Estado de abertura da gaveta lateral */
+  isRailOpen?: boolean;
 }
 
 export const ExecutionView: React.FC<ExecutionViewProps> = ({
@@ -414,6 +416,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
   tokensAoVivo = null,
   sourcesCount,
   onToggleRail,
+  isRailOpen = false,
 }) => {
   // Cronômetro visível: tempo desde o início da execução. A região é
   // aria-live="off" para não narrar cada segundo no leitor de tela.
@@ -647,7 +650,9 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
             <button
               type="button"
               className="exec-telemetry-chip exec-telemetry-chip--fontes"
-              onClick={onToggleRail}
+              onClick={() => onToggleRail?.('fontes')}
+              aria-expanded={Boolean(isRailOpen)}
+              aria-controls="rr-rail-panel"
               aria-label={`Ver ${sourcesCount} fontes catalogadas`}
               title="Abrir painel lateral de fontes"
             >
@@ -663,7 +668,9 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
             <button
               type="button"
               className="exec-telemetry-chip exec-telemetry-chip--toggle"
-              onClick={onToggleRail}
+              onClick={() => onToggleRail?.()}
+              aria-expanded={Boolean(isRailOpen)}
+              aria-controls="rr-rail-panel"
               aria-label="Alternar painel lateral com contexto e fontes completas"
             >
               <PanelRight size={12} className="exec-telemetry-icon" aria-hidden="true" />
