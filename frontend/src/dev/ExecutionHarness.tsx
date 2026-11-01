@@ -327,8 +327,14 @@ export const ExecutionHarness: React.FC<Props> = ({ stage }) => (
       collectedPoints={2}
       auditSummary={{ aprovados: HARNESS_AUDIT.aprovados, total: HARNESS_AUDIT.total_pontos, ciclo: 1 }}
       metadadosModelo={HARNESS_PLAN.metadados_modelo}
+      tokensAoVivo={{
+        prompt_tokens: 12345,
+        completion_tokens: 6789,
+        total_tokens: 19134,
+      }}
       searchResult={HARNESS_SEARCH}
       fontesAtivas={stage === 'searching'}
+      reasoningItems={HARNESS_ITEMS}
     />
   </div>
 );

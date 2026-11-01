@@ -144,17 +144,58 @@ import type { SearchResponse } from '../types/api';
 
 export function derivarFontesParaExplorer(
   search: SearchResponse | null | undefined,
-  opts?: { emColeta?: boolean; pontosReprovados?: Set<string> | null }
+  opts?: {
+    emColeta?: boolean;
+    pontosReprovados?: Set<string> | null;
+    reasoningItems?: Array<{
+      reasoning?: string | null;
+      pointNumber?: number;
+      details?: { ponto_id?: string; urls_lidas?: number; [key: string]: unknown };
+    }>;
+  }
 ): FonteExplorerItem[] {
-  if (!search || !Array.isArray(search.resumo_coletas)) return [];
   const vistos = new Set<string>();
   const itens: FonteExplorerItem[] = [];
-  for (const coleta of search.resumo_coletas) {
-    for (const p of coleta.personas ?? []) {
-      for (const raw of p.urls_fonte ?? []) {
-        const url = String(raw ?? '').trim();
-        if (!url) continue;
-        if (!/^https?:\/\//i.test(url)) continue;
+
+  // 1. Fontes estruturadas do SearchResponse (quando a coleta foi consolidada)
+  if (search && Array.isArray(search.resumo_coletas)) {
+    for (const coleta of search.resumo_coletas) {
+      for (const p of coleta.personas ?? []) {
+        for (const raw of p.urls_fonte ?? []) {
+          const url = String(raw ?? '').trim();
+          if (!url) continue;
+          if (!/^https?:\/\//i.test(url)) continue;
+          const normalizada = url.replace(/^http:\/\//i, 'https://');
+          if (vistos.has(normalizada)) continue;
+          vistos.add(normalizada);
+          let dominio: string | null = null;
+          try {
+            dominio = new URL(normalizada).hostname.replace(/^www\./, '');
+          } catch {
+            dominio = null;
+          }
+          const reprovado = Boolean(coleta.ponto_id && opts?.pontosReprovados?.has(coleta.ponto_id));
+          itens.push({
+            url: normalizada,
+            titulo: null,
+            dominio,
+            status: reprovado ? 'invalidado' : opts?.emColeta ? 'lendo' : 'processado',
+            ponto_n: typeof coleta.ponto_n === 'number' ? coleta.ponto_n : null,
+          });
+        }
+      }
+    }
+  }
+
+  // 2. Fontes extraídas dinamicamente do raciocínio das personas em tempo real
+  if (opts?.reasoningItems && Array.isArray(opts.reasoningItems)) {
+    const urlRegex = /(?:https?:\/\/)[^\s)\]"'>;,]+/gi;
+    for (const item of opts.reasoningItems) {
+      const texto = item.reasoning ?? '';
+      const matches = texto.match(urlRegex) ?? [];
+      for (const raw of matches) {
+        const url = raw.trim().replace(/[.,;:)\]]+$/, '');
+        if (!url || !/^https?:\/\//i.test(url)) continue;
         const normalizada = url.replace(/^http:\/\//i, 'https://');
         if (vistos.has(normalizada)) continue;
         vistos.add(normalizada);
@@ -164,16 +205,16 @@ export function derivarFontesParaExplorer(
         } catch {
           dominio = null;
         }
-        const reprovado = Boolean(coleta.ponto_id && opts?.pontosReprovados?.has(coleta.ponto_id));
         itens.push({
           url: normalizada,
           titulo: null,
           dominio,
-          status: reprovado ? 'invalidado' : opts?.emColeta ? 'lendo' : 'processado',
-          ponto_n: typeof coleta.ponto_n === 'number' ? coleta.ponto_n : null,
+          status: opts?.emColeta ? 'lendo' : 'processado',
+          ponto_n: typeof item.pointNumber === 'number' ? item.pointNumber : null,
         });
       }
     }
   }
+
   return itens;
 }

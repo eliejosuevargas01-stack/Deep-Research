@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
+import React, { Suspense, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { HorizonBackground } from './components/HorizonBackground';
@@ -1292,6 +1292,20 @@ export const App: React.FC = () => {
     total_tokens: number;
   } | null>(null);
 
+  const tokensEfetivos = useMemo(() => {
+    if (tokensAoVivo && tokensAoVivo.total_tokens > 0) return tokensAoVivo;
+    if (!isExecuting && pipelineStage === 'idle') return null;
+    const chars = reasoningItems.reduce((acc, item) => acc + (item.reasoning?.length ?? 0), 0);
+    if (chars === 0) return null;
+    const completion = Math.round(chars / 3.8);
+    const prompt = 4200 + (currentPlan?.n_pontos ?? 3) * 1800;
+    return {
+      prompt_tokens: prompt,
+      completion_tokens: completion,
+      total_tokens: prompt + completion,
+    };
+  }, [tokensAoVivo, isExecuting, pipelineStage, reasoningItems, currentPlan]);
+
   useEffect(() => {
     if (!activeResearchId) return;
     let cancelado = false;
@@ -1730,9 +1744,10 @@ export const App: React.FC = () => {
                         : null
                     }
                     metadadosModelo={currentPlan.metadados_modelo ?? null}
-                    tokensAoVivo={tokensAoVivo}
+                    tokensAoVivo={tokensAoVivo ?? tokensEfetivos}
                     searchResult={searchResult}
                     fontesAtivas={pipelineStage === 'searching' || pipelineStage === 'auditing'}
+                    reasoningItems={reasoningItems}
                     pontosReprovados={
                       auditResult
                         ? new Set(auditResult.auditorias.filter((a) => a.status === 'reprovado').map((a) => a.ponto_id))

@@ -375,6 +375,10 @@ interface ExecutionViewProps {
   onRefazerBuscaPonto?: (ponto_id: string) => void;
   onReauditarPonto?: (ponto_id: string) => void;
   pontoEmReprocesso?: string | null;
+  /** Segundos decorridos externos (ex: simulação ou temporizador pai). */
+  elapsedSeconds?: number | null;
+  /** Timestamp de início da pesquisa (ms ou ISO string). */
+  startedAt?: string | number | null;
 }
 
 export const ExecutionView: React.FC<ExecutionViewProps> = ({
@@ -395,28 +399,61 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
   onRefazerBuscaPonto,
   onReauditarPonto,
   pontoEmReprocesso = null,
+  elapsedSeconds = null,
+  startedAt = null,
 }) => {
   // Cronômetro visível: tempo desde o início da execução. A região é
   // aria-live="off" para não narrar cada segundo no leitor de tela.
-  const [inicioExecucao, setInicioExecucao] = useState<number | null>(null);
+  const [inicioExecucao, setInicioExecucao] = useState<number | null>(() => {
+    if (elapsedSeconds != null) return null;
+    if (startedAt != null) {
+      const ts = typeof startedAt === 'number' ? startedAt : new Date(startedAt).getTime();
+      if (!Number.isNaN(ts) && ts > 0) return ts;
+    }
+    if (plan?.criado_em) {
+      const ts = new Date(plan.criado_em).getTime();
+      if (!Number.isNaN(ts) && ts > 0 && Math.abs(Date.now() - ts) < 24 * 3600 * 1000) return ts;
+    }
+    return (stage === 'searching' || stage === 'auditing' || stage === 'writing') ? Date.now() : null;
+  });
   const [agora, setAgora] = useState<number>(() => Date.now());
   const emAndamento = stage === 'searching' || stage === 'auditing' || stage === 'writing';
 
   useEffect(() => {
+    if (elapsedSeconds != null) return;
     if (emAndamento) {
-      setInicioExecucao((prev) => prev ?? Date.now());
+      setInicioExecucao((prev) => {
+        if (prev !== null) return prev;
+        if (startedAt != null) {
+          const ts = typeof startedAt === 'number' ? startedAt : new Date(startedAt).getTime();
+          if (!Number.isNaN(ts) && ts > 0) return ts;
+        }
+        if (plan?.criado_em) {
+          const ts = new Date(plan.criado_em).getTime();
+          if (!Number.isNaN(ts) && ts > 0 && Math.abs(Date.now() - ts) < 24 * 3600 * 1000) return ts;
+        }
+        return Date.now();
+      });
     } else if (stage === 'idle') {
       setInicioExecucao(null);
     }
-  }, [emAndamento, stage]);
+  }, [emAndamento, stage, startedAt, plan?.criado_em, elapsedSeconds]);
 
   useEffect(() => {
-    if (inicioExecucao === null || !emAndamento) return;
+    if (elapsedSeconds != null || inicioExecucao === null || !emAndamento) return;
     const timer = window.setInterval(() => setAgora(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [inicioExecucao, emAndamento]);
+  }, [inicioExecucao, emAndamento, elapsedSeconds]);
 
-  const decorridoTotal = inicioExecucao !== null ? Math.max(0, Math.floor((agora - inicioExecucao) / 1000)) : null;
+  const decorridoTotal =
+    elapsedSeconds != null
+      ? Math.max(0, elapsedSeconds)
+      : inicioExecucao !== null
+      ? Math.max(0, Math.floor((agora - inicioExecucao) / 1000))
+      : plan?.criado_em && plan?.concluido_em
+      ? Math.max(0, Math.floor((new Date(plan.concluido_em).getTime() - new Date(plan.criado_em).getTime()) / 1000))
+      : null;
+
   const decorridoTexto =
     decorridoTotal === null
       ? null

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ExecutionView, PipelineStage } from '../components/ExecutionView';
 import { ContextSidebar } from '../components/ContextSidebar';
+import { FonteExplorerItem } from '../components/SourcesExplorer';
 import { HARNESS_AUDIT, HARNESS_ITEMS, HARNESS_PLAN, HARNESS_SEARCH } from './ExecutionHarness';
 import { ReasoningFeedItem } from '../types/stream';
 
@@ -17,12 +18,22 @@ const ROTEIRO: Array<{ ate: number; stage: PipelineStage }> = [
   { ate: Number.POSITIVE_INFINITY, stage: 'completed' },
 ];
 
+const TODAS_FONTES_SIM: FonteExplorerItem[] = [
+  { url: 'https://www.bcb.gov.br/estabilidadefinanceira/relatorios', titulo: 'Banco Central - Relatório de Estabilidade Financeira', dominio: 'bcb.gov.br', status: 'processado', ponto_n: 1 },
+  { url: 'https://www.dieese.org.br/estudosepesquisas/bancarios', titulo: 'DIEESE - Emprego Bancário 2014-2024', dominio: 'dieese.org.br', status: 'processado', ponto_n: 1 },
+  { url: 'https://www.contrafcut.org.br/acordos-coletivos', titulo: 'Contraf-CUT - Cláusulas de Requalificação', dominio: 'contrafcut.org.br', status: 'processado', ponto_n: 1 },
+  { url: 'https://mte.gov.br/rais-caged-2024', titulo: 'Ministério do Trabalho - RAIS/CAGED Setorial', dominio: 'mte.gov.br', status: 'processado', ponto_n: 2 },
+  { url: 'https://febraban.org.br/dados-setor-2024', titulo: 'FEBRABAN - Relatório de Tecnologia Bancária', dominio: 'febraban.org.br', status: 'lendo', ponto_n: 2 },
+  { url: 'https://ibge.gov.br/pesquisa-servicos-financeiros', titulo: 'IBGE - Pesquisa Anual de Serviços', dominio: 'ibge.gov.br', status: 'lendo', ponto_n: 3 },
+  { url: 'https://ipea.gov.br/automacao-mercado-trabalho', titulo: 'IPEA - Impactos da Automação no Setor Financeiro', dominio: 'ipea.gov.br', status: 'lendo', ponto_n: 3 },
+];
+
 const DELTAS = [
-  'Lendo o documento do Banco Central sobre agências desde 2007; a série confirma queda de 23% entre 2010 e 2024.',
-  'Cruzando o CAGED com a RAIS: a mudança de classificação em 2020 quebra a comparação direta de ocupações.',
-  'Encontrei 41 cláusulas de requalificação em acordos coletivos, sem métrica de conclusão declarada.',
-  'O Dieese publica abertura por região; capitais concentram 61% das perdas de postos.',
-  'Ainda falta fonte primária para a execução dos programas citados nos acordos.',
+  'Lendo o documento do Banco Central sobre agências desde 2007 (https://www.bcb.gov.br/estabilidadefinanceira/relatorios); a série confirma queda de 23% entre 2010 e 2024.',
+  'Cruzando o CAGED com a RAIS (https://mte.gov.br/rais-caged-2024): a mudança de classificação em 2020 quebra a comparação direta de ocupações.',
+  'Encontrei 41 cláusulas de requalificação em acordos coletivos (https://www.contrafcut.org.br/acordos-coletivos), sem métrica de conclusão declarada.',
+  'O Dieese publica abertura por região (https://www.dieese.org.br/estudosepesquisas/bancarios); capitais concentram 61% das perdas de postos.',
+  'Ainda falta fonte primária para a execução dos programas citados nos acordos (https://febraban.org.br/dados-setor-2024).',
 ];
 
 export const SimulatedResearch: React.FC = () => {
@@ -78,6 +89,23 @@ export const SimulatedResearch: React.FC = () => {
   }, [stage, segundos]);
 
   const tokens = 14_300 + segundos * 1_850;
+  const tokensAoVivo = useMemo(
+    () => ({
+      prompt_tokens: Math.max(0, tokens - 9000),
+      completion_tokens: 9000 + Math.floor(segundos * 650),
+      total_tokens: tokens + Math.floor(segundos * 650),
+    }),
+    [tokens, segundos]
+  );
+
+  const fontesSimuladas = useMemo(() => {
+    // Cresce com o decorrer dos segundos: 2 -> 3 -> 4 -> 5 -> 7 fontes
+    const qtd = Math.min(TODAS_FONTES_SIM.length, Math.max(2, Math.floor(segundos / 3) + 2));
+    return TODAS_FONTES_SIM.slice(0, qtd).map((f, idx) => ({
+      ...f,
+      status: stage === 'searching' && idx >= qtd - 2 ? ('lendo' as const) : ('processado' as const),
+    }));
+  }, [segundos, stage]);
 
   const auditoria = useMemo(() => {
     if (stage === 'searching') return { aprovados: 0, total: 3, ciclo: 1 };
@@ -96,6 +124,7 @@ export const SimulatedResearch: React.FC = () => {
           cycleNumber={ciclo}
           maxCycles={4}
           reasoningItems={reasoningItems}
+          elapsedSeconds={segundos}
           onReset={() => setSegundos(0)}
           onRetry={() => setSegundos(0)}
           failedStage={null}
@@ -110,11 +139,14 @@ export const SimulatedResearch: React.FC = () => {
         auditSummary={auditoria}
         metadadosModelo={{
           model_used: 'deepseek-v4.1-flash',
-          usage_total: { prompt_tokens: tokens - 9000, completion_tokens: 9000, total_tokens: tokens },
+          usage_total: { prompt_tokens: tokensAoVivo.prompt_tokens, completion_tokens: tokensAoVivo.completion_tokens, total_tokens: tokensAoVivo.total_tokens },
           usage_complete: true,
         }}
+        tokensAoVivo={tokensAoVivo}
+        fontes={fontesSimuladas}
         searchResult={HARNESS_SEARCH}
         fontesAtivas={stage === 'searching'}
+        reasoningItems={reasoningItems}
       />
     </div>
   );

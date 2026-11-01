@@ -2,8 +2,11 @@
 """Servidor HTTP mock leve para suportar auditoria frontend sem depender de LLMs externas."""
 
 import json
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
+
+START_TIME = time.time()
 
 SESSION_DATA = {
     "authenticated": True,
@@ -50,7 +53,16 @@ class MockHandler(BaseHTTPRequestHandler):
                 "nao_utilizadas": []
             }).encode('utf-8'))
         elif '/status' in self.path:
-            self.wfile.write(json.dumps({"status_pipeline": "buscando"}).encode('utf-8'))
+            elapsed = int(time.time() - START_TIME)
+            tokens_total = 12500 + (elapsed % 300) * 850
+            prompt = max(1000, tokens_total - 6200)
+            completion = tokens_total - prompt
+            self.wfile.write(json.dumps({
+                "status_pipeline": "buscando",
+                "tokens_prompt": prompt,
+                "tokens_completion": completion,
+                "tokens_total": tokens_total
+            }).encode('utf-8'))
         else:
             self.wfile.write(json.dumps({"ok": True}).encode('utf-8'))
 

@@ -106,6 +106,7 @@ export interface PlanResponse {
   tema: string;
   n_pontos: number;
   criado_em: string;
+  concluido_em?: string | null;
   pontos: PlanPontoItem[];
   status_pipeline?: string | null;
   plano_estruturado?: PlanoInvestigacao | null;

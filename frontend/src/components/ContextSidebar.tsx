@@ -24,6 +24,11 @@ interface ContextSidebarProps {
   searchResult?: SearchResponse | null;
   fontesAtivas?: boolean;
   pontosReprovados?: Set<string> | null;
+  reasoningItems?: Array<{
+    reasoning?: string | null;
+    pointNumber?: number;
+    details?: { ponto_id?: string; urls_lidas?: number; [key: string]: unknown };
+  }>;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
@@ -129,6 +134,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   searchResult,
   fontesAtivas,
   pontosReprovados,
+  reasoningItems,
   isCollapsed,
   onToggleCollapse,
 }) => {
@@ -156,7 +162,12 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   const copiadoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const itensFontes =
-    fontes ?? derivarFontesParaExplorer(searchResult, { emColeta: fontesAtivas, pontosReprovados });
+    fontes ??
+    derivarFontesParaExplorer(searchResult, {
+      emColeta: fontesAtivas,
+      pontosReprovados,
+      reasoningItems,
+    });
   const temFontesColetadas = Array.isArray(itensFontes) && itensFontes.length > 0;
 
   const [mode, setMode] = useState<RailMode>(() => {
