@@ -459,7 +459,9 @@
   text-align: left;
 }
 
-.rr-copy {
+.rr-copy,
+button.rr-copy {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -473,6 +475,15 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+button.rr-copy::before,
+.rr-copy::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .rr-copy:hover {
@@ -677,22 +688,38 @@ a.rr-source:focus-visible {
 
 @media (max-width: 1080px) {
   .workspace-grid > .sidebar-container.rr-rail {
-    position: static;
-    max-height: none;
-    width: 100%;
-    max-width: none;
-    margin-top: 8px;
+    position: fixed !important;
+    top: 58px;
+    right: 12px;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    width: min(86vw, 340px);
+    z-index: 60;
+    border-radius: 16px;
+    background: var(--color-surface);
+    box-shadow: 0 16px 40px rgba(12, 20, 20, 0.18);
+    overflow: hidden;
+  }
+
+  .rr-rail__panel {
+    height: 100%;
+    min-height: 0;
   }
 
   .rr-rail__body {
+    flex: 1 1 auto;
+    min-height: 0;
     max-height: none;
-    overflow-y: visible;
+    overflow-y: auto;
   }
 
   .workspace-grid > .sidebar-container.rr-rail--collapsed {
-    width: 44px;
+    top: auto;
+    bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    width: auto;
     max-width: 44px;
     align-items: flex-start;
+    box-shadow: var(--shadow-sm);
   }
 }
 

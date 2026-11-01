@@ -474,11 +474,12 @@
 }
 
 .exec-telemetry-chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  min-height: 30px;
+  padding: 6px 14px;
+  min-height: 38px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 550;
@@ -502,12 +503,29 @@
   border: 1px solid rgba(99, 102, 241, 0.22);
 }
 
+[data-theme="dark"] .exec-telemetry-chip--tokens,
+:root[data-theme="dark"] .exec-telemetry-chip--tokens {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.18);
+  border: 1px solid rgba(167, 139, 250, 0.35);
+}
+
 button.exec-telemetry-chip {
+  position: relative;
   cursor: pointer;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   transition: all 140ms ease;
+}
+
+button.exec-telemetry-chip::before,
+.exec-telemetry-chip::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 button.exec-telemetry-chip:hover {
@@ -534,6 +552,12 @@ button.exec-telemetry-chip--fontes:hover {
 
 .exec-telemetry-chip--toggle {
   margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .exec-telemetry-chip--toggle {
+    display: none !important;
+  }
 }
 
 /* Backdrop da gaveta de contexto no mobile */

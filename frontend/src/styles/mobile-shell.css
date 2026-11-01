@@ -125,9 +125,9 @@
 
   /* Painel de contexto vira gaveta sobre o conteúdo, recolhida por padrão. */
   .workspace-grid > .sidebar-container.rr-rail {
-    position: fixed;
-    top: 52px;
-    right: 8px;
+    position: fixed !important;
+    top: 58px;
+    right: 12px;
     bottom: calc(68px + env(safe-area-inset-bottom, 0px));
     width: min(86vw, 340px);
     z-index: 60;
