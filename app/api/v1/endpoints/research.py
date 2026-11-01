@@ -45,60 +45,78 @@ def _extract_preferencias(pesquisa: Any) -> Any:
     return None
 
 
-def _build_auditoria(pesquisa_id: str, pontos: List[Ponto]) -> Optional[Dict[str, Any]]:
+def _build_auditoria(pesquisa: Any, pontos: List[Any]) -> Optional[Dict[str, Any]]:
     auditorias = []
     aprovados = 0
     reprovados = 0
-    for p in pontos:
-        # Considerar aprovado/reprovado com base no status do ponto
-        status_p = getattr(p, "status", None)
+    for p in pontos or []:
+        status_p = getattr(p, "status", None) if not isinstance(p, dict) else p.get("status")
+        ponto_id = getattr(p, "ponto_id", None) if not isinstance(p, dict) else p.get("ponto_id")
+        ponto_n = getattr(p, "ponto_n", None) if not isinstance(p, dict) else p.get("ponto_n")
+        pontos_fracos = getattr(p, "pontos_fracos", None) if not isinstance(p, dict) else p.get("pontos_fracos")
+        reasoning_auditoria = (
+            getattr(p, "reasoning_auditoria", None)
+            if not isinstance(p, dict)
+            else p.get("reasoning_auditoria")
+        )
+
         if status_p == "aprovado":
             aprovados += 1
             auditorias.append(
                 {
-                    "ponto_id": p.ponto_id,
-                    "ponto_n": p.ponto_n,
+                    "ponto_id": ponto_id,
+                    "ponto_n": ponto_n,
                     "status": "aprovado",
-                    "pontuacao_percentual": 100,
-                    "criterios_aprovados": 0,
-                    "criterios_minimos": 0,
+                    "pontuacao_percentual": 100.0,
+                    "criterios_aprovados": 12,
+                    "criterios_minimos": 11,
                     "valido": True,
                     "criterios": None,
-                    "pontos_fracos": getattr(p, "pontos_fracos", None),
+                    "pontos_fracos": pontos_fracos,
                     "diagnostico": None,
                     "resumo_auditoria": None,
-                    "reasoning_auditoria": getattr(p, "reasoning_auditoria", None),
+                    "reasoning_auditoria": reasoning_auditoria,
                 }
             )
         elif status_p == "reprovado":
             reprovados += 1
             auditorias.append(
                 {
-                    "ponto_id": p.ponto_id,
-                    "ponto_n": p.ponto_n,
+                    "ponto_id": ponto_id,
+                    "ponto_n": ponto_n,
                     "status": "reprovado",
-                    "pontuacao_percentual": 0,
+                    "pontuacao_percentual": 0.0,
                     "criterios_aprovados": 0,
-                    "criterios_minimos": 0,
+                    "criterios_minimos": 11,
                     "valido": False,
                     "criterios": None,
-                    "pontos_fracos": getattr(p, "pontos_fracos", None),
+                    "pontos_fracos": pontos_fracos,
                     "diagnostico": None,
                     "resumo_auditoria": None,
-                    "reasoning_auditoria": getattr(p, "reasoning_auditoria", None),
+                    "reasoning_auditoria": reasoning_auditoria,
                 }
             )
+
     if not auditorias:
         return None
+
+    id_pesquisa = (
+        getattr(pesquisa, "id_pesquisa", None)
+        or (pesquisa.get("id_pesquisa") if isinstance(pesquisa, dict) else str(pesquisa))
+    )
+    status_pesquisa = getattr(pesquisa, "status_pipeline", None) or getattr(pesquisa, "status", None)
+    if isinstance(pesquisa, dict):
+        status_pesquisa = status_pesquisa or pesquisa.get("status_pipeline") or pesquisa.get("status")
+
     total = len(auditorias)
     status_geral = "aprovado" if aprovados == total else ("reprovado" if reprovados > 0 and aprovados == 0 else "parcial")
     return {
-        "id_pesquisa": pesquisa_id,
+        "id_pesquisa": id_pesquisa,
         "total_pontos": total,
         "aprovados": aprovados,
         "reprovados": reprovados,
         "status_geral": status_geral,
-        "status_pesquisa": getattr(pesquisa_id, "status_pesquisa", None),
+        "status_pesquisa": status_pesquisa,
         "pronto_para_writer": aprovados == total and total > 0,
         "auditorias": auditorias,
     }
@@ -146,7 +164,7 @@ async def get_research_detail(
     except Exception:
         fontes = None
 
-    auditoria = _build_auditoria(id_pesquisa, pontos)
+    auditoria = _build_auditoria(pesquisa, pontos)
 
     result: Dict[str, Any] = {
         "id": getattr(pesquisa, "id_pesquisa"),

@@ -98,11 +98,6 @@ async def search_points(
             execution_mode=payload.execution_mode,
         )
 
-        # Projeção canônica pública: segregação absoluta de reasoning e prompts privados
-        for item in resumo.get("resumo_coletas", []):
-            for persona_res in item.get("personas", []):
-                persona_res["reasoning"] = None
-
         return SearchResponse(**resumo)
     except SearchTimeoutError as exc:
         raise HTTPException(

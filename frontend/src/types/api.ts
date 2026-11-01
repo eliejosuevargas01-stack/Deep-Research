@@ -99,6 +99,8 @@ export interface PlanAsyncResponse {
   pontos: PlanPontoItem[];
   plano_estruturado?: PlanoInvestigacao | null;
   preferencias?: PlanPreferencias;
+  reasoning_planejamento?: string | null;
+  metadados_modelo?: ModeloMetadados | null;
 }
 
 export interface PlanResponse {
@@ -308,7 +310,7 @@ export interface PipelineStatusResumo {
   tema: string;
   status_pipeline: string;
   erro_pipeline?: string | null;
-  criado_em: string;
+  criado_em?: string | null;
   concluido_em?: string | null;
   webhook_status?: string | null;
   total_pontos: number;

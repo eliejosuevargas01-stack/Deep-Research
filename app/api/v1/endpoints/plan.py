@@ -302,6 +302,17 @@ async def create_plan(
         execution_mode=payload.execution_mode,
     )
 
+    plan_data = (
+        getattr(pesquisa, "_plan_data", {})
+        if hasattr(pesquisa, "_plan_data") and isinstance(pesquisa._plan_data, dict)
+        else {}
+    )
+    reasoning_planejamento = (
+        getattr(pesquisa, "reasoning_planejamento", None)
+        or (pontos[0].reasoning_planejamento if pontos and hasattr(pontos[0], "reasoning_planejamento") else None)
+        or plan_data.get("reasoning_planejamento")
+    )
+
     # Se async_execute for True, agenda a execução ininterrupta em background
     if payload.async_execute:
         response.status_code = status.HTTP_202_ACCEPTED
@@ -324,6 +335,7 @@ async def create_plan(
             plano_estruturado=plano_estruturado,
             metadados_modelo=metadados_modelo,
             preferencias=pref_obj,
+            reasoning_planejamento=reasoning_planejamento,
         )
 
     return PlanResponse(
@@ -336,6 +348,7 @@ async def create_plan(
         plano_estruturado=plano_estruturado,
         metadados_modelo=metadados_modelo,
         preferencias=pref_obj,
+        reasoning_planejamento=reasoning_planejamento,
     )
 
 

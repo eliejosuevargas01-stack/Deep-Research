@@ -7,6 +7,8 @@ export interface PipelineStatusEvent {
   id_pesquisa: string;
   status_pipeline: string;
   timestamp?: string | null;
+  criado_em?: string | null;
+  concluido_em?: string | null;
 }
 
 export interface PointStatusEvent {

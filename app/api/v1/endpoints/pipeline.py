@@ -186,6 +186,7 @@ async def stream_pipeline_progress(
                 "status_pipeline": status_pipe,
                 "timestamp": getattr(pesquisa, "atualizado_em", None) or getattr(pesquisa, "criado_em", None) or _format_iso_utc(),
                 "criado_em": pesquisa.criado_em,
+                "concluido_em": getattr(pesquisa, "concluido_em", None),
                 "tokens_prompt": int(getattr(pesquisa, "tokens_prompt", 0) or 0),
                 "tokens_completion": int(getattr(pesquisa, "tokens_completion", 0) or 0),
                 "tokens_total": int(getattr(pesquisa, "tokens_total", 0) or 0),

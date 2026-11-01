@@ -369,7 +369,6 @@ class PlanResponse(BaseModel):
     tema: str = Field(
         ...,
         min_length=5,
-        max_length=500,
         description="Tema investigado",
     )
     n_pontos: int = Field(
@@ -401,13 +400,17 @@ class PlanResponse(BaseModel):
         default=None,
         description="Snapshot das preferências aplicadas à pesquisa (n_pontos e personas)",
     )
+    reasoning_planejamento: Optional[str] = Field(
+        default=None,
+        description="Raciocínio ou síntese analítica gerada durante o planejamento",
+    )
 
 
 class PlanAsyncResponse(BaseModel):
     """Resposta imediata quando async_execute=True informando o disparo em background."""
 
     id_pesquisa: str
-    tema: str
+    tema: str = Field(..., min_length=5, description="Tema investigado")
     status: str = "iniciado"
     status_pipeline: str = "planejado"
     mensagem: str = "Pipeline assíncrono iniciado com sucesso. O dossiê completo será entregue no webhook configurado."
@@ -417,3 +420,4 @@ class PlanAsyncResponse(BaseModel):
     plano_estruturado: Optional[PlanoInvestigacao] = None
     metadados_modelo: Optional[Dict[str, Any]] = None
     preferencias: Optional[PlanPreferencias] = None
+    reasoning_planejamento: Optional[str] = None

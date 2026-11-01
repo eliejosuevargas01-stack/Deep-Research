@@ -777,7 +777,7 @@ export const App: React.FC = () => {
   // Criação síncrona do plano (/api/v1/plan) com preferências de pontos e personas
   const handleCreatePlan = async () => {
     const tema = composerValue.trim();
-    if (tema.length < 5 || tema.length > 500) return;
+    if (tema.length < 5) return;
     // Lock síncrono atômico via ref antes de qualquer microtask ou await
     if (isPlanningRef.current || isExecutingRef.current) return;
     isPlanningRef.current = true;
@@ -851,7 +851,7 @@ export const App: React.FC = () => {
       activeResearchIdRef.current = plan.id_pesquisa;
       setActiveResearchId(plan.id_pesquisa);
       // Registra raciocínio inicial do Planejador
-      if (plan.plano_estruturado || plan.reasoning_planejamento) {
+      if (plan.plano_estruturado || plan.reasoning_planejamento || plan.pontos?.[0]?.reasoning_planejamento) {
         addReasoningItem({
           id: `plan-${plan.id_pesquisa}`,
           timestamp: plan.criado_em || new Date().toISOString(),
@@ -860,6 +860,7 @@ export const App: React.FC = () => {
           title: 'Planejamento: o tema vira pontos',
           reasoning:
             plan.reasoning_planejamento ||
+            plan.pontos?.[0]?.reasoning_planejamento ||
             (plan.plano_estruturado
               ? `**Pedido Normalizado:** ${plan.plano_estruturado.pedido_normalizado}\n\n**Público-alvo:** ${plan.plano_estruturado.publico}\n\n**Formato de Entrega:** ${plan.plano_estruturado.formato_entrega}`
               : 'Plano estruturado pronto para revisão.'),
@@ -1063,8 +1064,8 @@ export const App: React.FC = () => {
               if (activeResearchIdRef.current !== id_pesquisa || activeExecutionTokenRef.current !== executionToken) return;
               setSearchResult(sRes);
               // Registra raciocínios das personas coletadas no modo síncrono
-              sRes.resumo_coletas.forEach((rc) => {
-                rc.personas.forEach((p) => {
+              sRes.resumo_coletas?.forEach((rc) => {
+                rc.personas?.forEach((p) => {
                   if (p.reasoning) {
                     // Mesmo ID canônico do evento SSE: o REST só completa o item,
                     // nunca duplica o raciocínio já transmitido ao vivo.
@@ -1374,10 +1375,11 @@ export const App: React.FC = () => {
             total_tokens: total,
           });
         }
-        if (s.criado_em) {
+        const criadoEm = s.criado_em;
+        if (criadoEm) {
           setCurrentPlan((prev) => {
-            if (prev && (!prev.criado_em || prev.criado_em !== s.criado_em)) {
-              return { ...prev, criado_em: s.criado_em };
+            if (prev && (!prev.criado_em || prev.criado_em !== criadoEm)) {
+              return { ...prev, criado_em: criadoEm };
             }
             return prev;
           });

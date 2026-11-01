@@ -43,21 +43,21 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const length = value.trim().length;
-  const isValid = length >= 5 && length <= 500;
+  const isValid = length >= 5;
   const isExpanded = isFocused || length > 0;
 
   // Copy do prompt: estado vazio explica o formato; estados de erro dizem
-  // exatamente quanto falta ou quanto sobra, sem repetir a mesma frase.
-  let helperMessage = 'Enter planeja. Shift+Enter abre nova linha. De 5 a 500 caracteres.';
+  // exatamente quanto falta, sem repetir a mesma frase.
+  let helperMessage = 'Enter planeja. Shift+Enter abre nova linha. De 5 a 500+ caracteres.';
   let helperClass = 'helper-info';
   if (length > 0 && length < 5) {
-    helperMessage = `Faltam ${5 - length} ${5 - length === 1 ? 'caractere' : 'caracteres'} para o mínimo de 5 (limite: 500). Shift+Enter abre nova linha.`;
-    helperClass = 'helper-warning';
-  } else if (length > 500) {
-    helperMessage = `Excede o máximo de 500 em ${length - 500} ${length - 500 === 1 ? 'caractere' : 'caracteres'}. Encurte o tema para planejar.`;
+    helperMessage = `Faltam ${5 - length} ${5 - length === 1 ? 'caractere' : 'caracteres'} para o mínimo de 5 (de 5 a 500+ caracteres). Shift+Enter abre nova linha.`;
     helperClass = 'helper-warning';
   } else if (isValid) {
-    helperMessage = `Tema válido: ${length}/500 caracteres. Enter planeja; Shift+Enter abre nova linha.`;
+    helperMessage =
+      length > 500
+        ? `Tema extenso válido: ${length} caracteres. Enter planeja; Shift+Enter abre nova linha.`
+        : `Tema válido: ${length}/500 caracteres. Enter planeja; Shift+Enter abre nova linha.`;
     helperClass = 'helper-success';
   }
 
@@ -153,11 +153,11 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
           <div className="composer-tools" data-composer-tools />
 
           <span
-            className={`composer-counter ${length > 500 || (length > 0 && length < 5) ? 'invalid' : ''}`}
-            title="O tema precisa ter de 5 a 500 caracteres."
+            className={`composer-counter ${length > 0 && length < 5 ? 'invalid' : ''}`}
+            title={length > 500 ? `Tema com ${length} caracteres` : "O tema precisa ter no mínimo 5 caracteres."}
             aria-hidden="true"
           >
-            {length}/500
+            {length > 500 ? length : `${length}/500`}
           </span>
         </div>
 
@@ -213,7 +213,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(({
               isSubmitting
                 ? 'Montando o plano…'
                 : !isValid
-                ? 'Digite entre 5 e 500 caracteres para planejar'
+                ? 'Digite no mínimo 5 caracteres para planejar'
                 : 'Enviar tema para elaboração de plano (Enter)'
             }
           >

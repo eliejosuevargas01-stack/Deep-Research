@@ -314,7 +314,11 @@ class PipelineRunner:
                                             "ponto_id": p_id,
                                             "persona": p_item.get("persona"),
                                             "queries_executadas": p_item.get("queries_executadas", 0),
-                                            "urls_lidas": len(p_item.get("urls_fonte", [])) or search_res.get("total_urls_lidas", 0),
+                                            "urls_lidas": (
+                                                len(p_item["urls_fonte"])
+                                                if "urls_fonte" in p_item and p_item["urls_fonte"] is not None
+                                                else search_res.get("total_urls_lidas", 0)
+                                            ),
                                             "falha_coleta": bool(p_item.get("falha_coleta", False)),
                                             "reasoning_coleta": p_item.get("reasoning"),
                                         })
@@ -486,12 +490,16 @@ class PipelineRunner:
                         "id_pesquisa": id_pesquisa,
                         "status_pipeline": "concluido",
                         "timestamp": concluido_em,
+                        "criado_em": getattr(pesquisa, "criado_em", None),
+                        "concluido_em": concluido_em,
                     })
                 else:
                     hub.publish(id_pesquisa, "pipeline.status", {
                         "id_pesquisa": id_pesquisa,
                         "status_pipeline": final_status,
                         "timestamp": _format_iso_utc(),
+                        "criado_em": getattr(pesquisa, "criado_em", None),
+                        "concluido_em": concluido_em if final_status == "concluido" else None,
                     })
                 logger.info(f"[PipelineRunner] Pesquisa {id_pesquisa} finalizada com status '{final_status}'.")
                 return writer_res or {}
@@ -515,6 +523,8 @@ class PipelineRunner:
                     "id_pesquisa": id_pesquisa,
                     "status_pipeline": "falha",
                     "timestamp": _format_iso_utc(),
+                    "criado_em": getattr(pesquisa, "criado_em", None) if pesquisa else None,
+                    "concluido_em": None,
                 })
                 return {"status": "falha", "erro": erro_msg}
             finally:

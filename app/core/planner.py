@@ -385,8 +385,6 @@ class Planner:
         tema_limpo = tema.strip()
         if len(tema_limpo) < 5:
             raise ValueError("O tema deve conter no mínimo 5 caracteres.")
-        if len(tema_limpo) > 500:
-            raise ValueError("O tema deve conter no máximo 500 caracteres.")
 
         recency_policy = resolve_recency_policy(tema_limpo, requested_mode=recencia)
         discovery_queries = build_discovery_queries(tema_limpo, recency_policy)
