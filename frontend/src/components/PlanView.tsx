@@ -165,6 +165,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
             data-gdr-action="approve-and-start"
             onClick={onStartExecution}
             disabled={isStarting}
+            aria-busy={isStarting}
             title="Iniciar execução dos eixos de investigação planejados"
             aria-label="Iniciar pesquisa"
           >
@@ -311,6 +312,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
                         className="stepper-point-toggle"
                         onClick={() => togglePoint(pontoId)}
                         aria-expanded={isExpanded}
+                        aria-controls={`point-details-${pontoId}`}
                         aria-label={`Alternar detalhes do ponto ${pontoNum}`}
                         title={isExpanded ? 'Recolher detalhes deste ponto' : 'Expandir hipóteses e subperguntas'}
                       >
@@ -321,7 +323,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
                   </div>
 
                   {eixo && isExpanded && (
-                    <div className="stepper-point-details">
+                    <div className="stepper-point-details" id={`point-details-${pontoId}`} role="region" aria-label={`Detalhes do ponto ${pontoNum}`}>
                       {subperguntas.length > 0 && (
                         <div className="point-detail-row">
                           <span className="point-detail-label">Subperguntas:</span>
