@@ -711,31 +711,24 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 71)">
-              <rect
-                x="-37"
-                y="-9"
-                width="74"
-                height="18"
-                rx="5"
-                fill={isHovered ? '#a855f7' : ui.headFill}
-                fillOpacity={isHovered ? '0.25' : '0.85'}
-                stroke={isHovered ? '#a855f7' : ui.stageFloor}
-                strokeWidth="1.2"
+            {/* Rótulo de Identificação Limpo & Elegante (Zero Box-in-Box, perfeitamente centralizado) */}
+            <g transform="translate(0, 62)" className="pointer-events-none select-none">
+              <circle
+                cx="0"
+                cy="-7.5"
+                r={isHovered ? 2.4 : 1.8}
+                fill="#a855f7"
+                opacity={isHovered ? 1 : 0.65}
               />
-              <g transform="translate(-31, -5.5) scale(0.44)" className="text-purple-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.planejador }} />
-              </g>
               <text
-                x="-15"
-                y="1"
-                textAnchor="start"
-                dominantBaseline="central"
-                fill={ui.strokeMain}
-                fontSize="8.2"
+                x="0"
+                y="5"
+                textAnchor="middle"
+                fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
+                fontSize="9.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
+                letterSpacing="0.02em"
               >
                 Planejador
               </text>
@@ -819,31 +812,24 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 64)">
-              <rect
-                x="-33"
-                y="-9"
-                width="66"
-                height="18"
-                rx="5"
-                fill={isHovered ? '#d97706' : ui.headFill}
-                fillOpacity={isHovered ? '0.25' : '0.85'}
-                stroke={isHovered ? '#d97706' : ui.stageFloor}
-                strokeWidth="1.2"
+            {/* Rótulo de Identificação Limpo & Elegante */}
+            <g transform="translate(0, 56)" className="pointer-events-none select-none">
+              <circle
+                cx="0"
+                cy="-7.5"
+                r={isHovered ? 2.4 : 1.8}
+                fill="#d97706"
+                opacity={isHovered ? 1 : 0.65}
               />
-              <g transform="translate(-27, -5.5) scale(0.44)" className="text-amber-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.historiador }} />
-              </g>
               <text
-                x="-11"
-                y="1"
-                textAnchor="start"
-                dominantBaseline="central"
-                fill={ui.strokeMain}
-                fontSize="7.8"
+                x="0"
+                y="5"
+                textAnchor="middle"
+                fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
+                fontSize="9.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
+                letterSpacing="0.02em"
               >
                 Historiador
               </text>
@@ -923,31 +909,24 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 78)">
-              <rect
-                x="-32"
-                y="-9"
-                width="64"
-                height="18"
-                rx="5"
-                fill={isHovered ? '#0284c7' : ui.headFill}
-                fillOpacity={isHovered ? '0.25' : '0.85'}
-                stroke={isHovered ? '#0284c7' : ui.stageFloor}
-                strokeWidth="1.2"
+            {/* Rótulo de Identificação Limpo & Elegante */}
+            <g transform="translate(0, 70)" className="pointer-events-none select-none">
+              <circle
+                cx="0"
+                cy="-7.5"
+                r={isHovered ? 2.4 : 1.8}
+                fill="#0284c7"
+                opacity={isHovered ? 1 : 0.65}
               />
-              <g transform="translate(-26, -5.5) scale(0.44)" className="text-sky-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.visionario }} />
-              </g>
               <text
-                x="-10"
-                y="1"
-                textAnchor="start"
-                dominantBaseline="central"
-                fill={ui.strokeMain}
-                fontSize="7.8"
+                x="0"
+                y="5"
+                textAnchor="middle"
+                fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
+                fontSize="9.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
+                letterSpacing="0.02em"
               >
                 Visionário
               </text>
@@ -1037,31 +1016,24 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 66)">
-              <rect
-                x="-31"
-                y="-9"
-                width="62"
-                height="18"
-                rx="5"
-                fill={isHovered ? '#818cf8' : ui.headFill}
-                fillOpacity={isHovered ? '0.25' : '0.85'}
-                stroke={isHovered ? '#818cf8' : ui.stageFloor}
-                strokeWidth="1.2"
+            {/* Rótulo de Identificação Limpo & Elegante */}
+            <g transform="translate(0, 58)" className="pointer-events-none select-none">
+              <circle
+                cx="0"
+                cy="-7.5"
+                r={isHovered ? 2.4 : 1.8}
+                fill="#818cf8"
+                opacity={isHovered ? 1 : 0.65}
               />
-              <g transform="translate(-25, -5.5) scale(0.44)" className="text-indigo-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.futurista }} />
-              </g>
               <text
-                x="-9"
-                y="1"
-                textAnchor="start"
-                dominantBaseline="central"
-                fill={ui.strokeMain}
-                fontSize="7.8"
+                x="0"
+                y="5"
+                textAnchor="middle"
+                fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
+                fontSize="9.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
+                letterSpacing="0.02em"
               >
                 Futurista
               </text>
@@ -1284,31 +1256,24 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 64)">
-              <rect
-                x="-27"
-                y="-9"
-                width="54"
-                height="18"
-                rx="5"
-                fill={ceticoCares || isHovered ? '#f43f5e' : ui.headFill}
-                fillOpacity={ceticoCares || isHovered ? '0.25' : '0.85'}
-                stroke={ceticoCares || isHovered ? '#f43f5e' : ui.stageFloor}
-                strokeWidth="1.2"
+            {/* Rótulo de Identificação Limpo & Elegante (ancorado sob o centro de massa cabeça+livro) */}
+            <g transform="translate(20, 56)" className="pointer-events-none select-none">
+              <circle
+                cx="0"
+                cy="-7.5"
+                r={ceticoCares || isHovered ? 2.4 : 1.8}
+                fill="#f43f5e"
+                opacity={ceticoCares || isHovered ? 1 : 0.65}
               />
-              <g transform="translate(-21, -5.5) scale(0.44)" className="text-rose-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.cetico }} />
-              </g>
               <text
-                x="-5"
-                y="1"
-                textAnchor="start"
-                dominantBaseline="central"
-                fill={ui.strokeMain}
-                fontSize="8.2"
+                x="0"
+                y="5"
+                textAnchor="middle"
+                fill={ceticoCares || isHovered ? ui.strokeMain : ui.strokeSecondary}
+                fontSize="9.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
+                letterSpacing="0.02em"
               >
                 Cético
               </text>
@@ -1529,31 +1494,24 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 60)">
-              <rect
-                x="-30"
-                y="-9"
-                width="60"
-                height="18"
-                rx="5"
-                fill={isAuditorBlowingWhistle || isHovered ? '#fbbf24' : ui.headFill}
-                fillOpacity={isAuditorBlowingWhistle || isHovered ? '0.25' : '0.85'}
-                stroke={isAuditorBlowingWhistle || isHovered ? '#fbbf24' : ui.stageFloor}
-                strokeWidth="1.2"
+            {/* Rótulo de Identificação Limpo & Elegante */}
+            <g transform="translate(0, 52)" className="pointer-events-none select-none">
+              <circle
+                cx="0"
+                cy="-7.5"
+                r={isAuditorBlowingWhistle || isHovered ? 2.4 : 1.8}
+                fill="#fbbf24"
+                opacity={isAuditorBlowingWhistle || isHovered ? 1 : 0.65}
               />
-              <g transform="translate(-24, -5.5) scale(0.44)" className="text-amber-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.auditor }} />
-              </g>
               <text
-                x="-8"
-                y="1"
-                textAnchor="start"
-                dominantBaseline="central"
-                fill={ui.strokeMain}
-                fontSize="8.2"
+                x="0"
+                y="5"
+                textAnchor="middle"
+                fill={isAuditorBlowingWhistle || isHovered ? ui.strokeMain : ui.strokeSecondary}
+                fontSize="9.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
+                letterSpacing="0.02em"
               >
                 Auditor
               </text>
@@ -1760,31 +1718,24 @@ export function DeepResearchCharacters({
               </g>
             </g>
 
-            {/* Rótulo de Identificação com Mini-Ícone */}
-            <g transform="translate(0, 70)">
-              <rect
-                x="-30"
-                y="-9"
-                width="60"
-                height="18"
-                rx="5"
-                fill={isHovered || phase === 'synthesis' ? '#34d399' : ui.headFill}
-                fillOpacity={isHovered || phase === 'synthesis' ? '0.25' : '0.85'}
-                stroke={isHovered || phase === 'synthesis' ? '#34d399' : ui.stageFloor}
-                strokeWidth="1.2"
+            {/* Rótulo de Identificação Limpo & Elegante */}
+            <g transform="translate(0, 62)" className="pointer-events-none select-none">
+              <circle
+                cx="0"
+                cy="-7.5"
+                r={isHovered || phase === 'synthesis' ? 2.4 : 1.8}
+                fill="#34d399"
+                opacity={isHovered || phase === 'synthesis' ? 1 : 0.65}
               />
-              <g transform="translate(-24, -5.5) scale(0.44)" className="text-emerald-400">
-                <g dangerouslySetInnerHTML={{ __html: PERSONA_CHOSEN_SVG.redator }} />
-              </g>
               <text
-                x="-8"
-                y="1"
-                textAnchor="start"
-                dominantBaseline="central"
-                fill={ui.strokeMain}
-                fontSize="8.2"
+                x="0"
+                y="5"
+                textAnchor="middle"
+                fill={isHovered || phase === 'synthesis' ? ui.strokeMain : ui.strokeSecondary}
+                fontSize="9.5"
                 fontFamily="system-ui, -apple-system, sans-serif"
                 fontWeight="600"
+                letterSpacing="0.02em"
               >
                 Redator
               </text>
