@@ -76,27 +76,23 @@ export function verifySourcesBinding(
     };
   }
 
-  // 3. Exige cálculo local de digest bem-sucedido não-vazio
-  if (!localHash || localHash.trim().length === 0) {
+  // 3. Validação de integridade via artifact_hash
+  // B-17: se sources.artifact_hash for nulo, indefinido ou vazio, NÃO disparar falso alerta.
+  // Apenas disparar se AMBOS existirem (sources.artifact_hash e localHash) e forem diferentes.
+  const serverHash = (sources.artifact_hash || '').trim();
+  const local = (localHash || '').trim();
+
+  if (serverHash.length > 0 && local.length > 0) {
+    if (serverHash.toLowerCase() !== local.toLowerCase()) {
+      return {
+        isValid: false,
+        reason: 'As fontes disponíveis pertencem a outra versão deste relatório. O texto foi preservado.',
+      };
+    }
+  } else if (serverHash.length > 0 && local.length === 0) {
     return {
       isValid: false,
       reason: 'Não foi possível conferir a integridade do dossiê.',
-    };
-  }
-
-  // 4. Exige fornecimento obrigatório de artifact_hash pelo backend para o artigo publicado
-  if (!sources.artifact_hash || sources.artifact_hash.trim().length === 0) {
-    return {
-      isValid: false,
-      reason: 'As fontes disponíveis pertencem a outra versão deste relatório. O texto foi preservado.',
-    };
-  }
-
-  // 5. Exige igualdade exata (case-insensitive) entre artifact_hash e localHash
-  if (sources.artifact_hash.trim().toLowerCase() !== localHash.trim().toLowerCase()) {
-    return {
-      isValid: false,
-      reason: 'As fontes disponíveis pertencem a outra versão deste relatório. O texto foi preservado.',
     };
   }
 

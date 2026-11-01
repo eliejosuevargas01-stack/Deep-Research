@@ -2,7 +2,7 @@ import React from 'react';
 import { Favicon } from './Favicon';
 import { FontesResumo } from '../types/api';
 
-export type FonteExplorerStatus = 'lendo' | 'processado' | 'invalidado';
+export type FonteExplorerStatus = 'lendo' | 'processado' | 'invalidado' | 'consultada';
 
 export interface FonteExplorerItem {
   url: string;
@@ -15,6 +15,7 @@ export interface FonteExplorerItem {
 const STATUS_ROTULO: Record<FonteExplorerStatus, string> = {
   lendo: 'Lendo',
   processado: 'Processado',
+  consultada: 'Consultada',
   invalidado: 'Invalidado',
 };
 
@@ -93,7 +94,8 @@ export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
                   const dominio = dominioDe(fonte.url, fonte.dominio);
                   const titulo = fonte.titulo && fonte.titulo.trim() ? fonte.titulo.trim() : dominio;
                   const seguro = isSafeUrl(fonte.url);
-                  const descricao = `${titulo} — ${dominio} — ${STATUS_ROTULO[fonte.status]}`;
+                  const rotuloStatus = STATUS_ROTULO[fonte.status] ?? (typeof fonte.status === 'string' ? fonte.status : 'Processado');
+                  const descricao = `${titulo} — ${dominio} — ${rotuloStatus}`;
                   const conteudo = (
                     <>
                       <span className="rr-source__icon" aria-hidden="true">
@@ -108,7 +110,7 @@ export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
                           {dominio}
                         </span>
                       </span>
-                      <span className={`rr-source__badge is-${fonte.status}`}>{STATUS_ROTULO[fonte.status]}</span>
+                      <span className={`rr-source__badge is-${fonte.status}`}>{rotuloStatus}</span>
                     </>
                   );
                   return (
@@ -171,13 +173,13 @@ export function derivarFontesParaExplorer(
           vistos.add(normalizada);
           let dominio: string | null = null;
           try {
-            dominio = new URL(normalizada).hostname.replace(/^www\./, '');
+            dominio = new URL(url).hostname.replace(/^www\./, '');
           } catch {
             dominio = null;
           }
           const reprovado = Boolean(coleta.ponto_id && opts?.pontosReprovados?.has(coleta.ponto_id));
           itens.push({
-            url: normalizada,
+            url,
             titulo: null,
             dominio,
             status: reprovado ? 'invalidado' : opts?.emColeta ? 'lendo' : 'processado',
@@ -202,12 +204,12 @@ export function derivarFontesParaExplorer(
         vistos.add(normalizada);
         let dominio: string | null = null;
         try {
-          dominio = new URL(normalizada).hostname.replace(/^www\./, '');
+          dominio = new URL(url).hostname.replace(/^www\./, '');
         } catch {
           dominio = null;
         }
         itens.push({
-          url: normalizada,
+          url,
           titulo: null,
           dominio,
           status: opts?.emColeta ? 'lendo' : 'processado',
@@ -229,7 +231,7 @@ export function converterFontesResumoParaExplorer(resumo?: FontesResumo | null):
   const items: FonteExplorerItem[] = [];
   const vistos = new Set<string>();
 
-  const processList = (lista: unknown[] | undefined, status: FonteExplorerStatus) => {
+  const processList = (lista: unknown[] | undefined, statusPadrao: FonteExplorerStatus) => {
     if (!Array.isArray(lista)) return;
     for (const item of lista) {
       const rawUrl =
@@ -245,25 +247,31 @@ export function converterFontesResumoParaExplorer(resumo?: FontesResumo | null):
       vistos.add(normalizada);
       let dominio: string | null = null;
       try {
-        dominio = new URL(normalizada).hostname.replace(/^www\./, '');
+        dominio = new URL(url).hostname.replace(/^www\./, '');
       } catch {
         dominio = null;
       }
       const rawTitulo = item && typeof item === 'object' && 'titulo' in item ? (item as { titulo: unknown }).titulo : null;
       const titulo = typeof rawTitulo === 'string' ? rawTitulo : null;
+      const rawPontoN = item && typeof item === 'object' && 'ponto_n' in item ? (item as { ponto_n: unknown }).ponto_n : null;
+      const ponto_n = typeof rawPontoN === 'number' ? rawPontoN : null;
+      const rawStatus = item && typeof item === 'object' && 'status' in item ? (item as { status: unknown }).status : null;
+      const status: FonteExplorerStatus =
+        rawStatus === 'lendo' || rawStatus === 'consultada' || rawStatus === 'processado' || rawStatus === 'invalidado'
+          ? (rawStatus as FonteExplorerStatus)
+          : statusPadrao;
       items.push({
-        url: normalizada,
+        url,
         titulo,
         dominio,
         status,
-        ponto_n: null,
+        ponto_n,
       });
     }
   };
 
   processList(resumo.utilizadas, 'processado');
-  processList(resumo.consultadas, 'processado');
-  processList(resumo.nao_utilizadas, 'invalidado');
+  processList(resumo.consultadas, 'consultada');
 
   return items;
 }

@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Copy, PanelRightClose } from 'lucide-react';
-import { PlanResponse, ModeloMetadados, SearchResponse } from '../types/api';
+import { PlanResponse, ModeloMetadados, SearchResponse, FontesResumo } from '../types/api';
 import { TokenUsageMeter } from './TokenUsageMeter';
-import { SourcesExplorer, derivarFontesParaExplorer, FonteExplorerItem } from './SourcesExplorer';
+import { SourcesExplorer, derivarFontesParaExplorer, converterFontesResumoParaExplorer, FonteExplorerItem, FonteExplorerStatus } from './SourcesExplorer';
 import '../styles/right-rail.css';
 
 export type RailMode = 'contexto' | 'fontes';
@@ -22,7 +22,7 @@ interface ContextSidebarProps {
   } | null;
   metadadosModelo?: ModeloMetadados | null;
   tokensAoVivo?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null;
-  fontes?: FonteExplorerItem[] | null;
+  fontes?: FonteExplorerItem[] | FontesResumo | null;
   searchResult?: SearchResponse | null;
   fontesAtivas?: boolean;
   pontosReprovados?: Set<string> | null;
@@ -177,13 +177,25 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   });
   const copiadoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const itensFontes =
-    fontes ??
-    derivarFontesParaExplorer(searchResult, {
+  const itensFontes: FonteExplorerItem[] = React.useMemo(() => {
+    if (Array.isArray(fontes)) {
+      return fontes.map((f) => ({
+        url: f.url,
+        titulo: f.titulo ?? null,
+        dominio: f.dominio ?? null,
+        status: (f.status as FonteExplorerStatus) || 'consultada',
+        ponto_n: typeof f.ponto_n === 'number' ? f.ponto_n : null,
+      }));
+    }
+    if (fontes && typeof fontes === 'object' && ('consultadas' in fontes || 'utilizadas' in fontes)) {
+      return converterFontesResumoParaExplorer(fontes as FontesResumo);
+    }
+    return derivarFontesParaExplorer(searchResult, {
       emColeta: fontesAtivas,
       pontosReprovados,
       reasoningItems,
     });
+  }, [fontes, searchResult, fontesAtivas, pontosReprovados, reasoningItems]);
   const temFontesColetadas = Array.isArray(itensFontes) && itensFontes.length > 0;
 
   const effectiveInitial = initialMode ?? modeProp;
