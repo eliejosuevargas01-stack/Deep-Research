@@ -61,6 +61,18 @@ class TestIsLocalEligible:
         [
             "172.17.0.1",       # Bridge Docker padrão (gateway)
             "172.17.0.2",       # Container Docker na bridge padrão
+        ],
+    )
+    def test_docker_bridge_ips_are_eligible_by_default(self, ip: str, monkeypatch: pytest.MonkeyPatch):
+        """IPs da bridge padrão Docker (172.17.0.0/16) devem ser elegíveis por padrão."""
+        monkeypatch.delenv("TRUST_LOCAL_NETWORK", raising=False)
+        monkeypatch.delenv("DOCKER_CONTAINER", raising=False)
+        req = _build_request(client_ip=ip, host="localhost:8000")
+        assert is_local_eligible(req) is True
+
+    @pytest.mark.parametrize(
+        "ip",
+        [
             "172.18.0.5",       # Rede Docker personalizada (172.18.0.0/16)
             "172.16.0.1",       # Início da faixa 172.16.0.0/12
             "172.31.255.254",   # Fim da faixa 172.16.0.0/12
@@ -70,9 +82,14 @@ class TestIsLocalEligible:
             "192.168.1.100",    # LAN privada 192.168.0.0/16
         ],
     )
-    def test_private_and_docker_ips_are_eligible(self, ip: str):
-        """IPs privados (Docker, LAN 10/8, 172.16/12, 192.168/16) devem ser elegíveis (B-19)."""
+    def test_other_private_ips_require_trusted_network(self, ip: str, monkeypatch: pytest.MonkeyPatch):
+        """Outras faixas privadas (10/8, 192.168/16, restante de 172.16/12) DEVEM exigir flag de confiança (B-19)."""
+        monkeypatch.delenv("TRUST_LOCAL_NETWORK", raising=False)
+        monkeypatch.delenv("DOCKER_CONTAINER", raising=False)
         req = _build_request(client_ip=ip, host="localhost:8000")
+        assert is_local_eligible(req) is False
+
+        monkeypatch.setenv("TRUST_LOCAL_NETWORK", "1")
         assert is_local_eligible(req) is True
 
     @pytest.mark.parametrize(
@@ -102,14 +119,18 @@ class TestIsLocalEligible:
         req = _build_request(client_ip="8.8.8.8", host="localhost:8000")
         assert is_local_eligible(req) is True
 
-    def test_docker_host_and_private_host_headers_allowed(self):
+    def test_docker_host_and_private_host_headers_allowed(self, monkeypatch: pytest.MonkeyPatch):
         """Cabeçalhos Host com IPs de rede privada ou Docker são aceitos."""
+        monkeypatch.delenv("TRUST_LOCAL_NETWORK", raising=False)
+        monkeypatch.delenv("DOCKER_CONTAINER", raising=False)
+
         req_docker_ip = _build_request(client_ip="172.17.0.2", host="172.17.0.2:8000")
         assert is_local_eligible(req_docker_ip) is True
 
         req_docker_named = _build_request(client_ip="172.17.0.2", host="host.docker.internal:8000")
         assert is_local_eligible(req_docker_named) is True
 
+        monkeypatch.setenv("TRUST_LOCAL_NETWORK", "1")
         req_lan = _build_request(client_ip="192.168.1.50", host="192.168.1.50:8000")
         assert is_local_eligible(req_lan) is True
 

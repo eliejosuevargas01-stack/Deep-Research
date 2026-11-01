@@ -54,6 +54,12 @@ def _drain_deltas(
     processar na próxima iteração (asyncio.Queue não tem put_front).
     """
     merged = dict(first)
+    f_id = first.get("id") if hasattr(first, "get") else getattr(first, "id", None)
+    if f_id is not None:
+        merged["id"] = f_id
+    f_seq = first.get("seq_id") if hasattr(first, "get") else getattr(first, "seq_id", None)
+    if f_seq is not None:
+        merged["seq_id"] = f_seq
     merged["text"] = first.get("text") or ""
     key = _delta_key(first)
     pending = None
@@ -163,9 +169,14 @@ async def stream_pipeline_progress(
     4. Emite keep-alive ': keep-alive\\n\\n' a cada 15 segundos.
     5. Monitora cancelamento na desconexão com request.is_disconnected().
     """
+    last_event_id = request.headers.get("last-event-id") or request.query_params.get("last_event_id")
+    hub = get_pipeline_event_hub()
+    queue, history_events = hub.subscribe_with_history(id_pesquisa, last_event_id=last_event_id)
+
     repo = ResearchRepository(session=db)
     pesquisa = await repo.get_research(id_pesquisa)
     if not pesquisa:
+        hub.unsubscribe(id_pesquisa, queue)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Pesquisa não localizada: {id_pesquisa}",
@@ -178,11 +189,8 @@ async def stream_pipeline_progress(
         .order_by(ConteudoColetado.criado_em.asc())
     )
     coletas_res = (await db.execute(stmt_coletas)).scalars().all()
-    last_event_id = request.headers.get("last-event-id") or request.query_params.get("last_event_id")
 
     async def event_generator():
-        hub = get_pipeline_event_hub()
-        queue, history_events = hub.subscribe_with_history(id_pesquisa, last_event_id=last_event_id)
         emitted_count = 0
 
         def emit(evt_name: str, evt_payload: Dict[str, Any]) -> str:
@@ -205,7 +213,7 @@ async def stream_pipeline_progress(
                     ):
                         return
             else:
-                # 1. Snapshot inicial do banco de dados
+                # 1. Snapshot inicial do banco de dados (apenas se não houver last_event_id)
                 yield emit("pipeline.status", {
                     "id_pesquisa": id_pesquisa,
                     "status_pipeline": status_pipe,
@@ -217,63 +225,81 @@ async def stream_pipeline_progress(
                     "tokens_total": int(getattr(pesquisa, "tokens_total", 0) or 0),
                 })
 
-            # Pontos e suas auditorias
-            for p in pontos:
-                yield emit("point.status", {
-                    "id_pesquisa": id_pesquisa,
-                    "ponto_id": p.ponto_id,
-                    "ponto_n": p.ponto_n,
-                    "status": p.status,
-                    "tentativas": p.tentativas or 0,
-                })
-                if p.reasoning_auditoria or p.status in ("aprovado", "reprovado"):
-                    yield emit("audit.result", {
+                # Pontos e suas auditorias
+                for p in pontos:
+                    yield emit("point.status", {
                         "id_pesquisa": id_pesquisa,
                         "ponto_id": p.ponto_id,
                         "ponto_n": p.ponto_n,
                         "status": p.status,
-                        "pontuacao_percentual": 100.0 if p.status == "aprovado" else 0.0,
-                        "criterios_aprovados": 12 if p.status == "aprovado" else 0,
-                        "reasoning_auditoria": p.reasoning_auditoria,
-                        "pontos_fracos": p.pontos_fracos,
+                        "tentativas": p.tentativas or 0,
                     })
+                    if p.reasoning_auditoria or p.status in ("aprovado", "reprovado"):
+                        yield emit("audit.result", {
+                            "id_pesquisa": id_pesquisa,
+                            "ponto_id": p.ponto_id,
+                            "ponto_n": p.ponto_n,
+                            "status": p.status,
+                            "pontuacao_percentual": 100.0 if p.status == "aprovado" else 0.0,
+                            "criterios_aprovados": 12 if p.status == "aprovado" else 0,
+                            "reasoning_auditoria": p.reasoning_auditoria,
+                            "pontos_fracos": p.pontos_fracos,
+                        })
 
-            # Coletas e seus raciocínios
-            for c in coletas_res:
-                if c.reasoning_coleta:
-                    urls_list = []
-                    if c.urls_fonte:
-                        try:
-                            urls_list = json.loads(c.urls_fonte)
-                        except Exception:
-                            urls_list = []
+                # Coletas e seus raciocínios
+                for c in coletas_res:
+                    if c.reasoning_coleta:
+                        urls_list = []
+                        if c.urls_fonte:
+                            try:
+                                urls_list = json.loads(c.urls_fonte)
+                            except Exception:
+                                urls_list = []
 
-                    meta = {}
-                    if getattr(c, "metadados_coleta", None):
-                        try:
-                            raw_meta = c.metadados_coleta
-                            meta = json.loads(raw_meta) if isinstance(raw_meta, str) else raw_meta
-                        except Exception:
-                            meta = {}
+                        meta = {}
+                        if getattr(c, "metadados_coleta", None):
+                            try:
+                                raw_meta = c.metadados_coleta
+                                meta = json.loads(raw_meta) if isinstance(raw_meta, str) else raw_meta
+                            except Exception:
+                                meta = {}
 
-                    res_personas = meta.get("resultados_personas") if isinstance(meta, dict) else None
-                    if res_personas and isinstance(res_personas, dict):
-                        emitted_personas = False
-                        for p_name, p_val in res_personas.items():
-                            p_reasoning = p_val.get("reasoning") if isinstance(p_val, dict) else None
-                            if p_reasoning:
-                                emitted_personas = True
-                                p_urls = p_val.get("urls_fonte", []) if isinstance(p_val, dict) else []
+                        res_personas = meta.get("resultados_personas") if isinstance(meta, dict) else None
+                        if res_personas and isinstance(res_personas, dict):
+                            emitted_personas = False
+                            for p_name, p_val in res_personas.items():
+                                p_reasoning = p_val.get("reasoning") if isinstance(p_val, dict) else None
+                                if p_reasoning:
+                                    emitted_personas = True
+                                    p_urls = p_val.get("urls_fonte", []) if isinstance(p_val, dict) else []
+                                    yield emit("search.progress", {
+                                        "id_pesquisa": id_pesquisa,
+                                        "ponto_id": c.ponto_id,
+                                        "persona": p_name,
+                                        "queries_executadas": p_val.get("queries_executadas", 1) if isinstance(p_val, dict) else 1,
+                                        "urls_lidas": len(p_urls) if isinstance(p_urls, list) else len(urls_list),
+                                        "falha_coleta": bool(p_val.get("falha_coleta", False)) if isinstance(p_val, dict) else False,
+                                        "reasoning_coleta": p_reasoning,
+                                    })
+                            if not emitted_personas:
+                                p_persona = (meta.get("persona") if isinstance(meta, dict) else None)
+                                if not p_persona and c.reasoning_coleta:
+                                    lower_r = c.reasoning_coleta.lower()
+                                    for cand in ("historiador", "visionario", "cetico", "futurista"):
+                                        if cand in lower_r:
+                                            p_persona = cand
+                                            break
+                                p_persona = p_persona or "historiador"
                                 yield emit("search.progress", {
                                     "id_pesquisa": id_pesquisa,
                                     "ponto_id": c.ponto_id,
-                                    "persona": p_name,
-                                    "queries_executadas": p_val.get("queries_executadas", 1) if isinstance(p_val, dict) else 1,
-                                    "urls_lidas": len(p_urls) if isinstance(p_urls, list) else len(urls_list),
-                                    "falha_coleta": bool(p_val.get("falha_coleta", False)) if isinstance(p_val, dict) else False,
-                                    "reasoning_coleta": p_reasoning,
+                                    "persona": p_persona,
+                                    "queries_executadas": 1,
+                                    "urls_lidas": len(urls_list),
+                                    "falha_coleta": False,
+                                    "reasoning_coleta": c.reasoning_coleta,
                                 })
-                        if not emitted_personas:
+                        else:
                             p_persona = (meta.get("persona") if isinstance(meta, dict) else None)
                             if not p_persona and c.reasoning_coleta:
                                 lower_r = c.reasoning_coleta.lower()
@@ -291,40 +317,22 @@ async def stream_pipeline_progress(
                                 "falha_coleta": False,
                                 "reasoning_coleta": c.reasoning_coleta,
                             })
-                    else:
-                        p_persona = (meta.get("persona") if isinstance(meta, dict) else None)
-                        if not p_persona and c.reasoning_coleta:
-                            lower_r = c.reasoning_coleta.lower()
-                            for cand in ("historiador", "visionario", "cetico", "futurista"):
-                                if cand in lower_r:
-                                    p_persona = cand
-                                    break
-                        p_persona = p_persona or "historiador"
-                        yield emit("search.progress", {
-                            "id_pesquisa": id_pesquisa,
-                            "ponto_id": c.ponto_id,
-                            "persona": p_persona,
-                            "queries_executadas": 1,
-                            "urls_lidas": len(urls_list),
-                            "falha_coleta": False,
-                            "reasoning_coleta": c.reasoning_coleta,
-                        })
 
-            # Dossiê final se já existente
-            if pesquisa.dossier_final:
-                yield emit("writer.progress", {
-                    "id_pesquisa": id_pesquisa,
-                    "status": "concluido",
-                    "reasoning_dossier": getattr(pesquisa, "reasoning_dossier", None),
-                    "total_caracteres": len(pesquisa.dossier_final),
-                })
-                yield emit("report.final", {
-                    "id_pesquisa": id_pesquisa,
-                    "status": "concluido",
-                    "dossier_final": pesquisa.dossier_final,
-                    "total_caracteres": len(pesquisa.dossier_final),
-                    "concluido_em": pesquisa.concluido_em or _format_iso_utc(),
-                })
+                # Dossiê final se já existente
+                if pesquisa.dossier_final:
+                    yield emit("writer.progress", {
+                        "id_pesquisa": id_pesquisa,
+                        "status": "concluido",
+                        "reasoning_dossier": getattr(pesquisa, "reasoning_dossier", None),
+                        "total_caracteres": len(pesquisa.dossier_final),
+                    })
+                    yield emit("report.final", {
+                        "id_pesquisa": id_pesquisa,
+                        "status": "concluido",
+                        "dossier_final": pesquisa.dossier_final,
+                        "total_caracteres": len(pesquisa.dossier_final),
+                        "concluido_em": pesquisa.concluido_em or _format_iso_utc(),
+                    })
 
             # Interrupção precoce configurada para snapshot_only ou limite de eventos
             if snapshot_only or (max_events is not None and emitted_count >= max_events):

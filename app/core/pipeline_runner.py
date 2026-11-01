@@ -488,6 +488,8 @@ class PipelineRunner:
                             "id_pesquisa": id_pesquisa,
                             "status_pipeline": final_status,
                             "timestamp": _format_iso_utc(),
+                            "criado_em": getattr(pesquisa, "criado_em", None),
+                            "concluido_em": None,
                         })
                         return {
                             "status": final_status,
@@ -508,6 +510,8 @@ class PipelineRunner:
                         "id_pesquisa": id_pesquisa,
                         "status_pipeline": "bloqueado",
                         "timestamp": _format_iso_utc(),
+                        "criado_em": getattr(pesquisa, "criado_em", None),
+                        "concluido_em": None,
                     })
                     return {"status": "bloqueado", "detalhe": "Auditoria não aprovou todos os pontos."}
 

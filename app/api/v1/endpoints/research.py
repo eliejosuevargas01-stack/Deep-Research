@@ -49,6 +49,7 @@ def _build_auditoria(pesquisa: Any, pontos: List[Any]) -> Optional[Dict[str, Any
     auditorias = []
     aprovados = 0
     reprovados = 0
+    total_pontos = len(pontos) if pontos is not None else 0
     for p in pontos or []:
         status_p = getattr(p, "status", None) if not isinstance(p, dict) else p.get("status")
         ponto_id = getattr(p, "ponto_id", None) if not isinstance(p, dict) else p.get("ponto_id")
@@ -108,16 +109,29 @@ def _build_auditoria(pesquisa: Any, pontos: List[Any]) -> Optional[Dict[str, Any
     if isinstance(pesquisa, dict):
         status_pesquisa = status_pesquisa or pesquisa.get("status_pipeline") or pesquisa.get("status")
 
-    total = len(auditorias)
-    status_geral = "aprovado" if aprovados == total else ("reprovado" if reprovados > 0 and aprovados == 0 else "parcial")
+    if len(auditorias) < total_pontos:
+        status_geral = "parcial"
+        pronto_para_writer = False
+    else:
+        status_geral = (
+            "aprovado"
+            if aprovados == total_pontos
+            else ("reprovado" if reprovados > 0 and aprovados == 0 else "parcial")
+        )
+        pronto_para_writer = (
+            total_pontos > 0
+            and len(auditorias) == total_pontos
+            and aprovados == total_pontos
+        )
+
     return {
         "id_pesquisa": id_pesquisa,
-        "total_pontos": total,
+        "total_pontos": total_pontos,
         "aprovados": aprovados,
         "reprovados": reprovados,
         "status_geral": status_geral,
         "status_pesquisa": status_pesquisa,
-        "pronto_para_writer": aprovados == total and total > 0,
+        "pronto_para_writer": pronto_para_writer,
         "auditorias": auditorias,
     }
 

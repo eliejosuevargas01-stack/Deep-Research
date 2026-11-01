@@ -106,27 +106,36 @@ async def get_app_session(request: Request, db: AsyncSession = Depends(get_db)) 
     if not eligible:
         # UI remota autenticada por chave de API (ex.: frontend atrás de proxy confiável
         # que injeta X-API-Key no servidor). A chave continua obrigatória nas rotas de negócio.
-        try:
-            await verify_api_key(
-                request=request,
-                x_api_key=request.headers.get("x-api-key"),
-                authorization=request.headers.get("authorization"),
-                db=db,
+        has_api_key_header = bool(
+            request.headers.get("x-api-key")
+            or request.headers.get("authorization")
+            or (
+                hasattr(request, "query_params")
+                and (request.query_params.get("token") or request.query_params.get("api_key"))
             )
-        except HTTPException:
-            pass
-        else:
-            res = JSONResponse(
-                content={
-                    "authenticated": True,
-                    "mode": "api-key",
-                    "preferences": prefs,
-                },
-                status_code=status.HTTP_200_OK,
-            )
-            # Cookie assinado permite EventSource (SSE), que nao envia cabecalhos customizados.
-            set_session_cookie(res, request)
-            return res
+        )
+        if has_api_key_header:
+            try:
+                await verify_api_key(
+                    request=request,
+                    x_api_key=request.headers.get("x-api-key"),
+                    authorization=request.headers.get("authorization"),
+                    db=db,
+                )
+            except HTTPException:
+                pass
+            else:
+                res = JSONResponse(
+                    content={
+                        "authenticated": True,
+                        "mode": "api-key",
+                        "preferences": prefs,
+                    },
+                    status_code=status.HTTP_200_OK,
+                )
+                # Cookie assinado permite EventSource (SSE), que nao envia cabecalhos customizados.
+                set_session_cookie(res, request)
+                return res
 
         expected_origin = get_request_origin(request)
         origin = request.headers.get("origin")

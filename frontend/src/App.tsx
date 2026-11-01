@@ -35,6 +35,7 @@ import {
   PipelineStatusResumo,
   PlanResponse,
   RecenciaPolitica,
+  ResearchDetail,
   ResearchHistoryRecord,
   SearchResponse,
   WriterResponse,
@@ -691,56 +692,59 @@ export const App: React.FC = () => {
         const status = (await resp.json()) as PipelineStatusResumo;
         let registro = historyService.get(idAtivo);
 
+        let detalhe: ResearchDetail | null = null;
         // B-02: Se registro?.planResponse não existir no localStorage, hidratar a pesquisa completa
-        if (!registro?.planResponse) {
+        if (!registro?.planResponse || status.status_pipeline === 'redigindo' || status.status_pipeline === 'auditando') {
           try {
-            const detalhe = await api.getResearch(idAtivo);
+            detalhe = await api.getResearch(idAtivo);
             if (cancelado) return;
-            const pontos = (detalhe.pontos ?? []).map((p) => ({
-              ponto_id: String(p.ponto_id),
-              ponto_n: Number(p.ponto_n),
-              ponto: String(p.ponto ?? ''),
-              status: p.status ?? 'pendente',
-              eixo_estruturado: p.eixo_estruturado ?? null,
-            }));
-            const planoHidratado: PlanResponse = {
-              id_pesquisa: detalhe.id_pesquisa,
-              tema: detalhe.tema,
-              n_pontos: pontos.length,
-              criado_em: detalhe.criado_em,
-              pontos,
-              status_pipeline: detalhe.status_pipeline,
-              plano_estruturado: detalhe.plano_estruturado ?? null,
-              preferencias: detalhe.preferencias ?? undefined,
-            };
-            const writerHidratado: WriterResponse | undefined = detalhe.dossier_final
-              ? {
-                  id_pesquisa: detalhe.id_pesquisa,
-                  tema: detalhe.tema,
-                  status: 'concluido',
-                  total_caracteres_dossier: detalhe.dossier_final.length,
-                  concluido_em: detalhe.concluido_em ?? null,
-                  dossier_final: detalhe.dossier_final,
-                  fontes: detalhe.fontes ?? null,
-                }
-              : undefined;
-            const novoRegistro: ResearchHistoryRecord = {
-              id_pesquisa: detalhe.id_pesquisa,
-              tema: detalhe.tema,
-              criado_em: detalhe.criado_em,
-              concluido_em: detalhe.concluido_em ?? null,
-              status: (detalhe.status_pipeline as any) || 'planejado',
-              total_pontos: pontos.length,
-              planResponse: planoHidratado,
-              writerResponse: writerHidratado,
-              auditResponse: detalhe.auditoria || undefined,
-              fontes: detalhe.fontes || undefined,
-            };
-            historyService.save(novoRegistro);
-            registro = novoRegistro;
-            setHistoryRecords(historyService.list());
+            if (!registro?.planResponse) {
+              const pontos = (detalhe.pontos ?? []).map((p: any) => ({
+                ponto_id: String(p.ponto_id),
+                ponto_n: Number(p.ponto_n),
+                ponto: String(p.ponto ?? ''),
+                status: p.status ?? 'pendente',
+                eixo_estruturado: p.eixo_estruturado ?? null,
+              }));
+              const planoHidratado: PlanResponse = {
+                id_pesquisa: detalhe.id_pesquisa,
+                tema: detalhe.tema,
+                n_pontos: pontos.length,
+                criado_em: detalhe.criado_em,
+                pontos,
+                status_pipeline: detalhe.status_pipeline,
+                plano_estruturado: detalhe.plano_estruturado ?? null,
+                preferencias: detalhe.preferencias ?? undefined,
+              };
+              const writerHidratado: WriterResponse | undefined = detalhe.dossier_final
+                ? {
+                    id_pesquisa: detalhe.id_pesquisa,
+                    tema: detalhe.tema,
+                    status: 'concluido',
+                    total_caracteres_dossier: detalhe.dossier_final.length,
+                    concluido_em: detalhe.concluido_em ?? null,
+                    dossier_final: detalhe.dossier_final,
+                    fontes: detalhe.fontes ?? null,
+                  }
+                : undefined;
+              const novoRegistro: ResearchHistoryRecord = {
+                id_pesquisa: detalhe.id_pesquisa,
+                tema: detalhe.tema,
+                criado_em: detalhe.criado_em,
+                concluido_em: detalhe.concluido_em ?? null,
+                status: (detalhe.status_pipeline as any) || 'planejado',
+                total_pontos: pontos.length,
+                planResponse: planoHidratado,
+                writerResponse: writerHidratado,
+                auditResponse: detalhe.auditoria || undefined,
+                fontes: detalhe.fontes || undefined,
+              };
+              historyService.save(novoRegistro);
+              registro = novoRegistro;
+              setHistoryRecords(historyService.list());
+            }
           } catch {
-            return;
+            if (!registro?.planResponse) return;
           }
         }
         if (!registro?.planResponse) return;
@@ -748,6 +752,12 @@ export const App: React.FC = () => {
 
         setActiveResearchId(idAtivo);
         activeResearchIdRef.current = idAtivo;
+
+        // B-02 / B-20: Hidratação de auditoria pós-F5
+        const auditParaHidratar = detalhe?.auditoria || registro.auditResponse || null;
+        if (auditParaHidratar) {
+          setAuditResult(auditParaHidratar);
+        }
 
         // B-21: Se status_pipeline === 'concluido' e writerResponse ausente, recuperar via api.getResearch
         if (status.status_pipeline === 'concluido' && !registro.writerResponse) {
@@ -779,8 +789,6 @@ export const App: React.FC = () => {
           }
         }
 
-        const estagio = status.status_pipeline ? STAGE_POR_STATUS[status.status_pipeline] : undefined;
-
         if (status.status_pipeline === 'concluido' && registro.writerResponse) {
           setCurrentPlan(currentPlanResponse);
           setWriterResult(registro.writerResponse);
@@ -798,6 +806,25 @@ export const App: React.FC = () => {
           }
           return;
         }
+
+        // B-02: Tratamento de falha e reprovação no F5 sem mascaramento por estagio cego
+        if (status.status_pipeline === 'falha') {
+          setCurrentPlan(currentPlanResponse);
+          setPipelineStage('failed');
+          setFailedStage(status.estagio_falha || 'searching');
+          setExecutionError(status.erro_pipeline || 'A pesquisa foi interrompida com erro no servidor.');
+          return;
+        }
+
+        if (status.status_pipeline === 'reprovado') {
+          setCurrentPlan(currentPlanResponse);
+          setPipelineStage('rejected');
+          setFailedStage(null);
+          setExecutionError('A auditoria não aprovou os pontos investigativos.');
+          return;
+        }
+
+        const estagio = status.status_pipeline ? STAGE_POR_STATUS[status.status_pipeline] : undefined;
 
         if (estagio) {
           const planComDatas: PlanResponse = {
@@ -847,18 +874,15 @@ export const App: React.FC = () => {
           if (isIntermediario && !isAsync) {
             const resumeStage: 'searching' | 'auditing' | 'writing' =
               estagio === 'writing' ? 'writing' : estagio === 'auditing' ? 'auditing' : 'searching';
-            void runPipeline({ resumeFromStage: resumeStage, plan: planComDatas });
+            const isWriting = resumeStage === 'writing' || status.status_pipeline === 'redigindo';
+            const auditParaPassar = detalhe?.auditoria || registro.auditResponse || null;
+            void runPipeline({
+              resumeFromStage: resumeStage,
+              plan: planComDatas,
+              prontoParaWriter: isWriting ? true : undefined,
+              auditResult: auditParaPassar,
+            });
           }
-        } else if (status.status_pipeline === 'falha') {
-          setCurrentPlan(currentPlanResponse);
-          setFailedStage(null);
-          setExecutionError(status.erro_pipeline || 'A execução anterior falhou.');
-          setPipelineStage('failed');
-        } else if (status.status_pipeline === 'reprovado') {
-          setCurrentPlan(currentPlanResponse);
-          setFailedStage(null);
-          setExecutionError('A auditoria reprovou esta pesquisa.');
-          setPipelineStage('rejected');
         }
       } catch {
         /* backend offline: mantém a tela atual */
@@ -1140,13 +1164,21 @@ export const App: React.FC = () => {
   };
 
   // Pipeline unificado e sensível ao estágio com checkpoints e prevenção de concorrência
-  const runPipeline = async (options?: { resumeFromStage?: 'searching' | 'auditing' | 'writing'; plan?: PlanResponse }) => {
+  const runPipeline = async (options?: {
+    resumeFromStage?: 'searching' | 'auditing' | 'writing';
+    plan?: PlanResponse;
+    prontoParaWriter?: boolean;
+    auditResult?: AuditResponse | null;
+  }) => {
     const activePlan = options?.plan ?? currentPlan;
     if (!activePlan) return;
     if (isExecutingRef.current || isPlanningRef.current) return;
     isExecutingRef.current = true;
     if (options?.plan) {
       setCurrentPlan(options.plan);
+    }
+    if (options?.auditResult !== undefined) {
+      setAuditResult(options.auditResult);
     }
 
     abortControllerRef.current?.abort();
@@ -1192,7 +1224,12 @@ export const App: React.FC = () => {
     }
 
     try {
-      let prontoParaWriter = Boolean(auditResult?.pronto_para_writer);
+      const prontoParaWriterInicial =
+        options?.prontoParaWriter ??
+        (options?.auditResult
+          ? Boolean(options.auditResult.pronto_para_writer)
+          : Boolean(auditResult?.pronto_para_writer));
+      let prontoParaWriter = prontoParaWriterInicial;
 
       if (startStage !== 'writing' && !prontoParaWriter) {
         for (let ciclo = currentCiclo; ciclo <= maxCycles; ciclo++) {
@@ -1461,12 +1498,11 @@ export const App: React.FC = () => {
     try {
       const aRes = await api.auditResearch(currentPlan.id_pesquisa, ponto_id, criteriosMinimos);
       // Merge: troca só o parecer do ponto, preserva os demais e os totais.
-      let consolidadoProntoParaWriter = false;
-      setAuditResult((anterior) => {
-        if (!anterior) {
-          consolidadoProntoParaWriter = Boolean(aRes.pronto_para_writer);
-          return aRes;
-        }
+      const anterior = auditResult ?? historyService.get(currentPlan.id_pesquisa)?.auditResponse ?? null;
+      let nextAuditResult: AuditResponse;
+      if (!anterior) {
+        nextAuditResult = aRes;
+      } else {
         const novos = new Map(aRes.auditorias.map((a) => [a.ponto_id, a]));
         const auditorias = anterior.auditorias.map((a) => novos.get(a.ponto_id) ?? a);
         for (const a of aRes.auditorias) {
@@ -1490,9 +1526,8 @@ export const App: React.FC = () => {
         }
 
         const pronto = aprovados === totalPontosEsperados && totalPontosEsperados > 0;
-        consolidadoProntoParaWriter = pronto;
 
-        const resultado: AuditResponse = {
+        nextAuditResult = {
           ...aRes,
           id_pesquisa: anterior.id_pesquisa,
           total_pontos: totalPontosEsperados,
@@ -1503,23 +1538,26 @@ export const App: React.FC = () => {
           pronto_para_writer: pronto,
           auditorias,
         };
+      }
 
-        const recAudit = historyService.get(currentPlan.id_pesquisa);
-        if (recAudit) {
-          historyService.save({
-            ...recAudit,
-            auditResponse: resultado,
-            status: pronto ? 'planejado' : recAudit.status,
-          });
-          setHistoryRecords(historyService.list());
-        }
-
-        return resultado;
-      });
+      setAuditResult(nextAuditResult);
+      const recAudit = historyService.get(currentPlan.id_pesquisa);
+      if (recAudit) {
+        historyService.save({
+          ...recAudit,
+          auditResponse: nextAuditResult,
+          status: nextAuditResult.pronto_para_writer ? 'planejado' : recAudit.status,
+        });
+        setHistoryRecords(historyService.list());
+      }
       setAuditCycleNumber(cycleNumber);
 
-      if (consolidadoProntoParaWriter && (pipelineStage === 'rejected' || pipelineStage === 'failed')) {
-        await runPipeline({ resumeFromStage: 'writing' });
+      if (nextAuditResult.pronto_para_writer && (pipelineStage === 'rejected' || pipelineStage === 'failed')) {
+        await runPipeline({
+          resumeFromStage: 'writing',
+          prontoParaWriter: true,
+          auditResult: nextAuditResult,
+        });
       }
     } catch (err: unknown) {
       if ((err as Error)?.name === 'AbortError') return;

@@ -49,6 +49,9 @@ def _get_signing_key() -> bytes:
     return _EPHEMERAL_SECRET
 
 
+DOCKER_DEFAULT_BRIDGE = ipaddress.ip_network("172.17.0.0/16")
+
+
 def _is_loopback_ip(ip_str: Optional[str]) -> bool:
     """Verifica com parsing estrito se o endereço IP é loopback local (127.0.0.0/8 ou ::1)."""
     if not ip_str or not isinstance(ip_str, str):
@@ -60,14 +63,12 @@ def _is_loopback_ip(ip_str: Optional[str]) -> bool:
         return False
 
 
-def _is_private_or_loopback_ip(ip_str: Optional[str]) -> bool:
-    """Verifica se o IP é de loopback (127.0.0.0/8, ::1) ou faixa privada/Docker (10/8, 172.16/12, 192.168/16)."""
+def _is_docker_bridge_ip(ip_str: Optional[str]) -> bool:
+    """Verifica se o IP pertence à rede bridge padrão do Docker (172.17.0.0/16)."""
     if not ip_str or not isinstance(ip_str, str):
         return False
-    clean_ip = ip_str.strip()
     try:
-        ip = ipaddress.ip_address(clean_ip)
-        return ip.is_loopback or ip.is_private
+        return ipaddress.ip_address(ip_str.strip()) in DOCKER_DEFAULT_BRIDGE
     except ValueError:
         return False
 
@@ -79,6 +80,30 @@ def _is_trusted_network_active() -> bool:
         if val not in ("", "0", "false", "no", "off"):
             return True
     return False
+
+
+def _is_client_ip_eligible(ip_str: Optional[str]) -> bool:
+    """Verifica se o IP do cliente é loopback, Docker bridge padrão, ou rede privada autorizada via env."""
+    if not ip_str or not isinstance(ip_str, str):
+        return False
+    clean_ip = ip_str.strip()
+    try:
+        ip = ipaddress.ip_address(clean_ip)
+    except ValueError:
+        return False
+
+    if ip.is_loopback:
+        return True
+    if ip in DOCKER_DEFAULT_BRIDGE:
+        return True
+    if _is_trusted_network_active():
+        return True
+    return False
+
+
+def _is_private_or_loopback_ip(ip_str: Optional[str]) -> bool:
+    """Verifica se o IP é loopback, Docker bridge padrão ou faixa privada sob TRUST_LOCAL_NETWORK."""
+    return _is_client_ip_eligible(ip_str)
 
 
 def _is_local_host(host_str: Optional[str]) -> bool:
@@ -104,7 +129,11 @@ def _is_local_host(host_str: Optional[str]) -> bool:
         return True
     try:
         ip = ipaddress.ip_address(raw_host_lower)
-        return ip.is_loopback or ip.is_private
+        if ip.is_loopback or ip in DOCKER_DEFAULT_BRIDGE:
+            return True
+        if ip.is_private and _is_trusted_network_active():
+            return True
+        return False
     except ValueError:
         return False
 

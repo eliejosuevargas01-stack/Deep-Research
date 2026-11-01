@@ -310,6 +310,7 @@ export interface PipelineStatusResumo {
   tema: string;
   status_pipeline: string;
   erro_pipeline?: string | null;
+  estagio_falha?: 'searching' | 'auditing' | 'writing' | null;
   criado_em?: string | null;
   concluido_em?: string | null;
   webhook_status?: string | null;

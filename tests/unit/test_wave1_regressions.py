@@ -57,6 +57,48 @@ async def test_b01_get_pipeline_status_and_stream_include_timestamps() -> None:
     assert status_res["status_pipeline"] == "concluido"
 
 
+@pytest.mark.asyncio
+async def test_b01_get_research_detail_timestamps() -> None:
+    """Endpoint real get_research_detail retorna timestamps e auditoria integrada."""
+    from app.api.v1.endpoints.research import get_research_detail
+
+    mock_pesquisa = SimpleNamespace(
+        id_pesquisa="pesq-detail-01",
+        tema="Tema Real Detail",
+        status_pipeline="concluido",
+        status="concluido",
+        criado_em="2026-11-01T10:00:00+00:00",
+        concluido_em="2026-11-01T10:15:00+00:00",
+        plano_estruturado=None,
+        preferencias=None,
+        metadados_redacao=None,
+        dossier_final="Dossiê de teste",
+    )
+    mock_ponto = SimpleNamespace(
+        ponto_id="pt-1",
+        ponto_n=1,
+        ponto="Eixo 1",
+        status="aprovado",
+        eixo_estruturado=None,
+        pontos_fracos=None,
+        reasoning_auditoria="Auditoria OK",
+    )
+    mock_db = AsyncMock()
+    with patch("app.api.v1.endpoints.research.ResearchRepository") as mock_repo_cls, \
+         patch("app.api.v1.endpoints.research.SourceAccountingService") as mock_source_svc:
+        repo = mock_repo_cls.return_value
+        repo.get_research = AsyncMock(return_value=mock_pesquisa)
+        repo.list_points = AsyncMock(return_value=[mock_ponto])
+        mock_source_svc.return_value.consolidate_sources = AsyncMock(return_value=None)
+
+        detail = await get_research_detail(id_pesquisa="pesq-detail-01", db=mock_db)
+        assert detail["id_pesquisa"] == "pesq-detail-01"
+        assert detail["criado_em"] == "2026-11-01T10:00:00+00:00"
+        assert detail["concluido_em"] == "2026-11-01T10:15:00+00:00"
+        assert detail["auditoria"] is not None
+        assert detail["auditoria"]["pronto_para_writer"] is True
+
+
 def test_b01_pipeline_runner_publish_includes_timestamps() -> None:
     """PipelineRunner deve incluir criado_em e concluido_em em pipeline.status em conclusão e falha."""
     hub = PipelineEventHub()
@@ -131,7 +173,7 @@ def test_b06_build_auditoria_object_and_metrics() -> None:
     assert res is not None
     assert res["id_pesquisa"] == "pesq-b06-001"
     assert res["status_pesquisa"] == "concluido"
-    assert res["total_pontos"] == 2  # Apenas os 2 auditados (aprovado/reprovado)
+    assert res["total_pontos"] == 3  # Total de pontos é len(pontos)
     assert res["aprovados"] == 1
     assert res["reprovados"] == 1
     assert res["status_geral"] == "parcial"
@@ -167,9 +209,10 @@ def test_b06_build_auditoria_dict_fallback() -> None:
     assert res is not None
     assert res["id_pesquisa"] == "pesq-dict-002"
     assert res["status_pesquisa"] == "auditando"
-    assert res["total_pontos"] == 1
+    assert res["total_pontos"] == 2
     assert res["aprovados"] == 1
-    assert res["pronto_para_writer"] is True
+    assert res["status_geral"] == "parcial"
+    assert res["pronto_para_writer"] is False
 
 
 def test_b06_build_auditoria_empty_when_no_audits() -> None:
@@ -183,36 +226,81 @@ def test_b06_build_auditoria_empty_when_no_audits() -> None:
 # B-12: persona com 0 URLs reporta 0 urls_lidas
 # ---------------------------------------------------------------------------
 
-def test_b12_persona_zero_urls_accounting() -> None:
-    """Persona com urls_fonte vazia deve reportar 0, e não total_urls_lidas do ponto."""
-    search_res = {"total_urls_lidas": 8}
+@pytest.mark.asyncio
+async def test_b12_persona_zero_urls_accounting() -> None:
+    """Persona com urls_fonte vazia deve reportar 0 no evento search.progress gerado pelo stream SSE."""
+    import json
+    from app.api.v1.endpoints.pipeline import stream_pipeline_progress
 
-    # Persona que consultou e obteve 0 URLs
-    p_zero = {"persona": "cético", "urls_fonte": []}
-    urls_lidas_zero = (
-        len(p_zero["urls_fonte"])
-        if "urls_fonte" in p_zero and p_zero["urls_fonte"] is not None
-        else search_res.get("total_urls_lidas", 0)
+    mock_pesquisa = SimpleNamespace(
+        id_pesquisa="pesq-b12",
+        tema="Tema B12",
+        status_pipeline="coletado",
+        criado_em="2026-11-01T10:00:00Z",
+        atualizado_em=None,
+        concluido_em=None,
+        tokens_prompt=0,
+        tokens_completion=0,
+        tokens_total=0,
+        dossier_final=None,
     )
-    assert urls_lidas_zero == 0
+    mock_ponto = SimpleNamespace(
+        ponto_id="pt-b12",
+        ponto_n=1,
+        status="coletado",
+        tentativas=0,
+        reasoning_auditoria=None,
+    )
+    mock_coleta = SimpleNamespace(
+        ponto_id="pt-b12",
+        criado_em="2026-11-01T10:01:00Z",
+        reasoning_coleta="Análise geral",
+        urls_fonte="[]",
+        metadados_coleta=json.dumps({
+            "resultados_personas": {
+                "cetico": {
+                    "reasoning": "Raciocínio cético sem URLs",
+                    "urls_fonte": [],
+                    "queries_executadas": 2,
+                }
+            }
+        }),
+    )
 
-    # Persona com 3 URLs
-    p_tres = {"persona": "visionário", "urls_fonte": ["http://a", "http://b", "http://c"]}
-    urls_lidas_tres = (
-        len(p_tres["urls_fonte"])
-        if "urls_fonte" in p_tres and p_tres["urls_fonte"] is not None
-        else search_res.get("total_urls_lidas", 0)
-    )
-    assert urls_lidas_tres == 3
+    mock_db = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.scalars.return_value.all.return_value = [mock_coleta]
+    mock_db.execute = AsyncMock(return_value=mock_res)
+    mock_req = MagicMock()
+    mock_req.headers = {}
+    mock_req.query_params = {}
+    mock_req.is_disconnected = AsyncMock(return_value=True)
 
-    # Fallback quando urls_fonte é ausente ou None
-    p_sem_campo = {"persona": "legado"}
-    urls_lidas_fallback = (
-        len(p_sem_campo["urls_fonte"])
-        if "urls_fonte" in p_sem_campo and p_sem_campo["urls_fonte"] is not None
-        else search_res.get("total_urls_lidas", 0)
-    )
-    assert urls_lidas_fallback == 8
+    with patch("app.api.v1.endpoints.pipeline.ResearchRepository") as mock_repo_cls:
+        repo = mock_repo_cls.return_value
+        repo.get_research = AsyncMock(return_value=mock_pesquisa)
+        repo.list_points = AsyncMock(return_value=[mock_ponto])
+
+        resp = await stream_pipeline_progress(
+            id_pesquisa="pesq-b12",
+            request=mock_req,
+            snapshot_only=True,
+            db=mock_db,
+        )
+
+        events = []
+        async for chunk in resp.body_iterator:
+            text = chunk.decode("utf-8") if isinstance(chunk, bytes) else str(chunk)
+            for line in text.split("\n\n"):
+                if line.strip():
+                    events.append(line)
+
+        search_evts = [e for e in events if "event: search.progress" in e]
+        assert len(search_evts) > 0
+        data_line = [l for l in search_evts[0].split("\n") if l.startswith("data: ")][0]
+        data = json.loads(data_line[6:])
+        assert data["persona"] == "cetico"
+        assert data["urls_lidas"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -281,37 +369,54 @@ def test_b16_plan_responses_include_reasoning_planejamento() -> None:
     assert p_async.reasoning_planejamento == "Decomposição analítica preliminar assíncrona."
 
 
-def test_b16_plan_endpoint_reasoning_resolution_hierarchy() -> None:
-    """Hierarquia de resolução de reasoning_planejamento: pesquisa > ponto[0] > plan_data."""
-    # 1. Pesquisa tem o reasoning
-    pesq1 = SimpleNamespace(reasoning_planejamento="Raciocínio da pesquisa")
-    pontos1 = [SimpleNamespace(reasoning_planejamento="Raciocínio do ponto")]
-    plan_data1 = {"reasoning_planejamento": "Raciocínio do plan_data"}
+@pytest.mark.asyncio
+async def test_b16_create_plan_endpoint_includes_reasoning() -> None:
+    """Endpoint real create_plan extrai e preenche reasoning_planejamento em PlanResponse."""
+    from app.api.v1.endpoints.plan import create_plan
+    from app.schemas.plan import PlanRequest
+    from starlette.responses import Response
 
-    r1 = (
-        getattr(pesq1, "reasoning_planejamento", None)
-        or (pontos1[0].reasoning_planejamento if pontos1 and hasattr(pontos1[0], "reasoning_planejamento") else None)
-        or plan_data1.get("reasoning_planejamento")
+    mock_db = AsyncMock()
+    mock_pesq = SimpleNamespace(
+        id_pesquisa="pesq-b16-001",
+        tema="Tema B16 Endpoint",
+        criado_em="2026-11-01T10:00:00Z",
+        status_pipeline="planejado",
+        plano_estruturado=None,
+        metadados_modelo=None,
+        preferencias=None,
+        reasoning_planejamento="Raciocínio metodológico via Planner real",
     )
-    assert r1 == "Raciocínio da pesquisa"
+    mock_ponto = SimpleNamespace(
+        ponto_id="pt-1",
+        ponto_n=1,
+        ponto="Eixo 1",
+        status="pendente",
+        eixo_estruturado=None,
+        pontos_fracos=None,
+        reasoning_auditoria=None,
+        reasoning_planejamento=None,
+    )
 
-    # 2. Pesquisa None, ponto tem o reasoning
-    pesq2 = SimpleNamespace(reasoning_planejamento=None)
-    r2 = (
-        getattr(pesq2, "reasoning_planejamento", None)
-        or (pontos1[0].reasoning_planejamento if pontos1 and hasattr(pontos1[0], "reasoning_planejamento") else None)
-        or plan_data1.get("reasoning_planejamento")
-    )
-    assert r2 == "Raciocínio do ponto"
+    with patch("app.api.v1.endpoints.plan.Planner") as mock_planner_cls, \
+         patch("app.api.v1.endpoints.plan.ResearchRepository") as mock_repo_cls:
+        planner_inst = mock_planner_cls.return_value
+        planner_inst.n_pontos = 1
+        planner_inst.execute_plan = AsyncMock(return_value=mock_pesq)
+        repo_inst = mock_repo_cls.return_value
+        repo_inst.list_points = AsyncMock(return_value=[mock_ponto])
 
-    # 3. Pesquisa e pontos None, plan_data tem o reasoning
-    pontos_vazios = [SimpleNamespace(reasoning_planejamento=None)]
-    r3 = (
-        getattr(pesq2, "reasoning_planejamento", None)
-        or (pontos_vazios[0].reasoning_planejamento if pontos_vazios and hasattr(pontos_vazios[0], "reasoning_planejamento") else None)
-        or plan_data1.get("reasoning_planejamento")
-    )
-    assert r3 == "Raciocínio do plan_data"
+        req_payload = PlanRequest(tema="Tema B16 Endpoint para teste real")
+        resp = await create_plan(
+            payload=req_payload,
+            response=Response(),
+            background_tasks=MagicMock(),
+            db=mock_db,
+        )
+
+        assert isinstance(resp, PlanResponse)
+        assert resp.id_pesquisa == "pesq-b16-001"
+        assert resp.reasoning_planejamento == "Raciocínio metodológico via Planner real"
 
 
 # ---------------------------------------------------------------------------
@@ -339,6 +444,47 @@ def test_b22_plan_schemas_accept_tema_longer_than_500_chars() -> None:
         pontos=[],
     )
     assert async_resp.tema == tema_longo
+
+
+@pytest.mark.asyncio
+async def test_b22_planner_real_accepts_long_theme() -> None:
+    """Planner real aceita tema > 500 caracteres sem travar ou truncar."""
+    from app.core.planner import Planner
+
+    mock_repo = MagicMock()
+    mock_pesq = SimpleNamespace(id_pesquisa="pesq-b22-real", tema="Tema B22", criado_em="2026-11-01T10:00:00Z")
+    mock_repo.create_research = AsyncMock(return_value=mock_pesq)
+    mock_repo.save_point = AsyncMock()
+    mock_jina = MagicMock()
+    mock_jina.search = AsyncMock(return_value=[])
+    mock_llm = MagicMock()
+    mock_envelope = MagicMock()
+    mock_envelope.finish_reason = "stop"
+    mock_envelope.usage = {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20}
+    mock_llm.generate_json_envelope = AsyncMock(return_value=({"pedido_original": "t"}, mock_envelope))
+    mock_llm.generate = AsyncMock(return_value={
+        "content": '{"plano": [{"ponto_n": 1, "ponto": "Eixo longo", "descricao": "Desc"}]}',
+        "reasoning": "Plano gerado para tema longo."
+    })
+
+    planner = Planner(
+        research_repo=mock_repo,
+        jina_client=mock_jina,
+        llm_client=mock_llm,
+        n_pontos=1,
+        personas=["planejador", "historiador", "cético"],
+    )
+
+    tema_longo = ("Investigação estratégica aprofundada de alta densidade analítica. " * 20)[:750]
+    with patch.object(planner, "evaluate_plan_semantics", AsyncMock(return_value=(True, None, None))), \
+         patch("app.core.planner.validate_and_parse_plan") as mock_val:
+        mock_eixo = SimpleNamespace(pergunta_principal="Eixo longo", model_dump=lambda: {"pergunta_principal": "Eixo longo"})
+        mock_plano = SimpleNamespace(eixos=[mock_eixo], recorte_temporal="2026", model_dump=lambda: {"eixos": [{"pergunta_principal": "Eixo longo"}]})
+        mock_val.return_value = (mock_plano, None)
+
+        res = await planner.execute_plan(tema=tema_longo)
+        assert res is not None
+        assert res.id_pesquisa == "pesq-b22-real"
 
 
 @pytest.mark.asyncio
