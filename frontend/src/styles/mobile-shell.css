@@ -783,10 +783,25 @@
     gap: 10px !important;
   }
 
+  .stepper-content {
+    padding: 10px 12px !important;
+  }
+
   .stepper-badge {
     width: 24px !important;
     height: 24px !important;
     font-size: 0.78rem !important;
     line-height: 1 !important;
+  }
+
+  .stepper-point-toggle {
+    min-width: 32px !important;
+    min-height: 32px !important;
+    padding: 6px !important;
+    justify-content: center !important;
+  }
+
+  .stepper-point-toggle .toggle-text {
+    display: none !important;
   }
 }

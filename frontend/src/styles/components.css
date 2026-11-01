@@ -550,7 +550,8 @@
 }
 
 .stepper-content {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   background-color: var(--color-surface);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
@@ -565,6 +566,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  width: 100%;
 }
 
 .stepper-point-toggle {
@@ -596,6 +598,8 @@
 }
 
 .stepper-point-title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 1rem;
   font-weight: 600;
   color: var(--color-text-primary);
