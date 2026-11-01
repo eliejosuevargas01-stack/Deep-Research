@@ -242,10 +242,17 @@
   /* Linhas de fonte no dossiê: nada de estourar 4px a 320px. */
   .source-item-row,
   .source-item-top,
-  .source-item-domain,
+  .source-item-domain {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .source-item-url-link {
     min-width: 0;
     max-width: 100%;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
   }
 
   .source-item-row > * {

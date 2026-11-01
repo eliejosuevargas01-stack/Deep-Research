@@ -326,6 +326,8 @@
 .source-item-url-link {
   display: inline-flex;
   align-items: center;
+  min-height: 24px;
+  padding: 2px 0;
   gap: 4px;
   font-size: 0.78rem;
   color: var(--color-primary);
