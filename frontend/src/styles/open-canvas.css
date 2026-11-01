@@ -926,9 +926,9 @@
   }
 }
 
-/* FIX P1-layout: empilha a coluna direita abaixo de 1280px nas views de execução,
-   evitando sobreposição com o conteúdo principal. */
-@media (max-width: 1280px) {
+/* FIX P1-layout: empilha a coluna direita entre 900px e 1280px nas views de execução.
+   No mobile (<= 899px), a coluna é a gaveta flutuante fixa sobreposta ao conteúdo. */
+@media (min-width: 900px) and (max-width: 1280px) {
   .workspace-main:has(.execution-card) .workspace-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -944,5 +944,24 @@
     padding-left: 0;
     border-left: 0;
     border-top: 1px solid var(--color-border);
+  }
+}
+
+@media (max-width: 899px) {
+  html body .workspace-main:has(.execution-card) .workspace-grid > .sidebar-container.rr-rail {
+    position: fixed !important;
+    top: 58px !important;
+    right: 12px !important;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    width: min(86vw, 340px) !important;
+    max-width: 340px !important;
+    z-index: 60 !important;
+    border-radius: 16px !important;
+    background: var(--color-surface) !important;
+    box-shadow: 0 16px 40px rgba(12, 20, 20, 0.18) !important;
+    overflow: hidden !important;
+    margin-top: 0 !important;
+    border: 1px solid var(--color-border) !important;
+    padding: 0 !important;
   }
 }
