@@ -91,45 +91,22 @@ async function run() {
     const startButtonsCount = await mobilePage.locator('#start-research-btn').count();
     console.log(`Mobile: Contagem de #start-research-btn (deve ser 1): ${startButtonsCount}`);
 
-    const headerRailBtnCount = await mobilePage.locator('.navbar-right .btn-header-rail').count();
-    console.log(`Mobile: Contagem de .btn-header-rail no header: ${headerRailBtnCount}`);
+    const editParamCount = await mobilePage.locator('[data-gdr-action="edit-parameters"]').count();
+    console.log(`Mobile: Contagem de edit-parameters (deve ser 0): ${editParamCount}`);
 
-    const themeToggleInHeaderCount = await mobilePage.locator('.navbar-right .theme-toggle').count();
-    console.log(`Mobile: Contagem de theme-toggle no header (deve ser 0): ${themeToggleInHeaderCount}`);
+    const gdrPhasesCount = await mobilePage.locator('.gdr-phases').count();
+    console.log(`Mobile: Contagem de .gdr-phases (deve ser 0): ${gdrPhasesCount}`);
 
-    const floatingReopenCount = await mobilePage.locator('.rr-rail__reopen').count();
-    console.log(`Mobile: Contagem de .rr-rail__reopen flutuante (deve ser 0): ${floatingReopenCount}`);
+    const gdrPreflightCount = await mobilePage.locator('.gdr-plan-preflight').count();
+    console.log(`Mobile: Contagem de .gdr-plan-preflight (deve ser 0): ${gdrPreflightCount}`);
 
-    // Captura Mobile 37a (Visão compacta sem botões duplicados e com header rail)
-    const shot37aPath = path.join(OUT_DIR, '37a-mobile-plan-deduplicated-compact.png');
-    await mobilePage.screenshot({ path: shot37aPath, fullPage: false });
-    console.log(`Captura salva: ${shot37aPath}`);
+    const firstPointVisible = await mobilePage.locator('.stepper-point-title').first().isVisible();
+    console.log(`Mobile: Primeiro eixo visível na tela: ${firstPointVisible}`);
 
-    // Clicar em "Editar parâmetros"
-    console.log('Mobile: Clicando em "Editar parâmetros"...');
-    await mobilePage.locator('[data-gdr-action="edit-parameters"]').click();
-    await mobilePage.waitForTimeout(600);
-
-    const isModalVisible = await mobilePage.locator('#edit-plan-modal-title').isVisible();
-    console.log(`Mobile: Modal de edição visível: ${isModalVisible}`);
-
-    // Captura Mobile 37b (Modal aberto)
-    const shot37bPath = path.join(OUT_DIR, '37b-mobile-plan-modal-editar-parametros.png');
-    await mobilePage.screenshot({ path: shot37bPath, fullPage: false });
-    console.log(`Captura salva: ${shot37bPath}`);
-
-    // Fechar modal
-    await mobilePage.locator('.dock-close').click();
-    await mobilePage.waitForTimeout(400);
-
-    // Abrir a janela lateral pelo botão do Header!
-    console.log('Mobile: Clicando em "Painel" no Header...');
-    await mobilePage.locator('.navbar-right .btn-header-rail').click();
-    await mobilePage.waitForTimeout(600);
-
-    const shot37cPath = path.join(OUT_DIR, '37c-mobile-plan-rail-from-header.png');
-    await mobilePage.screenshot({ path: shot37cPath, fullPage: false });
-    console.log(`Captura salva: ${shot37cPath}`);
+    // Captura Mobile 39a (Visão limpa, focada no conteúdo com zero fluxo redundante)
+    const shot39aPath = path.join(OUT_DIR, '39a-mobile-plan-clean-no-phases.png');
+    await mobilePage.screenshot({ path: shot39aPath, fullPage: false });
+    console.log(`Captura salva: ${shot39aPath}`);
 
     // 2. DESKTOP SUITE (1440 x 900)
     console.log('Testando ambiente Desktop (1440x900)...');
@@ -151,10 +128,13 @@ async function run() {
     const desktopStartCount = await desktopPage.locator('#start-research-btn').count();
     console.log(`Desktop: Contagem de #start-research-btn (deve ser 1): ${desktopStartCount}`);
 
-    // Captura Desktop 37d
-    const shot37dPath = path.join(OUT_DIR, '37d-desktop-plan-compact-clean.png');
-    await desktopPage.screenshot({ path: shot37dPath, fullPage: false });
-    console.log(`Captura salva: ${shot37dPath}`);
+    const desktopPhasesCount = await desktopPage.locator('.gdr-phases').count();
+    console.log(`Desktop: Contagem de .gdr-phases (deve ser 0): ${desktopPhasesCount}`);
+
+    // Captura Desktop 39b
+    const shot39bPath = path.join(OUT_DIR, '39b-desktop-plan-clean-no-phases.png');
+    await desktopPage.screenshot({ path: shot39bPath, fullPage: false });
+    console.log(`Captura salva: ${shot39bPath}`);
 
     console.log('Todas as validações e capturas concluídas com sucesso!');
   } finally {

@@ -43,92 +43,42 @@ const renderPlan = (props: Record<string, unknown>) =>
     } as any)
   );
 
-// --- 1. Cartão de pré-voo + faixa numerada de quatro fases ---
-const html = renderPlan({ onEditParameters: () => {} });
+// --- 1. Eliminação de explicação desnecessária de fluxo (gdr-phases e preflight descartados) ---
+const html = renderPlan({});
 
-assert.ok(html.includes('gdr-plan-preflight'), 'cartão de pré-voo renderizado');
-assert.ok(html.includes('class="gdr-phases"'), 'faixa de fases usa classe gdr-phases');
-assert.equal(
-  (html.match(/class="gdr-phase"/g) || []).length,
-  4,
-  'faixa lista exatamente quatro fases'
-);
+assert.ok(!html.includes('gdr-plan-preflight'), 'cartão de pré-voo descartado para ganho de espaço vertical');
+assert.ok(!html.includes('class="gdr-phases"'), 'faixa de fases redundante eliminada');
 
-const fasesEsperadas = ['Mapeamento', 'Busca', 'Auditoria', 'Dossiê'];
-let cursorFase = -1;
-for (const nome of fasesEsperadas) {
-  const idx = html.indexOf(nome, cursorFase + 1);
-  assert.ok(idx > cursorFase, `fase "${nome}" presente e na ordem canônica`);
-  cursorFase = idx;
-}
+// --- 2. Eliminação de botão redundante Editar parâmetros ---
+assert.ok(!html.includes('data-gdr-action="edit-parameters"'), 'botão Editar parâmetros eliminado pós-geração');
+assert.ok(!html.includes('<span>Editar parâmetros</span>'), 'rótulo Editar parâmetros não existe no DOM');
 
-const numerosEsperados = ['01', '02', '03', '04'];
-let cursorNum = -1;
-for (const num of numerosEsperados) {
-  const idx = html.indexOf(`gdr-phase-num">${num}`, cursorNum + 1);
-  assert.ok(idx > cursorNum, `fase ${num} numerada em sequência`);
-  cursorNum = idx;
-}
-
-assert.ok(html.includes('2 personas'), 'fase Busca reflete personas do plano');
-assert.ok(html.includes('Dossiê'), 'fase Dossiê presente');
-
-// --- 2. Ações primárias do pré-voo ---
-assert.ok(html.includes('data-gdr-action="edit-parameters"'), 'ação Editar parâmetros presente');
-assert.ok(html.includes('data-gdr-action="approve-and-start"'), 'ação Aprovar e iniciar presente');
-assert.ok(html.includes('<span>Editar parâmetros</span>'), 'rótulo Editar parâmetros exato');
-
-// --- 3. Botão atual preservado e único para E2E ---
+// --- 3. Botão primário consolidado e único no DOM ---
 assert.equal(
   (html.match(/id="start-research-btn"/g) || []).length,
   1,
-  'exatamente um #start-research-btn'
+  'exatamente um #start-research-btn no DOM'
 );
 assert.equal(
   (html.match(/<span>Iniciar pesquisa<\/span>/g) || []).length,
   1,
   'texto Iniciar pesquisa preservado uma única vez'
 );
+assert.ok(html.includes('data-gdr-action="approve-and-start"'), 'ação approve-and-start presente no botão primário');
 
-// --- 4. Ordem: pré-voo e botão de início antes do stepper ---
-const preflightIdx = html.indexOf('gdr-plan-preflight');
+// --- 4. Ordem e foco: botão de início e stepper de eixos imediatos ---
 const startBtnIdx = html.indexOf('id="start-research-btn"');
 const stepperIdx = html.indexOf('plan-stepper');
-assert.ok(preflightIdx !== -1 && startBtnIdx !== -1 && stepperIdx !== -1, 'marcos presentes no DOM');
-assert.ok(startBtnIdx < stepperIdx, 'Iniciar pesquisa precede os eixos (acima da dobra)');
-assert.ok(preflightIdx < stepperIdx, 'pré-voo precede os eixos investigativos');
+assert.ok(startBtnIdx !== -1 && stepperIdx !== -1, 'marcos presentes no DOM');
+assert.ok(startBtnIdx < stepperIdx, 'Iniciar pesquisa precede os eixos no topo');
 
-// --- 5. isStarting desabilita as duas ações novas, sem quebrar o botão atual ---
+// --- 5. isStarting desabilita o botão de início ---
 const htmlStarting = renderPlan({ isStarting: true });
-const editTag = htmlStarting.match(/<button[^>]*data-gdr-action="edit-parameters"[^>]*>/)?.[0] || '';
-const approveTag = htmlStarting.match(/<button[^>]*data-gdr-action="approve-and-start"[^>]*>/)?.[0] || '';
 const startTag = htmlStarting.match(/<button[^>]*id="start-research-btn"[^>]*>/)?.[0] || '';
-assert.ok(editTag.includes('disabled'), 'Editar parâmetros desabilita durante início');
-assert.ok(approveTag.includes('disabled'), 'Aprovar e iniciar desabilita durante início');
-assert.ok(startTag.includes('disabled'), 'Iniciar pesquisa segue desabilitando durante início');
+assert.ok(startTag.includes('disabled'), 'Iniciar pesquisa desabilitado durante início');
 
-// --- 6. Props atuais intactas + fallback de parâmetros para onEditTheme ---
-const htmlSemPropNova = renderPlan({});
-assert.ok(htmlSemPropNova.includes('data-gdr-action="edit-parameters"'), 'ação renderiza sem prop nova');
-assert.ok(htmlSemPropNova.includes('gdr-phases'), 'faixa de fases independe de props opcionais');
-
-// --- 7. Plano mínimo mantém faixa e fallbacks de metadados ---
-const htmlMinimo = renderToString(
-  React.createElement(PlanView, {
-    plan: {
-      id_pesquisa: 'plan-step-2',
-      tema: 'tema mínimo',
-      n_pontos: 1,
-      criado_em: new Date().toISOString(),
-      pontos: [],
-    },
-    onStartExecution: () => {},
-    onReset: () => {},
-    isStarting: false,
-  } as any)
-);
-assert.equal((htmlMinimo.match(/class="gdr-phase"/g) || []).length, 4, 'plano mínimo mantém quatro fases');
-assert.ok(htmlMinimo.includes('1 eixo'), 'fase Mapeamento usa singular para 1 ponto');
-assert.ok(htmlMinimo.includes('Personas'), 'fase Busca cai no rótulo Personas sem snapshot');
+// --- 6. Metadados essenciais visíveis em chips compactos ---
+assert.ok(html.includes('2 pontos analíticos'), 'chip de pontos presente no header');
+assert.ok(html.includes('2 personas'), 'chip de personas presente no header');
 
 console.log('GDR plan step ok');

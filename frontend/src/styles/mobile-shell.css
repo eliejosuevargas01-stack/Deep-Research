@@ -74,6 +74,12 @@
   }
 
   /* Leitura e hierarquia refinada nos detalhes do ponto investigativo */
+  .plan-card {
+    padding: 16px 14px !important;
+    gap: 14px !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
   .stepper-header-row {
     align-items: flex-start;
     gap: 8px;

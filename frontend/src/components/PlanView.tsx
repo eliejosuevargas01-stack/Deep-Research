@@ -8,9 +8,6 @@ import {
   FileText,
   RotateCcw,
   SlidersHorizontal,
-  X,
-  Minus,
-  Plus,
 } from 'lucide-react';
 import { PlanResponse } from '../types/api';
 import '../styles/plan-settings-polish.css';
@@ -22,14 +19,7 @@ interface PlanViewProps {
   onReset: () => void;
   onEditTheme?: (tema: string) => void;
   onEditParameters?: (tema: string) => void;
-  onReplan?: (params: {
-    tema: string;
-    n_pontos: number;
-    personas: string[];
-    execution_mode?: 'parallel' | 'sequential';
-    recencia?: string;
-    criterios_minimos?: number;
-  }) => void;
+  onReplan?: (params: any) => void;
   isStarting: boolean;
 }
 
@@ -37,45 +27,10 @@ export const PlanView: React.FC<PlanViewProps> = ({
   plan,
   onStartExecution,
   onReset,
-  onEditTheme,
-  onEditParameters,
-  onReplan,
   isStarting,
 }) => {
   const [contextOpen, setContextOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editNPontos, setEditNPontos] = useState(() => plan.preferencias?.n_pontos || plan.n_pontos || 3);
-  const [editPersonas, setEditPersonas] = useState<string[]>(() => plan.preferencias?.personas || ['historiador', 'visionario', 'cetico', 'futurista']);
-  const [editMode, setEditMode] = useState<'parallel' | 'sequential'>(() => (plan.preferencias?.execution_mode as 'parallel' | 'sequential') || 'parallel');
-  const [editRecencia, setEditRecencia] = useState(() => plan.preferencias?.recencia || 'auto');
-  const [editTema, setEditTema] = useState(() => plan.tema);
-
-  const handleOpenEditParameters = () => {
-    setEditTema(plan.tema);
-    setEditNPontos(plan.preferencias?.n_pontos || plan.n_pontos || 3);
-    setEditPersonas(plan.preferencias?.personas || ['historiador', 'visionario', 'cetico', 'futurista']);
-    setEditMode((plan.preferencias?.execution_mode as 'parallel' | 'sequential') || 'parallel');
-    setEditRecencia(plan.preferencias?.recencia || 'auto');
-    setIsEditModalOpen(true);
-  };
-
-  const handleConfirmReplan = () => {
-    setIsEditModalOpen(false);
-    if (onReplan) {
-      onReplan({
-        tema: editTema.trim(),
-        n_pontos: editNPontos,
-        personas: editPersonas,
-        execution_mode: editMode,
-        recencia: editRecencia,
-      });
-    } else if (onEditParameters) {
-      onEditParameters(editTema.trim());
-    } else if (onEditTheme) {
-      onEditTheme(editTema.trim());
-    }
-  };
 
   const triggerButtonRef = useRef<HTMLButtonElement | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -99,26 +54,35 @@ export const PlanView: React.FC<PlanViewProps> = ({
     return () => {
       if (rafRef.current !== null && typeof cancelAnimationFrame === 'function') {
         cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
       }
     };
   }, []);
 
-  const handleOpenConfirmReset = () => {
-    shouldRestoreFocusRef.current = true;
+  const handleOpenConfirmReset = useCallback(() => {
     setConfirmResetOpen(true);
-  };
+    shouldRestoreFocusRef.current = true;
+  }, []);
 
   const handleCancelReset = useCallback(() => {
-    shouldRestoreFocusRef.current = true;
     setConfirmResetOpen(false);
   }, []);
 
-  const handleConfirmReset = () => {
-    shouldRestoreFocusRef.current = false;
+  const handleConfirmReset = useCallback(() => {
     setConfirmResetOpen(false);
     onReset();
-  };
+  }, [onReset]);
+
+  useEffect(() => {
+    if (!confirmResetOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleCancelReset();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [confirmResetOpen, handleCancelReset]);
 
   useEffect(() => {
     if (confirmResetOpen) {
@@ -131,62 +95,6 @@ export const PlanView: React.FC<PlanViewProps> = ({
           cancelButtonRef.current?.focus();
         });
       }
-
-      const handleClickOutside = (event: MouseEvent) => {
-        const dialog = dialogRef.current;
-        if (dialog && !dialog.contains(event.target as Node)) {
-          shouldRestoreFocusRef.current = false;
-          setConfirmResetOpen(false);
-        }
-      };
-
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          event.stopPropagation();
-          handleCancelReset();
-          return;
-        }
-
-        if (event.key === 'Tab') {
-          const dialog = dialogRef.current;
-          if (!dialog) return;
-
-          const focusable = Array.from(
-            dialog.querySelectorAll<HTMLElement>(
-              'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-            )
-          );
-
-          if (focusable.length === 0) return;
-
-          const first = focusable[0];
-          const last = focusable[focusable.length - 1];
-
-          if (event.shiftKey) {
-            if (document.activeElement === first || !dialog.contains(document.activeElement)) {
-              event.preventDefault();
-              last.focus();
-            }
-          } else {
-            if (document.activeElement === last || !dialog.contains(document.activeElement)) {
-              event.preventDefault();
-              first.focus();
-            }
-          }
-        }
-      };
-
-      document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        if (rafRef.current !== null && typeof cancelAnimationFrame === 'function') {
-          cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
-        }
-        document.removeEventListener('keydown', handleKeyDown);
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
     } else if (shouldRestoreFocusRef.current) {
       shouldRestoreFocusRef.current = false;
       if (triggerButtonRef.current) {
@@ -201,9 +109,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
     }
   }, [confirmResetOpen, handleCancelReset]);
 
-  // Revisão compacta inicial para qualquer contagem de pontos (inclusive N=1 e N=2 longos):
-  // todos iniciam recolhidos para que a visão geral e a única ação Iniciar Pesquisa
-  // estejam imediatamente visíveis no viewport (incluindo 1280x720 e mobile).
+  // Revisão compacta: eixos analíticos recolhidos por padrão para visualização imediata
   const [expandedPoints, setExpandedPoints] = useState<Record<string, boolean>>({});
 
   const allExpanded =
@@ -234,21 +140,9 @@ export const PlanView: React.FC<PlanViewProps> = ({
     : null;
   const activePointsCount = plan.preferencias?.n_pontos ?? plan.n_pontos ?? plan.pontos.length;
 
-  // Faixa numerada de fases exibida no cartão de pré-voo, antes de iniciar a busca.
-  const fases = [
-    { num: '01', nome: 'Mapeamento', meta: `${plan.n_pontos} ${plan.n_pontos === 1 ? 'eixo' : 'eixos'}` },
-    { num: '02', nome: 'Busca', meta: activePersonasCount !== null ? `${activePersonasCount} personas` : 'Personas' },
-    { num: '03', nome: 'Auditoria', meta: '12 critérios' },
-    { num: '04', nome: 'Dossiê', meta: structured?.formato_entrega?.split(' ').slice(0, 2).join(' ') || 'Analítico' },
-  ];
-
-  const handleEditParameters = () => {
-    handleOpenEditParameters();
-  };
-
   return (
     <div className="plan-container" id="plan-workspace">
-      {/* Banner de Consulta Ativa (Comp C Top Left) */}
+      {/* Banner de Consulta Ativa com Ação Primária Consolidada */}
       <section className="query-banner" aria-label="Tema em planejamento">
         <div className="query-banner-left">
           <div className="query-icon-badge" aria-hidden="true">
@@ -262,18 +156,31 @@ export const PlanView: React.FC<PlanViewProps> = ({
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {onEditTheme && (
-            <button
-              type="button"
-              className="query-action-btn"
-              onClick={() => onEditTheme(plan.tema)}
-              disabled={isStarting}
-              title="Editar o texto deste tema no compositor"
-            >
-              <span>Editar tema</span>
-            </button>
-          )}
+        <div className="query-banner-actions plan-header-primary-action" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Botão Primário Definitivo de Início */}
+          <button
+            type="button"
+            className="gdr-plan-action gdr-plan-action--primary btn-start-research"
+            id="start-research-btn"
+            data-gdr-action="approve-and-start"
+            onClick={onStartExecution}
+            disabled={isStarting}
+            title="Iniciar execução dos eixos de investigação planejados"
+            aria-label="Iniciar pesquisa"
+          >
+            {isStarting ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                <span>Iniciando…</span>
+              </>
+            ) : (
+              <>
+                <Play size={15} fill="currentColor" aria-hidden="true" />
+                <span>Iniciar pesquisa</span>
+              </>
+            )}
+          </button>
+
           {confirmResetOpen ? (
             <div
               ref={dialogRef}
@@ -323,146 +230,88 @@ export const PlanView: React.FC<PlanViewProps> = ({
         </div>
       </section>
 
-      {/* Cartão Principal do Plano (Comp C Main Canvas) */}
+      {/* Cartão Principal do Plano com Foco Direto nos Eixos */}
       <article className="plan-card" aria-labelledby="plan-heading">
-        <header className="plan-header plan-header--compact">
-          <div className="plan-header-main-row">
-            <div className="plan-header-text">
-              <div className="plan-badge-row">
-                <div className="plan-ai-icon" aria-hidden="true">
-                  <Sparkles size={16} />
-                </div>
-                <span className="plan-eyebrow">Plano estruturado</span>
-
-                {/* Chips de Snapshot de Preferências */}
-                <div className="plan-snapshot-chips" aria-label="Preferências gravadas para este plano">
-                  <span className="pill pill-violet" title="Número de pontos formulados">
-                    {activePointsCount} {activePointsCount === 1 ? 'ponto analítico' : 'pontos analíticos'}
-                  </span>
-                  <span
-                    className="pill pill-indigo"
-                    title={
-                      personaNames
-                        ? `Personas configuradas: ${personaNames}`
-                        : activePersonasCount !== null
-                        ? 'Personas de busca configuradas'
-                        : 'Personas analíticas de busca'
-                    }
-                  >
-                    {activePersonasCount !== null
-                      ? `${activePersonasCount} ${activePersonasCount === 1 ? 'persona ativa' : 'personas ativas'}`
-                      : 'Personas analíticas'}
-                  </span>
-                </div>
+        <header className="plan-header plan-header--compact" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--color-border-subtle, rgba(0,0,0,0.06))', marginBottom: '16px' }}>
+          <div className="plan-header-main-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '8px' }}>
+            <div className="plan-badge-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="plan-ai-icon" aria-hidden="true">
+                <Sparkles size={16} />
               </div>
-
-              <h2 id="plan-heading" className="plan-main-title">
-                Plano pronto para revisão
+              <h2 id="plan-heading" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                Eixos investigativos formulados
               </h2>
 
-              <p className="plan-description">
-                O planejador formulou {plan.n_pontos} {plan.n_pontos === 1 ? 'eixo investigativo estruturado' : 'eixos investigativos estruturados'} para o tema,
-                com hipóteses falseáveis, consultas direcionadas e critérios claros de conclusão antes da busca web.
-              </p>
+              {/* Chips de Metadados Essenciais */}
+              <div className="plan-snapshot-chips" aria-label="Resumo do plano" style={{ display: 'inline-flex', gap: '6px' }}>
+                <span className="pill pill-violet" title="Número de eixos formulados">
+                  {`${activePointsCount} ${activePointsCount === 1 ? 'ponto analítico' : 'pontos analíticos'}`}
+                </span>
+                {activePersonasCount !== null && (
+                  <span
+                    className="pill pill-indigo"
+                    title={personaNames ? `Personas ativas: ${personaNames}` : 'Personas analíticas ativas'}
+                  >
+                    {`${activePersonasCount} ${activePersonasCount === 1 ? 'persona ativa' : 'personas ativas'}`}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="plan-toggle-row">
-            <button
-              type="button"
-              className="btn-toggle-all-details"
-              onClick={toggleAll}
-              aria-label={allExpanded ? 'Recolher detalhes de todos os pontos' : 'Expandir detalhes de todos os pontos'}
-            >
-              <SlidersHorizontal size={13} aria-hidden="true" />
-              <span>{allExpanded ? 'Recolher detalhes' : 'Expandir todos os detalhes'}</span>
-            </button>
+            <div className="plan-toggle-row">
+              <button
+                type="button"
+                className="btn-toggle-all-details"
+                onClick={toggleAll}
+                aria-label={allExpanded ? 'Recolher detalhes de todos os pontos' : 'Expandir detalhes de todos os pontos'}
+              >
+                <SlidersHorizontal size={13} aria-hidden="true" />
+                <span>{allExpanded ? 'Recolher detalhes' : 'Expandir todos os detalhes'}</span>
+              </button>
+            </div>
           </div>
         </header>
 
-      {/* Cartão de pré-voo: faixa de fases + ações primárias antes da busca */}
-      <section className="gdr-plan-preflight" aria-label="Antes de começar">
-        <p className="gdr-plan-preflight-summary">
-          {plan.n_pontos} {plan.n_pontos === 1 ? 'eixo investigativo pronto' : 'eixos investigativos prontos'} para revisão.
-        </p>
-        <ol className="gdr-phases" aria-label="Fases da investigação">
-          {fases.map((f) => (
-            <li key={f.num} className="gdr-phase">
-              <span className="gdr-phase-num">{f.num}</span>
-              <span className="gdr-phase-name">{f.nome}</span>
-              <span className="gdr-phase-meta" title={f.meta}>{f.meta}</span>
-            </li>
-          ))}
-        </ol>
-
-        <div
-          className="gdr-plan-actions plan-header-primary-action"
-        >
-          <button
-            type="button"
-            className="gdr-plan-action gdr-plan-action--outline"
-            data-gdr-action="edit-parameters"
-            onClick={handleEditParameters}
-            disabled={isStarting}
-            title="Revisar tema, personas e pontos antes de iniciar"
-            aria-label="Editar parâmetros do plano"
-          >
-            <SlidersHorizontal size={14} aria-hidden="true" />
-            <span>Editar parâmetros</span>
-          </button>
-          <button
-            type="button"
-            className="gdr-plan-action gdr-plan-action--primary btn-start-research"
-            id="start-research-btn"
-            data-gdr-action="approve-and-start"
-            onClick={onStartExecution}
-            disabled={isStarting}
-            title="Aprovar o plano e iniciar a pesquisa"
-            aria-label="Aprovar plano e iniciar pesquisa"
-          >
-            {isStarting ? (
-              <>
-                <span className="spinner" aria-hidden="true" />
-                <span>Iniciando…</span>
-              </>
-            ) : (
-              <>
-                <Play size={16} fill="currentColor" aria-hidden="true" />
-                <span>Iniciar pesquisa</span>
-              </>
-            )}
-          </button>
-        </div>
-      </section>
-
-        {/* Stepper Vertical dos Pontos (1..N) com Divulgação Progressiva */}
-        <section className="plan-stepper" aria-label="Pontos do plano">
-          {plan.pontos.map((ponto) => {
+        {/* Stepper Vertical dos Eixos com Apresentação Limpa e Imediata */}
+        <section className="plan-stepper" aria-label="Eixos do plano">
+          {plan.pontos.map((ponto, idx) => {
             const eixo = ponto.eixo_estruturado;
-            const isExpanded = Boolean(expandedPoints[ponto.ponto_id]);
+            const pontoNum = ponto.ponto_n ?? (ponto as any).n ?? (idx + 1);
+            const pontoId = ponto.ponto_id ?? (ponto as any).id ?? `ponto-${pontoNum}`;
+            const isExpanded = Boolean(expandedPoints[pontoId]);
+            const pontoTitle =
+              eixo?.pergunta_principal ||
+              (eixo as any)?.pergunta_investigativa ||
+              ponto.ponto ||
+              (ponto as any)?.foco ||
+              `Eixo investigativo ${pontoNum}`;
+            const subperguntas = eixo?.subperguntas || (eixo as any)?.perguntas || [];
+            const hipoteses = eixo?.hipoteses || [];
+            const fontes = eixo?.fontes_primarias_desejadas || (eixo as any)?.fontes_prioritarias || [];
+            const criterio = eixo?.criterio_de_conclusao;
 
             return (
-              <div key={ponto.ponto_id} className={`stepper-item ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}>
+              <div key={pontoId} className={`stepper-item ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}>
                 <div
-                  className={`stepper-badge ${ponto.status}`}
-                  aria-label={`Ponto ${ponto.ponto_n}`}
+                  className={`stepper-badge ${ponto.status || 'planejado'}`}
+                  aria-label={`Ponto ${pontoNum}`}
                 >
-                  {ponto.ponto_n}
+                  {pontoNum}
                 </div>
 
                 <div className="stepper-content">
                   <div className="stepper-header-row">
                     <h3 className="stepper-point-title">
-                      {eixo ? eixo.pergunta_principal : ponto.ponto}
+                      {pontoTitle}
                     </h3>
 
                     {eixo && (
                       <button
                         type="button"
                         className="stepper-point-toggle"
-                        onClick={() => togglePoint(ponto.ponto_id)}
+                        onClick={() => togglePoint(pontoId)}
                         aria-expanded={isExpanded}
-                        aria-label={`Alternar detalhes do ponto ${ponto.ponto_n}`}
+                        aria-label={`Alternar detalhes do ponto ${pontoNum}`}
                         title={isExpanded ? 'Recolher detalhes deste ponto' : 'Expandir hipóteses e subperguntas'}
                       >
                         <span className="toggle-text">{isExpanded ? 'Menos detalhes' : 'Mais detalhes'}</span>
@@ -473,11 +322,11 @@ export const PlanView: React.FC<PlanViewProps> = ({
 
                   {eixo && isExpanded && (
                     <div className="stepper-point-details">
-                      {eixo.subperguntas && eixo.subperguntas.length > 0 && (
+                      {subperguntas.length > 0 && (
                         <div className="point-detail-row">
                           <span className="point-detail-label">Subperguntas:</span>
                           <ul className="point-detail-list">
-                            {eixo.subperguntas.map((sub, sIdx) => (
+                            {subperguntas.map((sub: string, sIdx: number) => (
                               <li key={sIdx} className="point-detail-value">
                                 {sub}
                               </li>
@@ -486,18 +335,18 @@ export const PlanView: React.FC<PlanViewProps> = ({
                         </div>
                       )}
 
-                      {eixo.hipoteses && eixo.hipoteses.length > 0 && (
+                      {hipoteses.length > 0 && (
                         <div className="point-detail-row">
                           <span className="point-detail-label">Hipóteses:</span>
-                          <span className="point-detail-value">{eixo.hipoteses.join(' • ')}</span>
+                          <span className="point-detail-value">{hipoteses.join(' • ')}</span>
                         </div>
                       )}
 
-                      {eixo.fontes_primarias_desejadas && eixo.fontes_primarias_desejadas.length > 0 && (
+                      {fontes.length > 0 && (
                         <div className="point-detail-row">
                           <span className="point-detail-label">Fontes prioritárias:</span>
                           <div className="point-tags-row">
-                            {eixo.fontes_primarias_desejadas.map((src, srcIdx) => (
+                            {fontes.map((src: string, srcIdx: number) => (
                               <span key={srcIdx} className="point-tag">
                                 {src}
                               </span>
@@ -506,10 +355,10 @@ export const PlanView: React.FC<PlanViewProps> = ({
                         </div>
                       )}
 
-                      {eixo.criterio_de_conclusao && (
+                      {criterio && (
                         <div className="point-detail-row">
-                          <span className="point-detail-label">Quando o ponto está concluído:</span>
-                          <span className="point-detail-value">{eixo.criterio_de_conclusao}</span>
+                          <span className="point-detail-label">Critério de conclusão:</span>
+                          <span className="point-detail-value">{criterio}</span>
                         </div>
                       )}
                     </div>
@@ -520,7 +369,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
           })}
         </section>
 
-        {/* Painel Colapsável de Contexto da Pesquisa (Comp C Accordion) */}
+        {/* Painel Colapsável de Parâmetros e Contexto Geral */}
         {structured && (
           <section className="context-panel" aria-label="Contexto da pesquisa">
             <button
@@ -568,193 +417,6 @@ export const PlanView: React.FC<PlanViewProps> = ({
               </div>
             )}
           </section>
-        )}
-        {/* Modal de Edição de Parâmetros (Replanejamento na mesma pesquisa) */}
-        {isEditModalOpen && (
-          <div
-            className="modal-backdrop preferences-modal-backdrop"
-            role="presentation"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setIsEditModalOpen(false);
-            }}
-          >
-            <div
-              className="dock-panel preferences-panel"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="edit-plan-modal-title"
-              style={{ maxWidth: '480px', width: '92%', margin: 'auto' }}
-            >
-              <header className="dock-panel-head">
-                <h2 id="edit-plan-modal-title" style={{ fontSize: '1rem', fontWeight: 600 }}>
-                  Editar parâmetros do plano
-                </h2>
-                <button
-                  type="button"
-                  className="dock-close"
-                  onClick={() => setIsEditModalOpen(false)}
-                  aria-label="Fechar edição de parâmetros"
-                >
-                  <X size={16} aria-hidden="true" />
-                </button>
-              </header>
-
-              <div className="dock-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
-                {/* Tema da pesquisa */}
-                <div className="dock-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
-                  <span className="dock-label">Tema da investigação</span>
-                  <input
-                    type="text"
-                    className="points-custom-input"
-                    style={{ width: '100%', boxSizing: 'border-box', height: '38px', padding: '0 12px', fontSize: '0.9rem' }}
-                    value={editTema}
-                    onChange={(e) => setEditTema(e.target.value)}
-                    placeholder="Descreva o tema da pesquisa..."
-                    disabled={isStarting}
-                    aria-label="Tema da investigação"
-                  />
-                </div>
-
-                {/* Pontos analíticos */}
-                <div className="dock-field" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div className="dock-field-info">
-                    <span className="dock-label" style={{ fontWeight: 600 }}>Pontos analíticos</span>
-                    <span className="dock-hint" style={{ display: 'block', fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>1 a 5 eixos investigativos</span>
-                  </div>
-                  <div className="stepper-widget" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      type="button"
-                      className="stepper-btn"
-                      onClick={() => setEditNPontos(Math.max(1, editNPontos - 1))}
-                      disabled={editNPontos <= 1 || isStarting}
-                      aria-label="Diminuir pontos analíticos"
-                      style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer' }}
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <span style={{ fontWeight: 700, minWidth: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>{editNPontos}</span>
-                    <button
-                      type="button"
-                      className="stepper-btn"
-                      onClick={() => setEditNPontos(Math.min(5, editNPontos + 1))}
-                      disabled={editNPontos >= 5 || isStarting}
-                      aria-label="Aumentar pontos analíticos"
-                      style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer' }}
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Personas de busca */}
-                <div className="dock-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
-                  <span className="dock-label" style={{ fontWeight: 600 }}>Personas ativas</span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {[
-                      { id: 'historiador', label: 'Historiador' },
-                      { id: 'visionario', label: 'Visionário' },
-                      { id: 'cetico', label: 'Cético' },
-                      { id: 'futurista', label: 'Futurista' },
-                    ].map((p) => {
-                      const isSelected = editPersonas.includes(p.id);
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className={`persona-pill ${isSelected ? 'is-selected' : ''}`}
-                          onClick={() => {
-                            if (isSelected) {
-                              if (editPersonas.length > 1) {
-                                setEditPersonas(editPersonas.filter(x => x !== p.id));
-                              }
-                            } else {
-                              setEditPersonas([...editPersonas, p.id]);
-                            }
-                          }}
-                          disabled={isStarting}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            border: isSelected ? '1px solid var(--violet-line)' : '1px solid var(--color-border)',
-                            background: isSelected ? 'var(--violet-tint)' : 'var(--color-surface)',
-                            color: isSelected ? 'var(--violet)' : 'var(--color-text-secondary)',
-                            fontWeight: 600,
-                            fontSize: '0.82rem',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {p.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Modo de Execução */}
-                <div className="dock-field" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="dock-label" style={{ fontWeight: 600 }}>Modo de execução</span>
-                  <div className="dock-segment" role="group" aria-label="Modo de execução" style={{ display: 'inline-flex', borderRadius: '8px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
-                    <button
-                      type="button"
-                      className={editMode === 'parallel' ? 'is-on' : ''}
-                      onClick={() => setEditMode('parallel')}
-                      disabled={isStarting}
-                      style={{
-                        padding: '6px 12px',
-                        border: 'none',
-                        background: editMode === 'parallel' ? 'var(--color-primary)' : 'transparent',
-                        color: editMode === 'parallel' ? '#fff' : 'var(--color-text-secondary)',
-                        fontWeight: 600,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Paralelo
-                    </button>
-                    <button
-                      type="button"
-                      className={editMode === 'sequential' ? 'is-on' : ''}
-                      onClick={() => setEditMode('sequential')}
-                      disabled={isStarting}
-                      style={{
-                        padding: '6px 12px',
-                        border: 'none',
-                        background: editMode === 'sequential' ? 'var(--color-primary)' : 'transparent',
-                        color: editMode === 'sequential' ? '#fff' : 'var(--color-text-secondary)',
-                        fontWeight: 600,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Sequencial
-                    </button>
-                  </div>
-                </div>
-
-                {/* Botões do Rodapé do Modal */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
-                  <button
-                    type="button"
-                    className="query-action-btn"
-                    onClick={() => setIsEditModalOpen(false)}
-                    disabled={isStarting}
-                  >
-                    <span>Cancelar</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="gdr-plan-action gdr-plan-action--primary"
-                    onClick={handleConfirmReplan}
-                    disabled={isStarting || editTema.trim().length < 5}
-                    style={{ padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Sparkles size={14} aria-hidden="true" />
-                    <span>{isStarting ? 'Replanejando…' : 'Replanejar investigação'}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         )}
       </article>
     </div>

@@ -17,15 +17,14 @@ const { PlanView } = await import('../components/PlanView.js');
 const { ExecutionView } = await import('../components/ExecutionView.js');
 const { ReasoningCardItem } = await import('../components/ReasoningCardItem.js');
 
-// --- T4: faixa de fases ---
+// --- T4: plano limpo sem faixa de fases redundante ---
 const htmlPlan = renderToString(
   React.createElement(PlanView, {
     plan: { id_pesquisa: 'x', tema: 'energia', n_pontos: 2, criado_em: new Date().toISOString(), pontos: [], preferencias: { personas: ['historiador'] }, plano_estruturado: { pedido_original: 'e', pedido_normalizado: 'e', publico: 'p', formato_entrega: 'Dossiê analítico', eixos: [] } },
     onStartExecution: () => {}, onReset: () => {}, isStarting: false,
   } as any)
 );
-assert.ok(htmlPlan.includes('gdr-phases'), 'plano exibe faixa de fases');
-assert.ok(htmlPlan.includes('Mapeamento'), 'fase 01 presente');
+assert.ok(!htmlPlan.includes('gdr-phases'), 'faixa de fases redundante descartada');
 assert.ok(htmlPlan.includes('Iniciar pesquisa'), 'acao primaria preservada');
 
 // --- T6: pilulas de criterios reprovados ---
