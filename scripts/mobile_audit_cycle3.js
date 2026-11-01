@@ -2,9 +2,9 @@ const path = require('path');
 const fs = require('fs');
 const { chromium } = require(path.resolve(__dirname, '../frontend/node_modules/playwright'));
 
-const CHROME_PATH = '/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/scripts/chrome_wrapper.sh';
+const CHROME_PATH = '/opt/data/projects/deep-research/Deep-Research/scripts/chrome_wrapper.sh';
 const BASE_URL = 'http://127.0.0.1:3002';
-const OUT_DIR = '/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile';
+const OUT_DIR = '/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile';
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 

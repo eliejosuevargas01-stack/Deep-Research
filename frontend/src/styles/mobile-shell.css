@@ -933,12 +933,13 @@
   }
 
   /* CICLO 2: Respiro inferior de timeline garantindo distância da dock TabBar */
-  .execution-card {
-    padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)) !important;
+  .execution-card,
+  .workspace-main:has(.execution-card) {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .execution-card .tl-linear {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   /* CICLO 3: Recuperação de visibilidade e legibilidade no estado Reprovado / Falha */
@@ -1046,11 +1047,24 @@
   }
 
   /* CICLO 3: Cartões de critérios reprovados e detalhes do auditor */
+  .tl-linear .tl-grupo {
+    flex-wrap: wrap !important;
+    gap: 4px 8px !important;
+    margin-bottom: 10px !important;
+    overflow: visible !important;
+  }
+
+  .tl-linear .tl-grupo::after {
+    display: none !important;
+  }
+
   .tl-linear .tl-grupo-tema {
+    display: block !important;
     overflow-wrap: anywhere !important;
     word-break: break-word !important;
     hyphens: auto !important;
     line-height: 1.45 !important;
+    max-width: 100% !important;
   }
 
   .tl-linear .tl-detalhe {

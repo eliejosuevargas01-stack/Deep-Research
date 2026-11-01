@@ -14,7 +14,7 @@
         {
           "rect": {
             "width": 276,
-            "height": 205
+            "height": 213
           },
           "scoreText": "83%10/12 critériosaprovado",
           "statusText": "aprovado",
@@ -39,7 +39,7 @@
         {
           "rect": {
             "width": 276,
-            "height": 321
+            "height": 328
           },
           "scoreText": "50%6/12 critériosreprovado",
           "statusText": "reprovado",
@@ -78,9 +78,9 @@
       ]
     },
     "screenshots": [
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-audit-390x844-top.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-audit-390x844-mid.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-audit-390x844-bottom.png"
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-audit-390x844-top.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-audit-390x844-mid.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-audit-390x844-bottom.png"
     ]
   },
   {
@@ -96,7 +96,7 @@
         "visible": true,
         "rect": {
           "width": 334,
-          "height": 459
+          "height": 441
         },
         "titleText": "A auditoria barrou o dossiê",
         "copyText": "Nenhum ponto chegou a 11 de 12 critérios depois das tentativas. O dossiê não foi escrito. Refazer a busca dos pontos abaixo é o caminho mais curto para liberar.",
@@ -104,22 +104,22 @@
         "pillsSample": [
           {
             "text": "Ausência de Contradições",
-            "width": 175,
+            "width": 144,
             "height": 21
           },
           {
             "text": "Profundidade Analítica",
-            "width": 157,
+            "width": 131,
             "height": 21
           },
           {
             "text": "Clareza Temática",
-            "width": 121,
+            "width": 103,
             "height": 21
           },
           {
             "text": "Atualidade",
-            "width": 84,
+            "width": 72,
             "height": 21
           }
         ],
@@ -137,7 +137,7 @@
         {
           "rect": {
             "width": 276,
-            "height": 205
+            "height": 213
           },
           "scoreText": "83%10/12 critériosaprovado",
           "statusText": "aprovado",
@@ -162,7 +162,7 @@
         {
           "rect": {
             "width": 276,
-            "height": 321
+            "height": 328
           },
           "scoreText": "50%6/12 critériosreprovado",
           "statusText": "reprovado",
@@ -201,9 +201,9 @@
       ]
     },
     "screenshots": [
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-rejected-390x844-top.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-rejected-390x844-mid.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-rejected-390x844-bottom.png"
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-rejected-390x844-top.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-rejected-390x844-mid.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-rejected-390x844-bottom.png"
     ]
   },
   {
@@ -219,7 +219,7 @@
         "visible": true,
         "rect": {
           "width": 334,
-          "height": 481
+          "height": 456
         },
         "titleText": "O provedor de IA não respondeu",
         "copyText": "Nada coletado foi perdido. Tente de novo em instantes.",
@@ -227,22 +227,22 @@
         "pillsSample": [
           {
             "text": "Ausência de Contradições",
-            "width": 175,
+            "width": 144,
             "height": 21
           },
           {
             "text": "Profundidade Analítica",
-            "width": 157,
+            "width": 131,
             "height": 21
           },
           {
             "text": "Clareza Temática",
-            "width": 121,
+            "width": 103,
             "height": 21
           },
           {
             "text": "Atualidade",
-            "width": 84,
+            "width": 72,
             "height": 21
           }
         ],
@@ -266,7 +266,7 @@
         {
           "rect": {
             "width": 276,
-            "height": 205
+            "height": 213
           },
           "scoreText": "83%10/12 critériosaprovado",
           "statusText": "aprovado",
@@ -291,7 +291,7 @@
         {
           "rect": {
             "width": 276,
-            "height": 321
+            "height": 328
           },
           "scoreText": "50%6/12 critériosreprovado",
           "statusText": "reprovado",
@@ -330,9 +330,9 @@
       ]
     },
     "screenshots": [
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-failed-390x844-top.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-failed-390x844-mid.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-failed-390x844-bottom.png"
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-failed-390x844-top.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-failed-390x844-mid.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-failed-390x844-bottom.png"
     ]
   },
   {
@@ -350,7 +350,7 @@
         {
           "rect": {
             "width": 246,
-            "height": 223
+            "height": 213
           },
           "scoreText": "83%10/12 critériosaprovado",
           "statusText": "aprovado",
@@ -360,7 +360,7 @@
               "text": "Critério 4: A queda de agências é usada como proxy de empreg",
               "rect": {
                 "width": 220,
-                "height": 100
+                "height": 83
               }
             },
             {
@@ -375,7 +375,7 @@
         {
           "rect": {
             "width": 246,
-            "height": 356
+            "height": 363
           },
           "scoreText": "50%6/12 critériosreprovado",
           "statusText": "reprovado",
@@ -414,9 +414,9 @@
       ]
     },
     "screenshots": [
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-audit-360x740-top.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-audit-360x740-mid.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-audit-360x740-bottom.png"
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-audit-360x740-top.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-audit-360x740-mid.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-audit-360x740-bottom.png"
     ]
   },
   {
@@ -432,7 +432,7 @@
         "visible": true,
         "rect": {
           "width": 304,
-          "height": 476
+          "height": 441
         },
         "titleText": "A auditoria barrou o dossiê",
         "copyText": "Nenhum ponto chegou a 11 de 12 critérios depois das tentativas. O dossiê não foi escrito. Refazer a busca dos pontos abaixo é o caminho mais curto para liberar.",
@@ -440,22 +440,22 @@
         "pillsSample": [
           {
             "text": "Ausência de Contradições",
-            "width": 175,
+            "width": 144,
             "height": 21
           },
           {
             "text": "Profundidade Analítica",
-            "width": 157,
+            "width": 131,
             "height": 21
           },
           {
             "text": "Clareza Temática",
-            "width": 121,
+            "width": 103,
             "height": 21
           },
           {
             "text": "Atualidade",
-            "width": 84,
+            "width": 72,
             "height": 21
           }
         ],
@@ -473,7 +473,7 @@
         {
           "rect": {
             "width": 246,
-            "height": 223
+            "height": 213
           },
           "scoreText": "83%10/12 critériosaprovado",
           "statusText": "aprovado",
@@ -483,7 +483,7 @@
               "text": "Critério 4: A queda de agências é usada como proxy de empreg",
               "rect": {
                 "width": 220,
-                "height": 100
+                "height": 83
               }
             },
             {
@@ -498,7 +498,7 @@
         {
           "rect": {
             "width": 246,
-            "height": 356
+            "height": 363
           },
           "scoreText": "50%6/12 critériosreprovado",
           "statusText": "reprovado",
@@ -537,9 +537,9 @@
       ]
     },
     "screenshots": [
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-rejected-360x740-top.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-rejected-360x740-mid.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-rejected-360x740-bottom.png"
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-rejected-360x740-top.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-rejected-360x740-mid.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-rejected-360x740-bottom.png"
     ]
   },
   {
@@ -555,7 +555,7 @@
         "visible": true,
         "rect": {
           "width": 304,
-          "height": 518
+          "height": 481
         },
         "titleText": "O provedor de IA não respondeu",
         "copyText": "Nada coletado foi perdido. Tente de novo em instantes.",
@@ -563,22 +563,22 @@
         "pillsSample": [
           {
             "text": "Ausência de Contradições",
-            "width": 175,
+            "width": 144,
             "height": 21
           },
           {
             "text": "Profundidade Analítica",
-            "width": 157,
+            "width": 131,
             "height": 21
           },
           {
             "text": "Clareza Temática",
-            "width": 121,
+            "width": 103,
             "height": 21
           },
           {
             "text": "Atualidade",
-            "width": 84,
+            "width": 72,
             "height": 21
           }
         ],
@@ -602,7 +602,7 @@
         {
           "rect": {
             "width": 246,
-            "height": 223
+            "height": 213
           },
           "scoreText": "83%10/12 critériosaprovado",
           "statusText": "aprovado",
@@ -612,7 +612,7 @@
               "text": "Critério 4: A queda de agências é usada como proxy de empreg",
               "rect": {
                 "width": 220,
-                "height": 100
+                "height": 83
               }
             },
             {
@@ -627,7 +627,7 @@
         {
           "rect": {
             "width": 246,
-            "height": 356
+            "height": 363
           },
           "scoreText": "50%6/12 critériosreprovado",
           "statusText": "reprovado",
@@ -666,9 +666,9 @@
       ]
     },
     "screenshots": [
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-failed-360x740-top.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-failed-360x740-mid.png",
-      "/opt/data/projects/deep-research/Deep-Research-wt-mobile-exec/artifacts/audit-mobile/cycle3-execution-failed-360x740-bottom.png"
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-failed-360x740-top.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-failed-360x740-mid.png",
+      "/opt/data/projects/deep-research/Deep-Research/artifacts/audit-mobile/cycle3-execution-failed-360x740-bottom.png"
     ]
   }
 ]

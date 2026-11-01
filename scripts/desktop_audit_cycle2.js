@@ -4,11 +4,11 @@ const fs = require('fs');
 
 async function auditCycle2() {
   const browser = await chromium.launch({
-    executablePath: '/opt/data/projects/deep-research/Deep-Research-wt-desktop-exec/scripts/chrome_wrapper.sh',
+    executablePath: '/opt/data/projects/deep-research/Deep-Research/scripts/chrome_wrapper.sh',
     headless: true
   });
 
-  const outDir = '/opt/data/projects/deep-research/Deep-Research-wt-desktop-exec/artifacts/audit-desktop';
+  const outDir = '/opt/data/projects/deep-research/Deep-Research/artifacts/audit-desktop';
   fs.mkdirSync(outDir, { recursive: true });
 
   const viewports = [
