@@ -15,6 +15,13 @@
   }
 }
 
+/* Dossiê e Revisão de Plano: leitura limpa em qualquer resolução, sem composer ocioso. */
+.workspace-main:has(.report-card) .composer-anchor,
+.workspace-main:has(.plan-card) .composer-anchor,
+.workspace-main:has(.plan-container) .composer-anchor {
+  display: none !important;
+}
+
 @media (max-width: 899px) {
   html,
   body {

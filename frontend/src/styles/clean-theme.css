@@ -728,6 +728,7 @@
   margin: 12px auto 0;
   padding: 0 4px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* Trilho horizontal contínuo de 1 única linha */

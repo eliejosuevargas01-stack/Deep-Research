@@ -1748,9 +1748,9 @@ export const App: React.FC = () => {
               <TopicPills onSelect={handleSelectTopicSuggestion} />
             )}
 
-            {/* Compositor só fora de execução: durante o planejamento a tela
-                intermediária assume, sem input duplicado nem aviso de Enter. */}
-            {!isPlanning && !isExecuting && (
+            {/* Compositor só fora de execução e sem plano ativo: durante a revisão do plano
+                o card de plano assume o foco total sem input ocioso no rodapé. */}
+            {!isPlanning && !isExecuting && !currentPlan && (
             <Composer
               ref={composerRef}
               value={composerValue}
