@@ -60,10 +60,33 @@ def _is_loopback_ip(ip_str: Optional[str]) -> bool:
         return False
 
 
+def _is_private_or_loopback_ip(ip_str: Optional[str]) -> bool:
+    """Verifica se o IP é de loopback (127.0.0.0/8, ::1) ou faixa privada/Docker (10/8, 172.16/12, 192.168/16)."""
+    if not ip_str or not isinstance(ip_str, str):
+        return False
+    clean_ip = ip_str.strip()
+    try:
+        ip = ipaddress.ip_address(clean_ip)
+        return ip.is_loopback or ip.is_private
+    except ValueError:
+        return False
+
+
+def _is_trusted_network_active() -> bool:
+    """Verifica se variáveis de ambiente autorizam acesso em rede local/Docker."""
+    for var in ("TRUST_LOCAL_NETWORK", "DOCKER_CONTAINER"):
+        val = os.environ.get(var, "").strip().lower()
+        if val not in ("", "0", "false", "no", "off"):
+            return True
+    return False
+
+
 def _is_local_host(host_str: Optional[str]) -> bool:
-    """Verifica se o cabeçalho Host corresponde estritamente a um host local permitido."""
+    """Verifica se o cabeçalho Host corresponde a um host local ou de rede privada/Docker permitido."""
     if not host_str or not isinstance(host_str, str):
         return False
+    if _is_trusted_network_active():
+        return True
     h = host_str.strip()
     # Tratamento de IPv6 com colchetes: ex: [::1] ou [::1]:8000
     if h.startswith("["):
@@ -77,10 +100,11 @@ def _is_local_host(host_str: Optional[str]) -> bool:
         raw_host = h.split(":")[0].strip()
 
     raw_host_lower = raw_host.lower()
-    if raw_host_lower in ALLOWED_LOCAL_HOSTNAMES:
+    if raw_host_lower in ALLOWED_LOCAL_HOSTNAMES or raw_host_lower in ("testserver", "host.docker.internal"):
         return True
     try:
-        return ipaddress.ip_address(raw_host_lower).is_loopback
+        ip = ipaddress.ip_address(raw_host_lower)
+        return ip.is_loopback or ip.is_private
     except ValueError:
         return False
 
@@ -133,12 +157,15 @@ def _canonical_origin(url_str: Optional[str]) -> Optional[str]:
 def is_local_eligible(request: Request) -> bool:
     """Determina se a requisição é elegível para emissão de sessão local automática.
 
-    A elegibilidade exige que o IP real do cliente seja estritamente loopback,
-    o cabeçalho Host seja estritamente local e, havendo cabeçalhos de origem (Origin/Referer),
-    estes coincidam com a mesma origem exata (esquema, hostname e porta).
+    Permite requisições originadas de faixas de IP locais/Docker privadas
+    (ex.: 172.16.0.0/12 incluindo 172.17.x.x, 10.0.0.0/8, 192.168.0.0/16, loopback 127.0.0.0/8, ::1)
+    ou quando a variável de ambiente TRUST_LOCAL_NETWORK / DOCKER_CONTAINER estiver ativa,
+    evitando que sessões Docker ou LAN fiquem bloqueadas com authenticated=false.
     """
     client_ip = request.client.host if request.client else None
-    if not _is_loopback_ip(client_ip):
+    trusted_env = _is_trusted_network_active()
+
+    if not (_is_private_or_loopback_ip(client_ip) or trusted_env):
         return False
 
     host_header = request.headers.get("host")

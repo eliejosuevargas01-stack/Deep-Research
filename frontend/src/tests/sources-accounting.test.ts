@@ -570,7 +570,7 @@ Código inline: \`https://nao-deve-aparecer-inline.com\` e \`[outro inline](http
   assert.equal(resEmptyLocalHash.isValid, false, 'Deve rejeitar quando digest local for vazio');
   assert.ok(resEmptyLocalHash.reason?.includes('Não foi possível conferir a integridade'));
 
-  // Caso 4: Falha quando artifact_hash do servidor estiver ausente (mesmo se status for indisponivel)
+  // Caso 4: Sucesso quando artifact_hash do servidor estiver ausente (B-17: não disparar falso alerta de incompatibilidade)
   const sourcesNoHash: FontesResumo = {
     ...validSources,
     artifact_hash: null,
@@ -579,10 +579,9 @@ Código inline: \`https://nao-deve-aparecer-inline.com\` e \`[outro inline](http
   const resNoServerHash = verifySourcesBinding('report-abc', 'Texto Publicado', 'abc123hash', sourcesNoHash);
   assert.equal(
     resNoServerHash.isValid,
-    false,
-    'Deve rejeitar quando hash do servidor estiver ausente para texto publicado'
+    true,
+    'Deve aprovar sem falso alerta quando hash do servidor estiver ausente (B-17)'
   );
-  assert.ok(resNoServerHash.reason?.includes('outra versão deste relatório'));
 
   // Caso 5: Falha quando artifact_hash divergir do localHash
   const sourcesDiffHash: FontesResumo = {
