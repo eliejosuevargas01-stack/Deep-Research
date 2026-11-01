@@ -165,10 +165,10 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const isMobile = window.matchMedia('(max-width: 899px)').matches;
     if (!isMobile) return;
-    const originalOverflow = document.body.style.overflow;
+    const overflowAnterior = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = originalOverflow;
+      document.body.style.overflow = overflowAnterior;
     };
   }, [collapsed]);
   const tabRefs = useRef<Record<RailMode, HTMLButtonElement | null>>({

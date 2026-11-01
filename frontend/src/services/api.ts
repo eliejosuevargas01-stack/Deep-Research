@@ -40,6 +40,7 @@ export interface CreatePlanOptions {
   execution_mode?: 'parallel' | 'sequential';
   async_execute?: boolean;
   callback_url?: string | null;
+  signal?: AbortSignal;
 }
 
 function isLocalCallbackUrl(url: string): boolean {
@@ -187,12 +188,14 @@ export const api = {
     temaOuOpcoes: string | CreatePlanOptions,
     n_pontos?: number,
     personas?: string[],
-    idPesquisa?: string
+    idPesquisa?: string,
+    signal?: AbortSignal
   ): Promise<PlanResponse> {
     const opcoes: CreatePlanOptions =
       typeof temaOuOpcoes === 'string'
-        ? { tema: temaOuOpcoes, n_pontos, personas, idPesquisa }
+        ? { tema: temaOuOpcoes, n_pontos, personas, idPesquisa, signal }
         : temaOuOpcoes;
+    const reqSignal = opcoes.signal ?? signal;
     const payload: PlanRequest = {
       tema: opcoes.tema,
       async_execute: opcoes.async_execute ?? false,
@@ -209,6 +212,7 @@ export const api = {
       credentials: 'same-origin',
       headers: buildHeaders(),
       body: JSON.stringify(payload),
+      signal: reqSignal,
     });
 
     if (!res.ok) {
@@ -233,7 +237,8 @@ export const api = {
     id_pesquisa: string,
     ponto_id?: string | null,
     personas?: string[] | null,
-    execution_mode?: 'parallel' | 'sequential'
+    execution_mode?: 'parallel' | 'sequential',
+    signal?: AbortSignal
   ): Promise<SearchResponse> {
     const payload: SearchRequest = {
       id_pesquisa,
@@ -247,6 +252,7 @@ export const api = {
       credentials: 'same-origin',
       headers: buildHeaders(),
       body: JSON.stringify(payload),
+      signal,
     });
 
     if (!res.ok) {
@@ -262,7 +268,8 @@ export const api = {
   async auditResearch(
     id_pesquisa: string,
     ponto_id?: string | null,
-    criterios_minimos: number = RIGOR_PADRAO
+    criterios_minimos: number = RIGOR_PADRAO,
+    signal?: AbortSignal
   ): Promise<AuditResponse> {
     const payload: AuditRequest = {
       id_pesquisa,
@@ -275,6 +282,7 @@ export const api = {
       credentials: 'same-origin',
       headers: buildHeaders(),
       body: JSON.stringify(payload),
+      signal,
     });
 
     if (!res.ok) {
@@ -287,7 +295,7 @@ export const api = {
     return data;
   },
 
-  async writeDossier(id_pesquisa: string): Promise<WriterResponse> {
+  async writeDossier(id_pesquisa: string, signal?: AbortSignal): Promise<WriterResponse> {
     const payload: WriterRequest = {
       id_pesquisa,
     };
@@ -297,6 +305,7 @@ export const api = {
       credentials: 'same-origin',
       headers: buildHeaders(),
       body: JSON.stringify(payload),
+      signal,
     });
 
     if (!res.ok) {

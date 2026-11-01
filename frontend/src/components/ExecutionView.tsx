@@ -464,6 +464,19 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
     return () => window.clearInterval(timer);
   }, [inicioExecucao, emAndamento, elapsedSeconds]);
 
+  // B-14: Bloqueio de scroll da gaveta mobile
+  useEffect(() => {
+    if (!isRailOpen) return;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const isMobile = window.matchMedia('(max-width: 899px)').matches;
+    if (!isMobile) return;
+    const overflowAnterior = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = overflowAnterior;
+    };
+  }, [isRailOpen]);
+
   const decorridoTotal =
     elapsedSeconds != null
       ? Math.max(0, elapsedSeconds)
@@ -698,12 +711,17 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
         <div className="alert-banner danger exec-error-card" role="alert">
           <XCircle size={20} aria-hidden="true" className="execution-banner-icon" />
           <div className="execution-banner-body">
-            <strong>A auditoria barrou o dossiê</strong>
+            <strong>
+              {auditResult?.pronto_para_writer
+                ? 'Critérios validados. Pronto para redação'
+                : 'A auditoria barrou o dossiê'}
+            </strong>
             <p className="execution-banner-copy">
-              Nenhum ponto chegou a 11 de 12 critérios depois das tentativas. O dossiê não foi escrito.
-              Refazer a busca dos pontos abaixo é o caminho mais curto para liberar.
+              {auditResult?.pronto_para_writer
+                ? 'Todos os critérios mínimos foram satisfeitos após a reauditoria. Prossiga para gerar o dossiê final.'
+                : 'Nenhum ponto chegou a 11 de 12 critérios depois das tentativas. O dossiê não foi escrito. Refazer a busca dos pontos abaixo é o caminho mais curto para liberar.'}
             </p>
-            {auditResult?.auditorias?.some((a) => (a.criterios ?? []).some((c) => !c.aprovado)) && (
+            {!auditResult?.pronto_para_writer && auditResult?.auditorias?.some((a) => (a.criterios ?? []).some((c) => !c.aprovado)) && (
               <BannerPontosPendentes
                 pontos={pontosPendentes}
                 onRefazerBuscaPonto={onRefazerBuscaPonto}
@@ -712,11 +730,21 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
               />
             )}
             <div className="execution-banner-actions">
+              {auditResult?.pronto_para_writer && onRetry && (
+                <button
+                  type="button"
+                  className="btn-primary btn-compact"
+                  onClick={onRetry}
+                  disabled={isRetrying}
+                >
+                  <RefreshCw size={14} className={isRetrying ? 'spin' : ''} aria-hidden="true" />
+                  <span>Prosseguir para redação</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-secondary btn-compact"
                 onClick={onReset}
-                
               >
                 <RotateCcw size={14} aria-hidden="true" />
                 <span>Formular novo tema</span>

@@ -248,6 +248,7 @@ export const App: React.FC = () => {
   const activeExecutionTokenRef = useRef<number | null>(null);
   const currentRouteRef = useRef<string>(currentRoute);
   const rafScrollRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     try {
@@ -467,6 +468,8 @@ export const App: React.FC = () => {
   const handleOpenResearchById = useCallback(async (id: string) => {
     if (!id || deepLinkCarregadoRef.current === id) return;
     deepLinkCarregadoRef.current = id;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     try {
       // A sessão (cookie) nasce em /app/session; sem esperar, o deep link toma 401.
       await bootstrapPromiseRef.current;
@@ -670,21 +673,124 @@ export const App: React.FC = () => {
         }
         if (!resp.ok) return;
         const status = (await resp.json()) as PipelineStatusResumo;
-        const registro = historyService.get(idAtivo);
+        let registro = historyService.get(idAtivo);
+
+        // B-02: Se registro?.planResponse não existir no localStorage, hidratar a pesquisa completa
+        if (!registro?.planResponse) {
+          try {
+            const detalhe = await api.getResearch(idAtivo);
+            if (cancelado) return;
+            const pontos = (detalhe.pontos ?? []).map((p) => ({
+              ponto_id: String(p.ponto_id),
+              ponto_n: Number(p.ponto_n),
+              ponto: String(p.ponto ?? ''),
+              status: p.status ?? 'pendente',
+              eixo_estruturado: p.eixo_estruturado ?? null,
+            }));
+            const planoHidratado: PlanResponse = {
+              id_pesquisa: detalhe.id_pesquisa,
+              tema: detalhe.tema,
+              n_pontos: pontos.length,
+              criado_em: detalhe.criado_em,
+              pontos,
+              status_pipeline: detalhe.status_pipeline,
+              plano_estruturado: detalhe.plano_estruturado ?? null,
+              preferencias: detalhe.preferencias ?? undefined,
+            };
+            const writerHidratado: WriterResponse | undefined = detalhe.dossier_final
+              ? {
+                  id_pesquisa: detalhe.id_pesquisa,
+                  tema: detalhe.tema,
+                  status: 'concluido',
+                  total_caracteres_dossier: detalhe.dossier_final.length,
+                  concluido_em: detalhe.concluido_em ?? null,
+                  dossier_final: detalhe.dossier_final,
+                  fontes: detalhe.fontes ?? null,
+                }
+              : undefined;
+            const novoRegistro: ResearchHistoryRecord = {
+              id_pesquisa: detalhe.id_pesquisa,
+              tema: detalhe.tema,
+              criado_em: detalhe.criado_em,
+              concluido_em: detalhe.concluido_em ?? null,
+              status: (detalhe.status_pipeline as any) || 'planejado',
+              total_pontos: pontos.length,
+              planResponse: planoHidratado,
+              writerResponse: writerHidratado,
+              auditResponse: detalhe.auditoria || undefined,
+              fontes: detalhe.fontes || undefined,
+            };
+            historyService.save(novoRegistro);
+            registro = novoRegistro;
+            setHistoryRecords(historyService.list());
+          } catch {
+            return;
+          }
+        }
         if (!registro?.planResponse) return;
+        const currentPlanResponse: PlanResponse = registro.planResponse;
+
         setActiveResearchId(idAtivo);
+        activeResearchIdRef.current = idAtivo;
+
+        // B-21: Se status_pipeline === 'concluido' e writerResponse ausente, recuperar via api.getResearch
+        if (status.status_pipeline === 'concluido' && !registro.writerResponse) {
+          try {
+            const detalhe = await api.getResearch(idAtivo);
+            if (cancelado) return;
+            if (detalhe.dossier_final) {
+              const writerRes: WriterResponse = {
+                id_pesquisa: detalhe.id_pesquisa,
+                tema: detalhe.tema,
+                status: 'concluido',
+                total_caracteres_dossier: detalhe.dossier_final.length,
+                concluido_em: detalhe.concluido_em ?? null,
+                dossier_final: detalhe.dossier_final,
+                fontes: detalhe.fontes ?? null,
+              };
+              registro = {
+                ...registro,
+                concluido_em: detalhe.concluido_em ?? registro.concluido_em,
+                status: 'concluido',
+                writerResponse: writerRes,
+                fontes: detalhe.fontes || registro.fontes,
+              };
+              historyService.save(registro);
+              setHistoryRecords(historyService.list());
+            }
+          } catch {
+            /* segue com o que tiver */
+          }
+        }
+
         const estagio = status.status_pipeline ? STAGE_POR_STATUS[status.status_pipeline] : undefined;
+
+        if (status.status_pipeline === 'concluido' && registro.writerResponse) {
+          setCurrentPlan(currentPlanResponse);
+          setWriterResult(registro.writerResponse);
+          setPipelineStage('completed');
+          const totalTokens = Number(status.tokens_total ?? 0);
+          if (totalTokens > 0) {
+            setTokensAoVivo({
+              prompt_tokens: Number(status.tokens_prompt ?? 0),
+              completion_tokens: Number(status.tokens_completion ?? 0),
+              total_tokens: totalTokens,
+            });
+          }
+          if (registro.fontes) {
+            setFontesPersistidas(registro.fontes);
+          }
+          return;
+        }
+
         if (estagio) {
-          const planComDatas = {
-            ...registro.planResponse,
-            criado_em: status.criado_em || registro.planResponse.criado_em,
-            concluido_em: status.concluido_em || registro.planResponse.concluido_em,
+          const planComDatas: PlanResponse = {
+            ...currentPlanResponse,
+            criado_em: status.criado_em || currentPlanResponse.criado_em,
+            concluido_em: status.concluido_em || currentPlanResponse.concluido_em,
           };
           setCurrentPlan(planComDatas);
           setPipelineStage(estagio);
-          // Reata o canal ao vivo e a telemetria de tokens da pesquisa retomada.
-          activeResearchIdRef.current = idAtivo;
-          setActiveResearchId(idAtivo);
 
           // Restaura tokens salvos no banco de dados para evitar reset na tela
           const totalTokens = Number(status.tokens_total ?? 0);
@@ -716,20 +822,27 @@ export const App: React.FC = () => {
               });
             }
           }).catch(() => {});
-        } else if (status.status_pipeline === 'concluido' && registro.writerResponse) {
-          setCurrentPlan(registro.planResponse);
-          setPipelineStage('completed');
+
+          // B-21: Retomada ativa de pesquisas intermediárias síncronas após F5
+          const estagiosIntermediarios = ['buscando', 'coletado', 'auditando', 'redigindo'];
+          const isIntermediario = status.status_pipeline && estagiosIntermediarios.includes(status.status_pipeline);
+          const isAsync = Boolean(currentPlanResponse.preferencias?.async_execute);
+
+          if (isIntermediario && !isAsync) {
+            const resumeStage: 'searching' | 'auditing' | 'writing' =
+              estagio === 'writing' ? 'writing' : estagio === 'auditing' ? 'auditing' : 'searching';
+            void runPipeline({ resumeFromStage: resumeStage, plan: planComDatas });
+          }
         } else if (status.status_pipeline === 'falha') {
-          setCurrentPlan(registro.planResponse);
+          setCurrentPlan(currentPlanResponse);
           setFailedStage(null);
           setExecutionError(status.erro_pipeline || 'A execução anterior falhou.');
           setPipelineStage('failed');
-        } else if (status.status_pipeline === 'concluido') {
-          try {
-            localStorage.removeItem(ACTIVE_RESEARCH_KEY);
-          } catch {
-            /* ignora */
-          }
+        } else if (status.status_pipeline === 'reprovado') {
+          setCurrentPlan(currentPlanResponse);
+          setFailedStage(null);
+          setExecutionError('A auditoria reprovou esta pesquisa.');
+          setPipelineStage('rejected');
         }
       } catch {
         /* backend offline: mantém a tela atual */
@@ -790,6 +903,10 @@ export const App: React.FC = () => {
     setPlanningText('');
     setPlanningStartedAt(Date.now());
 
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       if (bootstrapPromiseRef.current) {
         await bootstrapPromiseRef.current;
@@ -832,6 +949,7 @@ export const App: React.FC = () => {
         execution_mode: executionMode,
         async_execute: asyncExecute,
         callback_url: asyncExecute ? callbackUrl.trim() || null : null,
+        signal: controller.signal,
       });
       // Garante que o plano tenha o snapshot exato de preferências configuradas na criação
       if (!plan.preferencias) {
@@ -993,6 +1111,9 @@ export const App: React.FC = () => {
       historyService.save(record);
       setHistoryRecords(historyService.list());
     } catch (err: unknown) {
+      if ((err as Error)?.name === 'AbortError') {
+        return;
+      }
       setPlanningError(err instanceof Error ? err.message : String(err));
     } finally {
       isPlanningRef.current = false;
@@ -1002,12 +1123,21 @@ export const App: React.FC = () => {
   };
 
   // Pipeline unificado e sensível ao estágio com checkpoints e prevenção de concorrência
-  const runPipeline = async (options?: { resumeFromStage?: 'searching' | 'auditing' | 'writing' }) => {
-    if (!currentPlan) return;
+  const runPipeline = async (options?: { resumeFromStage?: 'searching' | 'auditing' | 'writing'; plan?: PlanResponse }) => {
+    const activePlan = options?.plan ?? currentPlan;
+    if (!activePlan) return;
     if (isExecutingRef.current || isPlanningRef.current) return;
     isExecutingRef.current = true;
+    if (options?.plan) {
+      setCurrentPlan(options.plan);
+    }
 
-    const id_pesquisa = currentPlan.id_pesquisa;
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const signal = controller.signal;
+
+    const id_pesquisa = activePlan.id_pesquisa;
     activeResearchIdRef.current = id_pesquisa;
     setActiveResearchId(id_pesquisa);
     try {
@@ -1024,8 +1154,8 @@ export const App: React.FC = () => {
     // Usa estritamente o snapshot de personas gravado no plano criado;
     // se o plano for legado (sem snapshot), omite explicitamente para o backend resolver seu default/snapshot
     const planPersonas =
-      currentPlan.preferencias?.personas && currentPlan.preferencias.personas.length > 0
-        ? currentPlan.preferencias.personas
+      activePlan.preferencias?.personas && activePlan.preferencias.personas.length > 0
+        ? activePlan.preferencias.personas
         : undefined;
 
     const startStage = options?.resumeFromStage ?? 'searching';
@@ -1060,7 +1190,7 @@ export const App: React.FC = () => {
           if (!shouldSkipSearch) {
             setPipelineStage('searching');
             try {
-              const sRes = await api.searchPoints(id_pesquisa, undefined, planPersonas, executionMode);
+              const sRes = await api.searchPoints(id_pesquisa, undefined, planPersonas, executionMode, signal);
               if (activeResearchIdRef.current !== id_pesquisa || activeExecutionTokenRef.current !== executionToken) return;
               setSearchResult(sRes);
               // Registra raciocínios das personas coletadas no modo síncrono
@@ -1082,6 +1212,7 @@ export const App: React.FC = () => {
                 });
               });
             } catch (searchErr) {
+              if ((searchErr as Error)?.name === 'AbortError') return;
               if (activeResearchIdRef.current !== id_pesquisa || activeExecutionTokenRef.current !== executionToken) return;
               setFailedStage('searching');
               setPipelineStage('failed');
@@ -1094,7 +1225,7 @@ export const App: React.FC = () => {
           setPipelineStage('auditing');
           let aRes: AuditResponse;
           try {
-            aRes = await api.auditResearch(id_pesquisa, undefined, criteriosMinimos);
+            aRes = await api.auditResearch(id_pesquisa, undefined, criteriosMinimos, signal);
             if (activeResearchIdRef.current !== id_pesquisa || activeExecutionTokenRef.current !== executionToken) return;
             setAuditResult(aRes);
             {
@@ -1122,6 +1253,7 @@ export const App: React.FC = () => {
               }
             });
           } catch (auditErr) {
+            if ((auditErr as Error)?.name === 'AbortError') return;
             if (activeResearchIdRef.current !== id_pesquisa || activeExecutionTokenRef.current !== executionToken) return;
             // Busca concluída com sucesso! Auditoria falhou via HTTP (ex: timeout 504, 500, falha de rede).
             // Registramos failedStage como 'auditing' para permitir retry de auditoria sem repetir a busca!
@@ -1171,7 +1303,7 @@ export const App: React.FC = () => {
       setPipelineStage('writing');
       let wRes: WriterResponse;
       try {
-        wRes = await api.writeDossier(id_pesquisa);
+        wRes = await api.writeDossier(id_pesquisa, signal);
         if (activeResearchIdRef.current !== id_pesquisa || activeExecutionTokenRef.current !== executionToken) return;
         setWriterResult(wRes);
         if (wRes.reasoning_dossier) {
@@ -1186,6 +1318,7 @@ export const App: React.FC = () => {
           });
         }
       } catch (writerErr) {
+        if ((writerErr as Error)?.name === 'AbortError') return;
         if (activeResearchIdRef.current !== id_pesquisa || activeExecutionTokenRef.current !== executionToken) return;
         setFailedStage('writing');
         setPipelineStage('failed');
@@ -1304,9 +1437,10 @@ export const App: React.FC = () => {
     try {
       const aRes = await api.auditResearch(currentPlan.id_pesquisa, ponto_id, criteriosMinimos);
       // Merge: troca só o parecer do ponto, preserva os demais e os totais.
+      let consolidadoProntoParaWriter = false;
       setAuditResult((anterior) => {
         if (!anterior) {
-          setAuditCycleNumber(cycleNumber);
+          consolidadoProntoParaWriter = Boolean(aRes.pronto_para_writer);
           return aRes;
         }
         const novos = new Map(aRes.auditorias.map((a) => [a.ponto_id, a]));
@@ -1314,21 +1448,57 @@ export const App: React.FC = () => {
         for (const a of aRes.auditorias) {
           if (!auditorias.some((x) => x.ponto_id === a.ponto_id)) auditorias.push(a);
         }
+
+        const totalPontosEsperados = currentPlan.pontos?.length || anterior.total_pontos || auditorias.length;
         const aprovados = auditorias.filter((a) => a.status === 'aprovado').length;
-        return {
+        const reprovados = auditorias.filter((a) => a.status === 'reprovado').length;
+        const temPontosNaoAuditados =
+          auditorias.length < totalPontosEsperados ||
+          auditorias.some((a) => a.status !== 'aprovado' && a.status !== 'reprovado');
+
+        let statusGeral: string = 'reprovado';
+        if (aprovados === totalPontosEsperados && totalPontosEsperados > 0) {
+          statusGeral = 'aprovado';
+        } else if (temPontosNaoAuditados) {
+          statusGeral = reprovados > 0 ? 'parcial' : 'em_andamento';
+        } else {
+          statusGeral = 'reprovado';
+        }
+
+        const pronto = aprovados === totalPontosEsperados && totalPontosEsperados > 0;
+        consolidadoProntoParaWriter = pronto;
+
+        const resultado: AuditResponse = {
           ...aRes,
           id_pesquisa: anterior.id_pesquisa,
-          total_pontos: auditorias.length,
+          total_pontos: totalPontosEsperados,
           aprovados,
-          reprovados: auditorias.length - aprovados,
-          status_geral: aprovados === auditorias.length ? 'aprovado' : 'reprovado',
+          reprovados,
+          status_geral: statusGeral,
           status_pesquisa: anterior.status_pesquisa,
-          pronto_para_writer: aprovados === auditorias.length,
+          pronto_para_writer: pronto,
           auditorias,
         };
+
+        const recAudit = historyService.get(currentPlan.id_pesquisa);
+        if (recAudit) {
+          historyService.save({
+            ...recAudit,
+            auditResponse: resultado,
+            status: pronto ? 'planejado' : recAudit.status,
+          });
+          setHistoryRecords(historyService.list());
+        }
+
+        return resultado;
       });
       setAuditCycleNumber(cycleNumber);
+
+      if (consolidadoProntoParaWriter && (pipelineStage === 'rejected' || pipelineStage === 'failed')) {
+        await runPipeline({ resumeFromStage: 'writing' });
+      }
     } catch (err: unknown) {
+      if ((err as Error)?.name === 'AbortError') return;
       setExecutionError(err instanceof Error ? err.message : String(err));
     } finally {
       setPontoEmReprocesso(null);
@@ -1429,6 +1599,8 @@ export const App: React.FC = () => {
         return;
       }
     }
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     activeResearchIdRef.current = record.id_pesquisa;
     setActiveResearchId(record.id_pesquisa);
     activeExecutionTokenRef.current = null;
@@ -1522,6 +1694,8 @@ export const App: React.FC = () => {
         return;
       }
     }
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     activeResearchIdRef.current = null;
     setActiveResearchId(null);
     activeExecutionTokenRef.current = null;

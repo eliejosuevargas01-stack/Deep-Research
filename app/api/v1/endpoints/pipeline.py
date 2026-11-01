@@ -20,10 +20,17 @@ from app.services.source_accounting_service import SourceAccountingService
 router = APIRouter()
 
 
-def _format_sse(event: str, data: Dict[str, Any]) -> str:
+def _format_sse(event: str, data: Dict[str, Any], event_id: Optional[Any] = None) -> str:
     """Serializa evento canônico no formato W3C Server-Sent Events."""
     payload_str = json.dumps(data, ensure_ascii=False)
-    return f"event: {event}\ndata: {payload_str}\n\n"
+    seq = event_id if event_id is not None else (data.get("id") if isinstance(data, dict) else None)
+    lines = []
+    if seq is not None:
+        lines.append(f"id: {seq}")
+    if event:
+        lines.append(f"event: {event}")
+    lines.append(f"data: {payload_str}")
+    return "\n".join(lines) + "\n\n"
 
 
 def _delta_key(payload: Dict[str, Any]) -> tuple:
@@ -59,6 +66,10 @@ def _drain_deltas(
 
         if event_type == "agent.delta" and _delta_key(payload) == key:
             merged["text"] += payload.get("text") or ""
+            if "id" in payload:
+                merged["id"] = payload["id"]
+            if "seq_id" in payload:
+                merged["seq_id"] = payload["seq_id"]
             continue
 
         pending = (event_type, payload)
@@ -167,10 +178,11 @@ async def stream_pipeline_progress(
         .order_by(ConteudoColetado.criado_em.asc())
     )
     coletas_res = (await db.execute(stmt_coletas)).scalars().all()
+    last_event_id = request.headers.get("last-event-id") or request.query_params.get("last_event_id")
 
     async def event_generator():
         hub = get_pipeline_event_hub()
-        queue = hub.subscribe(id_pesquisa)
+        queue, history_events = hub.subscribe_with_history(id_pesquisa, last_event_id=last_event_id)
         emitted_count = 0
 
         def emit(evt_name: str, evt_payload: Dict[str, Any]) -> str:
@@ -179,18 +191,31 @@ async def stream_pipeline_progress(
             return _format_sse(evt_name, evt_payload)
 
         try:
-            # 1. Snapshot inicial do banco de dados
             status_pipe = getattr(pesquisa, "status_pipeline", "planejado") or "planejado"
-            yield emit("pipeline.status", {
-                "id_pesquisa": id_pesquisa,
-                "status_pipeline": status_pipe,
-                "timestamp": getattr(pesquisa, "atualizado_em", None) or getattr(pesquisa, "criado_em", None) or _format_iso_utc(),
-                "criado_em": pesquisa.criado_em,
-                "concluido_em": getattr(pesquisa, "concluido_em", None),
-                "tokens_prompt": int(getattr(pesquisa, "tokens_prompt", 0) or 0),
-                "tokens_completion": int(getattr(pesquisa, "tokens_completion", 0) or 0),
-                "tokens_total": int(getattr(pesquisa, "tokens_total", 0) or 0),
-            })
+
+            if last_event_id is not None:
+                # Replay de eventos do histórico para reconexão a partir de last_event_id
+                for evt_name, evt_payload in history_events:
+                    yield emit(evt_name, evt_payload)
+                    if max_events is not None and emitted_count >= max_events:
+                        return
+                    if evt_name == "report.final" or (
+                        evt_name == "pipeline.status"
+                        and evt_payload.get("status_pipeline") in ("concluido", "falha", "reprovado")
+                    ):
+                        return
+            else:
+                # 1. Snapshot inicial do banco de dados
+                yield emit("pipeline.status", {
+                    "id_pesquisa": id_pesquisa,
+                    "status_pipeline": status_pipe,
+                    "timestamp": getattr(pesquisa, "atualizado_em", None) or getattr(pesquisa, "criado_em", None) or _format_iso_utc(),
+                    "criado_em": pesquisa.criado_em,
+                    "concluido_em": getattr(pesquisa, "concluido_em", None),
+                    "tokens_prompt": int(getattr(pesquisa, "tokens_prompt", 0) or 0),
+                    "tokens_completion": int(getattr(pesquisa, "tokens_completion", 0) or 0),
+                    "tokens_total": int(getattr(pesquisa, "tokens_total", 0) or 0),
+                })
 
             # Pontos e suas auditorias
             for p in pontos:
