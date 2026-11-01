@@ -823,7 +823,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             Nenhuma credencial salva. Enquanto isso, valem as variáveis do .env.
           </p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="credentials-table-wrapper">
             <table className="credentials-table">
               <thead>
                 <tr>

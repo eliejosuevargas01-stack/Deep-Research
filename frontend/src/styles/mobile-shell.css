@@ -747,4 +747,39 @@
     margin-top: 3px !important;
     margin-bottom: 0 !important;
   }
+
+  /* Otimização de densidade e ritmo vertical na tela de Plano mobile */
+  .query-banner.plan-header-banner {
+    margin-bottom: 10px !important;
+    padding: 12px 14px !important;
+  }
+
+  .plan-snapshot-chips {
+    margin-top: 6px !important;
+    gap: 6px !important;
+  }
+
+  .plan-snapshot-chip {
+    height: 24px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    font-size: 0.72rem !important;
+    padding: 0 8px !important;
+  }
+
+  .plan-stepper {
+    gap: 8px !important;
+  }
+
+  .stepper-item {
+    padding: 10px 12px !important;
+    gap: 10px !important;
+  }
+
+  .stepper-badge {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 0.78rem !important;
+    line-height: 1 !important;
+  }
 }

@@ -169,8 +169,8 @@ body {
 /* Skip link: invisível até receber foco por teclado. */
 .skip-link {
   position: absolute;
-  left: -9999px;
-  top: 0;
+  top: -100px;
+  left: 12px;
   z-index: 100;
   padding: 10px 16px;
   background: var(--color-surface);
@@ -179,11 +179,12 @@ body {
   border-radius: var(--radius-sm, 6px);
   font-weight: 600;
   text-decoration: none;
+  transition: top 150ms ease-out;
 }
 
 .skip-link:focus {
-  left: 12px;
   top: 8px;
+  left: 12px;
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

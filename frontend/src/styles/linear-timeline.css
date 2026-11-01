@@ -201,11 +201,14 @@ button.tl-entrada-linha:focus-visible {
   color: var(--color-danger-text);
 }
 
-.tl-linear .tl-texto {
+.tl-linear .tl-texto,
+.tl-linear .tl-entrada-texto {
   display: flex;
   align-items: baseline;
-  gap: 0;
+  flex-wrap: wrap;
+  gap: 4px 6px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .tl-linear .tl-persona {

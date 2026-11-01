@@ -1878,6 +1878,14 @@
   font-weight: 500;
 }
 
+.credentials-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .credentials-table {
   width: 100%;
   border-collapse: collapse;
