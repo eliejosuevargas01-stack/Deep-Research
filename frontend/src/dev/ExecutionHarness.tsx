@@ -44,6 +44,24 @@ export const HARNESS_PLAN: PlanResponse = {
       ponto_n: 1,
       ponto: 'Evolução do número de agências e postos de trabalho no setor bancário brasileiro entre 2010 e 2026',
       status: 'coletado',
+      eixo_estruturado: {
+        pergunta_principal: 'Qual a composição da matriz energética brasileira e da matriz elétrica brasileira em 2025–2026, como evoluiu e quais fontes oficiais sustentam os números?',
+        subperguntas: [
+          'Qual a participação percentual das fontes renováveis (hídrica, eólica, solar, biomassa e biogás) na matriz energética total versus matriz elétrica em 2025 e projeções 2026?',
+          'Qual a capacidade instalada total do Sistema Interligado Nacional (SIN) segundo dados de BEN/EPE, ANEEL e ONS?',
+          'Como evoluiu a expansão da geração distribuída (GD) solar fotovoltaica no período?'
+        ],
+        hipoteses: [
+          'A matriz energética brasileira mantém participação renovável superior a 45–48%, enquanto a matriz elétrica ultrapassa 85–88% de fontes renováveis, impulsionada pelo crescimento acelerado da GD solar e eólica onshore.'
+        ],
+        consultas_iniciais: ['EPE BEN 2025 balanco energetico nacional'],
+        fontes_primarias_desejadas: ['EPE BEN 2025', 'ONS boletim diário', 'ANEEL SIGA'],
+        riscos_de_vies: ['confundir matriz elétrica com matriz energética'],
+        evidencias_que_refutariam: ['queda da participação de renováveis'],
+        criterio_de_conclusao: 'Identificação de dados oficiais consolidados da EPE/MME e ONS para 2025 e estimativas 2026 com desagregação por fonte.',
+        investigabilidade: 'alta',
+        eixo_essencial: true,
+      }
     },
     {
       ponto_id: 'p2',
