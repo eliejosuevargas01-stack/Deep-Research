@@ -58,9 +58,17 @@
     z-index: 30;
   }
 
-  /* Dossiê é leitura: nada de composer flutuando por cima do texto. */
-  .workspace-main:has(.report-card) .composer-anchor {
-    display: none;
+  /* Dossiê e Revisão de Plano: leitura limpa, sem composer flutuando por cima do conteúdo. */
+  .workspace-main:has(.report-card) .composer-anchor,
+  .workspace-main:has(.plan-card) .composer-anchor,
+  .workspace-main:has(.plan-container) .composer-anchor {
+    display: none !important;
+  }
+
+  /* Na revisão de plano, a rail lateral recolhida não deve exibir botão flutuante sobre os cards. */
+  .workspace-main:has(.plan-container) .workspace-grid > .sidebar-container.rr-rail--collapsed,
+  .workspace-main:has(.plan-card) .workspace-grid > .sidebar-container.rr-rail--collapsed {
+    display: none !important;
   }
 
   /* Painel de contexto vira gaveta sobre o conteúdo, recolhida por padrão. */
