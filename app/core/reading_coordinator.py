@@ -2,7 +2,10 @@
 """Coordenação de leituras compartilhadas com desduplicação in-flight e isolamento de cancelamento."""
 
 import asyncio
+import logging
 from typing import Any, Callable, Coroutine, Dict, Optional, Set
+
+logger = logging.getLogger(__name__)
 
 
 class ReadingCoordinator:
@@ -51,7 +54,7 @@ class ReadingCoordinator:
                 return self.shared_cache[url]
             task = self.in_flight.get(url)
             if task is None or task.done():
-                task = asyncio.create_task(fetch_coro_fn())
+                task = asyncio.create_task(fetch_coro_fn(), name=f"read:{url[:100]}")
                 self.in_flight[url] = task
                 self._task_consumers[task] = 0
                 self._all_tasks.add(task)
@@ -97,27 +100,52 @@ class ReadingCoordinator:
                 if self.in_flight.get(url) is task and task.done():
                     self.in_flight.pop(url, None)
 
-    async def close(self) -> None:
-        """Cancela e aguarda todas as tarefas pendentes e em drenagem, prevenindo órfãos."""
+    async def close(self, timeout: float = 20.0) -> None:
+        """Cancela e aguarda as tarefas pendentes sem nunca bloquear além de `timeout`.
+
+        Tarefas que ignoram cancelamento não podem travar o pipeline inteiro: ao estourar o
+        timeout, registra nome/arquivo/linha das pendentes e segue. O chamador fica responsável
+        por considerar a etapa suspeita (o pipeline marca falha por timeout de estágio).
+        """
         async with self._lock:
             self._closed = True
             pending = [t for t in self._all_tasks if not t.done()]
             for t in pending:
                 t.cancel()
 
-        if pending:
-            was_cancelled = False
+        if not pending:
+            return
 
-            async def _drain_pending() -> None:
-                await asyncio.gather(*pending, return_exceptions=True)
-
-            gather_task = asyncio.create_task(_drain_pending())
-            while not gather_task.done():
+        was_cancelled = False
+        drain = asyncio.gather(*pending, return_exceptions=True)
+        try:
+            while True:
                 try:
-                    await asyncio.shield(gather_task)
+                    await asyncio.wait_for(asyncio.shield(drain), timeout=timeout)
+                    break
+                except asyncio.TimeoutError:
+                    presas = []
+                    for t in pending:
+                        if t.done():
+                            continue
+                        stack = t.get_stack(limit=1)
+                        origem = (
+                            f"{stack[-1].f_code.co_filename}:{stack[-1].f_lineno}"
+                            if stack
+                            else "sem frame"
+                        )
+                        presas.append(f"{t.get_name()} ({origem})")
+                    logger.warning(
+                        "[ReadingCoordinator] close() excedeu %.1fs; %d tarefa(s) presas: %s",
+                        timeout,
+                        len(presas),
+                        "; ".join(presas) or "nenhuma",
+                    )
+                    break
                 except asyncio.CancelledError:
                     was_cancelled = True
-                except Exception:
-                    break
-            if was_cancelled:
-                raise asyncio.CancelledError()
+        finally:
+            if not drain.done():
+                drain.cancel()
+        if was_cancelled:
+            raise asyncio.CancelledError()

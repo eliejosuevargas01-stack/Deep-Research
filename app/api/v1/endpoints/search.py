@@ -24,6 +24,8 @@ from app.tools.errors import SearchTimeoutError
 from app.tools.jina_client import JinaClient
 from app.tools.llm_client import LLMClient
 
+print("[DR-BOOT] search.py carregado de <stdin>", flush=True)
+
 router = APIRouter()
 
 

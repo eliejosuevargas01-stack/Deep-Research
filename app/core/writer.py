@@ -25,6 +25,7 @@ import logging
 import os
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
+from urllib.parse import urlsplit
 
 from pydantic import ValidationError
 
@@ -86,14 +87,95 @@ CANONICAL_ARTICLE_CRITERIA_DESCRIPTIONS = {
 }
 
 
+
+def _chave_url(url: str) -> str:
+    """Chave canônica para comparar URLs de citação com as lidas.
+
+    Ignora esquema, prefixo ``www.``, barra final e fragmento: o mesmo documento aparece
+    com variantes (http/https, www, #ancora) entre rodadas e a citação verbatim virava
+    falso positivo de "URL inventada".
+    """
+    bruto = (url or "").strip()
+    try:
+        partes = urlsplit(bruto)
+    except ValueError:
+        return bruto.lower()
+    host = (partes.netloc or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    caminho = partes.path.rstrip("/")
+    consulta = f"?{partes.query}" if partes.query else ""
+    return f"{host}{caminho}{consulta}"
+
+
 def _extract_markdown_urls(text: str) -> Set[str]:
     """Extrai todas as URLs presentes em links Markdown [texto](url) e referências no texto."""
-    urls = set()
-    md_links = re.findall(r"\[.*?\]\((https?://[^\s\)]+)\)", text)
-    urls.update(u.strip() for u in md_links if u.strip())
-    raw_urls = re.findall(r"(https?://[^\s\)\*\#]+)", text)
-    urls.update(u.rstrip(".,;:)") for u in raw_urls if u.strip())
+    urls: Set[str] = set()
+    # Alvos de links Markdown: [texto](url) -> apenas o alvo.
+    for alvo in re.findall(r"\]\(\s*(https?://[^\s)]+)\s*\)", text):
+        if alvo.strip():
+            urls.add(alvo.strip())
+    # URLs soltas: não começam logo após '[' ou '(' (evita engolir rótulo de link) e
+    # param em delimitadores de Markdown. Sem isso, "[url](url)" virava uma URL fundida
+    # ("...idartigo=37](https://..."), acusada como inventada.
+    for bruta in re.findall(r"(?<![\[(])https?://[^\s)\]\(<>\"'`,;*]+", text):
+        limpa = bruta.rstrip(".,;:)")
+        if limpa:
+            urls.add(limpa)
     return urls
+
+
+
+
+def _parse_json_tolerante(texto: str) -> Dict[str, Any]:
+    """Interpreta JSON devolvido por LLM mesmo com cerca markdown ou prosa ao redor.
+
+    O auditor de redação ora responde `` ```json ... ``` ``, ora prefixa comentário.
+    ``json.loads`` direto falhava com "Expecting value: line 1 column 1" e a pesquisa
+    ficava 'incompleto' mesmo com parecer válido.
+    """
+    bruto = (texto or "").strip()
+    bruto = re.sub(r"^```(?:json)?\s*", "", bruto, flags=re.IGNORECASE)
+    bruto = re.sub(r"\s*```$", "", bruto).strip()
+    inicio = bruto.find("{")
+    if inicio > 0:
+        bruto = bruto[inicio:]
+    try:
+        return json.loads(bruto)
+    except Exception:
+        obj, _ = json.JSONDecoder().raw_decode(bruto)
+        return obj
+
+
+def _remover_urls_desconhecidas(texto: str, known_urls: Set[str]) -> Tuple[str, List[str]]:
+    """Remove citações a URLs fora do conjunto lido, sem inventar substituto.
+
+    O redator às vezes reconstrói URLs longas (gov.br, DOU) e a validação estrutural
+    bloqueia a publicação. Em vez de publicar link falso ou travar para sempre, o link
+    desconhecido vira texto simples (ou some, se solto) e a URL removida é registrada
+    nos metadados da redação.
+    """
+    chaves = {_chave_url(u) for u in known_urls}
+    removidas: List[str] = []
+
+    def _sub_link(match: "re.Match[str]") -> str:
+        rotulo, url = match.group(1), match.group(2)
+        if _chave_url(url) in chaves:
+            return match.group(0)
+        removidas.append(url)
+        return rotulo
+
+    texto = re.sub(r"\[([^\]]*)\]\(\s*(https?://[^\s)]+)\s*\)", _sub_link, texto)
+
+    def _sub_solta(match: "re.Match[str]") -> str:
+        url = match.group(0).rstrip(".,;:)")
+        if _chave_url(url) in chaves:
+            return match.group(0)
+        removidas.append(url)
+        return ""
+
+    texto = re.sub(r"(?<![\[(])https?://[^\s)\]\(<>\"'`,;*]+", _sub_solta, texto)
+    return texto, removidas
 
 
 def _validar_integridade_artigo(
@@ -155,10 +237,10 @@ def _validar_integridade_artigo(
     # 6. Referências e coerência de URLs: URLs devem pertencer ao conjunto lido (W04)
     #    e, quando o conjunto lido não é vazio, é exigida ao menos UMA citação conhecida.
     if known_urls is not None:
+        chaves_conhecidas = {_chave_url(ku) for ku in known_urls}
         doc_urls = _extract_markdown_urls(t)
         for u in doc_urls:
-            u_clean = u.rstrip("/")
-            if not any(u_clean == ku.rstrip("/") for ku in known_urls):
+            if _chave_url(u) not in chaves_conhecidas:
                 return False, f"URL inventada ou não rastreada no conjunto de evidências lidas: '{u}'."
         if known_urls and not doc_urls:
             return False, "Nenhuma citação/referência com URL do conjunto realmente lido foi registrada no dossiê."
@@ -251,6 +333,79 @@ def _montar_rodada_escrita(coleta: Any, corrente_id: Optional[str]) -> Dict[str,
     if not personas_rodada:
         entrada["conteudo_coletado"] = getattr(coleta, "conteudo_coletado", "") or ""
     return entrada
+
+
+
+# Orçamento de contexto da redação. O Writer monta o acervo inteiro (trechos + rodadas) e
+# estourava o limite do modelo depois de várias rodadas de busca (1.85M tokens > 1.05M).
+# O corte é determinístico e progressivo: primeiro metadados volumosos, depois acervo antigo.
+WRITER_MAX_CONTEXT_CHARS = int(os.environ.get("WRITER_MAX_CONTEXT_CHARS", "2000000"))
+# Teto REAL do prompt (instruções + contexto serializado). O modelo aceita 1.048.576 tokens;
+# ~2.4M caracteres ficam com folga confortável e evitam o 400 de context length.
+WRITER_MAX_PROMPT_CHARS = int(os.environ.get("WRITER_MAX_PROMPT_CHARS", "2400000"))
+
+
+def _tamanho_json(dados: Any) -> int:
+    return len(json.dumps(dados, ensure_ascii=False))
+
+
+def _limitar_contexto_writer(
+    pontos_data: List[Dict[str, Any]],
+    limite: int,
+    referenciados: Optional[Set[str]] = None,
+) -> Dict[str, int]:
+    """Reduz o contexto até caber no orçamento. Retorna o que foi cortado, para auditoria.
+
+    Trechos citados por claims (``referenciados``) têm prioridade absoluta: cortar evidência
+    citada derruba a avaliação do artigo por falta de lastro.
+    """
+    cortes = {"trechos_removidos": 0, "rodadas_removidas": 0}
+    refs = referenciados or set()
+    if _tamanho_json(pontos_data) <= limite:
+        return cortes
+
+    # 1. Prioriza trechos citados, limita tamanho por trecho e quantidade por ponto.
+    for ponto in pontos_data:
+        trechos = ponto.get("trechos") or []
+        trechos.sort(key=lambda t: 0 if str(t.get("chunk_id")) in refs else 1)
+        for trecho in trechos:
+            trecho["text"] = (trecho.get("text") or "")[:4000]
+        cortes["trechos_removidos"] += max(0, len(trechos) - 120)
+        ponto["trechos"] = trechos[:120]
+    if _tamanho_json(pontos_data) <= limite:
+        return cortes
+
+    # 2. Corta rodadas antigas e a síntese bruta dos workers.
+    for ponto in pontos_data:
+        rodadas = ponto.get("rodadas") or []
+        if len(rodadas) > 2:
+            cortes["rodadas_removidas"] += len(rodadas) - 2
+        ponto["rodadas"] = rodadas[-2:]
+        ponto["sintese_coletada_workers"] = (ponto.get("sintese_coletada_workers") or "")[:15000]
+    if _tamanho_json(pontos_data) <= limite:
+        return cortes
+
+    # 3. Reduz trechos pela metade até caber (mínimo de 1 por ponto).
+    while _tamanho_json(pontos_data) > limite:
+        reduziu = False
+        for ponto in pontos_data:
+            trechos = ponto.get("trechos") or []
+            if len(trechos) > 1:
+                novo_total = max(1, len(trechos) // 2)
+                cortes["trechos_removidos"] += len(trechos) - novo_total
+                ponto["trechos"] = trechos[:novo_total]
+                reduziu = True
+        if not reduziu:
+            break
+
+    # 4. Último recurso: sem trechos e só a rodada mais recente.
+    if _tamanho_json(pontos_data) > limite:
+        for ponto in pontos_data:
+            cortes["trechos_removidos"] += len(ponto.get("trechos") or [])
+            ponto["trechos"] = []
+            ponto["rodadas"] = (ponto.get("rodadas") or [])[-1:]
+            ponto["sintese_coletada_workers"] = ""
+    return cortes
 
 
 class Writer:
@@ -485,6 +640,25 @@ class Writer:
                             "data_fonte_origem": finfo.get("data_fonte_origem"),
                         }
 
+            # 1b. Fontes lidas em rodadas anteriores: o dossiê cita evidência de qualquer rodada,
+            #     então o conjunto de URLs conhecidas precisa acumular o histórico do ponto.
+            for coleta_hist in (getattr(col, "historico_coletas", None) or []):
+                meta_hist = getattr(coleta_hist, "metadados_coleta", None)
+                if not meta_hist:
+                    continue
+                try:
+                    meta_hist_d = json.loads(meta_hist) if isinstance(meta_hist, str) else meta_hist
+                except Exception:
+                    continue
+                fontes_hist = meta_hist_d.get("fontes") if isinstance(meta_hist_d, dict) else None
+                if not isinstance(fontes_hist, dict):
+                    continue
+                for finfo_hist in fontes_hist.values():
+                    if isinstance(finfo_hist, dict) and finfo_hist.get("status") == "read_ok":
+                        url_hist = str(finfo_hist.get("url") or "").strip()
+                        if url_hist:
+                            known_urls.add(url_hist)
+
             # 2. Trechos canônicos: TODO o acervo de trechos coletados da coleta atual, sem descartar nada nem truncar
             trechos_raw = meta_col.get("trechos", {}) if isinstance(meta_col, dict) else {}
             chunks_disponiveis: Dict[str, Dict[str, Any]] = {}
@@ -584,6 +758,16 @@ class Writer:
                     for c_r in (getattr(col, "historico_coletas", None) or [col])
                 ],
             })
+
+        cortes_contexto = _limitar_contexto_writer(
+            pontos_data, WRITER_MAX_CONTEXT_CHARS, chunk_ids_referenciados
+        )
+        if any(cortes_contexto.values()):
+            print(
+                f"[DR-WRITER] contexto reduzido para caber no modelo: {cortes_contexto} "
+                f"(limite {WRITER_MAX_CONTEXT_CHARS} chars)",
+                flush=True,
+            )
 
         contexto_estruturado = {
             "plano": plano_obj,
@@ -741,7 +925,7 @@ class Writer:
     def _construir_user_prompt(self, pesquisa: Pesquisa, contexto_dict: Dict[str, Any]) -> str:
         return (
             f"Tema da Investigação: {pesquisa.tema}\n\n"
-            f"{json.dumps(contexto_dict, ensure_ascii=False, indent=2)}\n\n"
+            f"{json.dumps(contexto_dict, ensure_ascii=False)}\n\n"
             "Elabore o dossiê analítico final em Markdown cumprindo estritamente a estrutura formal requerida, "
             "sem descartar informações e desenvolvendo exaustivamente cada eixo temático em prosa articulada e aprofundada."
         )
@@ -931,7 +1115,7 @@ class Writer:
 
         content_eval = envelope_eval.content_final or ""
         try:
-            parsed = json.loads(content_eval)
+            parsed = _parse_json_tolerante(content_eval)
         except Exception as exc:
             return False, None, f"JSON da avaliação inválido: {exc}", envelope_eval, False
 
@@ -1116,7 +1300,7 @@ class Writer:
         contexto_dict, known_urls, known_claim_ids, known_source_ids, known_chunk_ids = self._montar_contexto_estruturado(
             pesquisa, pontos, coletas_atuais, auditorias_atuais
         )
-        contexto_json_str = json.dumps(contexto_dict, ensure_ascii=False, indent=2)
+        contexto_json_str = json.dumps(contexto_dict, ensure_ascii=False)
 
         plano_obj = contexto_dict.get("plano", {})
         publico = plano_obj.get("publico") or "Especialistas e tomadores de decisão"
@@ -1125,6 +1309,42 @@ class Writer:
         recency_block = _writer_recency_block(plano_obj)
         system_prompt = self._construir_system_prompt(publico, formato, recency_block)
         user_prompt = self._construir_user_prompt(pesquisa, contexto_dict)
+
+        # O corte do acervo mede só `pontos_data`; o prompt final inclui instruções, plano e
+        # serialização. Aqui o orçamento é medido no prompt REAL e reduzido até caber.
+        for _ in range(8):
+            if len(system_prompt) + len(user_prompt) <= WRITER_MAX_PROMPT_CHARS:
+                break
+            reduziu = False
+            for ponto_ctx in contexto_dict.get("pontos", []):
+                trechos_ctx = ponto_ctx.get("trechos") or []
+                if len(trechos_ctx) > 1:
+                    ponto_ctx["trechos"] = trechos_ctx[: max(1, len(trechos_ctx) // 2)]
+                    reduziu = True
+            if not reduziu:
+                # Rodadas carregam o acervo completo de novo: fora primeiro.
+                for ponto_ctx in contexto_dict.get("pontos", []):
+                    if ponto_ctx.get("rodadas"):
+                        ponto_ctx["rodadas"] = []
+                        reduziu = True
+            if not reduziu:
+                for ponto_ctx in contexto_dict.get("pontos", []):
+                    if ponto_ctx.get("trechos"):
+                        ponto_ctx["trechos"] = []
+                        reduziu = True
+                    if ponto_ctx.get("sintese_coletada_workers"):
+                        ponto_ctx["sintese_coletada_workers"] = ""
+                        reduziu = True
+            if not reduziu:
+                break
+            contexto_json_str = json.dumps(contexto_dict, ensure_ascii=False)
+            user_prompt = self._construir_user_prompt(pesquisa, contexto_dict)
+
+        print(
+            f"[DR-WRITER] prompt final: sistema {len(system_prompt)} + usuario {len(user_prompt)} "
+            f"= {len(system_prompt) + len(user_prompt)} chars (limite {WRITER_MAX_PROMPT_CHARS})",
+            flush=True,
+        )
         prompt_avaliacao_sys = self._construir_prompt_avaliacao(recency_block)
 
         input_hash = self._calcular_input_hash(
@@ -1263,6 +1483,30 @@ class Writer:
             )
 
             if not valido_draft:
+                # Reparo determinístico de citações: remove URL fora do conjunto lido e
+                # revalida. Não inventa substituto; o que foi removido fica registrado.
+                if "URL inventada" in (motivo_draft or "") and known_urls:
+                    texto_reparado, urls_removidas = _remover_urls_desconhecidas(candidato_texto, known_urls)
+                    if urls_removidas:
+                        valido_reparo, motivo_reparo = _validar_integridade_artigo(
+                            texto_reparado,
+                            finish_reason=finish_reason,
+                            is_regular_finish=is_regular,
+                            known_urls=known_urls,
+                        )
+                        if valido_reparo:
+                            print(
+                                f"[DR-WRITER] {len(urls_removidas)} URL(s) fora do acervo removida(s) do dossiê.",
+                                flush=True,
+                            )
+                            ctx.setdefault("urls_removidas", []).extend(urls_removidas)
+                            candidato_texto = texto_reparado
+                            valido_draft = True
+                            motivo_draft = None
+                        else:
+                            motivo_draft = motivo_reparo
+
+            if not valido_draft:
                 diagnostico_final = motivo_draft
                 if tentativa < max_drafts and eval_count < max_evals:
                     correcoes_feedback = [f"Falha de integridade estrutural a corrigir: {motivo_draft}"]
@@ -1365,6 +1609,7 @@ class Writer:
         artifact_hash = hashlib.sha256((dossier_final or "").encode("utf-8")).hexdigest()
         ctx["artifact_hash"] = artifact_hash
         meta_redacao_publicacao = {
+            "urls_removidas": ctx.get("urls_removidas") or [],
             "input_hash": input_hash,
             "artifact_hash": artifact_hash,
             "model_strong": self.llm_client.model_strong,

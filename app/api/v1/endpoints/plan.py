@@ -13,6 +13,45 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.pipeline_runner import PipelineRunner
+
+import asyncio as _asyncio
+import logging as _logging
+
+_pipeline_logger = _logging.getLogger(__name__)
+
+
+async def _heartbeat_pipeline(id_pesquisa: str) -> None:
+    """Heartbeat: se o pipeline travar, o log mostra quantas tarefas seguem vivas."""
+    while True:
+        await _asyncio.sleep(120)
+        vivas = sorted({t.get_name() for t in _asyncio.all_tasks() if not t.done()})
+        print(
+            f"[DR-PIPE] heartbeat {id_pesquisa}: {len(vivas)} tarefas vivas: {vivas[:12]}",
+            flush=True,
+        )
+
+
+async def _run_pipeline_em_background(
+    runner: PipelineRunner,
+    id_pesquisa: str,
+    callback_url,
+    execution_mode,
+) -> None:
+    print(f"[DR-PIPE] background iniciado para {id_pesquisa}", flush=True)
+    heartbeat = _asyncio.create_task(_heartbeat_pipeline(id_pesquisa), name=f"heartbeat:{id_pesquisa}")
+    try:
+        resultado = await runner.run(id_pesquisa, callback_url, execution_mode)
+        print(
+            f"[DR-PIPE] background finalizado {id_pesquisa}: "
+            f"status={(resultado or {}).get('status')} detalhe={(resultado or {}).get('detalhe')}",
+            flush=True,
+        )
+    except BaseException as exc:
+        print(f"[DR-PIPE] background FALHOU {id_pesquisa}: {exc!r}", flush=True)
+        _pipeline_logger.exception("[PipelineRunner] background falhou para %s", id_pesquisa)
+        raise
+    finally:
+        heartbeat.cancel()
 from app.core.planner import PlanAmbiguityError, PlanContractError, Planner
 from app.core.stream_context import stream_scope
 from app.db.research_repository import ResearchRepository
@@ -36,6 +75,8 @@ from app.tools.errors import JinaError, LLMCallError
 from app.tools.jina_client import JinaClient
 from app.tools.llm_client import LLMClient
 from app.tools.llm_types import project_public_envelope, redact_sensitive_string
+
+print("[DR-BOOT] plan.py carregado de <stdin>", flush=True)
 
 router = APIRouter()
 
@@ -266,7 +307,8 @@ async def create_plan(
         response.status_code = status.HTTP_202_ACCEPTED
         runner = PipelineRunner(transport=transport)
         background_tasks.add_task(
-            runner.run,
+            _run_pipeline_em_background,
+            runner,
             pesquisa.id_pesquisa,
             payload.callback_url,
             payload.execution_mode,

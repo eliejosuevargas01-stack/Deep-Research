@@ -35,7 +35,13 @@ from app.services.webhook_client import WebhookClient
 from app.tools.jina_client import JinaClient
 from app.tools.llm_client import LLMClient
 
+print("[DR-BOOT] pipeline_runner carregado de <stdin>", flush=True)
+
 logger = logging.getLogger(__name__)
+
+# Teto de tempo por estagio: nenhuma etapa pode segurar o pipeline para sempre.
+# Estourou -> asyncio.TimeoutError -> handler marca 'falha' com log explicito.
+STAGE_TIMEOUT_SECONDS = float(__import__("os").environ.get("PIPELINE_STAGE_TIMEOUT", "1200"))
 
 
 def _clean_key(val: Optional[str]) -> Optional[str]:
@@ -324,7 +330,10 @@ class PipelineRunner:
                                     for p_info in pontos_alvo_info
                                 ]
                                 try:
-                                    await asyncio.gather(*search_tasks)
+                                    await asyncio.wait_for(
+                                        asyncio.gather(*search_tasks),
+                                        timeout=STAGE_TIMEOUT_SECONDS,
+                                    )
                                 except BaseException:
                                     for t in search_tasks:
                                         if not t.done():
@@ -332,14 +341,14 @@ class PipelineRunner:
                                     await asyncio.gather(*search_tasks, return_exceptions=True)
                                     raise
                         finally:
-                            await reading_coordinator.close()
+                            await reading_coordinator.close(timeout=30.0)
 
                         try:
                             await repo.session.rollback()
                         except Exception:
                             pass
 
-                    logger.info(f"[PipelineRunner] Iniciando auditoria para {id_pesquisa}...")
+                    print(f"[DR-PIPE] iniciando auditoria {id_pesquisa} (ciclo {ciclo})", flush=True)
                     await repo.update_pipeline_status(id_pesquisa, "auditando")
                     hub.publish(id_pesquisa, "pipeline.status", {
                         "id_pesquisa": id_pesquisa,
@@ -348,7 +357,10 @@ class PipelineRunner:
                     })
                     publish_stage_event(id_pesquisa, "stage.start", "audit", agent="auditor")
                     try:
-                        audit_res = await auditor.execute_audit(id_pesquisa=id_pesquisa)
+                        audit_res = await asyncio.wait_for(
+                            auditor.execute_audit(id_pesquisa=id_pesquisa),
+                            timeout=STAGE_TIMEOUT_SECONDS,
+                        )
                     finally:
                         publish_stage_event(id_pesquisa, "stage.end", "audit", agent="auditor")
                     pontos_auditados = await repo.list_points(id_pesquisa)
@@ -391,11 +403,15 @@ class PipelineRunner:
                         for p in pontos_pendentes
                     ) if pontos_pendentes else False
 
+                    print(
+                        f"[DR-PIPE] ciclo {ciclo}/{max_ciclos} decisao: "
+                        f"pendentes={[(p.status, p.tentativas, p.tentativas_auditoria) for p in pontos_pendentes]} "
+                        f"teto={todos_pendentes_no_teto} pronto_writer={audit_res.get('pronto_para_writer')}",
+                        flush=True,
+                    )
+
                     if todos_pendentes_no_teto or ciclo == max_ciclos:
-                        logger.warning(
-                            f"[PipelineRunner] Pesquisa {id_pesquisa} não alcançou aprovação na auditoria "
-                            "ou atingiu o teto de tentativas. Redação bloqueada."
-                        )
+                        print(f"[DR-PIPE] teto atingido em {id_pesquisa}; redacao bloqueada", flush=True)
                         final_status = "reprovado" if any(p.status == "reprovado" for p in pontos_frescos) else "parcial"
                         await repo.update_pipeline_status(id_pesquisa, final_status)
                         hub.publish(id_pesquisa, "pipeline.status", {
@@ -408,6 +424,12 @@ class PipelineRunner:
                             "detalhe": "Teto de tentativas ou reprovação na auditoria; redação bloqueada.",
                             "audit_res": audit_res,
                         }
+
+                    # A auditoria reprovada derruba o status derivado para 'reprovado' (terminal).
+                    # Com ciclos restantes o pipeline continua ativo: reafirma estado não-terminal
+                    # para o stream/UI não encerrarem antes da hora.
+                    if ciclo < max_ciclos:
+                        await repo.update_pipeline_status(id_pesquisa, "auditando")
 
                 # 3. Redação Final e Despacho ao Webhook (APENAS se aprovado na auditoria)
                 if not audit_res.get("pronto_para_writer"):
@@ -434,7 +456,10 @@ class PipelineRunner:
                 })
                 publish_stage_event(id_pesquisa, "stage.start", "writer", agent="redator final")
                 try:
-                    writer_res = await writer.execute_writer(id_pesquisa=id_pesquisa)
+                    writer_res = await asyncio.wait_for(
+                        writer.execute_writer(id_pesquisa=id_pesquisa),
+                        timeout=STAGE_TIMEOUT_SECONDS,
+                    )
                 finally:
                     publish_stage_event(id_pesquisa, "stage.end", "writer", agent="redator final")
 

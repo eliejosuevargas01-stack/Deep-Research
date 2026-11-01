@@ -14,6 +14,18 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+
+import logging as _logging
+
+_logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    force=True,
+)
+# Algum import de terceiro sobe o logger-pai "app" para WARNING e silencia o pipeline:
+# reafirma o nivel efetivo no pacote da aplicacao.
+_logging.getLogger("app").setLevel(_logging.getLogger().level)
+from app.core.security import verify_api_key
 from app.ui_session import (
     COOKIE_NAME,
     _canonical_origin,
@@ -92,6 +104,30 @@ async def get_app_session(request: Request, db: AsyncSession = Depends(get_db)) 
     prefs = await get_default_preferences(db)
     eligible = is_local_eligible(request)
     if not eligible:
+        # UI remota autenticada por chave de API (ex.: frontend atrás de proxy confiável
+        # que injeta X-API-Key no servidor). A chave continua obrigatória nas rotas de negócio.
+        try:
+            await verify_api_key(
+                request=request,
+                x_api_key=request.headers.get("x-api-key"),
+                authorization=request.headers.get("authorization"),
+                db=db,
+            )
+        except HTTPException:
+            pass
+        else:
+            res = JSONResponse(
+                content={
+                    "authenticated": True,
+                    "mode": "api-key",
+                    "preferences": prefs,
+                },
+                status_code=status.HTTP_200_OK,
+            )
+            # Cookie assinado permite EventSource (SSE), que nao envia cabecalhos customizados.
+            set_session_cookie(res, request)
+            return res
+
         expected_origin = get_request_origin(request)
         origin = request.headers.get("origin")
         sec_fetch_site = request.headers.get("sec-fetch-site")
