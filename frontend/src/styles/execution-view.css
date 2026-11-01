@@ -337,3 +337,122 @@
 .exec-error-card .error-notice__actions {
   margin-top: 10px;
 }
+
+/* =========================================================================
+   Desktop Layout & Smooth Scroll (.workspace-main)
+   ========================================================================= */
+@media (min-width: 900px) {
+  html body .workspace-main:has(.execution-card) {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scroll-behavior: smooth;
+    height: 100% !important;
+    min-height: 0;
+    overscroll-behavior: contain;
+  }
+
+  html body .workspace-main:has(.execution-card) > .workspace-grid {
+    height: auto !important;
+    min-height: 100% !important;
+    align-items: start !important;
+  }
+
+  html body .workspace-main:has(.execution-card) > .workspace-grid > div:first-child {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0;
+  }
+
+  html body .workspace-main:has(.execution-card) .execution-card {
+    height: auto !important;
+    overflow: visible !important;
+    gap: 12px !important;
+  }
+
+  html body .workspace-main:has(.execution-card) .tl-container {
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Densidade do cabeçalho de execução no desktop */
+  html body .workspace-main:has(.execution-card) .execution-heading-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    gap: 12px !important;
+    padding-bottom: 2px;
+  }
+
+  html body .workspace-main:has(.execution-card) .execution-heading-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: baseline !important;
+    gap: 10px !important;
+    overflow: hidden;
+  }
+
+  html body .workspace-main:has(.execution-card) .execution-heading-title {
+    font-size: 1.15rem !important;
+    font-weight: 650 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0;
+  }
+
+  html body .workspace-main:has(.execution-card) .execution-theme-inline {
+    font-size: 0.8125rem !important;
+    color: var(--color-text-secondary) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 48ch !important;
+  }
+
+  html body .workspace-main:has(.execution-card) .status-badge-chip {
+    flex-shrink: 0;
+  }
+
+  html body .workspace-main:has(.execution-card) .execution-elapsed {
+    flex-shrink: 0;
+  }
+
+  html body .workspace-main:has(.execution-card) .stage-line {
+    padding: 0 0 4px !important;
+    margin: 0 !important;
+  }
+}
+
+/* Hierarquia Desktop: grade bi-coluna (timeline central + ContextSidebar lateral) */
+@media (min-width: 1081px) {
+  html body .workspace-main:has(.execution-card) .workspace-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 320px !important;
+    gap: 24px !important;
+  }
+
+  html body .workspace-main:has(.execution-card) .workspace-grid > .sidebar-container.rr-rail {
+    position: sticky !important;
+    top: calc(58px + 16px) !important;
+    margin-top: 0 !important;
+    border-top: 1px solid var(--rail-hairline, var(--color-border)) !important;
+    border-left: 1px solid var(--rail-hairline, var(--color-border)) !important;
+    width: 320px !important;
+    max-width: 320px !important;
+    max-height: calc(100vh - 100px) !important;
+    overflow-y: auto !important;
+  }
+}
+
+@media (min-width: 1281px) {
+  html body .workspace-main:has(.execution-card) .workspace-grid {
+    grid-template-columns: minmax(0, 1fr) 360px !important;
+    gap: 32px !important;
+  }
+
+  html body .workspace-main:has(.execution-card) .workspace-grid > .sidebar-container.rr-rail {
+    width: 360px !important;
+    max-width: 360px !important;
+  }
+}
