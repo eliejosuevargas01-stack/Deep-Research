@@ -8,6 +8,9 @@ import {
   FileText,
   RotateCcw,
   SlidersHorizontal,
+  X,
+  Minus,
+  Plus,
 } from 'lucide-react';
 import { PlanResponse } from '../types/api';
 import '../styles/plan-settings-polish.css';
@@ -19,6 +22,14 @@ interface PlanViewProps {
   onReset: () => void;
   onEditTheme?: (tema: string) => void;
   onEditParameters?: (tema: string) => void;
+  onReplan?: (params: {
+    tema: string;
+    n_pontos: number;
+    personas: string[];
+    execution_mode?: 'parallel' | 'sequential';
+    recencia?: string;
+    criterios_minimos?: number;
+  }) => void;
   isStarting: boolean;
 }
 
@@ -28,10 +39,44 @@ export const PlanView: React.FC<PlanViewProps> = ({
   onReset,
   onEditTheme,
   onEditParameters,
+  onReplan,
   isStarting,
 }) => {
   const [contextOpen, setContextOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editNPontos, setEditNPontos] = useState(() => plan.preferencias?.n_pontos || plan.n_pontos || 3);
+  const [editPersonas, setEditPersonas] = useState<string[]>(() => plan.preferencias?.personas || ['historiador', 'visionario', 'cetico', 'futurista']);
+  const [editMode, setEditMode] = useState<'parallel' | 'sequential'>(() => (plan.preferencias?.execution_mode as 'parallel' | 'sequential') || 'parallel');
+  const [editRecencia, setEditRecencia] = useState(() => plan.preferencias?.recencia || 'auto');
+  const [editTema, setEditTema] = useState(() => plan.tema);
+
+  const handleOpenEditParameters = () => {
+    setEditTema(plan.tema);
+    setEditNPontos(plan.preferencias?.n_pontos || plan.n_pontos || 3);
+    setEditPersonas(plan.preferencias?.personas || ['historiador', 'visionario', 'cetico', 'futurista']);
+    setEditMode((plan.preferencias?.execution_mode as 'parallel' | 'sequential') || 'parallel');
+    setEditRecencia(plan.preferencias?.recencia || 'auto');
+    setIsEditModalOpen(true);
+  };
+
+  const handleConfirmReplan = () => {
+    setIsEditModalOpen(false);
+    if (onReplan) {
+      onReplan({
+        tema: editTema.trim(),
+        n_pontos: editNPontos,
+        personas: editPersonas,
+        execution_mode: editMode,
+        recencia: editRecencia,
+      });
+    } else if (onEditParameters) {
+      onEditParameters(editTema.trim());
+    } else if (onEditTheme) {
+      onEditTheme(editTema.trim());
+    }
+  };
+
   const triggerButtonRef = useRef<HTMLButtonElement | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -198,11 +243,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
   ];
 
   const handleEditParameters = () => {
-    if (onEditParameters) {
-      onEditParameters(plan.tema);
-      return;
-    }
-    if (onEditTheme) onEditTheme(plan.tema);
+    handleOpenEditParameters();
   };
 
   return (
@@ -324,30 +365,6 @@ export const PlanView: React.FC<PlanViewProps> = ({
                 com hipóteses falseáveis, consultas direcionadas e critérios claros de conclusão antes da busca web.
               </p>
             </div>
-
-            {/* Ação Primária Única de Continuidade: Iniciar Pesquisa (no cabeçalho compacto, imediatamente visível acima da dobra) */}
-            <div className="plan-actions plan-header-primary-action">
-              <button
-                type="button"
-                className="btn-start-research"
-                onClick={onStartExecution}
-                disabled={isStarting}
-                id="start-research-btn"
-                aria-label="Iniciar pesquisa"
-              >
-                {isStarting ? (
-                  <>
-                    <span className="spinner" aria-hidden="true" />
-                    <span>Iniciando…</span>
-                  </>
-                ) : (
-                  <>
-                    <Play size={16} fill="currentColor" aria-hidden="true" />
-                    <span>Iniciar pesquisa</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
 
           <div className="plan-toggle-row">
@@ -379,7 +396,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
         </ol>
 
         <div
-          className="gdr-plan-actions"
+          className="gdr-plan-actions plan-header-primary-action"
         >
           <button
             type="button"
@@ -395,15 +412,25 @@ export const PlanView: React.FC<PlanViewProps> = ({
           </button>
           <button
             type="button"
-            className="gdr-plan-action gdr-plan-action--primary"
+            className="gdr-plan-action gdr-plan-action--primary btn-start-research"
+            id="start-research-btn"
             data-gdr-action="approve-and-start"
             onClick={onStartExecution}
             disabled={isStarting}
             title="Aprovar o plano e iniciar a pesquisa"
             aria-label="Aprovar plano e iniciar pesquisa"
           >
-            <Play size={16} aria-hidden="true" />
-            <span>Aprovar e iniciar</span>
+            {isStarting ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                <span>Iniciando…</span>
+              </>
+            ) : (
+              <>
+                <Play size={16} fill="currentColor" aria-hidden="true" />
+                <span>Iniciar pesquisa</span>
+              </>
+            )}
           </button>
         </div>
       </section>
@@ -541,6 +568,193 @@ export const PlanView: React.FC<PlanViewProps> = ({
               </div>
             )}
           </section>
+        )}
+        {/* Modal de Edição de Parâmetros (Replanejamento na mesma pesquisa) */}
+        {isEditModalOpen && (
+          <div
+            className="modal-backdrop preferences-modal-backdrop"
+            role="presentation"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsEditModalOpen(false);
+            }}
+          >
+            <div
+              className="dock-panel preferences-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-plan-modal-title"
+              style={{ maxWidth: '480px', width: '92%', margin: 'auto' }}
+            >
+              <header className="dock-panel-head">
+                <h2 id="edit-plan-modal-title" style={{ fontSize: '1rem', fontWeight: 600 }}>
+                  Editar parâmetros do plano
+                </h2>
+                <button
+                  type="button"
+                  className="dock-close"
+                  onClick={() => setIsEditModalOpen(false)}
+                  aria-label="Fechar edição de parâmetros"
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </header>
+
+              <div className="dock-panel-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
+                {/* Tema da pesquisa */}
+                <div className="dock-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                  <span className="dock-label">Tema da investigação</span>
+                  <input
+                    type="text"
+                    className="points-custom-input"
+                    style={{ width: '100%', boxSizing: 'border-box', height: '38px', padding: '0 12px', fontSize: '0.9rem' }}
+                    value={editTema}
+                    onChange={(e) => setEditTema(e.target.value)}
+                    placeholder="Descreva o tema da pesquisa..."
+                    disabled={isStarting}
+                    aria-label="Tema da investigação"
+                  />
+                </div>
+
+                {/* Pontos analíticos */}
+                <div className="dock-field" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="dock-field-info">
+                    <span className="dock-label" style={{ fontWeight: 600 }}>Pontos analíticos</span>
+                    <span className="dock-hint" style={{ display: 'block', fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>1 a 5 eixos investigativos</span>
+                  </div>
+                  <div className="stepper-widget" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="stepper-btn"
+                      onClick={() => setEditNPontos(Math.max(1, editNPontos - 1))}
+                      disabled={editNPontos <= 1 || isStarting}
+                      aria-label="Diminuir pontos analíticos"
+                      style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer' }}
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span style={{ fontWeight: 700, minWidth: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>{editNPontos}</span>
+                    <button
+                      type="button"
+                      className="stepper-btn"
+                      onClick={() => setEditNPontos(Math.min(5, editNPontos + 1))}
+                      disabled={editNPontos >= 5 || isStarting}
+                      aria-label="Aumentar pontos analíticos"
+                      style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-surface)', cursor: 'pointer' }}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Personas de busca */}
+                <div className="dock-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+                  <span className="dock-label" style={{ fontWeight: 600 }}>Personas ativas</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {[
+                      { id: 'historiador', label: 'Historiador' },
+                      { id: 'visionario', label: 'Visionário' },
+                      { id: 'cetico', label: 'Cético' },
+                      { id: 'futurista', label: 'Futurista' },
+                    ].map((p) => {
+                      const isSelected = editPersonas.includes(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={`persona-pill ${isSelected ? 'is-selected' : ''}`}
+                          onClick={() => {
+                            if (isSelected) {
+                              if (editPersonas.length > 1) {
+                                setEditPersonas(editPersonas.filter(x => x !== p.id));
+                              }
+                            } else {
+                              setEditPersonas([...editPersonas, p.id]);
+                            }
+                          }}
+                          disabled={isStarting}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            border: isSelected ? '1px solid var(--violet-line)' : '1px solid var(--color-border)',
+                            background: isSelected ? 'var(--violet-tint)' : 'var(--color-surface)',
+                            color: isSelected ? 'var(--violet)' : 'var(--color-text-secondary)',
+                            fontWeight: 600,
+                            fontSize: '0.82rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Modo de Execução */}
+                <div className="dock-field" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="dock-label" style={{ fontWeight: 600 }}>Modo de execução</span>
+                  <div className="dock-segment" role="group" aria-label="Modo de execução" style={{ display: 'inline-flex', borderRadius: '8px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                    <button
+                      type="button"
+                      className={editMode === 'parallel' ? 'is-on' : ''}
+                      onClick={() => setEditMode('parallel')}
+                      disabled={isStarting}
+                      style={{
+                        padding: '6px 12px',
+                        border: 'none',
+                        background: editMode === 'parallel' ? 'var(--color-primary)' : 'transparent',
+                        color: editMode === 'parallel' ? '#fff' : 'var(--color-text-secondary)',
+                        fontWeight: 600,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Paralelo
+                    </button>
+                    <button
+                      type="button"
+                      className={editMode === 'sequential' ? 'is-on' : ''}
+                      onClick={() => setEditMode('sequential')}
+                      disabled={isStarting}
+                      style={{
+                        padding: '6px 12px',
+                        border: 'none',
+                        background: editMode === 'sequential' ? 'var(--color-primary)' : 'transparent',
+                        color: editMode === 'sequential' ? '#fff' : 'var(--color-text-secondary)',
+                        fontWeight: 600,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Sequencial
+                    </button>
+                  </div>
+                </div>
+
+                {/* Botões do Rodapé do Modal */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+                  <button
+                    type="button"
+                    className="query-action-btn"
+                    onClick={() => setIsEditModalOpen(false)}
+                    disabled={isStarting}
+                  >
+                    <span>Cancelar</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="gdr-plan-action gdr-plan-action--primary"
+                    onClick={handleConfirmReplan}
+                    disabled={isStarting || editTema.trim().length < 5}
+                    style={{ padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Sparkles size={14} aria-hidden="true" />
+                    <span>{isStarting ? 'Replanejando…' : 'Replanejar investigação'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </article>
     </div>

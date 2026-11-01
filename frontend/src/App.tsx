@@ -155,6 +155,9 @@ export const App: React.FC = () => {
   // Último estágio realmente ativo, usado quando o erro chega sem etapa explícita.
   const estagioAtualRef = useRef<'searching' | 'auditing' | 'writing' | null>(null);
   const [isRetrying, setIsRetrying] = useState<boolean>(false);
+  const [isRailOpen, setIsRailOpen] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth > 899 : true;
+  });
 
   // Rascunho em memória de configurações preservado entre navegações internas por hash
   const [settingsDraft, setSettingsDraft] = useState<SettingsFormData>(initialSettingsFormData);
@@ -871,6 +874,79 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleReplan = async (params: {
+    tema: string;
+    n_pontos: number;
+    personas: string[];
+    execution_mode?: 'parallel' | 'sequential';
+    recencia?: string;
+    criterios_minimos?: number;
+  }) => {
+    if (!currentPlan) return;
+    if (isPlanningRef.current || isExecutingRef.current) return;
+    isPlanningRef.current = true;
+    setIsPlanning(true);
+    setPlanningId(currentPlan.id_pesquisa);
+    setPlanningText('');
+    setPlanningStartedAt(Date.now());
+
+    // Atualiza estados locais de preferências
+    setComposerValue(params.tema);
+    setNPontos(params.n_pontos);
+    setSelectedPersonas(params.personas);
+    if (params.execution_mode) setExecutionMode(params.execution_mode);
+    if (params.recencia) setRecencia(params.recencia as any);
+    if (params.criterios_minimos) setCriteriosMinimos(params.criterios_minimos);
+
+    try {
+      const plan = await api.createPlan({
+        tema: params.tema,
+        n_pontos: params.n_pontos,
+        personas: params.personas,
+        idPesquisa: currentPlan.id_pesquisa,
+        execution_mode: params.execution_mode ?? executionMode,
+        recencia: (params.recencia as any) ?? recencia,
+        criterios_minimos: params.criterios_minimos ?? criteriosMinimos,
+        async_execute: asyncExecute,
+        callback_url: asyncExecute ? callbackUrl.trim() || null : null,
+      });
+
+      if (!plan.preferencias) {
+        plan.preferencias = {
+          n_pontos: plan.n_pontos || params.n_pontos,
+          personas: [...params.personas],
+          recencia: (params.recencia as any) ?? recencia,
+          execution_mode: params.execution_mode ?? executionMode,
+          criterios_minimos: params.criterios_minimos ?? criteriosMinimos,
+          async_execute: asyncExecute,
+          callback_url: asyncExecute ? callbackUrl.trim() || null : null,
+        };
+      }
+
+      setCurrentPlan(plan);
+      activeResearchIdRef.current = plan.id_pesquisa;
+      setActiveResearchId(plan.id_pesquisa);
+
+      // Atualiza o registro no histórico sem duplicar
+      const record: ResearchHistoryRecord = {
+        id_pesquisa: plan.id_pesquisa,
+        tema: plan.tema,
+        criado_em: plan.criado_em,
+        status: 'planejado',
+        total_pontos: plan.n_pontos,
+        planResponse: plan,
+      };
+      historyService.save(record);
+      setHistoryRecords(historyService.list());
+    } catch (err: unknown) {
+      setPlanningError(err instanceof Error ? err.message : String(err));
+    } finally {
+      isPlanningRef.current = false;
+      setIsPlanning(false);
+      setPlanningId(null);
+    }
+  };
+
   // Pipeline unificado e sensível ao estágio com checkpoints e prevenção de concorrência
   const runPipeline = async (options?: { resumeFromStage?: 'searching' | 'auditing' | 'writing' }) => {
     if (!currentPlan) return;
@@ -1458,6 +1534,10 @@ export const App: React.FC = () => {
         isBootstrapping={isBootstrapping}
         theme={tema}
         onToggleTheme={() => setTema((atual) => (atual === 'dark' ? 'light' : 'dark'))}
+        hasActiveContext={Boolean(currentPlan)}
+        isRailOpen={isRailOpen}
+        onToggleRail={() => setIsRailOpen((prev) => !prev)}
+        sourcesCount={searchResult?.resumo_coletas?.length ?? 0}
       />
 
       {/* Falha ao abrir a sessão: diz o que aconteceu, o que sobrou e o próximo passo */}
@@ -1580,6 +1660,7 @@ export const App: React.FC = () => {
                       onStartExecution={handleStartExecution}
                       onReset={handleResetResearch}
                       onEditTheme={handleEditTheme}
+                      onReplan={handleReplan}
                       isStarting={isExecutingRef.current || isPlanning}
                     />
                   ) : null}
@@ -1629,6 +1710,8 @@ export const App: React.FC = () => {
                 {currentPlan && (
                   <ContextSidebar
                     plan={currentPlan}
+                    isCollapsed={!isRailOpen}
+                    onToggleCollapse={() => setIsRailOpen(false)}
                     pipelineStatus={pipelineStage !== 'idle' ? pipelineStage : currentPlan.status_pipeline}
                     cycleNumber={cycleNumber}
                     maxCycles={4}

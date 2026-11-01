@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Copy, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Check, Copy, PanelRightClose } from 'lucide-react';
 import { PlanResponse, ModeloMetadados, SearchResponse } from '../types/api';
 import { TokenUsageMeter } from './TokenUsageMeter';
 import { SourcesExplorer, derivarFontesParaExplorer, FonteExplorerItem } from './SourcesExplorer';
@@ -24,6 +24,8 @@ interface ContextSidebarProps {
   searchResult?: SearchResponse | null;
   fontesAtivas?: boolean;
   pontosReprovados?: Set<string> | null;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 type RailMode = 'contexto' | 'fontes';
@@ -127,16 +129,26 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   searchResult,
   fontesAtivas,
   pontosReprovados,
+  isCollapsed,
+  onToggleCollapse,
 }) => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsedInternal, setCollapsedInternal] = useState(false);
+  const collapsed = isCollapsed !== undefined ? isCollapsed : collapsedInternal;
+
+  const handleToggle = (next: boolean) => {
+    setCollapsedInternal(next);
+    if (onToggleCollapse) {
+      onToggleCollapse();
+    }
+  };
   const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches;
-    if (isMobile) {
-      setCollapsed(true);
+    if (isMobile && isCollapsed === undefined) {
+      setCollapsedInternal(true);
     }
-  }, []);
+  }, [isCollapsed]);
   const tabRefs = useRef<Record<RailMode, HTMLButtonElement | null>>({
     contexto: null,
     fontes: null,
@@ -275,45 +287,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   };
 
   if (collapsed) {
-    return (
-      <aside
-        className="sidebar-container context-sidebar right-rail right-rail--sticky rr-rail rr-rail--collapsed"
-        aria-label="Contexto da pesquisa"
-        aria-expanded={false}
-      >
-        <button
-          type="button"
-          className="rr-rail__reopen"
-          aria-expanded={false}
-          aria-controls={RAIL_PANEL_ID}
-          aria-label="Expandir painel de contexto"
-          title="Expandir painel"
-          onClick={() => setCollapsed(false)}
-        >
-          <PanelRightOpen size={18} aria-hidden="true" />
-        </button>
-        {(() => {
-          const count = Array.isArray(itensFontes) ? itensFontes.length : 0;
-          if (count === 0) return null;
-          return (
-            <button
-              type="button"
-              className="rr-rail__pill"
-              aria-label={`Ver fontes (${count})`}
-              title={`Fontes: ${count}`}
-              onClick={() => {
-                userChangedModeRef.current = true;
-                setMode('fontes');
-                setCollapsed(false);
-              }}
-            >
-              <span className="rr-rail__pill-count">{count}</span>
-              <span className="rr-rail__pill-label">fontes</span>
-            </button>
-          );
-        })()}
-      </aside>
-    );
+    return null;
   }
 
   return (
@@ -334,7 +308,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
             aria-controls={RAIL_PANEL_ID}
             aria-label="Recolher painel de contexto"
             title="Recolher painel"
-            onClick={() => setCollapsed(true)}
+            onClick={() => handleToggle(true)}
           >
             <PanelRightClose size={16} aria-hidden="true" />
           </button>

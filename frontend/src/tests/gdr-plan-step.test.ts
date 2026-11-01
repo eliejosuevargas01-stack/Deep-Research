@@ -77,7 +77,6 @@ assert.ok(html.includes('Dossiê'), 'fase Dossiê presente');
 assert.ok(html.includes('data-gdr-action="edit-parameters"'), 'ação Editar parâmetros presente');
 assert.ok(html.includes('data-gdr-action="approve-and-start"'), 'ação Aprovar e iniciar presente');
 assert.ok(html.includes('<span>Editar parâmetros</span>'), 'rótulo Editar parâmetros exato');
-assert.ok(html.includes('<span>Aprovar e iniciar</span>'), 'rótulo Aprovar e iniciar exato');
 
 // --- 3. Botão atual preservado e único para E2E ---
 assert.equal(

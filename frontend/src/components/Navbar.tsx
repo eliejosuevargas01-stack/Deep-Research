@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, BookOpen, Settings, History, Search, Menu, X, ShieldAlert, Moon, Sun } from 'lucide-react';
+import { Plus, BookOpen, Settings, History, Search, Menu, X, ShieldAlert, PanelRight } from 'lucide-react';
 import { BrandMark } from './BrandMark';
 
 interface NavbarProps {
@@ -10,6 +10,10 @@ interface NavbarProps {
   isBootstrapping?: boolean;
   theme?: 'light' | 'dark';
   onToggleTheme?: () => void;
+  hasActiveContext?: boolean;
+  isRailOpen?: boolean;
+  onToggleRail?: () => void;
+  sourcesCount?: number;
 }
 
 const NavbarBase: React.FC<NavbarProps> = ({
@@ -18,8 +22,10 @@ const NavbarBase: React.FC<NavbarProps> = ({
   onNewResearch,
   sessionAuthenticated = false,
   isBootstrapping = false,
-  theme = 'light',
-  onToggleTheme,
+  hasActiveContext = false,
+  isRailOpen = false,
+  onToggleRail,
+  sourcesCount = 0,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -148,16 +154,20 @@ const NavbarBase: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {onToggleTheme && (
+          {/* Alternador fixo no Header da Janela Lateral de Fontes & Contexto */}
+          {hasActiveContext && onToggleRail && (
             <button
               type="button"
-              className="theme-toggle"
-              onClick={onToggleTheme}
-              aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
-              aria-pressed={theme === 'dark'}
-              title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+              className={`btn-header-rail ${isRailOpen ? 'is-active' : ''}`}
+              onClick={onToggleRail}
+              aria-label={isRailOpen ? 'Recolher painel lateral de fontes' : 'Abrir painel lateral de fontes'}
+              title={isRailOpen ? 'Recolher painel lateral' : 'Abrir painel lateral'}
             >
-              {theme === 'dark' ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
+              <PanelRight size={17} aria-hidden="true" />
+              <span className="btn-header-rail-text">Painel</span>
+              {sourcesCount > 0 && (
+                <span className="btn-header-rail-badge">{sourcesCount}</span>
+              )}
             </button>
           )}
 

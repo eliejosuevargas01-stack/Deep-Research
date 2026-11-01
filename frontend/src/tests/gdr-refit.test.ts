@@ -24,7 +24,7 @@ const search: SearchResponse = {
     total_urls_lidas: 3, total_urls_fonte: 3, tamanho_conteudo_caracteres: 100,
     tentativas: 1,
     personas: [
-      { persona: 'historiador', analise: 'a', urls_fonte: ['https://example.com/a', 'http://inseguro-test.invalid/x'], queries_executadas: 1, falha_coleta: false },
+      { persona: 'historiador', analise: 'a', urls_fonte: ['https://example.com/a', 'ftp://inseguro-test.invalid/x'], queries_executadas: 1, falha_coleta: false },
       { persona: 'cetico', analise: 'b', urls_fonte: ['https://example.com/a', 'javascript:alert(1)'], queries_executadas: 1, falha_coleta: false },
     ],
   }],
@@ -52,7 +52,7 @@ const html = renderToString(
 assert.ok(html.includes('tokens'), 'rail exibe medidor de tokens');
 /* Contrato r3 (DESIGN.md §7): painel único com abas, contagem na aba
    "Fontes" e lista de fontes com favicon/título/domínio/estado. */
-assert.ok(html.includes('Raciocínio') && html.includes('Fontes'), 'rail tem as duas abas');
+assert.ok(html.includes('Contexto') && html.includes('Fontes'), 'rail tem as duas abas');
 assert.ok(/rr-rail__tab-count">1</.test(html), 'contagem de fontes = 1 na aba');
 assert.ok(html.includes('aria-label="Fontes exploradas"'), 'lista de fontes mantém o rótulo acessível');
 assert.ok(html.includes('example.com'), 'chip referencia o domínio da fonte');
