@@ -181,6 +181,7 @@ interface PassoProps {
   fontes?: FonteResumo[];
   detalhe?: React.ReactNode;
   acoes?: React.ReactNode;
+  expandirControle?: boolean | null;
 }
 
 /**
@@ -203,16 +204,29 @@ const Passo: React.FC<PassoProps> = ({
   fontes,
   detalhe,
   acoes,
+  expandirControle,
 }) => {
-  const [aberto, setAberto] = React.useState(false);
+  const [abertoLocal, setAbertoLocal] = React.useState(Boolean(aoVivo));
   const jaEsteveAoVivo = React.useRef(aoVivo);
 
-  // Streaming: ao concluir, o item recolhe sozinho e o ícone volta a ser o da
-  // persona (DESIGN §6). Só recolhe se estava ao vivo na renderização anterior.
+  // Streaming: ao ficar ao vivo, abre para revelar o reasoning; ao concluir, recolhe sozinho
   React.useEffect(() => {
-    if (jaEsteveAoVivo.current && !aoVivo) setAberto(false);
+    if (aoVivo) {
+      setAbertoLocal(true);
+    } else if (jaEsteveAoVivo.current && !aoVivo) {
+      setAbertoLocal(false);
+    }
     jaEsteveAoVivo.current = aoVivo;
   }, [aoVivo]);
+
+  // Controle global (expandir/recolher todos)
+  React.useEffect(() => {
+    if (expandirControle !== null && expandirControle !== undefined) {
+      setAbertoLocal(expandirControle);
+    }
+  }, [expandirControle]);
+
+  const aberto = abertoLocal;
 
   const listaConsultas = consultas ?? [];
   const listaFontes = fontes ?? [];
@@ -234,7 +248,12 @@ const Passo: React.FC<PassoProps> = ({
         <span className="tl-acao-texto" title={resumo}>
           {resumo}
         </span>
-        {aoVivo ? <span className="tl-estado-vivo">ao vivo</span> : null}
+        {aoVivo ? (
+          <span className="tl-estado-vivo">
+            <span className="tl-live-pulse" aria-hidden="true" />
+            ao vivo
+          </span>
+        ) : null}
       </span>
     </>
   );
@@ -256,7 +275,7 @@ const Passo: React.FC<PassoProps> = ({
         className="tl-entrada-linha"
         aria-expanded={aberto}
         aria-controls={corpoId}
-        onClick={() => setAberto((atual) => !atual)}
+        onClick={() => setAbertoLocal((atual) => !atual)}
       >
         {rotuloInterno}
         <ChevronDown className={`tl-chevron${aberto ? ' aberto' : ''}`} size={16} aria-hidden="true" />
@@ -320,6 +339,7 @@ interface LinhaAuditorProps {
   emReprocesso: boolean;
   onRefazerBuscaPonto?: (ponto_id: string) => void;
   onReauditarPonto?: (ponto_id: string) => void;
+  expandirControle?: boolean | null;
 }
 
 const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
@@ -331,6 +351,7 @@ const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
   emReprocesso,
   onRefazerBuscaPonto,
   onReauditarPonto,
+  expandirControle,
 }) => {
   const reprovado = auditoria.status === 'reprovado';
   const reprovados: AuditCriterionDetail[] = auditoria.criterios?.filter((c) => !c.aprovado) ?? [];
@@ -382,6 +403,7 @@ const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
       analise={auditoria.resumo_auditoria ?? null}
       reasoning={auditoria.reasoning_auditoria ?? null}
       acoes={acoes}
+      expandirControle={expandirControle}
       detalhe={
         <div className="tl-detalhe tl-callout">
           <p className="tl-callout-score">
@@ -420,6 +442,8 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
   pontoEmReprocesso = null,
   rigorAtual = null,
 }) => {
+  const [expandirTodos, setExpandirTodos] = React.useState<boolean | null>(null);
+
   const porPonto = React.useMemo(() => {
     const mapa = new Map<string, ReasoningFeedItem[]>();
     for (const item of reasoningItems) {
@@ -442,153 +466,178 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
   const ultimaHora = formatarHoraTimelog(reasoningItems[reasoningItems.length - 1]?.timestamp ?? '');
 
   return (
-    <ol className="tl-linear" aria-label="Linha do tempo da investigação">
-      {pontos.map((ponto, indice) => {
-        const coleta = coletas.get(ponto.ponto_id);
-        const auditoria = auditorias.get(ponto.ponto_id);
-        const eventos = porPonto.get(ponto.ponto_id) ?? porPonto.get(`n:${ponto.ponto_n}`) ?? [];
-        const emReprocesso = pontoEmReprocesso === ponto.ponto_id;
-        const ultimo = indice === pontos.length - 1;
+    <div className="tl-container">
+      <div className="tl-toolbar-row">
+        <span className="tl-toolbar-label">
+          {reasoningItems.length > 0
+            ? `${reasoningItems.length} registros de investigação`
+            : 'Trilha de investigação das personas'}
+        </span>
+        <button
+          type="button"
+          className="tl-btn-toggle-all"
+          onClick={() => setExpandirTodos((atual) => (atual === true ? false : true))}
+          aria-label={expandirTodos ? 'Recolher todos os passos de raciocínio' : 'Expandir todos os passos de raciocínio'}
+        >
+          {expandirTodos ? 'Recolher raciocínios' : 'Expandir todos os raciocínios'}
+        </button>
+      </div>
 
-        const personas = coleta?.personas ?? [];
-        const buscaEventos = eventos.filter((e) => e.agentType === 'busca');
-        const auditorEvento =
-          eventos.find((e) => e.agentType === 'auditor') ?? eventos.find((e) => /auditor/i.test(e.agentName));
-        const consumidos = new Set<string>();
-        const minimos = auditoria?.criterios_minimos ?? rigorAtual ?? 12;
+      <ol className="tl-linear" aria-label="Linha do tempo da investigação">
+        {pontos.map((ponto, indice) => {
+          const coleta = coletas.get(ponto.ponto_id);
+          const auditoria = auditorias.get(ponto.ponto_id);
+          const eventos = porPonto.get(ponto.ponto_id) ?? porPonto.get(`n:${ponto.ponto_n}`) ?? [];
+          const emReprocesso = pontoEmReprocesso === ponto.ponto_id;
+          const ultimo = indice === pontos.length - 1;
 
-        return (
-          <li className={`tl-no${ultimo ? ' ultimo' : ''}`} key={ponto.ponto_id}>
-            <span className="tl-trilho" aria-hidden="true" />
-            <div className="tl-conteudo">
-              <p className="tl-grupo">
-                <span className="tl-grupo-rotulo">{`Ponto ${String(ponto.ponto_n).padStart(2, '0')} ·`}</span>
-                <span className="tl-grupo-tema" title={ponto.ponto}>{ponto.ponto}</span>
-              </p>
+          const personas = coleta?.personas ?? [];
+          const buscaEventos = eventos.filter((e) => e.agentType === 'busca');
+          const auditorEvento =
+            eventos.find((e) => e.agentType === 'auditor') ?? eventos.find((e) => /auditor/i.test(e.agentName));
+          const consumidos = new Set<string>();
+          const minimos = auditoria?.criterios_minimos ?? rigorAtual ?? 12;
 
-              {personas.map((persona, personaIndice) => {
-                const candidatos = eventosDaPersona(persona.persona, buscaEventos);
-                const evento = candidatos[0] ?? buscaEventos[personaIndice] ?? buscaEventos[0];
-                for (const usado of candidatos) consumidos.add(usado.id);
-                if (evento) consumidos.add(evento.id);
-                const queries = queriesDaPersona(persona.reasoning, candidatos.length > 0 ? candidatos : evento ? [evento] : []);
-                const aoVivo = candidatos.some((c) => c.streaming) || Boolean(evento?.streaming);
-                return (
-                  <Passo
-                    key={`${ponto.ponto_id}-${persona.persona}-${personaIndice}`}
-                    idBase={`${idSeguro(ponto.ponto_id)}-${mapearPersonaParaTipo(persona.persona)}-${personaIndice}`}
-                    persona={mapearPersonaParaTipo(persona.persona)}
-                    rotulo={nomePersona(persona.persona)}
-                    resumo={tituloPasso(persona.persona)}
-                    aoVivo={aoVivo}
-                    falha={persona.falha_coleta}
-                    hora={horaDe(evento)}
-                    timestamp={evento?.timestamp}
-                    consultas={queries}
-                    analise={persona.analise}
-                    reasoning={persona.reasoning || evento?.reasoning}
-                    fontes={dominiosFontes(persona.urls_fonte ?? [])}
-                  />
-                );
-              })}
+          return (
+            <li className={`tl-no${ultimo ? ' ultimo' : ''}`} key={ponto.ponto_id}>
+              <span className="tl-trilho" aria-hidden="true" />
+              <div className="tl-conteudo">
+                <p className="tl-grupo">
+                  <span className="tl-grupo-rotulo">{`Ponto ${String(ponto.ponto_n).padStart(2, '0')} ·`}</span>
+                  <span className="tl-grupo-tema" title={ponto.ponto}>{ponto.ponto}</span>
+                </p>
 
-              {personas.length === 0 &&
-                buscaEventos.map((evento, eventoIndice) => {
-                  consumidos.add(evento.id);
+                {personas.map((persona, personaIndice) => {
+                  const candidatos = eventosDaPersona(persona.persona, buscaEventos);
+                  const evento = candidatos[0] ?? buscaEventos[personaIndice] ?? buscaEventos[0];
+                  for (const usado of candidatos) consumidos.add(usado.id);
+                  if (evento) consumidos.add(evento.id);
+                  const queries = queriesDaPersona(persona.reasoning, candidatos.length > 0 ? candidatos : evento ? [evento] : []);
+                  const aoVivo = candidatos.some((c) => c.streaming) || Boolean(evento?.streaming);
                   return (
                     <Passo
-                      key={`busca-${evento.id}`}
-                      idBase={`${idSeguro(ponto.ponto_id)}-busca-${eventoIndice}`}
-                      persona={mapearPersonaParaTipo(evento.agentName)}
-                      rotulo={nomePersona(evento.agentName)}
-                      resumo={evento.title.replace(/\s*\(ao vivo\)\s*$/i, '')}
-                      aoVivo={Boolean(evento.streaming)}
+                      key={`${ponto.ponto_id}-${persona.persona}-${personaIndice}`}
+                      idBase={`${idSeguro(ponto.ponto_id)}-${mapearPersonaParaTipo(persona.persona)}-${personaIndice}`}
+                      persona={mapearPersonaParaTipo(persona.persona)}
+                      rotulo={nomePersona(persona.persona)}
+                      resumo={tituloPasso(persona.persona)}
+                      aoVivo={aoVivo}
+                      falha={persona.falha_coleta}
                       hora={horaDe(evento)}
-                      timestamp={evento.timestamp}
-                      consultas={extrairQueriesTimelog(evento.reasoning)}
-                      reasoning={evento.reasoning}
+                      timestamp={evento?.timestamp}
+                      consultas={queries}
+                      analise={persona.analise}
+                      reasoning={persona.reasoning || evento?.reasoning}
+                      fontes={dominiosFontes(persona.urls_fonte ?? [])}
+                      expandirControle={expandirTodos}
                     />
                   );
                 })}
 
-              {personas.length === 0 && buscaEventos.length === 0 && (
-                <Passo
-                  idBase={`${idSeguro(ponto.ponto_id)}-aguardando`}
-                  persona="planejador"
-                  rotulo="Planejador"
-                  resumo={`aguardando varredura das personas no ponto ${ponto.ponto_n}`}
-                />
-              )}
+                {personas.length === 0 &&
+                  buscaEventos.map((evento, eventoIndice) => {
+                    consumidos.add(evento.id);
+                    return (
+                      <Passo
+                        key={`busca-${evento.id}`}
+                        idBase={`${idSeguro(ponto.ponto_id)}-busca-${eventoIndice}`}
+                        persona={mapearPersonaParaTipo(evento.agentName)}
+                        rotulo={nomePersona(evento.agentName)}
+                        resumo={evento.title.replace(/\s*\(ao vivo\)\s*$/i, '')}
+                        aoVivo={Boolean(evento.streaming)}
+                        hora={horaDe(evento)}
+                        timestamp={evento.timestamp}
+                        consultas={extrairQueriesTimelog(evento.reasoning)}
+                        reasoning={evento.reasoning}
+                        expandirControle={expandirTodos}
+                      />
+                    );
+                  })}
 
-              {auditoria ? (
-                <LinhaAuditor
-                  auditoria={auditoria}
-                  pontoN={ponto.ponto_n}
-                  minimos={minimos}
-                  hora={horaDe(auditorEvento) || ultimaHora}
-                  timestamp={auditorEvento?.timestamp}
-                  emReprocesso={emReprocesso}
-                  onRefazerBuscaPonto={onRefazerBuscaPonto}
-                  onReauditarPonto={onReauditarPonto}
-                />
-              ) : null}
-
-              {!auditoria && coleta && !coleta.falha_coleta && (
-                <Passo
-                  idBase={`${idSeguro(ponto.ponto_id)}-auditoria-pendente`}
-                  persona="auditor"
-                  rotulo="Auditor"
-                  resumo={
-                    personas.length >= 2
-                      ? `analisando discrepâncias entre ${nomePersona(personas[0].persona)} e ${nomePersona(
-                          personas[1].persona,
-                        )}`
-                      : `analisando o ponto ${ponto.ponto_n} com foco em contradições entre alegações`
-                  }
-                />
-              )}
-
-              {(() => {
-                const extras = eventos.filter((evento) => !consumidos.has(evento.id) && evento.id !== auditorEvento?.id);
-                if (extras.length === 0) return null;
-                return extras.map((evento, extraIndice) => (
+                {personas.length === 0 && buscaEventos.length === 0 && (
                   <Passo
-                    key={`extra-${evento.id}`}
-                    idBase={`${idSeguro(ponto.ponto_id)}-extra-${extraIndice}`}
-                    persona={mapearPersonaParaTipo(evento.agentName)}
-                    rotulo={nomePersona(evento.agentName)}
-                    resumo={evento.title.replace(/\s*\(ao vivo\)\s*$/i, '')}
-                    aoVivo={Boolean(evento.streaming)}
-                    hora={formatarHoraTimelog(evento.timestamp)}
-                    timestamp={evento.timestamp}
-                    consultas={extrairQueriesTimelog(evento.reasoning)}
-                    reasoning={evento.reasoning}
+                    idBase={`${idSeguro(ponto.ponto_id)}-aguardando`}
+                    persona="planejador"
+                    rotulo="Planejador"
+                    resumo={`aguardando varredura das personas no ponto ${ponto.ponto_n}`}
+                    expandirControle={expandirTodos}
                   />
-                ));
-              })()}
+                )}
+
+                {auditoria ? (
+                  <LinhaAuditor
+                    auditoria={auditoria}
+                    pontoN={ponto.ponto_n}
+                    minimos={minimos}
+                    hora={horaDe(auditorEvento) || ultimaHora}
+                    timestamp={auditorEvento?.timestamp}
+                    emReprocesso={emReprocesso}
+                    onRefazerBuscaPonto={onRefazerBuscaPonto}
+                    onReauditarPonto={onReauditarPonto}
+                    expandirControle={expandirTodos}
+                  />
+                ) : null}
+
+                {!auditoria && coleta && !coleta.falha_coleta && (
+                  <Passo
+                    idBase={`${idSeguro(ponto.ponto_id)}-auditoria-pendente`}
+                    persona="auditor"
+                    rotulo="Auditor"
+                    resumo={
+                      personas.length >= 2
+                        ? `analisando discrepâncias entre ${nomePersona(personas[0].persona)} e ${nomePersona(
+                            personas[1].persona,
+                          )}`
+                        : `analisando o ponto ${ponto.ponto_n} com foco em contradições entre alegações`
+                    }
+                    expandirControle={expandirTodos}
+                  />
+                )}
+
+                {(() => {
+                  const extras = eventos.filter((evento) => !consumidos.has(evento.id) && evento.id !== auditorEvento?.id);
+                  if (extras.length === 0) return null;
+                  return extras.map((evento, extraIndice) => (
+                    <Passo
+                      key={`extra-${evento.id}`}
+                      idBase={`${idSeguro(ponto.ponto_id)}-extra-${extraIndice}`}
+                      persona={mapearPersonaParaTipo(evento.agentName)}
+                      rotulo={nomePersona(evento.agentName)}
+                      resumo={evento.title.replace(/\s*\(ao vivo\)\s*$/i, '')}
+                      aoVivo={Boolean(evento.streaming)}
+                      hora={formatarHoraTimelog(evento.timestamp)}
+                      timestamp={evento.timestamp}
+                      consultas={extrairQueriesTimelog(evento.reasoning)}
+                      reasoning={evento.reasoning}
+                      expandirControle={expandirTodos}
+                    />
+                  ));
+                })()}
+              </div>
+            </li>
+          );
+        })}
+
+        {/* Nó final: redação, quando há parecer */}
+        {auditResult ? (
+          <li className="tl-no ultimo">
+            <span className="tl-trilho" aria-hidden="true" />
+            <div className="tl-conteudo">
+              <Passo
+                idBase="redator-final"
+                persona="redator"
+                rotulo="Redator"
+                resumo={
+                  auditResult.pronto_para_writer
+                    ? 'pesquisa aprovada, gerando o relatório final'
+                    : `${auditResult.aprovados} de ${auditResult.total_pontos} pontos aprovados. A redação começa quando todos passarem.`
+                }
+                expandirControle={expandirTodos}
+              />
             </div>
           </li>
-        );
-      })}
-
-      {/* Nó final: redação, quando há parecer */}
-      {auditResult ? (
-        <li className="tl-no ultimo">
-          <span className="tl-trilho" aria-hidden="true" />
-          <div className="tl-conteudo">
-            <Passo
-              idBase="redator-final"
-              persona="redator"
-              rotulo="Redator"
-              resumo={
-                auditResult.pronto_para_writer
-                  ? 'pesquisa aprovada, gerando o relatório final'
-                  : `${auditResult.aprovados} de ${auditResult.total_pontos} pontos aprovados. A redação começa quando todos passarem.`
-              }
-            />
-          </div>
-        </li>
-      ) : null}
-    </ol>
+        ) : null}
+      </ol>
+    </div>
   );
 };

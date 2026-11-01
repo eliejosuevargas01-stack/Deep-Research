@@ -9,6 +9,56 @@
    As regras nascem ancoradas em `.tl-linear` (0,2,0) porque `gdr-refit.css`
    carrega depois deste arquivo em `main.tsx` e define `.tl-entrada` em (0,1,0). */
 
+/* Contêiner da timeline e barra de ações de raciocínio */
+.tl-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.tl-toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 2px;
+}
+
+.tl-toolbar-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.tl-btn-toggle-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 28px;
+}
+
+.tl-btn-toggle-all:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: var(--color-surface-subtle);
+}
+
+.tl-btn-toggle-all:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .tl-linear {
   list-style: none;
   margin: 0;
@@ -243,17 +293,44 @@ button.tl-entrada-linha:focus-visible {
   transform: rotate(180deg);
 }
 
-/* Rótulo textual do item ao vivo (DESIGN §6: sem cursor piscante). */
+/* Rótulo textual do item ao vivo */
 .tl-linear .tl-estado-vivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex: 0 0 auto;
   margin-left: 6px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.45;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-text-secondary);
+  color: var(--color-success-text, #10b981);
+  font-weight: 600;
   white-space: nowrap;
+}
+
+.tl-linear .tl-live-pulse {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: tl-pulse-ring 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
+  flex-shrink: 0;
+}
+
+@keyframes tl-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
 }
 
 /* ---------- corpo expandido ---------- */
