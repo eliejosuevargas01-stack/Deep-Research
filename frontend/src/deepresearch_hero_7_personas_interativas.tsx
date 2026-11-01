@@ -714,7 +714,7 @@ export function DeepResearchCharacters({
             {/* Pílula Redesenhada Elegante & Centralizada */}
             <g
               className="persona-pill select-none"
-              transform="translate(0, 56)"
+              transform="translate(0, 67)"
               style={{ cursor: 'pointer' }}
             >
               <rect
@@ -833,13 +833,13 @@ export function DeepResearchCharacters({
             {/* Pílula Redesenhada Elegante & Centralizada */}
             <g
               className="persona-pill select-none"
-              transform="translate(0, 56)"
+              transform="translate(0, 60)"
               style={{ cursor: 'pointer' }}
             >
               <rect
-                x="-34"
+                x="-37"
                 y="-10"
-                width="68"
+                width="74"
                 height="20"
                 rx="8"
                 ry="8"
@@ -948,7 +948,7 @@ export function DeepResearchCharacters({
             {/* Pílula Redesenhada Elegante & Centralizada */}
             <g
               className="persona-pill select-none"
-              transform="translate(0, 56)"
+              transform="translate(0, 74)"
               style={{ cursor: 'pointer' }}
             >
               <rect
@@ -1073,7 +1073,7 @@ export function DeepResearchCharacters({
             {/* Pílula Redesenhada Elegante & Centralizada */}
             <g
               className="persona-pill select-none"
-              transform="translate(0, 56)"
+              transform="translate(0, 62)"
               style={{ cursor: 'pointer' }}
             >
               <rect
@@ -1331,7 +1331,7 @@ export function DeepResearchCharacters({
             {/* Pílula Redesenhada Elegante & Centralizada (ancorado sob o centro de massa cabeça+livro) */}
             <g
               className="persona-pill select-none"
-              transform="translate(20, 56)"
+              transform="translate(20, 60)"
               style={{ cursor: 'pointer' }}
             >
               <rect
@@ -1829,7 +1829,7 @@ export function DeepResearchCharacters({
             {/* Pílula Redesenhada Elegante & Centralizada */}
             <g
               className="persona-pill select-none"
-              transform="translate(0, 56)"
+              transform="translate(0, 66)"
               style={{ cursor: 'pointer' }}
             >
               <rect
