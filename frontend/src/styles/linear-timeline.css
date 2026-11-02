@@ -205,6 +205,8 @@
   line-height: 1.45;
   text-align: left;
   color: var(--color-text-primary);
+  overflow: hidden;
+  position: relative;
 }
 
 button.tl-entrada-linha {
@@ -273,6 +275,7 @@ button.tl-entrada-linha:focus-visible {
   gap: 4px 6px;
   min-width: 0;
   flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .tl-linear .tl-persona {
@@ -364,8 +367,9 @@ button.tl-entrada-linha:focus-visible {
   color: var(--color-text-secondary);
 }
 
-.tl-linear .tl-entrada-corpo[hidden] {
-  display: none;
+.tl-linear .tl-entrada-corpo[hidden],
+.tl-entrada-corpo[hidden] {
+  display: none !important;
 }
 
 .tl-linear .tl-corpo-meta {
@@ -721,14 +725,35 @@ button.tl-entrada-linha:focus-visible {
   }
 }
 
-/* No celular o rótulo do passo quebra em duas linhas em vez de sumir no '…'. */
+/* No celular o rótulo do passo pode quebrar em até duas linhas, mas com overflow estritamente contido (zero vazamento). */
 @media (max-width: 640px) {
+  .tl-linear .tl-entrada-linha {
+    align-items: flex-start;
+    padding: 8px 8px 8px 0;
+    overflow: hidden;
+  }
+
+  .tl-linear .tl-texto,
+  .tl-linear .tl-entrada-texto {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
   .tl-linear .tl-acao-texto {
-    white-space: normal;
-    overflow: visible;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow-wrap: anywhere;
+    white-space: normal !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    max-height: 2.8em !important;
+    line-height: 1.4 !important;
   }
 }

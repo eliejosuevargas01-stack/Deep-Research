@@ -863,10 +863,18 @@
     justify-self: start !important;
   }
 
-  /* CICLO 1: Alinhamento óptico dos ícones de persona na linha densa */
+  /* CICLO 1: Alinhamento óptico dos ícones de persona na linha densa e contenção estrita */
   .tl-linear .tl-entrada-linha {
     align-items: flex-start !important;
     padding: 8px 8px 8px 0 !important;
+    overflow: hidden !important;
+  }
+
+  .tl-linear .tl-acao-texto {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    -webkit-line-clamp: 2 !important;
+    max-height: 2.8em !important;
   }
 
   .tl-linear .tl-icone {

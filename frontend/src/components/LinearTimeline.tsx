@@ -280,7 +280,12 @@ const Passo: React.FC<PassoProps> = ({
         {rotuloInterno}
         <ChevronDown className={`tl-chevron${aberto ? ' aberto' : ''}`} size={16} aria-hidden="true" />
       </button>
-      <div id={corpoId} className="tl-entrada-corpo" hidden={!aberto}>
+      <div
+        id={corpoId}
+        className="tl-entrada-corpo"
+        hidden={!aberto}
+        style={{ display: aberto ? undefined : 'none' }}
+      >
         {hora || listaConsultas.length > 0 ? (
           <div className="tl-corpo-meta">
             {hora ? (
@@ -355,7 +360,8 @@ const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
 }) => {
   const reprovado = auditoria.status === 'reprovado';
   const reprovados: AuditCriterionDetail[] = auditoria.criterios?.filter((c) => !c.aprovado) ?? [];
-  const motivo = (reprovados[0]?.justificativa?.trim() || 'critérios não atendidos').replace(/[.;]+$/, '');
+  const motivoBruto = (reprovados[0]?.justificativa?.trim() || 'critérios não atendidos').replace(/[.;]+$/, '');
+  const motivo = motivoBruto.length > 70 ? `${motivoBruto.slice(0, 67).replace(/\s+\S*$/, '')}…` : motivoBruto;
   const percentual = Math.round(auditoria.pontuacao_percentual ?? 0);
   const frase = reprovado
     ? `reprovou o ponto ${pontoN} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos}). Motivo: ${motivo}. Nova busca em andamento.`

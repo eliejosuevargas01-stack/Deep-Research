@@ -711,6 +711,11 @@ a.gdr-source-chip:hover,
   min-width: 0;
 }
 
+.tl-entrada-corpo[hidden],
+.tl-linear .tl-entrada-corpo[hidden] {
+  display: none !important;
+}
+
 .tl-entrada-topo {
   display: flex;
   flex-wrap: wrap;
