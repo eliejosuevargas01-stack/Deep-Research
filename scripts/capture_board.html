@@ -74,8 +74,8 @@ aside .ah .s{font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--
 .tabs{display:flex;gap:4px;padding:10px 16px 0;border-bottom:1px solid var(--line2)}
 .tab{font-size:11.5px;padding:6px 10px;border-radius:6px 6px 0 0;color:var(--muted);cursor:pointer;border:1px solid transparent}
 .tab.on{color:var(--run);background:#f2f7ff;border-color:#dbe8fb;border-bottom-color:#f2f7ff}
-pre{flex:1;margin:0;padding:14px 16px 22px;overflow:auto;font-family:var(--mono);font-size:11.5px;line-height:1.55;
-  background:#fbfcfe;tab-size:2}
+pre{flex:1;margin:0;padding:14px 16px 22px;overflow:auto;font-family:var(--mono);font-size:11.5px;line-height:1.6;
+  background:#fbfcfe;tab-size:2;white-space:pre-wrap;word-break:break-word}
 .j-key{color:#2f6feb}.j-str{color:#2f8a4f}.j-num{color:#b5651d}.j-bool{color:#8250df}.j-null{color:#8b949e}
 .calls{flex:1;overflow:auto;padding:10px 12px}
 .txt{flex:1;overflow:auto;padding:14px 16px 24px;background:#fbfcfe;font-size:12px;line-height:1.6}
@@ -244,12 +244,17 @@ function stats(){
   document.getElementById('legend').innerHTML=used.map(k=>`<span><i style="background:var(${KINDS[k][2]})"></i>${KINDS[k][0]}</span>`).join('');
 }
 function syntax(v){
-  const j=JSON.stringify(v===undefined?null:v,null,2).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  return j.replace(/("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,m=>{
-    if(/^"/.test(m)) return /:$/.test(m)?`<span class="j-key">${m}</span>`:`<span class="j-str">${m}</span>`;
+  const raw=JSON.stringify(v===undefined?null:v,null,2);
+  const safe=raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return safe.replace(/("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,m=>{
+    if(/^"/.test(m)) return /:$/.test(m)?`<span class="j-key">${m}</span>`:`<span class="j-str">${expand(m)}</span>`;
     if(/true|false/.test(m)) return `<span class="j-bool">${m}</span>`;
     if(/null/.test(m)) return `<span class="j-null">${m}</span>`;
     return `<span class="j-num">${m}</span>`;});
+}
+/* Converte escapes \n / \t / \r de strings JSON em quebras e indentação reais */
+function expand(tok){
+  return tok.replace(/\\r\\n|\\n|\\r/g,'\n      ').replace(/\\t/g,'    ');
 }
 function showTab(t){
   curTab=t;
