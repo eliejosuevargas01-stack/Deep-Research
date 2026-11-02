@@ -19,10 +19,10 @@ const ROTEIRO: Array<{ ate: number; stage: PipelineStage }> = [
 ];
 
 const TODAS_FONTES_SIM: FonteExplorerItem[] = [
-  { url: 'https://www.bcb.gov.br/estabilidadefinanceira/relatorios', titulo: 'Banco Central - Relatório de Estabilidade Financeira', dominio: 'bcb.gov.br', status: 'processado', ponto_n: 1 },
-  { url: 'https://www.dieese.org.br/estudosepesquisas/bancarios', titulo: 'DIEESE - Emprego Bancário 2014-2024', dominio: 'dieese.org.br', status: 'processado', ponto_n: 1 },
-  { url: 'https://www.contrafcut.org.br/acordos-coletivos', titulo: 'Contraf-CUT - Cláusulas de Requalificação', dominio: 'contrafcut.org.br', status: 'processado', ponto_n: 1 },
-  { url: 'https://mte.gov.br/rais-caged-2024', titulo: 'Ministério do Trabalho - RAIS/CAGED Setorial', dominio: 'mte.gov.br', status: 'processado', ponto_n: 2 },
+  { url: 'https://www.bcb.gov.br/estabilidadefinanceira/relatorios', titulo: 'Banco Central - Relatório de Estabilidade Financeira', dominio: 'bcb.gov.br', status: 'utilizada', ponto_n: 1 },
+  { url: 'https://www.dieese.org.br/estudosepesquisas/bancarios', titulo: 'DIEESE - Emprego Bancário 2014-2024', dominio: 'dieese.org.br', status: 'utilizada', ponto_n: 1 },
+  { url: 'https://www.contrafcut.org.br/acordos-coletivos', titulo: 'Contraf-CUT - Cláusulas de Requalificação', dominio: 'contrafcut.org.br', status: 'utilizada', ponto_n: 1 },
+  { url: 'https://mte.gov.br/rais-caged-2024', titulo: 'Ministério do Trabalho - RAIS/CAGED Setorial', dominio: 'mte.gov.br', status: 'utilizada', ponto_n: 2 },
   { url: 'https://febraban.org.br/dados-setor-2024', titulo: 'FEBRABAN - Relatório de Tecnologia Bancária', dominio: 'febraban.org.br', status: 'lendo', ponto_n: 2 },
   { url: 'https://ibge.gov.br/pesquisa-servicos-financeiros', titulo: 'IBGE - Pesquisa Anual de Serviços', dominio: 'ibge.gov.br', status: 'lendo', ponto_n: 3 },
   { url: 'https://ipea.gov.br/automacao-mercado-trabalho', titulo: 'IPEA - Impactos da Automação no Setor Financeiro', dominio: 'ipea.gov.br', status: 'lendo', ponto_n: 3 },
@@ -105,7 +105,7 @@ export const SimulatedResearch: React.FC = () => {
     const qtd = Math.min(TODAS_FONTES_SIM.length, Math.max(2, Math.floor(segundos / 3) + 2));
     return TODAS_FONTES_SIM.slice(0, qtd).map((f, idx) => ({
       ...f,
-      status: stage === 'searching' && idx >= qtd - 2 ? ('lendo' as const) : ('processado' as const),
+      status: stage === 'searching' && idx >= qtd - 2 ? ('lendo' as const) : ('utilizada' as const),
     }));
   }, [segundos, stage]);
 

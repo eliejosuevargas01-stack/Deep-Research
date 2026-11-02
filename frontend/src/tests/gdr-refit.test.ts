@@ -37,7 +37,7 @@ assert.equal(itens[0].status, 'lendo');
 assert.equal(itens[0].ponto_n, 1);
 
 const itens2 = derivarFontesParaExplorer(search, { emColeta: false });
-assert.equal(itens2[0].status, 'processado');
+assert.equal(itens2[0].status, 'utilizada');
 
 import React from 'react';
 import { renderToString } from 'react-dom/server';
@@ -46,7 +46,7 @@ const html = renderToString(
   React.createElement(ContextSidebar, {
     plan: { id_pesquisa: '773ceba0-0000-0000-0000-000000000000', tema: 't', n_pontos: 1, criado_em: new Date().toISOString(), pontos: [], metadados_modelo: { usage_total: { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 } } } as any,
     metadadosModelo: { usage_total: { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 } } as any,
-    fontes: [{ url: 'https://example.com/a', titulo: 'Artigo A', dominio: 'example.com', status: 'processado', ponto_n: 1 }],
+    fontes: [{ url: 'https://example.com/a', titulo: 'Artigo A', dominio: 'example.com', status: 'utilizada', ponto_n: 1 }],
   })
 );
 assert.ok(html.includes('tokens'), 'rail exibe medidor de tokens');

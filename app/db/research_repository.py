@@ -1749,7 +1749,9 @@ class ResearchRepository:
         meta_final["generation_attempt_ids"] = persisted_ids
         meta_final["finalizado_em"] = agora
 
-        publicado_dossier = dossier_final if status_pipeline == "concluido" else None
+        # Dossiê entregue é persistido mesmo com status 'incompleto' (relatório com
+        # ressalvas, PRD v3 RF-006-D); o chamador decide quando enviar texto.
+        publicado_dossier = dossier_final if dossier_final else None
         concluido_timestamp = agora if status_pipeline == "concluido" else None
         if concluido_timestamp:
             meta_final["concluido_em"] = concluido_timestamp

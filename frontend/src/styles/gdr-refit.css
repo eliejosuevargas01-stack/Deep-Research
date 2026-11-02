@@ -246,16 +246,16 @@ a.gdr-source-chip:focus-visible,
   border-color: var(--color-accent-border);
 }
 
-.gdr-source-status.is-processado {
+.gdr-source-status.is-utilizada {
   color: var(--color-success-text);
   background: var(--color-success-bg);
   border-color: var(--color-success-border);
 }
 
-.gdr-source-status.is-invalidado {
-  color: var(--color-danger-text);
-  background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
+.gdr-source-status.is-lida_nao_utilizada {
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
 }
 
 .gdr-source-link-icon {

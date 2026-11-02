@@ -363,9 +363,12 @@ const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
   const motivoBruto = (reprovados[0]?.justificativa?.trim() || 'critérios não atendidos').replace(/[.;]+$/, '');
   const motivo = motivoBruto.length > 70 ? `${motivoBruto.slice(0, 67).replace(/\s+\S*$/, '')}…` : motivoBruto;
   const percentual = Math.round(auditoria.pontuacao_percentual ?? 0);
+  const aprovadoValido = auditoria.status === 'aprovado' && (auditoria.criterios_aprovados ?? 0) > 0;
   const frase = reprovado
     ? `reprovou o ponto ${pontoN} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos}). Motivo: ${motivo}. Nova busca em andamento.`
-    : `aprovou o ponto ${pontoN} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos})`;
+    : aprovadoValido
+    ? `aprovou o ponto ${pontoN} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos})`
+    : `avalia o ponto ${pontoN} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos})`;
 
   const acoes =
     reprovado && (onRefazerBuscaPonto || onReauditarPonto) ? (
@@ -415,8 +418,8 @@ const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
           <p className="tl-callout-score">
             <strong>{`${percentual}%`}</strong>
             <span>{`${auditoria.criterios_aprovados}/${minimos} critérios`}</span>
-            <span className={`tl-callout-status ${reprovado ? 'reprovado' : 'aprovado'}`}>
-              {reprovado ? 'reprovado' : 'aprovado'}
+            <span className={`tl-callout-status ${reprovado ? 'reprovado' : aprovadoValido ? 'aprovado' : 'auditando'}`}>
+              {reprovado ? 'reprovado' : aprovadoValido ? 'aprovado' : 'auditando'}
             </span>
           </p>
           {reprovados.length > 0 ? (
@@ -589,13 +592,7 @@ export const LinearTimeline: React.FC<LinearTimelineProps> = ({
                     idBase={`${idSeguro(ponto.ponto_id)}-auditoria-pendente`}
                     persona="auditor"
                     rotulo="Auditor"
-                    resumo={
-                      personas.length >= 2
-                        ? `analisando discrepâncias entre ${nomePersona(personas[0].persona)} e ${nomePersona(
-                            personas[1].persona,
-                          )}`
-                        : `analisando o ponto ${ponto.ponto_n} com foco em contradições entre alegações`
-                    }
+                    resumo={`aguardando parecer do auditor no ponto ${ponto.ponto_n}`}
                     expandirControle={expandirTodos}
                   />
                 )}

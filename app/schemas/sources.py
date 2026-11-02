@@ -18,6 +18,10 @@ class FonteItem(BaseModel):
     url: str = Field(..., description="URL canônica pública da fonte")
     titulo: Optional[str] = Field(default=None, description="Título público da página quando disponível")
     dominio: Optional[str] = Field(default=None, description="Domínio normalizado extraído da URL")
+    uso: Optional[Literal["utilizada", "lida_nao_utilizada"]] = Field(
+        default=None,
+        description="Uso classificado já na fase de busca (quando o dossiê ainda não existe)",
+    )
 
 
 class FontesResumo(BaseModel):

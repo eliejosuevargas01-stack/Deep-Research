@@ -7,10 +7,29 @@ Derivado de:
 Atende a T022.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from app.schemas.execution import ExecutionMode
+
+
+class FonteColetaItem(BaseModel):
+    """URL do catálogo de coleta com uso e metadados públicos (PRD v3)."""
+
+    url: str = Field(..., description="URL canônica da fonte")
+    uso: Literal["utilizada", "lida_nao_utilizada"] = Field(
+        ...,
+        description="utilizada: eleita como referência pela persona; lida_nao_utilizada: apenas lida",
+    )
+    titulo: Optional[str] = Field(default=None, description="Título público da página quando disponível")
+    data_fonte: Optional[str] = Field(default=None, description="Data de publicação observada na fonte")
+    status: Literal["read_ok", "snippet_only"] = Field(
+        default="read_ok",
+        description=(
+            "read_ok: página lida integralmente; snippet_only: URL eleita vista apenas no resultado "
+            "de busca (PRD v3, RF-004-D)"
+        ),
+    )
 
 
 class PersonaColetaItem(BaseModel):
@@ -31,6 +50,14 @@ class PersonaColetaItem(BaseModel):
     urls_fonte: List[str] = Field(
         default_factory=list,
         description="Lista de URLs canônicas selecionadas como referência pela persona",
+    )
+    urls_lidas: List[str] = Field(
+        default_factory=list,
+        description="Lista de URLs efetivamente lidas pela persona (status read_ok)",
+    )
+    fontes: List[FonteColetaItem] = Field(
+        default_factory=list,
+        description="Fontes da persona com uso classificado já na fase de busca",
     )
     queries_executadas: int = Field(
         default=0,
@@ -104,7 +131,7 @@ class SearchColetaResumo(BaseModel):
     tamanho_conteudo_caracteres: int = Field(
         ...,
         ge=0,
-        description="Volume textual integral coletado em caracteres",
+        description="Volume textual dos resumos acumulados em caracteres",
     )
     tentativas: int = Field(
         default=1,
@@ -121,15 +148,7 @@ class SearchColetaResumo(BaseModel):
     )
     fontes: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="Mapa único de fontes web coletadas no ponto",
-    )
-    trechos: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Trechos com IDs backend e offsets verificáveis no corpo",
-    )
-    selecao_contexto: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Ledger de seleção de contexto com orçamento explícito",
+        description="Catálogo de URLs do ponto com uso classificado (sem corpo bruto)",
     )
     recencia: Optional[Dict[str, Any]] = Field(
         default=None,

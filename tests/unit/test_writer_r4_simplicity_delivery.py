@@ -309,7 +309,7 @@ async def test_r4_prompts_single_canonical_definition_and_stable_input_hash(
     # Reconstrução a partir dos builders (definição canônica única) sobre a base persistida
     pesquisa = await repo.get_research(id_pesquisa)
     assert pesquisa is not None
-    pontos, coletas, auditorias = await writer._verificar_prontidao(id_pesquisa, pesquisa)
+    pontos, coletas, auditorias, _ignorados = await writer._verificar_prontidao(id_pesquisa, pesquisa)
     contexto_dict, *_ = writer._montar_contexto_estruturado(pesquisa, pontos, coletas, auditorias)
     plano_obj = contexto_dict.get("plano", {})
     publico = plano_obj.get("publico") or "Especialistas e tomadores de decisão"

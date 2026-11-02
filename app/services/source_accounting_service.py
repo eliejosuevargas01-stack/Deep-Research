@@ -294,6 +294,8 @@ class SourceAccountingService:
         # 1. Mapeamento de fontes consultadas a partir das evidências reais de leitura
         consultadas_map: Dict[str, FonteItem] = {}
         disqualified_canon_keys: Set[str] = set()
+        # URLs eleitas como fonte pelas personas: permitem classificar uso já na busca
+        urls_fonte_keys: Set[str] = set()
 
         for col in coletas:
             meta_col: Dict[str, Any] = {}
@@ -307,57 +309,66 @@ class SourceAccountingService:
                 except Exception:
                     meta_col = {}
 
-            fontes_dict = meta_col.get("fontes", {}) if isinstance(meta_col, dict) else {}
-            if isinstance(fontes_dict, dict) and fontes_dict:
-                for _sid, finfo in fontes_dict.items():
-                    if not isinstance(finfo, dict):
+            fontes_raw = meta_col.get("fontes", {}) if isinstance(meta_col, dict) else {}
+            if isinstance(fontes_raw, dict):
+                fontes_itens = list(fontes_raw.values())
+                tem_catalogo = bool(fontes_raw)
+            elif isinstance(fontes_raw, list):
+                fontes_itens = fontes_raw
+                tem_catalogo = bool(fontes_raw)
+            else:
+                fontes_itens = []
+                tem_catalogo = False
+
+            for finfo in fontes_itens:
+                if not isinstance(finfo, dict):
+                    continue
+                normalized = normalize_and_validate_url(finfo.get("url"))
+                if not normalized:
+                    continue
+                canon_key, clean_url, domain = normalized
+                status = str(finfo.get("status") or "").lower().strip()
+                if status == "snippet_only":
+                    # URL eleita sem leitura: não entra em "consultadas", mas não invalida a fonte.
+                    continue
+                if status != "read_ok":
+                    # PRD v3: status desconhecido no catálogo é falha explícita.
+                    disqualified_canon_keys.add(canon_key)
+                    continue
+                titulo = finfo.get("titulo") or finfo.get("title")
+                if canon_key not in consultadas_map:
+                    consultadas_map[canon_key] = FonteItem(
+                        url=clean_url,
+                        titulo=str(titulo).strip() if titulo else None,
+                        dominio=domain,
+                    )
+                elif not consultadas_map[canon_key].titulo and titulo:
+                    consultadas_map[canon_key].titulo = str(titulo).strip()
+
+            # URLs eleitas pelas personas em QUALQUER rodada (uso sem depender de dossiê)
+            personas_meta = meta_col.get("resultados_personas") if isinstance(meta_col, dict) else None
+            if isinstance(personas_meta, dict):
+                for p_data in personas_meta.values():
+                    if not isinstance(p_data, dict):
                         continue
-                    raw_u = finfo.get("url")
-                    normalized = normalize_and_validate_url(raw_u)
-                    if not normalized:
-                        continue
-                    canon_key, clean_url, domain = normalized
-
-                    status = str(finfo.get("status") or "").lower().strip()
-                    raw_body = finfo.get("body")
-                    if not isinstance(raw_body, str):
-                        raw_body = ""
-                    body = raw_body.strip()
-
-                    raw_length = finfo.get("length")
-                    parsed_length: Optional[int] = None
-                    if isinstance(raw_length, int):
-                        parsed_length = raw_length
-                    elif isinstance(raw_length, str) and raw_length.strip().isdigit():
-                        try:
-                            parsed_length = int(raw_length.strip())
-                        except (ValueError, TypeError):
-                            parsed_length = None
-
-                    if parsed_length is None and body:
-                        parsed_length = len(body)
-
-                    # Exige materialidade comprovada (read_ok com texto real não-vazio)
-                    has_material_corpus = bool(body) and (parsed_length is not None and parsed_length > 0)
-
-                    if status == "read_ok" and has_material_corpus:
-                        titulo = finfo.get("title") or finfo.get("titulo")
-                        if not titulo and body:
-                            m_tit = re.match(r"^Title:\s*(.+)$", body, re.MULTILINE)
-                            if m_tit:
-                                titulo = m_tit.group(1).strip()
-
-                        if canon_key not in consultadas_map:
-                            consultadas_map[canon_key] = FonteItem(
-                                url=clean_url,
-                                titulo=str(titulo).strip() if titulo else None,
-                                dominio=domain,
-                            )
-                        elif not consultadas_map[canon_key].titulo and titulo:
-                            consultadas_map[canon_key].titulo = str(titulo).strip()
-                    else:
-                        # Falha explícita, snippet_only ou read_ok vazio: desqualificado
-                        disqualified_canon_keys.add(canon_key)
+                    for raw_u in p_data.get("urls_fonte") or []:
+                        normalized_f = normalize_and_validate_url(raw_u)
+                        if normalized_f:
+                            urls_fonte_keys.add(normalized_f[0])
+            if col.urls_fonte:
+                try:
+                    fonte_col = (
+                        json.loads(col.urls_fonte)
+                        if isinstance(col.urls_fonte, str)
+                        else col.urls_fonte
+                    )
+                except Exception:
+                    fonte_col = []
+                if isinstance(fonte_col, list):
+                    for raw_u in fonte_col:
+                        normalized_f = normalize_and_validate_url(raw_u)
+                        if normalized_f:
+                            urls_fonte_keys.add(normalized_f[0])
 
             # Processa urls_lidas: fallback para coletas históricas sem metadados estruturados
             if col.urls_lidas:
@@ -371,8 +382,6 @@ class SourceAccountingService:
                     lidas_list = []
 
                 if isinstance(lidas_list, list):
-                    # Coleta sem fontes_dict detalhado mas com texto material substantivo
-                    has_col_body = bool(col.conteudo_coletado and col.conteudo_coletado.strip())
                     for raw_u in lidas_list:
                         normalized = normalize_and_validate_url(raw_u)
                         if not normalized:
@@ -383,14 +392,13 @@ class SourceAccountingService:
                         if canon_key in disqualified_canon_keys:
                             continue
 
-                        # Se não havia fontes_dict mas há corpus material na coleta legada
-                        if not fontes_dict and has_col_body:
-                            if canon_key not in consultadas_map:
-                                consultadas_map[canon_key] = FonteItem(
-                                    url=clean_url,
-                                    titulo=None,
-                                    dominio=domain,
-                                )
+                        # Coleta legada sem catálogo: a própria urls_lidas é a evidência.
+                        if not tem_catalogo and canon_key not in consultadas_map:
+                            consultadas_map[canon_key] = FonteItem(
+                                url=clean_url,
+                                titulo=None,
+                                dominio=domain,
+                            )
 
         # 2. Extração de citações no dossiê final publicado
         dossier_text = dossier_override if dossier_override is not None else pesquisa.dossier_final
@@ -469,17 +477,33 @@ class SourceAccountingService:
         consultadas_list = sorted(consultadas_map.values(), key=lambda x: (x.dominio or "", x.url))
 
         if not has_dossier:
-            # Evidências existem, mas o dossiê final ainda não foi publicado
+            # PRD v2, I-5/RF-004: o uso é computável já na fase de busca — fonte eleita
+            # pelas personas (urls_fonte) é "utilizada"; as demais read_ok são
+            # "lida_nao_utilizada". Nada depende do dossiê nem de dossier_override.
+            utilizadas_busca: List[FonteItem] = []
+            nao_utilizadas_busca: List[FonteItem] = []
+            for canon_key, item in sorted(
+                consultadas_map.items(), key=lambda kv: (kv[1].dominio or "", kv[1].url)
+            ):
+                if canon_key in urls_fonte_keys:
+                    item.uso = "utilizada"
+                    utilizadas_busca.append(item)
+                else:
+                    item.uso = "lida_nao_utilizada"
+                    nao_utilizadas_busca.append(item)
             return FontesResumo(
                 id_pesquisa=id_pesquisa,
                 status="parcial",
                 total_consultadas=len(consultadas_list),
-                total_utilizadas=None,
-                total_nao_utilizadas=None,
+                total_utilizadas=len(utilizadas_busca),
+                total_nao_utilizadas=len(nao_utilizadas_busca),
                 consultadas=consultadas_list,
-                utilizadas=[],
-                nao_utilizadas=[],
-                observacao="Dossiê final ainda não publicado; fontes utilizadas e não utilizadas não consolidadas.",
+                utilizadas=utilizadas_busca,
+                nao_utilizadas=nao_utilizadas_busca,
+                observacao=(
+                    "Dossiê final ainda não publicado; uso classificado na fase de busca "
+                    "(urls_fonte das personas contra fontes read_ok)."
+                ),
                 artifact_hash=None,
             )
 

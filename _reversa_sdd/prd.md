@@ -97,6 +97,7 @@
 - 🟡 Nenhuma informação coletada pode ser cortada, resumida indevidamente ou silenciosamente omitida no tráfego entre estágios.
 - 🟡 São vedados: `text[:N]`, `slice`, `max_length` de conteúdo coletado, cap de tokens aplicado por corte, "resumo automático" que substitui o original.
 - 🟡 Abrangência explícita: (a) resposta da tool de busca; (b) entrada de `plan` e `search`; (c) entrada de `audit` e `writer`.
+- 🟡 **Volatilidade do bruto (v3)**: o texto integral das páginas devolvido pela Jina vive **apenas em RAM** durante a rodada. É proibido persistir `body`, `trechos`/`chunks` ou offsets/hashes de corpo em `conteudo_coletado`. O único artefato que atravessa estágios é o **resumo do especialista** (`analise`), acompanhado de `urls_utilizadas` e `urls_lidas_nao_utilizadas`. Auditor e redator nunca recebem o bruto.
 - 🟡 Se o volume exceder o limite do provedor de LLM, o comportamento obrigatório é **insuficiência explícita** (erro/diagnóstico), nunca corte oculto e nunca aprovação parcial disfarçada.
 - 🟡 Corolário: limites de **validação de entrada** (ex.: tamanho do briefing) não podem rejeitar material legítimo de pesquisa; quando existirem, devem ser justificados e documentados, e nunca operar por corte silencioso.
 
@@ -112,7 +113,7 @@
 
 - 🟡 Cada ponto é processado por 4 personas/workers (`historiador`, `visionario`, `cetico`, `futurista`).
 - 🟡 As respostas das 4 personas de um ponto são **consolidadas em um único pacote por ponto** antes de ir para o `audit`.
-- 🟡 O pacote contém, por persona: análise integral, conclusões estruturadas (`claim_id`, `afirmacao`, `tipo`, `evidencias`, `confianca`, `limitacoes`), lacunas, motivo de parada, diário de ações e ledger de seleção de contexto.
+- 🟡 O pacote contém, por persona: **resumo integral** (`analise`), `urls_utilizadas` (`urls_fonte`), `urls_lidas_nao_utilizadas` e `lacunas`. Conclusões estruturadas são opcionais e, quando existirem, citam URLs — nunca chunks.
 - 🟡 O `audit` recebe essa visão unificada do ponto e responde às **12 perguntas de validação** sobre ela — nunca sobre uma persona isolada.
 
 ### I-5. Acúmulo integral do histórico em retries (sem sobrescrita)
@@ -120,7 +121,7 @@
 - 🟡 Quando o `audit` reprova um ponto e dispara novo `search`, os dados das tentativas anteriores **não** podem ser descartados, sobrescritos ou substituídos.
 - 🟡 Modelo obrigatório: histórico **append-only** por ponto. Cada passagem cria uma nova rodada de coleta (`rodada`), preservando todas as anteriores.
 - 🟡 O contexto entregue a `audit` (inclusive em validações subsequentes), a `writer` e a `plan` (em reavaliação) deve conter **a soma acumulada e integral de todas as coletas daquele ponto** — nunca apenas a última.
-- 🟡 Exemplo normativo: ponto com tentativa inicial + 3 retries ⇒ 4 rodadas ⇒ as 4 rodadas compõem o contexto, com suas análises, conclusões, fontes e trechos.
+- 🟡 Exemplo normativo: ponto com tentativa inicial + 3 retries ⇒ 4 rodadas ⇒ as 4 rodadas compõem o contexto, com seus resumos e o catálogo de URLs (utilizadas / lidas não utilizadas).
 - 🟡 Compatibilidade com o controle de staleness: a decisão de aprovação continua exigindo evidência válida da rodada corrente (fence de concorrência), mas a **presença** das rodadas anteriores no contexto é obrigatória. Ver [`sdd/endpoint-auditoria-de-qualidade.md`](./sdd/endpoint-auditoria-de-qualidade.md) §9-A.
 - 🟡 Esta regra **supera** o adendo v5 (Audit), que determinava uso exclusivo da coleta mais recente como corpus de avaliação.
 
@@ -151,17 +152,21 @@
 - 🟡 **RF-004-B** (v2): cada ponto produz um pacote consolidado das 4 personas (I-4).
 - 🟡 **RF-004-C** (v2): nova passagem de `search` sobre um ponto **acrescenta** rodada; nunca sobrescreve as anteriores (I-5).
 
+- 🟡 **RF-004-D** (v3): o texto bruto das páginas da Jina é descartado ao fim de cada persona; persistem apenas `resumo` (`analise`), `urls_utilizadas` e `urls_lidas_nao_utilizadas` no catálogo do ponto.
+
 ### Etapa 3 — Auditoria
 
 - 🟡 **RF-005**: `POST /api/v1/audit` recebe `id_pesquisa` do banco → LLM forte responde 12 perguntas de qualidade sobre o conteúdo coletado → parser (`id_pesquisa`, `tema`, `id_ponto`, `ponto`, `aprovado|reprovado`, `pontos_fracos`) → banco.
-- 🟡 **RF-005-A** (v2): a entrada do `audit` é a visão unificada das 4 personas do ponto **somada ao histórico integral de todas as rodadas** (I-4, I-5); nenhuma rodada é omitida.
+- 🟡 **RF-005-A** (v2): a entrada do `audit` é a soma acumulada dos **resumos** das 4 personas de todas as rodadas do ponto (I-4, I-5), mais o catálogo de URLs com uso; nenhuma rodada é omitida e nenhum texto bruto é enviado.
+- 🟡 **RF-005-C** (v3): a validação do auditor é sobre o conteúdo dos resumos e o catálogo de URLs; checagem de `body`/`hash`/offsets de trechos é inexistente porque o bruto não é persistido.
 - 🟡 **RF-005-B** (v2): a entrada do `audit` não é truncada. Volume acima do limite do provedor gera insuficiência explícita, nunca corte.
 
 ### Etapa 4 — Redação
 
 - 🟡 **RF-006**: `POST /api/v1/writer` recebe `id_pesquisa` do banco (somente quando todos os pontos finalizados) → concatena tudo → LLM forte gera dossier completo com fontes canônicas marcadas → parser → banco → POST para webhook de callback.
-- 🟡 **RF-006-A** (v2): o contexto do `writer` contém todas as rodadas de coleta de cada ponto (I-5), com análises, conclusões, fontes e trechos; nenhuma rodada anterior é descartada.
+- 🟡 **RF-006-A** (v3): o contexto do `writer` contém os resumos integrais de todas as rodadas de cada ponto, mais as listas de URLs `utilizadas` e `lidas_nao_utilizadas`; nenhuma rodada anterior é descartada e nenhum texto bruto é enviado.
 - 🟡 **RF-006-B** (v2): a entrada do `writer` não é truncada por limite artificial.
+- 🟡 **RF-006-D** (v3): esgotar o teto de tentativas (4 buscas / 3 auditorias) **nunca** impede a entrega do relatório final. O pipeline segue para o `writer`, que redige os eixos disponíveis e publica o dossiê com a seção `## Ressalvas da auditoria` declarando, por ponto, status, critérios reprovados e lacunas. Ponto sem coleta utilizável é omitido do relatório e listado nessas ressalvas; o dossiê é persistido mesmo que a autoavaliação do texto não atinja o limiar, com `status_pipeline=incompleto`. Bloqueio só é permitido quando ainda há retry disponível.
 
 ### Administração e configuração
 
@@ -176,8 +181,8 @@
 - 🟡 **`pesquisa`** — usada pelo endpoint 1 (cadastro) e pelo writer (relatório final). Campos mínimos: 🟡 `id_pesquisa`, `tema`.
 - 🟡 **`pontos`** — usada pelo plan (1 item por ponto) e pelo auditor (status). Campos: 🟡 `tema`, `id_pesquisa`, `ponto_id`, `ponto_n`, `ponto`, `aprovado|reprovado`, `pontos_fracos`, `tentativas`, `tentativas_auditoria`.
 - 🟡 **`conteudo_coletado`** — usada pelo search, pelo auditor e pelo writer. Uma linha **por rodada** de coleta do ponto (append-only). Campos: 🟡 `tema`, `id_pesquisa`, `ponto`, `ponto_id`, `rodada`, `conteudo_coletado`, `urls_lidas`, `urls_fonte`, `metadados_coleta`.
-- 🟡 **`metadados_coleta.resultados_personas`** — pacote consolidado das 4 personas do ponto (I-4), com `analise`, `conclusoes`, `lacunas`, `motivo_parada`, `sucesso`, `urls_fonte`, `queries_executadas`.
-- 🟡 **`metadados_coleta.fontes` / `metadados_coleta.trechos`** — corpus canônico da rodada: corpo integral (`body`, `body_hash`) e trechos com `text`, `text_hash`, `start_offset`, `end_offset`.
+- 🟡 **`metadados_coleta.resultados_personas`** — pacote consolidado das 4 personas do ponto (I-4), com `analise` (resumo acumulado), `urls_fonte`, `urls_lidas`, `lacunas`, `motivo_parada`, `sucesso`, `queries_executadas`.
+- 🟡 **`metadados_coleta.fontes`** (v3) — catálogo de URLs do ponto acumulado entre rodadas: `url`, `status` (`read_ok` | `snippet_only`), `uso` (`utilizada` | `lida_nao_utilizada`), `titulo`, `data_fonte`. URL eleita por persona que nunca foi lida entra com `status=snippet_only` e `uso=utilizada`; nunca é omitida do catálogo (RF-004-D). **Sem `body`, sem `body_hash`, sem `trechos`, sem offsets** — o bruto da Jina não é persistido (I-2 v3).
 - 🟡 **`metadados_coleta.auditorias`** — histórico estruturado de pareceres por rodada (12 critérios, corte, contagem, percentual, decisão, tarefas).
 - 🟡 **`credenciais`** (tabela criptografada) — 🟡 chave, base URL, preferência; override por variável de ambiente do container.
 

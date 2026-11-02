@@ -223,7 +223,7 @@ async def test_writer_enforces_100_percent_canonical_sources_and_structure(
             "valido": True,
             "aplicado": True,
             "status": "aprovado",
-            "criterios": make_audit_12_vector(12),
+            "criterios": make_audit_12_vector(12, known_source_ids=[canonical_url]),
             "criterios_aprovados": 12,
             "criterios_minimos": 11,
             "pontuacao_percentual": 100.0,

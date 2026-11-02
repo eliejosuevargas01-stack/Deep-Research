@@ -881,7 +881,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
 
         {/* Estado: Redigindo */}
         {stage === 'writing' && (
-          <div className="alert-banner info">
+          <div className="exec-writing-note" role="status">
             <span className="spinner" aria-hidden="true" />
             <div>
               <strong>Pontos aprovados. Redigindo o dossiê.</strong>

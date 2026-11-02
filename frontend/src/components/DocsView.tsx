@@ -138,7 +138,7 @@ export const DocsView: React.FC = () => {
         </p>
         <ul>
           <li>
-            <strong>Fontes Consultadas (<code>consultadas</code>):</strong> Páginas e documentos com leitura confirmada (status <code>read_ok</code>, texto obtido pelo Jina Web Reader).
+            <strong>Fontes Consultadas (<code>consultadas</code>):</strong> Páginas lidas (status <code>read_ok</code>, texto obtido pelo Jina Web Reader). O catálogo do ponto também lista URLs eleitas sem leitura como <code>snippet_only</code>, marcadas com uso <code>utilizada</code>.
           </li>
           <li>
             <strong>Fontes Utilizadas (<code>utilizadas</code>):</strong> Fontes explicitamente citadas no dossiê final publicado e rastreáveis às evidências comprovadas da pesquisa.

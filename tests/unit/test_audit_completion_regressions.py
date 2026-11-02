@@ -477,7 +477,7 @@ async def test_r5_audit_feedback_projects_real_claims_and_urls_in_normal_and_cac
     vector_10 = make_audit_12_vector(
         10,
         known_claim_ids=["claim_1", "claim_2", "claim_3", "claim_4"],
-        known_source_ids=["src_1"],
+        known_source_ids=["https://php.net/security-2026-cve"],
     )
     vector_10[10]["lacuna"] = "Falta confirmação do impacto em versões legadas"
     vector_10[10]["correcao"] = "Consultar advisories complementares do PHP 8.1 e 8.2"
@@ -508,7 +508,6 @@ async def test_r5_audit_feedback_projects_real_claims_and_urls_in_normal_and_cac
     assert "PHP 8.3.13 mitigou vulnerabilidade" in pf_normal, "pontos_fracos deve conter a afirmação real do claim"
     assert "https://php.net/security-2026-cve" in pf_normal, "pontos_fracos deve conter a URL real da fonte"
     assert "claim_1" in pf_normal, "pontos_fracos deve manter o ID para rastreabilidade"
-    assert "src_1" in pf_normal, "pontos_fracos deve manter o ID de fonte"
     assert "cetico" in pf_normal, "pontos_fracos deve conter a persona pertinente"
     assert "visionario" not in pf_normal, "pontos_fracos não deve incluir personas não listadas para a falha"
 
@@ -571,7 +570,7 @@ async def test_r5_searcher_receives_projected_audit_feedback_in_system_prompt(
     vector_10 = make_audit_12_vector(
         10,
         known_claim_ids=["claim_1", "claim_2", "claim_3", "claim_4"],
-        known_source_ids=["src_1"],
+        known_source_ids=["https://php.net/security-2026-cve"],
     )
     vector_10[10]["lacuna"] = "Falta confirmação do impacto em versões legadas"
     vector_10[10]["correcao"] = "Consultar advisories complementares do PHP 8.1 e 8.2"
@@ -1107,7 +1106,7 @@ async def test_r6_audit_internal_json_repair_cancellation_preserves_first_envelo
         r_init = ResearchRepository(session=s_init)
         pesq, pontos = await create_research_fixture_with_plan(r_init)
         ponto = pontos[0]
-        meta = make_standard_coleta_metadata()
+        meta = make_standard_coleta_metadata(source_url="https://exemplo.org/artigo-seguranca")
         coleta = await r_init.save_collected_content(
             id_pesquisa=pesq.id_pesquisa,
             ponto_id=ponto.ponto_id,

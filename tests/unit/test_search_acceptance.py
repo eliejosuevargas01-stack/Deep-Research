@@ -285,28 +285,27 @@ async def test_search_quatro_personas_sucesso_e_ids_offsets_verificaveis(db_sess
     meta = json.loads(c.metadados_coleta)
 
     assert "fontes" in meta
-    assert "trechos" in meta
-    assert "selecao_contexto" in meta
+    assert "resultados_personas" in meta
     assert "diario_acoes" in meta
+    assert "trechos" not in meta and "selecao_contexto" not in meta
 
-    # Verifica integridade dos offsets e hashes dos trechos
+    # PRD v3: catálogo só com URL/uso/título/status; resumo por persona
     fontes = meta["fontes"]
-    trechos = meta["trechos"]
+    if isinstance(fontes, dict):
+        fontes = list(fontes.values())
     assert len(fontes) >= 1
-    assert len(trechos) >= 1
+    for fonte in fontes:
+        assert fonte["url"].startswith("http")
+        assert fonte["status"] == "read_ok"
+        assert fonte["uso"] in {"utilizada", "lida_nao_utilizada"}
+        assert "body" not in fonte and "body_hash" not in fonte
 
-    for chk_id, chk in trechos.items():
-        src_id = chk["source_id"]
-        assert src_id in fontes
-        src_body = fontes[src_id]["body"]
-        start = chk["start_offset"]
-        end = chk["end_offset"]
-        text = chk["text"]
-        # Offsets no corpo armazenado
-        assert src_body[start:end] == text, f"Offset do trecho {chk_id} não bate com o corpo!"
-        # Hash do texto
-        expected_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-        assert chk["text_hash"] == expected_hash
+    personas_meta = meta["resultados_personas"]
+    assert len(personas_meta) >= 1
+    for persona in personas_meta.values():
+        assert persona.get("analise")
+        assert "body" not in json.dumps(persona)
+        assert "chunk_id" not in json.dumps(persona)
 
 
 # -----------------------------------------------------------------------------
@@ -925,7 +924,7 @@ async def test_search_ids_inventados_rejeitados(db_session: AsyncSession) -> Non
 # -----------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_search_historico_real_reaproveitavel(db_session: AsyncSession) -> None:
-    """12. Em rodada subsequente (retry pós-reprovação), corpos da rodada anterior são acessíveis."""
+    """12. Em rodada subsequente, o catálogo de URLs da rodada anterior é reaproveitado; corpo bruto não persiste (PRD v3)."""
     mock_net = MockNetwork()
     received_history_text = ""
 
@@ -949,12 +948,22 @@ async def test_search_historico_real_reaproveitavel(db_session: AsyncSession) ->
 
     # Simula rodada 1 com metadados estruturados de coleta
     meta_r1 = {
-        "versao": 1,
-        "fontes": {
-            "src_1": {
+        "versao": 3,
+        "fontes": [
+            {
                 "url": "https://historia-antiga.org/doc",
-                "body": "Corpo da rodada 1 que deve ser acessível como histórico real.",
+                "uso": "utilizada",
+                "titulo": "Documento histórico",
                 "status": "read_ok",
+            }
+        ],
+        "resultados_personas": {
+            "historiador": {
+                "persona": "historiador",
+                "analise": "Resumo persistido da rodada 1.",
+                "urls_fonte": ["https://historia-antiga.org/doc"],
+                "urls_lidas": ["https://historia-antiga.org/doc"],
+                "sucesso": True,
             }
         },
     }
@@ -983,8 +992,8 @@ async def test_search_historico_real_reaproveitavel(db_session: AsyncSession) ->
 
     await searcher.execute_search(id_pesquisa=pesquisa.id_pesquisa, ponto_id=ponto.ponto_id)
 
-    assert "Corpo da rodada 1 que deve ser acessível" in received_history_text, (
-        "Histórico com corpo real deve estar disponível na nova rodada, não apenas lista de URLs!"
+    assert '"body":' not in received_history_text and '"body_hash"' not in received_history_text, (
+        "Prompt da persona não deve receber corpo bruto, hash ou trechos persistidos."
     )
 
 
@@ -1351,14 +1360,14 @@ async def test_search_f01_reader_primeiro_falha_depois_mesma_url_tem_sucesso(db_
     assert len(coletas) == 1
     meta = json.loads(coletas[0].metadados_coleta)
     fontes = meta["fontes"]
-    trechos = meta["trechos"]
+    if isinstance(fontes, dict):
+        fontes = list(fontes.values())
 
-    # Verifica se a URL foi promovida a read_ok e tem trechos gerados
-    rec_fonte = next((f for f in fontes.values() if f.get("url") == url_alvo), None)
+    # PRD v3: promoção só altera status/uso no catálogo; corpo não é persistido
+    rec_fonte = next((f for f in fontes if f.get("url") == url_alvo), None)
     assert rec_fonte is not None, "A fonte deve existir em metadados_coleta!"
     assert rec_fonte["status"] == "read_ok", f"Status deveria ser promovido a read_ok, mas é {rec_fonte.get('status')}"
-    assert len(rec_fonte["body"]) > 0, "Corpo da fonte promovida deve ser preenchido!"
-    assert len(trechos) >= 1, "Trechos devem ter sido gerados após a promoção para read_ok!"
+    assert "body" not in rec_fonte and "trechos" not in meta
 
 
 # -----------------------------------------------------------------------------
@@ -2418,609 +2427,12 @@ def test_search_r3_selecao_diversidade_indice_repetitivo_vs_paragrafo_pertinente
     assert ledger["total_delivered_chars"] <= 3500
 
 
-@pytest.mark.asyncio
-async def test_search_r3_prompt_compacto_milhares_chunks_sem_crescimento_linear(db_session: AsyncSession) -> None:
-    """r3-item3/G01: Prompt não contém excluded_chunk_ids em nenhuma chamada; mede chamada posterior com evidências e corpus >= 1000 trechos."""
-    captured_messages = []
 
-    def llm_handler(request: httpx.Request) -> httpx.Response:
-        data = json.loads(request.content.decode("utf-8"))
-        msgs = data.get("messages", [])
-        captured_messages.append(msgs)
-        user_c = next((m.get("content", "") for m in msgs if m.get("role") == "user"), "")
-        if "chk_" not in user_c:
-            return make_llm_json_response({"acao": "buscar", "consulta": "termo teste", "objetivo": "obj"})
-        chk_id = _extract_delivered_chunk_id(msgs)
-        return make_llm_json_response({
-            "acao": "concluir",
-            "analise_final": "Analise teste.",
-            "conclusoes": [{
-                "claim_id": "c1",
-                "afirmacao": "Afirmacao teste.",
-                "tipo": "fato",
-                "evidencias": [chk_id],
-                "confianca": "alta",
-                "limitacoes": "",
-            }],
-            "lacunas": [],
-            "motivo_parada": "ok",
-        })
 
-    # Gera corpus administrável de páginas com blocos de ~1300 caracteres (> 1000 trechos no chunker <= 1500)
-    page_blocks = [
-        f"Bloco {i}: " + ("Texto substantivo com dados técnicos e evidências detalhadas. " * 18)
-        for i in range(260)
-    ]
-    large_page_body = "\n\n".join(page_blocks)
 
-    def serp_handler(request: httpx.Request) -> httpx.Response:
-        return make_serp_response([
-            {"url": f"https://example.org/large_doc_{i}", "title": f"Doc {i}", "description": "d"}
-            for i in range(25)
-        ])
 
-    def reader_handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, text=large_page_body, headers={"Content-Type": "text/markdown"})
 
-    mock_net = MockNetwork()
-    mock_net.custom_handlers["chat/completions"] = llm_handler
-    mock_net.custom_handlers["s.jina.ai"] = serp_handler
-    mock_net.custom_handlers["r.jina.ai"] = reader_handler
-    transport = create_mock_transport(mock_net)
 
-    repo = ResearchRepository(session=db_session)
-    pesq = await repo.create_research(tema="Teste Milhares Trechos", pontos_textos=["Ponto Único"])
-    jina_client = JinaClient(api_key="jina-test", transport=transport)
-    llm_client = LLMClient(api_key="openai-test", transport=transport)
-    searcher = Searcher(research_repo=repo, jina_client=jina_client, llm_client=llm_client, personas=["historiador"])
-
-    res = await searcher.execute_search(id_pesquisa=pesq.id_pesquisa)
-    assert res["status_pesquisa"] == "coletado"
-
-    # Confirma que o corpus gerado no SQLite tem >= 1000 trechos reais
-    ponto_resumo = res["resumo_coletas"][0]
-    coletas = await repo.get_collected_content_for_point(pesq.id_pesquisa, ponto_resumo["ponto_id"])
-    assert len(coletas) >= 1
-    meta_db = json.loads(coletas[-1].metadados_coleta)
-    total_chunks_db = len(meta_db["trechos"])
-    assert total_chunks_db >= 1000, f"Corpus no DB deveria ter >= 1000 trechos! Tem: {total_chunks_db}"
-
-    # Inspeciona TODAS as chamadas capturadas
-    assert len(captured_messages) >= 2, f"Deveriam ocorrer pelo menos 2 chamadas (busca + conclusão)! Ocorreram: {len(captured_messages)}"
-
-    calls_with_evidence = 0
-    for req_msgs in captured_messages:
-        for m in req_msgs:
-            m_content = m.get("content", "")
-            # 1. excluded_chunk_ids NÃO pode existir em NENHUMA mensagem enviada ao modelo
-            assert "excluded_chunk_ids" not in m_content, "excluded_chunk_ids NÃO deve existir em nenhuma mensagem enviada ao modelo!"
-
-            if m.get("role") == "user":
-                payload = json.loads(m_content)
-                # Verifica que campos de histórico não contêm corpos ou listas ocultas
-                for h_item in payload.get("historico_operacional", []):
-                    assert "body" not in h_item
-                    assert "excluded_chunk_ids" not in h_item
-                    assert len(str(h_item)) < 2000
-
-                evidencias = payload.get("evidencias_web_como_dados_nao_confiaveis", [])
-                if evidencias:
-                    calls_with_evidence += 1
-                    # 2. Orçamento de evidências <= 8000 caracteres
-                    total_ev_chars = sum(len(e.get("texto", "")) for e in evidencias)
-                    assert total_ev_chars <= 8000, f"Evidências entregues excederam orçamento de 8000: {total_ev_chars}"
-
-                    # 3. Chamada posterior com evidência deve ter contagem positiva de trechos excluídos
-                    ledger_chamada = payload.get("ledger_chamada", {})
-                    assert "selected_chunk_ids" in ledger_chamada
-                    excluidos_count = ledger_chamada.get("total_chunks_excluidos", 0)
-                    assert excluidos_count > 0, f"Deveria haver contagem positiva de trechos excluídos! Valor: {excluidos_count}"
-
-                    # 4. Tamanho total do prompt do usuário deve ser enxuto (< 15.000 chars), não 60.000+
-                    assert len(m_content) < 15000, f"Prompt inflado: {len(m_content)} caracteres!"
-
-    assert calls_with_evidence >= 1, "Pelo menos uma chamada deve conter evidências entregues!"
-
-    # 5. Ledger completo por chamada no backend com snapshots isolados e cumulativo honesto
-    led_hist = meta_db["selecao_contexto"]["historiador"]
-    assert "chamadas" in led_hist, "Snapshot detalhado por chamada DEVE existir em selecao_contexto do backend!"
-    chamadas = led_hist["chamadas"]
-    assert len(chamadas) >= 2, f"Deveria registrar snapshots de cada chamada (foram {len(chamadas)})"
-
-    # Primeira chamada: antes da busca, sem trechos entregues
-    ch0 = chamadas[0]
-    assert ch0["turno"] == 1
-    assert ch0["selected_chunk_ids"] == []
-    assert ch0["total_delivered_chars"] == 0
-
-    # Segunda chamada: após busca e leitura, trechos selecionados com descarte positivo
-    ch1 = chamadas[1]
-    assert ch1["turno"] == 2
-    assert len(ch1["selected_chunk_ids"]) > 0
-    assert len(ch1["excluded_chunk_ids"]) > 0
-    assert ch1["total_delivered_chars"] > 0
-    assert id(ch0["selected_chunk_ids"]) != id(ch1["selected_chunk_ids"]), "Snapshots não podem ser referências mutáveis compartilhadas!"
-    assert ch0["selected_chunk_ids"] != ch1["selected_chunk_ids"]
-
-
-@pytest.mark.asyncio
-async def test_search_r3_projecao_http_reduzida_e_ledger_completo_no_backend(db_session: AsyncSession) -> None:
-    """r3-item4/G02: Resposta pública contém estritamente união vista/referenciada; corpus > 8000 com descartes no SQLite."""
-    captured_delivered_chunk_ids: List[str] = []
-    referenced_chunk_ids: List[str] = []
-
-    def llm_handler(request: httpx.Request) -> httpx.Response:
-        data = json.loads(request.content.decode("utf-8"))
-        msgs = data.get("messages", [])
-        user_c = next((m.get("content", "") for m in msgs if m.get("role") == "user"), "")
-        if "chk_" not in user_c:
-            return make_llm_json_response({"acao": "buscar", "consulta": "termo", "objetivo": "obj"})
-        user_payload = json.loads(user_c)
-        for ev in user_payload.get("evidencias_web_como_dados_nao_confiaveis", []):
-            captured_delivered_chunk_ids.append(ev["chunk_id"])
-
-        chk_id = _extract_delivered_chunk_id(msgs)
-        referenced_chunk_ids.append(chk_id)
-        return make_llm_json_response({
-            "acao": "concluir",
-            "analise_final": "Analise com citacao.",
-            "conclusoes": [{
-                "claim_id": "c1",
-                "afirmacao": "Afirmação suportada por trecho.",
-                "tipo": "fato",
-                "evidencias": [chk_id],
-                "confianca": "alta",
-                "limitacoes": "",
-            }],
-            "lacunas": [],
-            "motivo_parada": "ok",
-        })
-
-    # Cria 5 páginas com 8 blocos de 1000 chars cada = 40.000 chars total (> 8000 com descartes positivos)
-    page_body = "\n\n".join([f"Parágrafo substantivo {i}: " + ("dados analíticos relevantes " * 35) for i in range(8)])
-    def serp_handler(request: httpx.Request) -> httpx.Response:
-        return make_serp_response([
-            {"url": f"https://example.org/p{i}", "title": f"P{i}", "description": f"desc {i}"}
-            for i in range(5)
-        ])
-    def reader_handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, text=page_body, headers={"Content-Type": "text/markdown"})
-
-    mock_net = MockNetwork()
-    mock_net.custom_handlers["chat/completions"] = llm_handler
-    mock_net.custom_handlers["s.jina.ai"] = serp_handler
-    mock_net.custom_handlers["r.jina.ai"] = reader_handler
-    transport = create_mock_transport(mock_net)
-
-    repo = ResearchRepository(session=db_session)
-    pesq = await repo.create_research(tema="Teste Projeção G02", pontos_textos=["Ponto 1"])
-    jina_client = JinaClient(api_key="jina-test", transport=transport)
-    llm_client = LLMClient(api_key="openai-test", transport=transport)
-    searcher = Searcher(research_repo=repo, jina_client=jina_client, llm_client=llm_client, personas=["historiador"])
-
-    res = await searcher.execute_search(id_pesquisa=pesq.id_pesquisa)
-    ponto_resumo = res["resumo_coletas"][0]
-
-    # No backend SQLite (ConteudoColetado.metadados_coleta):
-    coletas = await repo.get_collected_content_for_point(pesq.id_pesquisa, ponto_resumo["ponto_id"])
-    assert len(coletas) >= 1
-    meta_db = json.loads(coletas[-1].metadados_coleta)
-    trechos_db = meta_db["trechos"]
-    fontes_db = meta_db["fontes"]
-
-    # Deve haver dezenas de trechos no total no DB
-    assert len(trechos_db) >= 20, f"Deveriam existir >= 20 trechos no corpus total! Existem: {len(trechos_db)}"
-
-    # Na projeção HTTP pública:
-    trechos_publicos = ponto_resumo["trechos"]
-    expected_public_ids = set(captured_delivered_chunk_ids) | set(referenced_chunk_ids)
-
-    # 1. Conjunto público deve coincidir com união vista/referenciada
-    assert set(trechos_publicos.keys()) == expected_public_ids, (
-        f"Trechos públicos divergentes da união vista/referenciada! "
-        f"Públicos: {set(trechos_publicos.keys())}, Esperados: {expected_public_ids}"
-    )
-
-    # 2. Subconjunto ESTRITO com descartes positivos no DB
-    assert len(trechos_publicos) < len(trechos_db)
-    assert set(trechos_publicos.keys()).issubset(set(trechos_db.keys()))
-    descartes = len(trechos_db) - len(trechos_publicos)
-    assert descartes >= 10, f"Deveriam haver descartes positivos significativos! Descartes: {descartes}"
-
-    # 3. Fontes públicas correspondem estritamente aos trechos e não contêm 'body'
-    visible_source_ids = {chk["source_id"] for chk in trechos_publicos.values()}
-    all_public_urls = {f_data.get("url") for f_data in ponto_resumo["fontes"].values()}
-    for src_id, f_data in ponto_resumo["fontes"].items():
-        assert "body" not in f_data, f"Corpo integral não deve ser exposto no resumo público da fonte {src_id}!"
-        assert src_id in visible_source_ids or f_data.get("url") in all_public_urls
-
-    # 4. Prova hashes, offsets e URLs de todos os trechos visíveis contra o corpo no DB
-    for chk_id, chk in trechos_publicos.items():
-        s_id = chk["source_id"]
-        assert s_id in fontes_db, f"Fonte {s_id} do trecho {chk_id} ausente no DB!"
-        source_rec_db = fontes_db[s_id]
-        body_db = source_rec_db["body"]
-        start = chk["start_offset"]
-        end = chk["end_offset"]
-        assert body_db[start:end] == chk["text"], f"Offset do trecho público {chk_id} não bate com o corpo DB!"
-        assert chk["text_hash"] == hashlib.sha256(chk["text"].encode("utf-8")).hexdigest()
-        assert chk["url"] == source_rec_db["url"]
-
-    # 5. Ledger público compacto sem excluded_chunk_ids; ledger no DB completo
-    for p_name, p_led in ponto_resumo["selecao_contexto"].items():
-        assert "excluded_chunk_ids" not in p_led, f"excluded_chunk_ids vazou na projeção HTTP de {p_name}!"
-    assert "excluded_chunk_ids" in meta_db["selecao_contexto"]["historiador"]
-
-    # 6. Ausência de corpos repetidos no Markdown consolidado
-    assert page_body not in ponto_resumo.get("conteudo_relevante", "")
-
-
-@pytest.mark.asyncio
-async def test_search_r3_retry_preserva_refs_e_trechos_validos_sem_reindexar(db_session: AsyncSession) -> None:
-    """r3-item4/item1/G03: Fixture de coleta legada com fontes src_7/src_11, IDs não contíguos chk_1248/chk_2093/chk_2501; retry obriga busca e >=5 novas URLs sem colisão de src_*, preservando histórico."""
-    url_legacy_1 = "https://advisory.example.org/php-legacy"
-    body_legacy_1 = "PHP Security Announcement\n\nOctober 22, 2026\n\nCritical advisory details for CGI handler."
-    url_legacy_2 = "https://nvd.example.org/vuln/detail"
-    body_legacy_2 = "NVD Analysis CVE-2026-109618\n\nRemote code execution impact assessment."
-
-    t1_text = "PHP Security Announcement"
-    t1_start = body_legacy_1.index(t1_text)
-    t1_end = t1_start + len(t1_text)
-
-    t2_text = "October 22, 2026"
-    t2_start = body_legacy_1.index(t2_text)
-    t2_end = t2_start + len(t2_text)
-
-    t3_text = "Remote code execution impact assessment."
-    t3_start = body_legacy_2.index(t3_text)
-    t3_end = t3_start + len(t3_text)
-
-    legacy_trechos = {
-        "chk_1248": {
-            "chunk_id": "chk_1248",
-            "source_id": "src_7",
-            "url": url_legacy_1,
-            "start_offset": t1_start,
-            "end_offset": t1_end,
-            "text": t1_text,
-            "text_hash": hashlib.sha256(t1_text.encode("utf-8")).hexdigest(),
-        },
-        "chk_2093": {
-            "chunk_id": "chk_2093",
-            "source_id": "src_7",
-            "url": url_legacy_1,
-            "start_offset": t2_start,
-            "end_offset": t2_end,
-            "text": t2_text,
-            "text_hash": hashlib.sha256(t2_text.encode("utf-8")).hexdigest(),
-        },
-        "chk_2501": {
-            "chunk_id": "chk_2501",
-            "source_id": "src_11",
-            "url": url_legacy_2,
-            "start_offset": t3_start,
-            "end_offset": t3_end,
-            "text": t3_text,
-            "text_hash": hashlib.sha256(t3_text.encode("utf-8")).hexdigest(),
-        },
-    }
-
-    legacy_fontes = {
-        "src_7": {
-            "source_id": "src_7",
-            "url": url_legacy_1,
-            "body": body_legacy_1,
-            "body_hash": hashlib.sha256(body_legacy_1.encode("utf-8")).hexdigest(),
-            "length": len(body_legacy_1),
-            "accessed_at": "2026-10-24T12:00:00Z",
-            "status": "read_ok",
-        },
-        "src_11": {
-            "source_id": "src_11",
-            "url": url_legacy_2,
-            "body": body_legacy_2,
-            "body_hash": hashlib.sha256(body_legacy_2.encode("utf-8")).hexdigest(),
-            "length": len(body_legacy_2),
-            "accessed_at": "2026-10-24T12:01:00Z",
-            "status": "read_ok",
-        },
-    }
-
-    legacy_resultados_personas = {
-        "historiador": {
-            "analise": "Análise histórica consolidada na rodada anterior com base nos registros primários.",
-            "conclusoes": [
-                {
-                    "claim_id": "clm_historiador_1_abcd1234",
-                    "afirmacao": "Boletim oficial emitido na data documentada.",
-                    "tipo": "fato",
-                    "evidencias": ["chk_1248", "chk_2093"],
-                    "confianca": "alta",
-                    "limitacoes": "",
-                }
-            ],
-            "lacunas": [],
-            "motivo_parada": "Conclusão válida",
-            "sucesso": True,
-        },
-        "visionario": {
-            "analise": "Falha na rodada anterior por ausência de dados.",
-            "conclusoes": [],
-            "lacunas": ["dados insuficientes"],
-            "motivo_parada": "Sem dados",
-            "sucesso": False,
-        },
-    }
-
-    legacy_meta = {
-        "versao": 1,
-        "fontes": legacy_fontes,
-        "trechos": legacy_trechos,
-        "selecao_contexto": {
-            "historiador": {
-                "selected_chunk_ids": ["chk_1248", "chk_2093"],
-                "excluded_chunk_ids": ["chk_2501"],
-                "total_delivered_chars": 41,
-                "budget_chars": 8000,
-                "chamadas": [{
-                    "turno": 1,
-                    "selected_chunk_ids": ["chk_1248", "chk_2093"],
-                    "excluded_chunk_ids": ["chk_2501"],
-                    "total_delivered_chars": 41,
-                    "budget_chars": 8000,
-                }],
-            }
-        },
-        "diario_acoes": {},
-        "resultados_personas": legacy_resultados_personas,
-    }
-
-    repo = ResearchRepository(session=db_session)
-    pesq = await repo.create_research(tema="Teste Compatibilidade Legada", pontos_textos=["Ponto Único"])
-    ponto = (await repo.list_points(pesq.id_pesquisa))[0]
-
-    # Grava a coleta legada anterior
-    await repo.save_collected_content(
-        id_pesquisa=pesq.id_pesquisa,
-        ponto_id=ponto.ponto_id,
-        tema="Teste Compatibilidade Legada",
-        ponto="Ponto Único",
-        conteudo_coletado="### Perspectiva Historiador\n\nAnálise histórica consolidada...",
-        urls_lidas=[url_legacy_1, url_legacy_2],
-        urls_fonte=[url_legacy_1, url_legacy_2],
-        reasoning_coleta=None,
-        status_ponto="parcial",
-        diagnostico_falha="Visionário pendente",
-        metadados_coleta=legacy_meta,
-    )
-    await repo.update_point_status(ponto.ponto_id, status="parcial", pontos_fracos="Visionário pendente")
-
-    # Configura 6 novas URLs para forçar criação de fontes novas superiores a len(fontes)
-    new_urls = [f"https://example.org/new_doc_{i}" for i in range(1, 7)]
-    new_bodies = {
-        u: f"Conteúdo substantivo da nova URL {i} com informações prospectivas e dados técnicos."
-        for i, u in enumerate(new_urls, 1)
-    }
-
-    def serp_handler(request: httpx.Request) -> httpx.Response:
-        return make_serp_response([
-            {"url": u, "title": f"Doc {i}", "description": f"desc {i}"}
-            for i, u in enumerate(new_urls, 1)
-        ])
-
-    def reader_handler(request: httpx.Request) -> httpx.Response:
-        u_str = str(request.url)
-        for u, b in new_bodies.items():
-            if u in u_str:
-                return httpx.Response(200, text=b, headers={"Content-Type": "text/markdown"})
-        return httpx.Response(200, text="Novo conteúdo lido para visionário na rodada 2.", headers={"Content-Type": "text/markdown"})
-
-    def llm_handler(request: httpx.Request) -> httpx.Response:
-        data = json.loads(request.content.decode("utf-8"))
-        msgs = data.get("messages", [])
-        user_c = next((m.get("content", "") for m in msgs if m.get("role") == "user"), "")
-        # OBRIGA busca na primeira chamada (não conclui apenas com legado)
-        has_new_evidence = any(u in user_c for u in new_urls)
-        if not has_new_evidence:
-            return make_llm_json_response({"acao": "buscar", "consulta": "futuro", "objetivo": "visão"})
-        chk_id = _extract_delivered_chunk_id(msgs)
-        return make_llm_json_response({
-            "acao": "concluir",
-            "analise_final": "Síntese visionária recuperada com sucesso após novas buscas.",
-            "conclusoes": [{
-                "claim_id": "c1",
-                "afirmacao": "Oportunidade futura verificada em novas fontes primárias.",
-                "tipo": "fato",
-                "evidencias": [chk_id],
-                "confianca": "alta",
-                "limitacoes": "",
-            }],
-            "lacunas": [],
-            "motivo_parada": "ok",
-        })
-
-    mock_net = MockNetwork()
-    mock_net.custom_handlers["chat/completions"] = llm_handler
-    mock_net.custom_handlers["s.jina.ai"] = serp_handler
-    mock_net.custom_handlers["r.jina.ai"] = reader_handler
-    transport = create_mock_transport(mock_net)
-
-    jina_client = JinaClient(api_key="jina-test", transport=transport)
-    llm_client = LLMClient(api_key="openai-test", transport=transport)
-    searcher = Searcher(research_repo=repo, jina_client=jina_client, llm_client=llm_client, personas=["historiador", "visionario"])
-
-    # Executa retry direcionado para visionario
-    res_retry = await searcher.execute_search(
-        id_pesquisa=pesq.id_pesquisa,
-        ponto_id=ponto.ponto_id,
-        personas=["visionario"],
-    )
-    ponto_resumo = res_retry["resumo_coletas"][0]
-
-    # 1. Historiador (persona válida preservada) NÃO deve ter sido reexecutado e DEVE estar na lista pública de personas
-    personas_publicas = {p["persona"]: p for p in ponto_resumo["personas"]}
-    assert "historiador" in personas_publicas, "Historiador preservado DEVE constar na lista pública de personas!"
-    assert personas_publicas["historiador"]["conclusoes"] == legacy_resultados_personas["historiador"]["conclusoes"]
-    assert "visionario" in personas_publicas
-    assert personas_publicas["visionario"]["falha_coleta"] is False
-
-    # 2. Trechos antigos chk_1248 e chk_2093 citados pelo historiador DEVEM estar na projeção pública
-    trechos_publicos = ponto_resumo["trechos"]
-    assert "chk_1248" in trechos_publicos, "chk_1248 da persona preservada foi perdido no retry!"
-    assert "chk_2093" in trechos_publicos, "chk_2093 da persona preservada foi perdido no retry!"
-    assert trechos_publicos["chk_1248"]["url"] == url_legacy_1
-    assert trechos_publicos["chk_1248"]["source_id"] == "src_7"
-    assert trechos_publicos["chk_1248"]["text"] == t1_text
-    assert trechos_publicos["chk_1248"]["start_offset"] == t1_start
-    assert trechos_publicos["chk_1248"]["end_offset"] == t1_end
-
-    # 3. Verifica fontes e trechos no SQLite após retry com novas URLs
-    coletas_finais = await repo.get_collected_content_for_point(pesq.id_pesquisa, ponto.ponto_id)
-    assert len(coletas_finais) >= 1
-    meta_db = json.loads(coletas_finais[-1].metadados_coleta)
-    fontes_db = meta_db["fontes"]
-
-    # As fontes legadas src_7 e src_11 NÃO podem ser sobrescritas nem colidir
-    all_source_ids = [f["source_id"] for f in fontes_db.values()]
-    assert len(all_source_ids) == len(set(all_source_ids)), f"Colisão detectada em IDs de fonte! {all_source_ids}"
-    assert fontes_db["src_7"]["url"] == url_legacy_1, f"Fonte legada src_7 foi sobrescrita por {fontes_db['src_7']['url']}!"
-    assert fontes_db["src_7"]["body"] == body_legacy_1
-    assert fontes_db["src_11"]["url"] == url_legacy_2
-    assert fontes_db["src_11"]["body"] == body_legacy_2
-
-    # Novas fontes devem ter numeração estritamente superior ao maior ID legado (src_11 -> >= src_12)
-    for sid in all_source_ids:
-        if sid not in ("src_7", "src_11"):
-            m_sid = re.search(r"\d+", sid)
-            assert m_sid is not None
-            assert int(m_sid.group(0)) > 11, f"Fonte nova {sid} colidiu ou reutilizou IDs legados!"
-
-    # 4. Todos os trechos visíveis no retorno público correspondem ao corpo no DB
-    for cid, chk in trechos_publicos.items():
-        sid = chk["source_id"]
-        assert sid in fontes_db, f"Fonte {sid} do trecho {cid} não encontrada no banco!"
-        src = fontes_db[sid]
-        start = chk["start_offset"]
-        end = chk["end_offset"]
-        assert src["body"][start:end] == chk["text"], f"Offset do trecho {cid} inconsistente com o corpo DB!"
-        assert chk["text_hash"] == hashlib.sha256(chk["text"].encode("utf-8")).hexdigest()
-        assert chk["url"] == src["url"]
-
-    # 5. Novos trechos criados para o visionário não colidem com IDs antigos (> 2501)
-    for cid in trechos_publicos:
-        if cid not in legacy_trechos:
-            m = re.search(r"\d+", cid)
-            assert m is not None
-            assert int(m.group(0)) > 2501, f"Novo trecho {cid} colidiu ou reindexou abaixo de IDs históricos!"
-
-
-@pytest.mark.asyncio
-async def test_search_r3_cancelamento_preserva_diario_ledger_e_envelopes_concluidos(db_session: AsyncSession) -> None:
-    """r3-item3: Cancelamento assíncrono durante segunda chamada preserva diário de ações, ledger por chamada, corpo e envelopes já concluídos."""
-    turn1_concluido = asyncio.Event()
-    bloquear_turn2 = asyncio.Event()
-
-    captured_turns: List[int] = []
-
-    def llm_handler(request: httpx.Request) -> httpx.Response:
-        data = json.loads(request.content.decode("utf-8"))
-        msgs = data.get("messages", [])
-        user_c = next((m.get("content", "") for m in msgs if m.get("role") == "user"), "")
-        if "chk_" not in user_c:
-            # Turno 1: emite busca
-            captured_turns.append(1)
-            return make_llm_json_response({
-                "acao": "buscar",
-                "consulta": "php cgi advisory",
-                "objetivo": "buscar boletim primário",
-            })
-        # Turno 2: evidências já lidas e trechos entregues
-        captured_turns.append(2)
-        turn1_concluido.set()
-        # Não responde imediatamente: aguarda cancelamento externo
-        return make_llm_json_response({"acao": "parar_insuficiente", "motivo": "não alcançado"})
-
-    async def hanging_turn2_llm_handler(request: httpx.Request) -> httpx.Response:
-        data = json.loads(request.content.decode("utf-8"))
-        msgs = data.get("messages", [])
-        user_c = next((m.get("content", "") for m in msgs if m.get("role") == "user"), "")
-        if "chk_" not in user_c:
-            captured_turns.append(1)
-            return make_llm_json_response({
-                "acao": "buscar",
-                "consulta": "php cgi advisory",
-                "objetivo": "buscar boletim primário",
-            })
-        captured_turns.append(2)
-        turn1_concluido.set()
-        await bloquear_turn2.wait()
-        return make_llm_json_response({"acao": "concluir", "analise_final": "tardio"})
-
-    sample_url = "https://advisory.example.org/cve-2026-detail"
-    sample_body = "Boletim oficial CVE-2026: vulnerabilidade crítica identificada e corrigida."
-
-    def serp_handler(request: httpx.Request) -> httpx.Response:
-        return make_serp_response([{"url": sample_url, "title": "CVE", "description": "desc"}])
-
-    def reader_handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, text=sample_body, headers={"Content-Type": "text/markdown"})
-
-    mock_net = MockNetwork()
-    mock_net.custom_handlers["chat/completions"] = hanging_turn2_llm_handler
-    mock_net.custom_handlers["s.jina.ai"] = serp_handler
-    mock_net.custom_handlers["r.jina.ai"] = reader_handler
-    transport = create_mock_transport(mock_net)
-
-    repo = ResearchRepository(session=db_session)
-    pesq = await repo.create_research(tema="Teste Cancelamento Preservação", pontos_textos=["Ponto 1"])
-    ponto = (await repo.list_points(pesq.id_pesquisa))[0]
-
-    jina_client = JinaClient(api_key="jina-test", transport=transport)
-    llm_client = LLMClient(api_key="openai-test", transport=transport)
-    searcher = Searcher(research_repo=repo, jina_client=jina_client, llm_client=llm_client, personas=["historiador"])
-
-    task = asyncio.create_task(
-        searcher.execute_search(id_pesquisa=pesq.id_pesquisa, ponto_id=ponto.ponto_id)
-    )
-
-    # Aguarda o turno 1 concluir leitura de URL e geração de trechos, e turno 2 ser iniciado
-    await turn1_concluido.wait()
-
-    # Dispara cancelamento assíncrono
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
-
-    # 1. Reserva do ponto DEVE ter sido liberada com status falha_coleta
-    ponto_db = await repo.get_point(ponto.ponto_id)
-    assert ponto_db is not None
-    assert ponto_db.status == "falha_coleta"
-
-    # 2. Coleta persistida DEVE conter fontes lidas e status interrompido
-    coletas = await repo.get_collected_content_for_point(pesq.id_pesquisa, ponto.ponto_id)
-    assert len(coletas) >= 1
-    meta_cancel = json.loads(coletas[-1].metadados_coleta)
-    assert meta_cancel.get("status") == "interrompido"
-    assert sample_url in meta_cancel.get("fontes", {}).get("src_1", {}).get("url", "")
-    assert len(meta_cancel.get("trechos", {})) >= 1
-
-    # 3. O diário de ações DEVE registrar a busca concluída no turno 1
-    assert "diario_acoes" in meta_cancel, "diario_acoes deve ser preservado em meta_cancel!"
-    diario_hist = meta_cancel["diario_acoes"].get("historiador", [])
-    assert any(
-        d["acao"] == "buscar" and sample_url in d.get("urls_lidas", [])
-        for d in diario_hist
-    ), f"Ação de busca concluída não foi preservada no cancelamento! Diário: {diario_hist}"
-
-    # 4. A seleção de contexto DEVE conter o ledger por chamada preservado
-    assert "selecao_contexto" in meta_cancel, "selecao_contexto deve ser preservado em meta_cancel!"
-    led_cancel = meta_cancel["selecao_contexto"].get("historiador", {})
-    assert "chamadas" in led_cancel, "Snapshots por chamada devem ser preservados em cancelamento!"
-
-    # 5. Envelopes do turno 1 concluído DEVEM estar gravados em GenerationAttempt
-    attempts = await repo.get_generation_attempts(pesq.id_pesquisa, etapa="search")
-    assert len(attempts) >= 1, "GenerationAttempt do turno 1 concluído deve ser preservado!"
-    assert attempts[0].is_regular_finish is True
 
 
 @pytest.mark.asyncio

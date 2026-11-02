@@ -122,6 +122,8 @@ export interface PersonaColetaItem {
   persona: string;
   analise: string;
   urls_fonte: string[];
+  urls_lidas?: string[] | null;
+  fontes?: Array<{ url: string; uso: 'utilizada' | 'lida_nao_utilizada' }> | null;
   queries_executadas: number;
   falha_coleta: boolean;
   diagnostico?: string | null;
@@ -171,7 +173,7 @@ export interface AuditCriterionDetail {
 export interface AuditItem {
   ponto_id: string;
   ponto_n: number;
-  status: 'aprovado' | 'reprovado';
+  status: 'aprovado' | 'reprovado' | 'auditando' | 'inconclusivo' | 'pendente';
   pontuacao_percentual: number;
   criterios_aprovados: number;
   criterios_minimos: number;

@@ -116,12 +116,12 @@ async def test_r3_w07_readiness_delay_beyond_total_budget_blocks_publication(
     # _renovar_input_hash chama _verificar_prontidao internamente — atrasar também essa chamada
     # poluiria a janela de publicação e deslocaria a causa observada (lição de fixture da r2).
 
-    async def prontidao_atrasada(self, id_pesquisa: str, pesquisa: Pesquisa):
+    async def prontidao_atrasada(self, id_pesquisa: str, pesquisa: Pesquisa, **kwargs):
         if atraso_disponivel["aberto"]:
             atraso_disponivel["aberto"] = False
             ev_fase.set()
             await asyncio.sleep(ATRASO_FASE)  # além do orçamento total (2s)
-        return await original(self, id_pesquisa, pesquisa)
+        return await original(self, id_pesquisa, pesquisa, **kwargs)
 
     monkeypatch.setattr(Writer, "_verificar_prontidao", prontidao_atrasada)
 
