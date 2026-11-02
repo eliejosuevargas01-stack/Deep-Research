@@ -1,9 +1,10 @@
 services:
   api:
-    container_name: deep-research-api-prod
+    container_name: deep-research-api
     build:
       context: .
       dockerfile: Dockerfile.backend
+    image: deep-research-api:v8
     ports:
       - "127.0.0.1:8010:8000"
     env_file:
@@ -17,10 +18,9 @@ services:
       - DR_MAX_RODADAS=${DR_MAX_RODADAS:-3}
       - LLM_BASE_URL=${LLM_BASE_URL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - DR_HERMES_PATH_MAP=${DR_HERMES_PATH_MAP:-}
     volumes:
       - ./data:/app/data
-      - /root/.hermes/projects/deep-research:/root/.hermes/projects/deep-research:ro
+      - ./frontend/dist:/app/frontend/dist:ro
     networks:
       - proxy
     restart: unless-stopped

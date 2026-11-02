@@ -188,6 +188,7 @@ async def executar(
 
     argv = [
         _binario_hermes(),
+        "-p", perfil,
         "-z", prompt,
         "--usage-file", f"{caminho_exec}/usage.json",
     ]

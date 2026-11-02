@@ -49,3 +49,11 @@ search-red.txt
 .impeccable
 scripts/.shim_cache
 *.shim_cache
+
+artifact*/
+frontend/artifacts/
+frontend/problems/
+frontend/docs/
+frontend/references/
+frontend/android/
+*.bak-*/

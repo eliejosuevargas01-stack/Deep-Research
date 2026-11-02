@@ -1,4 +1,4 @@
-"""Invocação do processo Hermes: perfil por env, sem `-p` e sem bwrap por default."""
+"""Invocação do processo Hermes: perfil via `-p` (0.19 ignora HERMES_PROFILE) e sem bwrap."""
 
 import pytest
 
@@ -38,10 +38,10 @@ async def test_executar_invoca_hermes_com_perfil_por_env(tmp_path, monkeypatch):
     argv = list(capturado["argv"])
     workspace = tmp_path / "computacao-quantica-abcd1234"
     assert argv[0] == "/usr/local/bin/hermes"
-    assert "-p" not in argv
-    assert argv[1:3] == ["-z", argv[2]]
-    assert argv[3] == "--usage-file"
-    assert argv[4] == f"{workspace}/usage.json"
+    assert argv[1:3] == ["-p", "deep-research"]
+    assert argv[3] == "-z"
+    assert argv[5] == "--usage-file"
+    assert argv[6] == f"{workspace}/usage.json"
     assert not any("bwrap" in parte for parte in argv[:2])
     assert capturado["env"]["HERMES_PROFILE"] == "deep-research"
     assert capturado["env"]["HERMES_HOME"] == "/app/hermes-home"
