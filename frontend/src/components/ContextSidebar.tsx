@@ -25,7 +25,6 @@ interface ContextSidebarProps {
   fontes?: FonteExplorerItem[] | FontesResumo | null;
   searchResult?: SearchResponse | null;
   fontesAtivas?: boolean;
-  pontosReprovados?: Set<string> | null;
   reasoningItems?: Array<{
     reasoning?: string | null;
     pointNumber?: number;
@@ -135,7 +134,6 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   fontes,
   searchResult,
   fontesAtivas,
-  pontosReprovados,
   reasoningItems,
   isCollapsed,
   onToggleCollapse,
@@ -183,7 +181,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
         url: f.url,
         titulo: f.titulo ?? null,
         dominio: f.dominio ?? null,
-        status: (f.status as FonteExplorerStatus) || 'consultada',
+        status: (f.status as FonteExplorerStatus) || 'utilizada',
         ponto_n: typeof f.ponto_n === 'number' ? f.ponto_n : null,
       }));
     }
@@ -192,10 +190,9 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
     }
     return derivarFontesParaExplorer(searchResult, {
       emColeta: fontesAtivas,
-      pontosReprovados,
       reasoningItems,
     });
-  }, [fontes, searchResult, fontesAtivas, pontosReprovados, reasoningItems]);
+  }, [fontes, searchResult, fontesAtivas, reasoningItems]);
   const temFontesColetadas = Array.isArray(itensFontes) && itensFontes.length > 0;
 
   const effectiveInitial = initialMode ?? modeProp;

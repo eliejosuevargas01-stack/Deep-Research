@@ -1596,13 +1596,6 @@ export const App: React.FC = () => {
   const itensFontesMerged = useMemo(() => {
     const aoVivo = derivarFontesParaExplorer(searchResult, {
       emColeta: pipelineStage === 'searching' || pipelineStage === 'auditing',
-      pontosReprovados: auditResult
-        ? new Set(
-            auditResult.auditorias
-              .filter((a) => a.status === 'reprovado')
-              .map((a) => a.ponto_id),
-          )
-        : null,
       reasoningItems,
     });
     if (!fontesPersistidas) return aoVivo;
@@ -2116,11 +2109,6 @@ export const App: React.FC = () => {
                     searchResult={searchResult}
                     fontesAtivas={pipelineStage === 'searching' || pipelineStage === 'auditing'}
                     reasoningItems={reasoningItems}
-                    pontosReprovados={
-                      auditResult
-                        ? new Set(auditResult.auditorias.filter((a) => a.status === 'reprovado').map((a) => a.ponto_id))
-                        : null
-                    }
                   />
                 )}
               </div>

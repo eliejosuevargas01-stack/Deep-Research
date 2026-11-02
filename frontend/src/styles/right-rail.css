@@ -642,17 +642,16 @@ a.rr-source:focus-visible {
   border-color: var(--color-info-border);
 }
 
-.rr-source__badge.is-processado,
-.rr-source__badge.is-consultada {
+.rr-source__badge.is-utilizada {
   color: var(--color-success-text);
   background: var(--color-success-bg);
   border-color: var(--color-success-border);
 }
 
-.rr-source__badge.is-invalidado {
-  color: var(--color-danger-text);
-  background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
+.rr-source__badge.is-lida_nao_utilizada {
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
 }
 
 .rr-sources__empty {

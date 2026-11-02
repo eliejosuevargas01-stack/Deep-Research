@@ -84,9 +84,9 @@ async function runTests() {
   );
 
   // ---------------------------------------------------------------------------
-  // 2. B-04: Não classificar leituras de apoio (nao_utilizadas) como 'invalidado'
+  // 2. B-04: leituras de apoio (nao_utilizadas) não podem ser marcadas como erro
   // ---------------------------------------------------------------------------
-  console.log('[Teste 2] B-04: Leituras de apoio (nao_utilizadas) não são marcadas como inválidas');
+  console.log('[Teste 2] B-04: Classificação por uso real (utilizada/lida_nao_utilizada)');
 
   const mockResumo: FontesResumo = {
     id_pesquisa: 'test-pesquisa-123',
@@ -119,22 +119,16 @@ async function runTests() {
 
   const itensExplorer = converterFontesResumoParaExplorer(mockResumo);
 
-  // Verifica que nenhum item tem status 'invalidado'
-  const itensInvalidados = itensExplorer.filter((i) => i.status === 'invalidado');
-  assert.equal(
-    itensInvalidados.length,
-    0,
-    'B-04: Nenhuma fonte consultada/apoio deve receber status "invalidado"'
-  );
+  const itensInvalidados = itensExplorer.filter((i) => (i.status as string) === 'invalidado');
+  assert.equal(itensInvalidados.length, 0, 'B-04: Nenhuma fonte deve receber status inválido');
 
-  // Verifica que consultada recebeu 'consultada' e utilizada recebeu 'processado'
   const itemUsado = itensExplorer.find((i) => i.url === 'http://usada.org/estudo');
   assert.ok(itemUsado);
-  assert.equal(itemUsado?.status, 'processado');
+  assert.equal(itemUsado?.status, 'utilizada');
 
   const itemApoio = itensExplorer.find((i) => i.url === 'http://apoio.org/referencia');
   assert.ok(itemApoio);
-  assert.equal(itemApoio?.status, 'consultada');
+  assert.equal(itemApoio?.status, 'lida_nao_utilizada');
   assert.equal(itemApoio?.url, 'http://apoio.org/referencia', 'B-10: url original preservada');
 
   // ---------------------------------------------------------------------------
@@ -156,7 +150,7 @@ async function runTests() {
           url: 'https://exemplo.com/doc2',
           titulo: 'Doc 2',
           dominio: 'exemplo.com',
-          status: 'consultada',
+          status: 'lida_nao_utilizada',
           ponto_n: 2,
         },
       ],
@@ -168,7 +162,7 @@ async function runTests() {
   assert.ok(htmlSidebar.includes('Ponto 1'), 'Deve renderizar o grupo Ponto 1');
   assert.ok(htmlSidebar.includes('Ponto 2'), 'Deve renderizar o grupo Ponto 2');
   assert.ok(htmlSidebar.includes('is-lendo'), 'Deve exibir badge is-lendo');
-  assert.ok(htmlSidebar.includes('is-consultada'), 'Deve exibir badge is-consultada');
+  assert.ok(htmlSidebar.includes('is-lida_nao_utilizada'), 'Deve exibir badge is-lida_nao_utilizada');
   assert.ok(htmlSidebar.includes('Lendo'), 'Texto do badge Lendo presente');
   assert.ok(htmlSidebar.includes('Consultada'), 'Texto do badge Consultada presente');
 

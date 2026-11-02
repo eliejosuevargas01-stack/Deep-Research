@@ -2,7 +2,7 @@ import React from 'react';
 import { Favicon } from './Favicon';
 import { FontesResumo } from '../types/api';
 
-export type FonteExplorerStatus = 'lendo' | 'processado' | 'invalidado' | 'consultada';
+export type FonteExplorerStatus = 'lendo' | 'utilizada' | 'lida_nao_utilizada';
 
 export interface FonteExplorerItem {
   url: string;
@@ -14,9 +14,8 @@ export interface FonteExplorerItem {
 
 const STATUS_ROTULO: Record<FonteExplorerStatus, string> = {
   lendo: 'Lendo',
-  processado: 'Processado',
-  consultada: 'Consultada',
-  invalidado: 'Invalidado',
+  utilizada: 'Utilizada',
+  lida_nao_utilizada: 'Lida (não utilizada)',
 };
 
 function isSafeUrl(url: string): boolean {
@@ -160,29 +159,53 @@ export function derivarFontesParaExplorer(
   const vistos = new Set<string>();
   const itens: FonteExplorerItem[] = [];
 
-  // 1. Fontes estruturadas do SearchResponse (quando a coleta foi consolidada)
   if (search && Array.isArray(search.resumo_coletas)) {
     for (const coleta of search.resumo_coletas) {
       for (const p of coleta.personas ?? []) {
-        for (const raw of p.urls_fonte ?? []) {
-          const url = String(raw ?? '').trim();
-          if (!url) continue;
-          if (!/^https?:\/\//i.test(url)) continue;
-          const normalizada = url.replace(/^http:\/\//i, 'https://');
+        const urlToUso = new Map<string, 'utilizada' | 'lida_nao_utilizada'>();
+        if (Array.isArray((p as any).fontes)) {
+          for (const f of (p as any).fontes) {
+            const raw = typeof f?.url === 'string' ? f.url.trim() : '';
+            if (!raw) continue;
+            if (!/^https?:\/\//i.test(raw)) continue;
+            const norm = raw.replace(/^http:\/\//i, 'https://');
+            const uso = f?.uso === 'lida_nao_utilizada' ? 'lida_nao_utilizada' : 'utilizada';
+            urlToUso.set(norm, uso);
+          }
+        }
+        if (Array.isArray((p as any).urls_fonte)) {
+          for (const raw of (p as any).urls_fonte) {
+            const url = String(raw ?? '').trim();
+            if (!url) continue;
+            if (!/^https?:\/\//i.test(url)) continue;
+            const norm = url.replace(/^http:\/\//i, 'https://');
+            if (!urlToUso.has(norm)) urlToUso.set(norm, 'utilizada');
+          }
+        }
+        if (Array.isArray((p as any).urls_lidas)) {
+          for (const raw of (p as any).urls_lidas) {
+            const url = String(raw ?? '').trim();
+            if (!url) continue;
+            if (!/^https?:\/\//i.test(url)) continue;
+            const norm = url.replace(/^http:\/\//i, 'https://');
+            if (!urlToUso.has(norm)) urlToUso.set(norm, 'lida_nao_utilizada');
+          }
+        }
+        for (const [normalizada, uso] of urlToUso.entries()) {
           if (vistos.has(normalizada)) continue;
           vistos.add(normalizada);
           let dominio: string | null = null;
           try {
-            dominio = new URL(url).hostname.replace(/^www\./, '');
+            dominio = new URL(normalizada).hostname.replace(/^www\./, '');
           } catch {
             dominio = null;
           }
-          const reprovado = Boolean(coleta.ponto_id && opts?.pontosReprovados?.has(coleta.ponto_id));
+          const status: FonteExplorerStatus = opts?.emColeta ? 'lendo' : uso;
           itens.push({
-            url,
+            url: normalizada.replace(/^http:\/\//i, 'https://'),
             titulo: null,
             dominio,
-            status: reprovado ? 'invalidado' : opts?.emColeta ? 'lendo' : 'processado',
+            status,
             ponto_n: typeof coleta.ponto_n === 'number' ? coleta.ponto_n : null,
           });
         }
@@ -212,7 +235,7 @@ export function derivarFontesParaExplorer(
           url,
           titulo: null,
           dominio,
-          status: opts?.emColeta ? 'lendo' : 'processado',
+          status: opts?.emColeta ? 'lendo' : 'utilizada',
           ponto_n: typeof item.pointNumber === 'number' ? item.pointNumber : null,
         });
       }
@@ -257,7 +280,7 @@ export function converterFontesResumoParaExplorer(resumo?: FontesResumo | null):
       const ponto_n = typeof rawPontoN === 'number' ? rawPontoN : null;
       const rawStatus = item && typeof item === 'object' && 'status' in item ? (item as { status: unknown }).status : null;
       const status: FonteExplorerStatus =
-        rawStatus === 'lendo' || rawStatus === 'consultada' || rawStatus === 'processado' || rawStatus === 'invalidado'
+        rawStatus === 'lendo' || rawStatus === 'utilizada' || rawStatus === 'lida_nao_utilizada'
           ? (rawStatus as FonteExplorerStatus)
           : statusPadrao;
       items.push({
@@ -270,8 +293,9 @@ export function converterFontesResumoParaExplorer(resumo?: FontesResumo | null):
     }
   };
 
-  processList(resumo.utilizadas, 'processado');
-  processList(resumo.consultadas, 'consultada');
+  processList(resumo.utilizadas, 'utilizada');
+  processList(resumo.consultadas, 'lida_nao_utilizada');
+  processList((resumo as any).nao_utilizadas, 'lida_nao_utilizada');
 
   return items;
 }

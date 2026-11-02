@@ -314,16 +314,12 @@ button.tl-entrada-linha:focus-visible {
   gap: 5px;
   flex: 0 0 auto;
   margin-left: 8px;
-  padding: 1px 8px 1px 6px;
-  background: color-mix(in srgb, var(--color-success-text, #10b981) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-success-text, #10b981) 24%, transparent);
-  border-radius: 999px;
   font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.4;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-success-text, #10b981);
+  color: var(--color-success-text, #0b6b45);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -334,21 +330,7 @@ button.tl-entrada-linha:focus-visible {
   height: 6px;
   border-radius: 50%;
   background-color: var(--color-success-text, #10b981);
-  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-  animation: tl-pulse-ring 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
   flex-shrink: 0;
-}
-
-@keyframes tl-pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-  }
 }
 
 /* ---------- corpo expandido ---------- */
@@ -362,6 +344,9 @@ button.tl-entrada-linha:focus-visible {
   font-size: 13px;
   line-height: 1.55;
   color: var(--color-text-secondary);
+  max-height: min(38vh, 340px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .tl-linear .tl-entrada-corpo[hidden] {
@@ -704,6 +689,9 @@ button.tl-entrada-linha:focus-visible {
 
   .tl-linear .tl-entrada-corpo {
     padding-left: 26px;
+    max-height: 30vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 

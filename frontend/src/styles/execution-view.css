@@ -577,3 +577,14 @@ button.exec-telemetry-chip--fontes:hover {
     display: none !important;
   }
 }
+
+/* Redação: nota de estado em seção aberta (sem card dentro de card). */
+.exec-writing-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+  background: transparent;
+}
