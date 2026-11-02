@@ -1,13 +1,13 @@
 """Contexto de streaming ao vivo do pipeline (SSE).
 
-O `LLMClient` já recebe o raciocínio e o conteúdo em chunks do provedor
-(`stream=True`). Este módulo propaga esses deltas para o `PipelineEventHub`
-global sem acoplar o cliente LLM ao endpoint HTTP nem aos estágios.
+Os estágios que produzem deltas publicam-nos no `PipelineEventHub` global sem
+acoplar o produtor ao endpoint HTTP. Hoje nenhum estágio emite deltas: o ciclo
+roda no processo Hermes, cujo log é gravado em `hermes.log`.
 
 Uso:
 
     with stream_scope(id_pesquisa, stage="search", agent="historiador", ponto_id=pid):
-        ...  # chamadas ao LLMClient publicam `agent.delta` automaticamente
+        ...  # publish_delta(...) publica `agent.delta`
 
 Fora de um `stream_scope` (chamadas HTTP avulsas de /plan, /search, /audit,
 /writer, testes), `publish_delta` é no-op.
@@ -64,7 +64,7 @@ def publish_delta(kind: str, text: str) -> None:
         return
 
     try:
-        # Import tardio: evita ciclo (pipeline_runner -> searcher -> llm_client).
+        # Import tardio: evita ciclo de importação com pipeline_runner.
         from app.core.pipeline_runner import get_pipeline_event_hub
 
         get_pipeline_event_hub().publish(

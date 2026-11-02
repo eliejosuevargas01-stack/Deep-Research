@@ -69,38 +69,3 @@ async def resolve_callback_webhook_url(db: AsyncSession) -> Optional[str]:
 async def resolve_webhook_hmac_secret(db: AsyncSession) -> Optional[str]:
     """Resolve WEBHOOK_HMAC_SECRET por banco cifrado, depois ENV."""
     return await resolve_key(db, "WEBHOOK_HMAC_SECRET")
-
-
-async def resolve_jina_base_url(
-    db: AsyncSession,
-    test_transport: Optional[Any] = None,
-) -> Optional[str]:
-    """Resolve JINA_BASE_URL com precedência do banco: chave dedicada, base_url do
-    registro JINA_API_KEY, ambiente exportado e, por último, o .env.
-
-    A base_url gravada junto de JINA_API_KEY no banco vence o .env — é o override
-    explícito do operador para a rota Jina.
-    """
-    if test_transport is not None:
-        return None
-
-    repo = CredentialsRepository(session=db)
-    try:
-        dedicated = await repo.get_credential("JINA_BASE_URL")
-        if dedicated and dedicated.strip():
-            return dedicated.strip()
-    except ValueError:
-        pass
-
-    record = await repo.get_credential_record("JINA_API_KEY")
-    if record and record.base_url and record.base_url.strip():
-        return record.base_url.strip()
-
-    env_value = os.environ.get("JINA_BASE_URL")
-    if env_value and env_value.strip():
-        return env_value.strip()
-
-    settings_value = getattr(get_settings(), "jina_base_url", None)
-    if settings_value and str(settings_value).strip():
-        return str(settings_value).strip()
-    return None

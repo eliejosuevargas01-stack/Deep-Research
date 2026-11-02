@@ -35,13 +35,11 @@ class Settings(BaseSettings):
     callback_webhook_url: Optional[str] = None
     api_secret_key: Optional[str] = None
 
-    # Provedores Externos (LLM e Jina)
+    # Provedores Externos (LLM via 9router; o perfil Hermes usa a mesma configuração)
     openai_api_key: Optional[str] = None
     llm_base_url: Optional[str] = None
     llm_model_light: Optional[str] = None
     llm_model_strong: Optional[str] = None
-    jina_api_key: Optional[str] = None
-    jina_base_url: Optional[str] = None
 
     # Persistência do Banco de Dados
     database_url: Optional[str] = None

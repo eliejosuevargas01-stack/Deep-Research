@@ -370,53 +370,67 @@ def test_b16_plan_responses_include_reasoning_planejamento() -> None:
 
 
 @pytest.mark.asyncio
-async def test_b16_create_plan_endpoint_includes_reasoning() -> None:
-    """Endpoint real create_plan extrai e preenche reasoning_planejamento em PlanResponse."""
-    from app.api.v1.endpoints.plan import create_plan
+async def test_b16_create_plan_endpoint_includes_reasoning(tmp_path) -> None:
+    """Endpoint real create_plan preenche reasoning_planejamento a partir do PLAN.md."""
+    import json
+
+    from app.api.v1.endpoints import plan as plan_mod
+    from app.core import hermes_adapter
     from app.schemas.plan import PlanRequest
     from starlette.responses import Response
 
-    mock_db = AsyncMock()
+    plano = {
+        "versao": "v10",
+        "tema": "Tema B16 Endpoint",
+        "objetivo": "Raciocínio metodológico do planner Hermes",
+        "escopo": "Escopo",
+        "perguntas": ["Eixo 1"],
+        "personas": {
+            "historiador": "h",
+            "visionario": "v",
+            "cetico": "c",
+            "futurista": "f",
+        },
+        "criterios_evidencia": ["fonte"],
+        "criterios_aprovacao": {"minimo": 11, "total": 12},
+    }
+    workspace = tmp_path / "pesq-b16-001"
+    workspace.mkdir()
+    (workspace / "PLAN.md").write_text(
+        "```json\n" + json.dumps(plano, ensure_ascii=False) + "\n```\n", encoding="utf-8"
+    )
+
     mock_pesq = SimpleNamespace(
         id_pesquisa="pesq-b16-001",
         tema="Tema B16 Endpoint",
         criado_em="2026-11-01T10:00:00Z",
         status_pipeline="planejado",
-        plano_estruturado=None,
-        metadados_modelo=None,
-        preferencias=None,
-        reasoning_planejamento="Raciocínio metodológico via Planner real",
     )
     mock_ponto = SimpleNamespace(
         ponto_id="pt-1",
         ponto_n=1,
         ponto="Eixo 1",
         status="pendente",
-        eixo_estruturado=None,
-        pontos_fracos=None,
-        reasoning_auditoria=None,
-        reasoning_planejamento=None,
     )
 
-    with patch("app.api.v1.endpoints.plan.Planner") as mock_planner_cls, \
-         patch("app.api.v1.endpoints.plan.ResearchRepository") as mock_repo_cls:
-        planner_inst = mock_planner_cls.return_value
-        planner_inst.n_pontos = 1
-        planner_inst.execute_plan = AsyncMock(return_value=mock_pesq)
+    with patch.object(
+        hermes_adapter, "garantir_pesquisa", AsyncMock(return_value=workspace)
+    ), patch("app.api.v1.endpoints.plan.ResearchRepository") as mock_repo_cls:
         repo_inst = mock_repo_cls.return_value
+        repo_inst.get_research = AsyncMock(return_value=None)
+        repo_inst.create_research = AsyncMock(return_value=mock_pesq)
         repo_inst.list_points = AsyncMock(return_value=[mock_ponto])
 
         req_payload = PlanRequest(tema="Tema B16 Endpoint para teste real")
-        resp = await create_plan(
+        resp = await plan_mod.create_plan(
             payload=req_payload,
             response=Response(),
-            background_tasks=MagicMock(),
-            db=mock_db,
+            db=AsyncMock(),
         )
 
         assert isinstance(resp, PlanResponse)
         assert resp.id_pesquisa == "pesq-b16-001"
-        assert resp.reasoning_planejamento == "Raciocínio metodológico via Planner real"
+        assert resp.reasoning_planejamento == plano["objetivo"]
 
 
 # ---------------------------------------------------------------------------
@@ -444,72 +458,3 @@ def test_b22_plan_schemas_accept_tema_longer_than_500_chars() -> None:
         pontos=[],
     )
     assert async_resp.tema == tema_longo
-
-
-@pytest.mark.asyncio
-async def test_b22_planner_real_accepts_long_theme() -> None:
-    """Planner real aceita tema > 500 caracteres sem travar ou truncar."""
-    from app.core.planner import Planner
-
-    mock_repo = MagicMock()
-    mock_pesq = SimpleNamespace(id_pesquisa="pesq-b22-real", tema="Tema B22", criado_em="2026-11-01T10:00:00Z")
-    mock_repo.create_research = AsyncMock(return_value=mock_pesq)
-    mock_repo.save_point = AsyncMock()
-    mock_jina = MagicMock()
-    mock_jina.search = AsyncMock(return_value=[])
-    mock_llm = MagicMock()
-    mock_envelope = MagicMock()
-    mock_envelope.finish_reason = "stop"
-    mock_envelope.usage = {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20}
-    mock_llm.generate_json_envelope = AsyncMock(return_value=({"pedido_original": "t"}, mock_envelope))
-    mock_llm.generate = AsyncMock(return_value={
-        "content": '{"plano": [{"ponto_n": 1, "ponto": "Eixo longo", "descricao": "Desc"}]}',
-        "reasoning": "Plano gerado para tema longo."
-    })
-
-    planner = Planner(
-        research_repo=mock_repo,
-        jina_client=mock_jina,
-        llm_client=mock_llm,
-        n_pontos=1,
-        personas=["planejador", "historiador", "cético"],
-    )
-
-    tema_longo = ("Investigação estratégica aprofundada de alta densidade analítica. " * 20)[:750]
-    with patch.object(planner, "evaluate_plan_semantics", AsyncMock(return_value=(True, None, None))), \
-         patch("app.core.planner.validate_and_parse_plan") as mock_val:
-        mock_eixo = SimpleNamespace(pergunta_principal="Eixo longo", model_dump=lambda: {"pergunta_principal": "Eixo longo"})
-        mock_plano = SimpleNamespace(eixos=[mock_eixo], recorte_temporal="2026", model_dump=lambda: {"eixos": [{"pergunta_principal": "Eixo longo"}]})
-        mock_val.return_value = (mock_plano, None)
-
-        res = await planner.execute_plan(tema=tema_longo)
-        assert res is not None
-        assert res.id_pesquisa == "pesq-b22-real"
-
-
-@pytest.mark.asyncio
-async def test_b22_planner_no_500_char_limit() -> None:
-    """Planner não deve conter trava de 500 caracteres, mas mantém validação de mínimo 5."""
-    from app.core.planner import Planner
-
-    mock_repo = MagicMock()
-    mock_jina = MagicMock()
-    mock_llm = MagicMock()
-
-    planner = Planner(
-        research_repo=mock_repo,
-        jina_client=mock_jina,
-        llm_client=mock_llm,
-        n_pontos=2,
-        personas=["planejador", "historiador", "cético"],
-    )
-
-    # Validamos que len(tema_limpo) < 5 ainda rejeita
-    with pytest.raises(ValueError, match="no mínimo 5 caracteres"):
-        await planner.execute_plan(tema="abc")
-
-    # Verificação estática do código fonte para garantir remoção da trava de 500
-    import inspect
-    src = inspect.getsource(planner.execute_plan)
-    assert "no máximo 500 caracteres" not in src
-    assert "len(tema_limpo) > 500" not in src

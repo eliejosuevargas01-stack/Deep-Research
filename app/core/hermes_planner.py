@@ -1,8 +1,9 @@
-"""Pesquisa executada por um perfil Hermes (planner) em vez de chamadas diretas ao modelo.
+"""Pesquisa executada por um perfil Hermes em vez de chamadas diretas ao modelo.
 
-Um único processo `hermes -p planner` roda o ciclo inteiro: plano, 4 searchers,
-auditor (até 3 reprovações) e redator. A troca entre papéis é por arquivos Markdown
-dentro do diretório isolado da pesquisa — não há JSON de etapa para etapa.
+Um único processo `HERMES_PROFILE=deep-research hermes -z <prompt>` roda o ciclo
+inteiro: plano, 4 searchers, auditor (até 3 reprovações) e redator. A troca entre
+papéis é por arquivos Markdown dentro do diretório isolado da pesquisa — não há
+JSON de etapa para etapa.
 
 Contrato de arquivos no diretório da pesquisa:
     PLAN.md                       (planner, reescrevível)
@@ -55,9 +56,9 @@ def _slug(tema: str, limite: int = 60) -> str:
 
 
 def _ajustar_dono(caminho: Path) -> None:
-    """Entrega o workspace ao uid que roda o Hermes (container vizinho, ex.: hermes-vps).
+    """Entrega o workspace ao uid que roda o Hermes embutido na imagem.
 
-    A API costuma rodar como root; o Hermes roda como `hermes` (uid 10000) e precisa
+    A API costuma rodar como root; o Hermes pode rodar como outro usuário e precisa
     gravar nos mesmos arquivos. Sem `DR_HERMES_RUNAS_UID` nada muda.
     """
     bruto = (os.environ.get("DR_HERMES_RUNAS_UID") or "").strip()
@@ -90,31 +91,6 @@ def _binario_hermes() -> str:
             "Binário `hermes` não encontrado no PATH. Defina DR_HERMES_BIN ou instale o Hermes Agent."
         )
     return caminho
-
-
-def _prefacio_sandbox(workspace: Path, argv: list[str]) -> list[str]:
-    """bwrap: raiz somente-leitura, workspace e home do Hermes graváveis.
-
-    Bloqueia escrita em qualquer lugar fora do diretório da pesquisa (EROFS), que é o
-    `AllowedPaths` desta execução. `DR_HERMES_SANDBOX=off` desliga (só para depurar).
-    """
-    if (os.environ.get("DR_HERMES_SANDBOX") or "").strip().lower() == "off":
-        return argv
-    bwrap = shutil.which("bwrap")
-    if not bwrap:
-        return argv
-    hermes_home = Path(os.environ.get("HERMES_HOME") or (Path.home() / ".hermes")).resolve()
-    return [
-        bwrap,
-        "--ro-bind", "/", "/",
-        "--dev", "/dev",
-        "--proc", "/proc",
-        "--tmpfs", "/tmp",
-        "--bind", str(workspace), str(workspace),
-        "--bind", str(hermes_home), str(hermes_home),
-        "--chdir", str(workspace),
-        *argv,
-    ]
 
 
 def montar_prompt(tema: str, workspace: Path, max_rodadas: int = 3) -> str:
@@ -199,7 +175,7 @@ async def executar(
     timeout_segundos: int = 3600,
 ) -> Dict[str, Any]:
     """Roda a pesquisa inteira em um processo Hermes e devolve o inventário final."""
-    perfil = perfil or os.environ.get("DR_HERMES_PROFILE", "planner")
+    perfil = perfil or os.environ.get("DR_HERMES_PROFILE", "deep-research")
     if max_rodadas < 1 or max_rodadas > 3:
         raise ValueError("max_rodadas deve estar entre 1 e 3")
 
@@ -212,14 +188,12 @@ async def executar(
 
     argv = [
         _binario_hermes(),
-        "-p", perfil,
         "-z", prompt,
-        "--in", caminho_exec,
         "--usage-file", f"{caminho_exec}/usage.json",
     ]
-    argv = _prefacio_sandbox(workspace, argv)
-
-    env = {k: v for k, v in os.environ.items() if k not in {"HERMES_HOME", "HERMES_SESSION_ID"}}
+    # HERMES_HOME (perfil embutido na imagem) é herdado; só a sessão do processo pai é descartada.
+    env = {k: v for k, v in os.environ.items() if k != "HERMES_SESSION_ID"}
+    env["HERMES_PROFILE"] = perfil
     env["HERMES_DR_ALLOWED_PATH"] = caminho_exec
     env["DR_ALLOWED_PATH"] = caminho_exec
     env["DR_HERMES_EXEC_CWD"] = caminho_exec

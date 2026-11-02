@@ -52,8 +52,6 @@ def test_env(test_fernet_key: str, temp_db_path: str, monkeypatch: pytest.Monkey
     monkeypatch.setenv("LLM_BASE_URL", "https://api.openai.com/v1")
     monkeypatch.setenv("LLM_MODEL_LIGHT", "gpt-4o-mini")
     monkeypatch.setenv("LLM_MODEL_STRONG", "gpt-4o")
-    monkeypatch.setenv("Jina_API_KEY", "jina-test-mock-api-key")
-    monkeypatch.setenv("Jina_BASE_URL", "https://s.jina.ai")
 
     get_settings.cache_clear()
     reset_engine()
