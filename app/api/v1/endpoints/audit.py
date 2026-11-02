@@ -12,6 +12,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auditor import Auditor
+from app.core import hermes_adapter, hermes_planner
 from app.db.research_repository import ResearchRepository
 from app.db.session import get_db
 from app.schemas.audit import AuditRequest, AuditResponse
@@ -49,6 +50,19 @@ async def audit_research(
     """Avalia o conteúdo coletado contra o checklist das 12 perguntas de qualidade via LLM forte."""
     transport = _get_transport()
     repo = ResearchRepository(session=db)
+    if hermes_adapter.modo_hermes():
+        pesquisa = await repo.get_research(payload.id_pesquisa)
+        if pesquisa is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Pesquisa não encontrada para auditoria no pipeline Hermes.",
+            )
+        workspace = hermes_planner.criar_workspace(payload.id_pesquisa, pesquisa.tema)
+        return AuditResponse(
+            **hermes_adapter.audit_payload(
+                payload.id_pesquisa, workspace, payload.criterios_minimos or 11
+            )
+        )
     llm_client: Optional[LLMClient] = None
     try:
         llm_key = _clean_key(await resolve_key(db, "OPENAI_API_KEY", transport)) or (

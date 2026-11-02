@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 from app.core.writer import Writer
+from app.core import hermes_adapter, hermes_planner
 from app.db.research_repository import ResearchRepository
 from app.db.session import get_db
 from app.schemas.writer import WriterRequest, WriterResponse
@@ -60,6 +61,18 @@ async def write_dossier(
     """Consolida pontos auditados, redige o dossiê final e despacha notificação assinada via webhook."""
     transport = _get_transport()
     repo = ResearchRepository(session=db)
+    if hermes_adapter.modo_hermes():
+        pesquisa = await repo.get_research(payload.id_pesquisa)
+        if pesquisa is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Pesquisa não encontrada para redação no pipeline Hermes.",
+            )
+        workspace = hermes_planner.criar_workspace(payload.id_pesquisa, pesquisa.tema)
+        dados = hermes_adapter.writer_payload(payload.id_pesquisa, pesquisa.tema, workspace)
+        if dados.get("dossier_final"):
+            await repo.update_research_dossier(payload.id_pesquisa, dados["dossier_final"])
+        return WriterResponse(**dados)
     llm_client: Optional[LLMClient] = None
     webhook_client: Optional[WebhookClient] = None
     try:

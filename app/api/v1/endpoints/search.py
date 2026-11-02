@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.personas import resolve_required_search_personas
 from app.core.searcher import Searcher
+from app.core import hermes_adapter
 from app.db.research_repository import ResearchRepository
 from app.db.session import get_db
 from app.schemas.search import SearchRequest, SearchResponse
@@ -57,6 +58,15 @@ async def search_points(
     """Executa varredura web concorrente sob 4 personas e deduplica URLs por pesquisa."""
     transport = _get_transport()
     repo = ResearchRepository(session=db)
+    if hermes_adapter.modo_hermes():
+        pesquisa = await repo.get_research(payload.id_pesquisa)
+        if pesquisa is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Pesquisa não encontrada para execução no pipeline Hermes.",
+            )
+        workspace = await hermes_adapter.garantir_pesquisa(payload.id_pesquisa, pesquisa.tema)
+        return SearchResponse(**hermes_adapter.search_payload(payload.id_pesquisa, workspace))
     jina_client: Optional[JinaClient] = None
     llm_client: Optional[LLMClient] = None
     try:

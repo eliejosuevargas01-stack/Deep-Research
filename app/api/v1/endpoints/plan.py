@@ -53,6 +53,7 @@ async def _run_pipeline_em_background(
     finally:
         heartbeat.cancel()
 from app.core.planner import PlanAmbiguityError, PlanContractError, Planner
+from app.core import hermes_adapter
 from app.core.stream_context import stream_scope
 from app.db.research_repository import ResearchRepository
 from app.db.session import get_db
@@ -124,7 +125,11 @@ async def create_plan(
         model_light = _clean_key(await resolve_key(db, "LLM_MODEL_LIGHT", transport))
         model_strong = _clean_key(await resolve_key(db, "LLM_MODEL_STRONG", transport))
 
-        jina_client = JinaClient(api_key=jina_key, base_url=jina_base_url, transport=transport)
+        jina_client = (
+            hermes_adapter.JinaNulo()
+            if hermes_adapter.modo_hermes()
+            else JinaClient(api_key=jina_key, base_url=jina_base_url, transport=transport)
+        )
         # O plano utiliza o modelo forte (Step 5) conforme configuração operacional
         plan_model = model_strong or model_light
         llm_client = LLMClient(
