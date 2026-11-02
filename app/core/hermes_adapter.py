@@ -1,8 +1,8 @@
-"""Adaptador entre o pipeline da UI e o perfil Hermes `planner`.
+"""Adaptador entre a UI e o perfil Hermes embutido.
 
-Com `DR_PIPELINE_MODE=hermes`, as etapas /search, /audit e /writer deixam de chamar
-Jina e o modelo direto: a pesquisa inteira roda uma vez no processo Hermes e as
-respostas são derivadas dos documentos Markdown produzidos lá.
+A pesquisa inteira roda uma vez no processo Hermes; as etapas /plan, /search,
+/audit e /writer derivam suas respostas dos documentos Markdown produzidos lá —
+sem Jina e sem chamada direta ao modelo por etapa.
 
 Contrato de arquivos (ver app/core/hermes_planner.py):
     PLAN.md, HISTORIADOR_SEARCH.md, VISIONARIO_SEARCH.md, CETICO_SEARCH.md,
@@ -13,10 +13,9 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from app.core import hermes_planner
 
@@ -32,21 +31,6 @@ PERSONA_ARQUIVOS = {
 _URL_RE = re.compile(r"https?://[^\s)\]>\"]+")
 _RODADA_RE = re.compile(r"^##\s+Rodada\s+(\d+)\s*[—:-]\s*(APROVADO|REPROVADO)\s*[—:-]\s*nota\s*(\d+)\s*/\s*12", re.M)
 _TOTAL_RE = re.compile(r"TOTAL:\s*(\d+)\s*p[áa]ginas", re.I)
-
-
-def modo_hermes() -> bool:
-    """Liga o caminho Hermes no pipeline HTTP (sem Jina, sem chamada direta por etapa)."""
-    return (os.environ.get("DR_PIPELINE_MODE") or "").strip().lower() == "hermes"
-
-
-class JinaNulo:
-    """Cliente Jina inerte: o plano não consulta SERP quando o pipeline é Hermes."""
-
-    async def search(self, query: str, **_: Any) -> List[Dict[str, Any]]:
-        return []
-
-    async def aclose(self) -> None:
-        return None
 
 
 def _urls(texto: str) -> List[str]:
@@ -233,6 +217,12 @@ def plan_payload(workspace: Path) -> Dict[str, Any]:
             "plano": plano,
         }
     return {"valido": True, "erro": None, "plano": plano}
+
+
+def pontos_do_plano(plano: Dict[str, Any]) -> List[str]:
+    """Textos dos pontos focais: as `perguntas` do plano, uma por ponto."""
+    perguntas = [str(p).strip() for p in (plano.get("perguntas") or []) if str(p).strip()]
+    return perguntas or [str(plano.get("objetivo") or plano.get("tema") or "Investigação")]
 
 
 def meta_personas(workspace: Path) -> List[Dict[str, Any]]:

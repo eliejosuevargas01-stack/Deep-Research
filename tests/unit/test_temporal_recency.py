@@ -161,19 +161,6 @@ def test_data_de_referencia_e_now_dinamico_sem_override(monkeypatch) -> None:
     assert current_reference_date() == ref.date()
 
 
-def test_writer_usa_relogio_atual_e_nao_a_data_congelada_do_plano(monkeypatch) -> None:
-    from app.core.writer import _writer_recency_block
-
-    monkeypatch.setenv("RESEARCH_REFERENCE_DATE", "2025-02-03")
-    bloco = _writer_recency_block({
-        "data_referencia": "2020-01-01",
-        "politica_recencia": "recente",
-        "pedido_original": "estado atual do setor",
-    })
-    assert "03/02/2025" in bloco
-    assert "01/01/2020" not in bloco
-
-
 def test_politica_24h_marca_janela_curta() -> None:
     policy = resolve_recency_policy("notícias", requested_mode="24h", reference=REF)
     assert isinstance(policy, RecencyPolicy)

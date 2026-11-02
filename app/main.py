@@ -54,7 +54,6 @@ def _setup_integration_test_env() -> None:
             "LLM_BASE_URL": "https://api.openai.com/v1",
             "LLM_MODEL_LIGHT": "gpt-4o-mini",
             "LLM_MODEL_STRONG": "gpt-4o",
-            "Jina_BASE_URL": "https://s.jina.ai",
         }
         modified = False
         for k, v in test_defaults.items():

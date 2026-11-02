@@ -13,7 +13,6 @@ from app.services.credential_resolver import (
     resolve_personas,
     resolve_callback_webhook_url,
     resolve_webhook_hmac_secret,
-    resolve_jina_base_url,
 )
 from app.services.crypto_service import CryptoService
 
@@ -89,14 +88,13 @@ async def test_resolve_personas(
 
 
 @pytest.mark.asyncio
-async def test_resolve_webhooks_and_jina(
+async def test_resolve_webhooks(
     db_session: AsyncSession, crypto_service: CryptoService, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Verifica resolução de webhooks e JINA_BASE_URL (inclusive via base_url da JINA_API_KEY)."""
+    """Verifica resolução de CALLBACK_WEBHOOK_URL e WEBHOOK_HMAC_SECRET no banco cifrado."""
     repo = CredentialsRepository(session=db_session, crypto_service=crypto_service)
     monkeypatch.delenv("CALLBACK_WEBHOOK_URL", raising=False)
     monkeypatch.delenv("WEBHOOK_HMAC_SECRET", raising=False)
-    monkeypatch.delenv("JINA_BASE_URL", raising=False)
 
     # Salva webhook e hmac no banco
     await repo.save_credential(
@@ -108,12 +106,3 @@ async def test_resolve_webhooks_and_jina(
 
     assert await resolve_callback_webhook_url(db_session) == "https://hook.com/cb"
     assert await resolve_webhook_hmac_secret(db_session) == "super-hmac-secret"
-
-    # JINA_BASE_URL: quando JINA_BASE_URL não está configurada, mas JINA_API_KEY tem base_url associada
-    await repo.save_credential(
-        chave="JINA_API_KEY",
-        valor="jina_secret_key",
-        tipo="jina",
-        base_url="https://custom.jina.ai",
-    )
-    assert await resolve_jina_base_url(db_session) == "https://custom.jina.ai"

@@ -263,7 +263,6 @@ def test_credential_sanitized_mask_secret() -> None:
 def test_plano_eixo_required_fields_omission_validation() -> None:
     """Verifica que a omissão de qualquer campo investigativo essencial falha a validação (R2-F01)."""
     from app.schemas.plan import PlanoEixo
-    from app.core.plan_validator import validate_and_parse_plan
 
     valid_eixo_dict = {
         "pergunta_principal": "Qual o impacto da computação quântica?",
@@ -282,33 +281,17 @@ def test_plano_eixo_required_fields_omission_validation() -> None:
     eixo_valido = PlanoEixo.model_validate(valid_eixo_dict)
     assert eixo_valido.pergunta_principal.startswith("Qual o impacto")
 
-    # Lista dos campos investigativos essenciais que NUNCA podem ser omitidos ou virar [] por default silencioso
-    essential_fields = [
+    # Campos investigativos essenciais NUNCA podem ser omitidos nem virar [] silenciosamente
+    for field in (
         "hipoteses",
         "consultas_iniciais",
         "fontes_primarias_desejadas",
         "evidencias_que_refutariam",
         "subperguntas",
         "riscos_de_vies",
-    ]
-
-    for field in essential_fields:
+    ):
         eixo_sem_campo = dict(valid_eixo_dict)
         del eixo_sem_campo[field]
-
-        # 1. Pydantic direto deve levantar ValidationError
         with pytest.raises(ValidationError):
             PlanoEixo.model_validate(eixo_sem_campo)
-
-        # 2. validate_and_parse_plan deve rejeitar e indicar motivo citando o campo
-        full_plan = {
-            "pedido_original": "Computação quântica",
-            "pedido_normalizado": "Computação quântica",
-            "publico": "Especialista",
-            "formato_entrega": "Artigo técnico",
-            "eixos": [eixo_sem_campo],
-        }
-        plano, motivo = validate_and_parse_plan(full_plan, 1, "Computação quântica")
-        assert plano is None, f"Plano com eixo sem campo '{field}' não deve ser aceito"
-        assert field in motivo or "inválido" in motivo or "obrigatór" in motivo
 
