@@ -309,57 +309,38 @@ class SourceAccountingService:
                 except Exception:
                     meta_col = {}
 
-            fontes_dict = meta_col.get("fontes", {}) if isinstance(meta_col, dict) else {}
-            if isinstance(fontes_dict, dict) and fontes_dict:
-                for _sid, finfo in fontes_dict.items():
-                    if not isinstance(finfo, dict):
-                        continue
-                    raw_u = finfo.get("url")
-                    normalized = normalize_and_validate_url(raw_u)
-                    if not normalized:
-                        continue
-                    canon_key, clean_url, domain = normalized
+            fontes_raw = meta_col.get("fontes", {}) if isinstance(meta_col, dict) else {}
+            if isinstance(fontes_raw, dict):
+                fontes_itens = list(fontes_raw.values())
+                tem_catalogo = bool(fontes_raw)
+            elif isinstance(fontes_raw, list):
+                fontes_itens = fontes_raw
+                tem_catalogo = bool(fontes_raw)
+            else:
+                fontes_itens = []
+                tem_catalogo = False
 
-                    status = str(finfo.get("status") or "").lower().strip()
-                    raw_body = finfo.get("body")
-                    if not isinstance(raw_body, str):
-                        raw_body = ""
-                    body = raw_body.strip()
-
-                    raw_length = finfo.get("length")
-                    parsed_length: Optional[int] = None
-                    if isinstance(raw_length, int):
-                        parsed_length = raw_length
-                    elif isinstance(raw_length, str) and raw_length.strip().isdigit():
-                        try:
-                            parsed_length = int(raw_length.strip())
-                        except (ValueError, TypeError):
-                            parsed_length = None
-
-                    if parsed_length is None and body:
-                        parsed_length = len(body)
-
-                    # Exige materialidade comprovada (read_ok com texto real não-vazio)
-                    has_material_corpus = bool(body) and (parsed_length is not None and parsed_length > 0)
-
-                    if status == "read_ok" and has_material_corpus:
-                        titulo = finfo.get("title") or finfo.get("titulo")
-                        if not titulo and body:
-                            m_tit = re.match(r"^Title:\s*(.+)$", body, re.MULTILINE)
-                            if m_tit:
-                                titulo = m_tit.group(1).strip()
-
-                        if canon_key not in consultadas_map:
-                            consultadas_map[canon_key] = FonteItem(
-                                url=clean_url,
-                                titulo=str(titulo).strip() if titulo else None,
-                                dominio=domain,
-                            )
-                        elif not consultadas_map[canon_key].titulo and titulo:
-                            consultadas_map[canon_key].titulo = str(titulo).strip()
-                    else:
-                        # Falha explícita, snippet_only ou read_ok vazio: desqualificado
-                        disqualified_canon_keys.add(canon_key)
+            for finfo in fontes_itens:
+                if not isinstance(finfo, dict):
+                    continue
+                normalized = normalize_and_validate_url(finfo.get("url"))
+                if not normalized:
+                    continue
+                canon_key, clean_url, domain = normalized
+                status = str(finfo.get("status") or "").lower().strip()
+                if status != "read_ok":
+                    # PRD v3: o catálogo só contém read_ok; status divergente é falha explícita.
+                    disqualified_canon_keys.add(canon_key)
+                    continue
+                titulo = finfo.get("titulo") or finfo.get("title")
+                if canon_key not in consultadas_map:
+                    consultadas_map[canon_key] = FonteItem(
+                        url=clean_url,
+                        titulo=str(titulo).strip() if titulo else None,
+                        dominio=domain,
+                    )
+                elif not consultadas_map[canon_key].titulo and titulo:
+                    consultadas_map[canon_key].titulo = str(titulo).strip()
 
             # URLs eleitas pelas personas em QUALQUER rodada (uso sem depender de dossiê)
             personas_meta = meta_col.get("resultados_personas") if isinstance(meta_col, dict) else None
@@ -398,8 +379,6 @@ class SourceAccountingService:
                     lidas_list = []
 
                 if isinstance(lidas_list, list):
-                    # Coleta sem fontes_dict detalhado mas com texto material substantivo
-                    has_col_body = bool(col.conteudo_coletado and col.conteudo_coletado.strip())
                     for raw_u in lidas_list:
                         normalized = normalize_and_validate_url(raw_u)
                         if not normalized:
@@ -410,14 +389,13 @@ class SourceAccountingService:
                         if canon_key in disqualified_canon_keys:
                             continue
 
-                        # Se não havia fontes_dict mas há corpus material na coleta legada
-                        if not fontes_dict and has_col_body:
-                            if canon_key not in consultadas_map:
-                                consultadas_map[canon_key] = FonteItem(
-                                    url=clean_url,
-                                    titulo=None,
-                                    dominio=domain,
-                                )
+                        # Coleta legada sem catálogo: a própria urls_lidas é a evidência.
+                        if not tem_catalogo and canon_key not in consultadas_map:
+                            consultadas_map[canon_key] = FonteItem(
+                                url=clean_url,
+                                titulo=None,
+                                dominio=domain,
+                            )
 
         # 2. Extração de citações no dossiê final publicado
         dossier_text = dossier_override if dossier_override is not None else pesquisa.dossier_final

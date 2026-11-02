@@ -105,7 +105,7 @@ def make_writer_article_12_eval(
             "aprovado": is_aprovado,
             "justificativa": f"Critério {i} ({CRITERIA_TITLES.get(i, 'criterio')}) {'atendido com rigor' if is_aprovado else 'insuficiente'}.",
             "claim_ids": ["claim_1"],
-            "source_ids": ["src_1"],
+            "source_ids": [],
             "correcao": None if is_aprovado else (correcao_text or f"Ajustar a redação para atender ao critério {i}."),
         }
         if override_criterion and i in override_criterion:
@@ -359,6 +359,21 @@ async def test_context_delivers_current_collection_and_c2_failure_even_when_pont
     await repo.session.commit()
 
     # Insere rodada antiga com sentinel para comprovar que É incluída no contexto (PRD v2, I-5)
+    meta_old = {
+        "versao": 3,
+        "fontes": [
+            {"url": "https://old.org", "uso": "utilizada", "titulo": "Rodada antiga", "status": "read_ok"}
+        ],
+        "resultados_personas": {
+            "historiador": {
+                "persona": "historiador",
+                "analise": "HISTORICAL_ROUND_SENTINEL_OLD_RODADA_1",
+                "urls_fonte": ["https://old.org"],
+                "urls_lidas": ["https://old.org"],
+                "sucesso": True,
+            }
+        },
+    }
     old_record = ConteudoColetado(
         id=str(uuid.uuid4()),
         id_pesquisa=id_pesquisa,
@@ -369,6 +384,7 @@ async def test_context_delivers_current_collection_and_c2_failure_even_when_pont
         conteudo_coletado="HISTORICAL_ROUND_SENTINEL_OLD_RODADA_1",
         urls_lidas=json.dumps(["https://old.org"]),
         urls_fonte=json.dumps(["https://old.org"]),
+        metadados_coleta=json.dumps(meta_old),
         criado_em=datetime.now(timezone.utc).isoformat(),
     )
     repo.session.add(old_record)
@@ -400,21 +416,12 @@ async def test_context_delivers_current_collection_and_c2_failure_even_when_pont
         "Rodadas anteriores devem ser entregues ao redator: descartar retries perde coleta já paga."
     )
 
-    # 4. Proveniência real do trecho entregue: ID/texto/hash/offset comparados com a projeção canônica
-    corpo_fonte = (
-        "The PHP Group officially announces release 8.3.13 addressing two low-severity issues. "
-        "No critical remote code execution vulnerability exists. Disclosed CVEs are verified."
-    )
-    trecho_texto = corpo_fonte[0:80]
-    trecho_hash = hashlib.sha256(trecho_texto.encode("utf-8")).hexdigest()
-    assert '"chunk_id": "chk_1"' in gen_text, "Contexto deve entregar o chunk_id REAL do trecho (não (''list chunk_ids))."
-    assert trecho_texto in gen_text, "Texto REAL do trecho selecionado deve constar no contexto do redator."
-    assert trecho_hash in gen_text, "text_hash real do trecho deve constar no contexto do redator."
-    assert '"start_offset": 0' in gen_text and '"end_offset": 80' in gen_text, "Offsets reais do trecho devem constar no contexto."
-    assert '"evidencias"' in gen_text, "Claims devem vincular evidencias reais (chunk_ids) no contexto."
-    # 5. Sem fonteID inventado pela URL e sem título/domínio inventados
-    assert '"src_2"' not in gen_text, "Nenhum source_id fallback deve ser inventado a partir de URLs."
-    assert '"body_hash"' in gen_text and "\"status\": \"read_ok\"" in gen_text, "Fontes entregues devem conter proveniência real read_ok."
+    # 4. Proveniência real v3: URL, uso e resumo da persona, sem corpo bruto
+    assert VALID_CANONICAL_URL in gen_text, "URL utilizada deve constar no contexto do redator."
+    assert '"uso": "utilizada"' in gen_text, "Catálogo deve classificar uso da URL."
+    assert "Análise substantiva da perspectiva" in gen_text, "Resumo acumulado da persona deve ser entregue."
+    assert '"body_hash"' not in gen_text and '"chunk_id"' not in gen_text, "Bruto/hash/chunk não podem vazar para a redação."
+    assert '"status": "read_ok"' in gen_text, "Fontes entregues devem manter status read_ok."
     # 6. Eixo real do plano e ressalva C2 com lacuna/correção entregues ao redator
     assert "Qualificar relato secundário" in gen_text, "Correção acionável (acao_corretiva) da auditoria deve constar no contexto."
     assert "pergunta_principal" in gen_text, "Eixo estruturado do plano deve constar no contexto."

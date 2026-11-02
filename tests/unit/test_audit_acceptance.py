@@ -155,15 +155,10 @@ def make_standard_coleta_metadata(
     source_url: str = "https://php.net/security-2026",
     body_override: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Cria metadados_coleta completos e válidos com 4 personas, trechos e corpos coerentes."""
-    body_text = (
-        body_override
-        or "The PHP Group officially announces release 8.3.13 addressing two low-severity issues. "
-        "No critical remote code execution vulnerability exists. Disclosed CVEs are verified."
-    )
-    src = make_source_data("src_1", source_url, body_text)
-    chk = make_chunk_data(1, "src_1", source_url, body_text, start_offset=0, length=min(80, len(body_text)))
+    """Metadados v3 completos: catálogo de URLs + 4 personas com resumo denso.
 
+    ``body_override`` é ignorado: não existe corpo persistido desde o PRD v3.
+    """
     personas_names = ["historiador", "visionario", "cetico", "futurista"]
     resultados_personas = {}
 
@@ -173,7 +168,7 @@ def make_standard_coleta_metadata(
             "claim_id": cid,
             "afirmacao": f"Afirmação factual verificada {idx} da persona {p}.",
             "tipo": "fato",
-            "evidencias": ["chk_1"],
+            "evidencias": [source_url],
             "confianca": "alta",
             "limitacoes": "",
         }
@@ -184,14 +179,22 @@ def make_standard_coleta_metadata(
             lacunas=[],
             sucesso=True,
         )
+        resultados_personas[p]["urls_fonte"] = [source_url]
+        resultados_personas[p]["urls_lidas"] = [source_url]
 
     return {
-        "versao": 1,
-        "fontes": {"src_1": src},
-        "trechos": {"chk_1": chk},
+        "versao": 3,
+        "fontes": [
+            {
+                "url": source_url,
+                "uso": "utilizada",
+                "titulo": "Fonte canônica",
+                "data_fonte": None,
+                "status": "read_ok",
+            }
+        ],
         "resultados_personas": resultados_personas,
         "diario_acoes": {p: [{"acao": "buscar", "consulta": f"busca {p}"}, {"acao": "concluir"}] for p in personas_names},
-        "selecao_contexto": {p: {"selected_chunk_ids": ["chk_1"]} for p in personas_names},
     }
 
 
@@ -203,7 +206,7 @@ def make_audit_12_vector(
 ) -> List[Dict[str, Any]]:
     """Gera o vetor estruturado dos 12 critérios com IDs 1..12 e N aprovados."""
     c_ids = known_claim_ids or ["claim_1", "claim_2"]
-    s_ids = known_source_ids or ["src_1"]
+    s_ids = known_source_ids or []
     vector = []
     for i in range(1, 13):
         is_aprovado = i <= aprovados_count
@@ -212,7 +215,7 @@ def make_audit_12_vector(
             "aprovado": is_aprovado,
             "justificativa": f"Justificativa analítica substantiva para o critério {i}.",
             "claim_ids": c_ids if is_aprovado else [c_ids[0]],
-            "source_ids": s_ids if is_aprovado else [s_ids[0]],
+            "source_ids": s_ids if is_aprovado or not s_ids else [s_ids[0]],
             "lacuna": None if is_aprovado else f"Lacuna identificada no critério {i}.",
             "correcao": None if is_aprovado else f"Ação de correção para o critério {i}.",
             "personas_pertinentes": [] if is_aprovado else ["cetico", "historiador"],
@@ -449,7 +452,7 @@ async def test_audit_invalid_vectors_separate(
     invalid_vector = make_audit_12_vector(
         12,
         known_claim_ids=["claim_1", "claim_2", "claim_3", "claim_4"],
-        known_source_ids=["src_1"],
+        known_source_ids=["https://php.net/security-2026"],
         override_criterion=override_dict,
     )
 
@@ -476,39 +479,6 @@ async def test_audit_invalid_vectors_separate(
 # 3. PROVENIÊNCIA REAL: CORPO AUSENTE, HASH INCORRETO, OFFSET INCOERENTE
 # ==============================================================================
 
-@pytest.mark.asyncio
-async def test_audit_rejects_coleta_with_missing_body_or_incoherent_offsets(
-    db_session: AsyncSession,
-) -> None:
-    """Coleta sem corpo canônico na fonte ou com hash/offset incoerente é rejeitada antes do LLM."""
-    repo = ResearchRepository(session=db_session)
-    pesq, pontos = await create_research_fixture_with_plan(repo)
-    ponto = pontos[0]
-
-    # Fonte sem corpo
-    meta_no_body = make_standard_coleta_metadata()
-    meta_no_body["fontes"]["src_1"]["body"] = None
-    meta_no_body["fontes"]["src_1"]["body_hash"] = ""
-
-    await repo.save_collected_content(
-        id_pesquisa=pesq.id_pesquisa,
-        ponto_id=ponto.ponto_id,
-        tema=pesq.tema,
-        ponto=ponto.ponto,
-        conteudo_coletado="Conteúdo sem corpo",
-        urls_lidas=["https://php.net/security-2026"],
-        urls_fonte=["https://php.net/security-2026"],
-        metadados_coleta=meta_no_body,
-    )
-
-    mock_net = MockNetwork()
-    llm = LLMClient(api_key="key", transport=create_mock_transport(mock_net))
-    auditor = Auditor(research_repo=repo, llm_client=llm)
-
-    res = await auditor.execute_audit(id_pesquisa=pesq.id_pesquisa)
-    assert res["auditorias"][0]["status"] == "reprovado"
-    assert "corpo" in res["auditorias"][0]["pontos_fracos"].lower() or "proveniência" in res["auditorias"][0]["pontos_fracos"].lower()
-    assert len(mock_net.requests) == 0
 
 
 @pytest.mark.asyncio
@@ -634,40 +604,6 @@ async def test_audit_payload_captures_complete_plan_and_axis_by_exact_equality(
     assert "REASONING_PRIVADO_NAO_PODE_ESTAR_NO_PROMPT" not in raw_text
 
 
-@pytest.mark.asyncio
-async def test_audit_evidence_budget_32k_overflow_isolated(db_session: AsyncSession) -> None:
-    """Orçamento de caracteres de evidência: corpo coerente grande gera insuficiência explícita sem truncar."""
-    repo = ResearchRepository(session=db_session)
-    pesq, pontos = await create_research_fixture_with_plan(repo)
-    ponto = pontos[0]
-
-    huge_text = "E" * (AUDIT_EVIDENCE_BUDGET_CHARS + 3000)
-    huge_meta = make_standard_coleta_metadata(body_override=huge_text)
-    huge_meta["trechos"]["chk_1"] = make_chunk_data(1, "src_1", "https://php.net/security-2026", huge_text, 0, len(huge_text))
-
-    await repo.save_collected_content(
-        id_pesquisa=pesq.id_pesquisa,
-        ponto_id=ponto.ponto_id,
-        tema=pesq.tema,
-        ponto=ponto.ponto,
-        conteudo_coletado="Conteúdo grande",
-        urls_lidas=["https://php.net/security-2026"],
-        urls_fonte=["https://php.net/security-2026"],
-        metadados_coleta=huge_meta,
-    )
-
-    mock_net = MockNetwork()
-    llm = LLMClient(api_key="key", transport=create_mock_transport(mock_net))
-    auditor = Auditor(research_repo=repo, llm_client=llm)
-
-    res = await auditor.execute_audit(id_pesquisa=pesq.id_pesquisa)
-    item = res["auditorias"][0]
-
-    assert item["status"] in ("aprovado", "reprovado")
-    # PRD v2, I-2: volume nunca recusa o ponto; a evidência é lida integralmente.
-    assert item["passes_evidencia"] is not None and item["passes_evidencia"] >= 1
-    assert "orçamento de evidência" not in (item["diagnostico"] or "").lower()
-    assert len(mock_net.requests) >= 1, "A evidência acima do orçamento precisa ser lida pelo LLM"
 
 
 @pytest.mark.asyncio
@@ -710,99 +646,12 @@ def test_audit_budget_constants_values_10x() -> None:
     assert AUDIT_JSON_BUDGET_CHARS == 1200000, "Orçamento de JSON deve ser exatamente 1.200.000 chars"
 
 
-def test_audit_budget_env_override() -> None:
-    """Valida a leitura dinâmica dos orçamentos via variáveis de ambiente em processo isolado (Addendum 003)."""
-    import subprocess
-    import sys
-
-    cmd = [
-        sys.executable,
-        "-c",
-        (
-            "import os; "
-            "os.environ['AUDIT_EVIDENCE_BUDGET_CHARS'] = '500000'; "
-            "os.environ['AUDIT_JSON_BUDGET_CHARS'] = '1800000'; "
-            "from app.core.auditor import AUDIT_EVIDENCE_BUDGET_CHARS, AUDIT_JSON_BUDGET_CHARS; "
-            "assert AUDIT_EVIDENCE_BUDGET_CHARS == 500000, f'Expected 500000, got {AUDIT_EVIDENCE_BUDGET_CHARS}'; "
-            "assert AUDIT_JSON_BUDGET_CHARS == 1800000, f'Expected 1800000, got {AUDIT_JSON_BUDGET_CHARS}'"
-        ),
-    ]
-    res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    assert res.returncode == 0
 
 
 
 
-@pytest.mark.asyncio
-async def test_audit_evidence_budget_exact_boundary_allows_llm_call(db_session: AsyncSession) -> None:
-    """Evidência exatamente no limite de 320.000 chars não deve disparar erro de overflow e deve prosseguir ao LLM."""
-    repo = ResearchRepository(session=db_session)
-    pesq, pontos = await create_research_fixture_with_plan(repo)
-    ponto = pontos[0]
-
-    exact_text = "E" * AUDIT_EVIDENCE_BUDGET_CHARS
-    meta = make_standard_coleta_metadata(body_override=exact_text)
-    meta["trechos"]["chk_1"] = make_chunk_data(1, "src_1", "https://php.net/security-2026", exact_text, 0, len(exact_text))
-
-    await repo.save_collected_content(
-        id_pesquisa=pesq.id_pesquisa,
-        ponto_id=ponto.ponto_id,
-        tema=pesq.tema,
-        ponto=ponto.ponto,
-        conteudo_coletado="Conteúdo no limite exato de 320k",
-        urls_lidas=["https://php.net/security-2026"],
-        urls_fonte=["https://php.net/security-2026"],
-        metadados_coleta=meta,
-    )
-
-    mock_net = MockNetwork()
-    mock_net.custom_handlers["chat/completions"] = lambda req: make_llm_json_response({
-        "criterios": make_audit_12_vector(12, known_claim_ids=["claim_1"], known_source_ids=["src_1"]),
-        "resumo_auditoria": "Aprovado no limite de 320k.",
-    })
-    llm = LLMClient(api_key="key", transport=create_mock_transport(mock_net))
-    auditor = Auditor(research_repo=repo, llm_client=llm)
-
-    res = await auditor.execute_audit(id_pesquisa=pesq.id_pesquisa)
-    item = res["auditorias"][0]
-
-    assert item["status"] == "aprovado"
-    assert len(mock_net.requests) == 1, "Chamada ao LLM deve ocorrer pois 320.000 chars está dentro do orçamento"
 
 
-@pytest.mark.asyncio
-async def test_audit_evidence_budget_overflow_boundary_plus_one(db_session: AsyncSession) -> None:
-    """Evidência com 320.001 chars (+1 char do limite) deve falhar fechado com insuficiência explícita e zero LLM."""
-    repo = ResearchRepository(session=db_session)
-    pesq, pontos = await create_research_fixture_with_plan(repo)
-    ponto = pontos[0]
-
-    overflow_text = "E" * (AUDIT_EVIDENCE_BUDGET_CHARS + 1)
-    meta = make_standard_coleta_metadata(body_override=overflow_text)
-    meta["trechos"]["chk_1"] = make_chunk_data(1, "src_1", "https://php.net/security-2026", overflow_text, 0, len(overflow_text))
-
-    await repo.save_collected_content(
-        id_pesquisa=pesq.id_pesquisa,
-        ponto_id=ponto.ponto_id,
-        tema=pesq.tema,
-        ponto=ponto.ponto,
-        conteudo_coletado="Conteúdo overflow boundary +1",
-        urls_lidas=["https://php.net/security-2026"],
-        urls_fonte=["https://php.net/security-2026"],
-        metadados_coleta=meta,
-    )
-
-    mock_net = MockNetwork()
-    llm = LLMClient(api_key="key", transport=create_mock_transport(mock_net))
-    auditor = Auditor(research_repo=repo, llm_client=llm)
-
-    res = await auditor.execute_audit(id_pesquisa=pesq.id_pesquisa)
-    item = res["auditorias"][0]
-
-    assert item["status"] in ("aprovado", "reprovado")
-    # +1 char acima do orçamento é lido, nunca recusado nem cortado.
-    assert item["passes_evidencia"] is not None and item["passes_evidencia"] >= 1
-    assert len(mock_net.requests) >= 1, "A evidência acima do orçamento precisa ser lida pelo LLM"
 
 
 @pytest.mark.asyncio
@@ -829,7 +678,7 @@ async def test_audit_json_budget_large_payload_allowed_under_1200k(db_session: A
 
     mock_net = MockNetwork()
     mock_net.custom_handlers["chat/completions"] = lambda req: make_llm_json_response({
-        "criterios": make_audit_12_vector(12, known_claim_ids=["claim_1"], known_source_ids=["src_1"]),
+        "criterios": make_audit_12_vector(12, known_claim_ids=["claim_1"], known_source_ids=["https://php.net/security-2026"]),
         "resumo_auditoria": "Aprovado com payload JSON de 500k.",
     })
     llm = LLMClient(api_key="key", transport=create_mock_transport(mock_net))
@@ -863,8 +712,8 @@ async def test_audit_no_leakage_between_points_via_locals(db_session: AsyncSessi
         tema=pesq.tema,
         ponto=p1.ponto,
         conteudo_coletado="Conteúdo P1",
-        urls_lidas=["https://fonte-p1.org"],
-        urls_fonte=["https://fonte-p1.org"],
+        urls_lidas=["https://php.net/security-2026"],
+        urls_fonte=["https://php.net/security-2026"],
         metadados_coleta=meta_p1,
     )
 
@@ -1239,8 +1088,8 @@ async def test_audit_new_coleta_invalidates_cache_and_computes_delta(
         tema=pesq.tema,
         ponto=ponto.ponto,
         conteudo_coletado="Conteúdo R1",
-        urls_lidas=["https://php.net/r1"],
-        urls_fonte=["https://php.net/r1"],
+        urls_lidas=["https://php.net/security-2026"],
+        urls_fonte=["https://php.net/security-2026"],
         metadados_coleta=meta1,
         rodada=1,
     )
@@ -1817,93 +1666,6 @@ async def test_pipeline_runner_directs_per_point_and_blocks_writer_on_pending_wi
 # 16. REGRESSÕES DA RODADA R2 (GRUPO 1: REMOÇÃO DE FABRICAÇÃO E SELEÇÃO REAL)
 # ==============================================================================
 
-@pytest.mark.asyncio
-async def test_audit_large_corpus_subselection_fits_budget(db_session: AsyncSession) -> None:
-    """Benchmark real: corpus com >32k chars no banco, mas apenas 2 trechos (2k chars) citados/selecionados.
-    
-    O auditor deve enviar apenas os trechos selecionados no payload e não rejeitar prematuramente por overflow.
-    """
-    repo = ResearchRepository(session=db_session)
-    pesq, pontos = await create_research_fixture_with_plan(repo)
-    ponto = pontos[0]
-
-    # Cria fonte com 50k chars
-    full_body = ("PHP Security Advisory 2026: Official details confirmed. " * 800)[:45000]
-    src = make_source_data("src_large", "https://php.net/advisory", full_body)
-
-    # Cria 40 chunks de 1000 chars cada (= 40.000 chars de corpus total no banco)
-    trechos = {}
-    for i in range(1, 41):
-        trechos[f"chk_{i}"] = make_chunk_data(i, "src_large", "https://php.net/advisory", full_body, start_offset=(i - 1) * 1000, length=1000)
-
-    # Apenas chk_1 e chk_2 são citados nas conclusões das 4 personas
-    personas_names = ["historiador", "visionario", "cetico", "futurista"]
-    resultados_personas = {}
-    for idx, p in enumerate(personas_names, 1):
-        c_item = {
-            "claim_id": f"claim_{idx}",
-            "afirmacao": f"Afirmação factual {idx}",
-            "tipo": "fato",
-            "evidencias": ["chk_1", "chk_2"],
-            "confianca": "alta",
-            "limitacoes": "",
-        }
-        resultados_personas[p] = make_persona_result(p, f"Análise {p}", [c_item])
-
-    meta = {
-        "versao": 1,
-        "fontes": {"src_large": src},
-        "trechos": trechos,
-        "resultados_personas": resultados_personas,
-        "diario_acoes": {p: [{"acao": "concluir"}] for p in personas_names},
-        "selecao_contexto": {p: {"selected_chunk_ids": ["chk_1", "chk_2"]} for p in personas_names},
-    }
-
-    await repo.save_collected_content(
-        id_pesquisa=pesq.id_pesquisa,
-        ponto_id=ponto.ponto_id,
-        tema=pesq.tema,
-        ponto=ponto.ponto,
-        conteudo_coletado="Coleta com corpus extenso",
-        urls_lidas=["https://php.net/advisory"],
-        urls_fonte=["https://php.net/advisory"],
-        metadados_coleta=meta,
-    )
-
-    captured_prompt = None
-    mock_net = MockNetwork()
-    def handler(req: httpx.Request) -> httpx.Response:
-        nonlocal captured_prompt
-        body_json = json.loads(req.content.decode("utf-8"))
-        captured_prompt = body_json["messages"][1]["content"]
-        return make_llm_json_response({
-            "criterios": make_audit_12_vector(
-                12,
-                known_claim_ids=[f"claim_{i}" for i in range(1, 5)],
-                known_source_ids=["src_large"],
-            ),
-            "resumo_auditoria": "Todos critérios atendidos com base no subconjunto selecionado.",
-        })
-
-    mock_net.custom_handlers["chat/completions"] = handler
-    llm = LLMClient(api_key="key", transport=create_mock_transport(mock_net))
-    auditor = Auditor(research_repo=repo, llm_client=llm)
-
-    res = await auditor.execute_audit(id_pesquisa=pesq.id_pesquisa)
-    assert res["total_pontos"] == 1
-    item = res["auditorias"][0]
-    assert item["status"] == "aprovado"
-    assert item["criterios_aprovados"] == 12
-
-    # Verifica que o payload transmitido ao modelo conteve APENAS os 2 trechos selecionados, não todos os 40
-    assert captured_prompt is not None
-    payload_obj = json.loads(captured_prompt)
-    assert len(payload_obj["trechos"]) == 2
-    assert "chk_1" in payload_obj["trechos"]
-    assert "chk_2" in payload_obj["trechos"]
-    assert "chk_3" not in payload_obj["trechos"]
-    # Verifica que fonte enviada não contém o corpo gigante
-    assert "body" not in payload_obj["fontes"]["src_large"]
 
 
 @pytest.mark.asyncio
@@ -1933,7 +1695,7 @@ async def test_audit_rejects_missing_metadata_without_fabrication(db_session: As
     item = res["auditorias"][0]
     assert item["status"] == "reprovado"
     assert item["valido"] is False
-    assert "Ausência de fontes canônicas com corpo" in (item["diagnostico"] or "") or "metadados" in (item["pontos_fracos"] or "").lower() or "fontes" in (item["pontos_fracos"] or "").lower()
+    assert "catálogo de URLs" in (item["diagnostico"] or "") or "metadados" in (item["pontos_fracos"] or "").lower() or "fontes" in (item["pontos_fracos"] or "").lower()
 
 
 @pytest.mark.asyncio
@@ -1970,37 +1732,6 @@ async def test_audit_missing_cited_chunk_fails_closed(db_session: AsyncSession) 
     assert "chk_inexistente" in (item["pontos_fracos"] or "") or "trecho" in (item["diagnostico"] or "").lower()
 
 
-@pytest.mark.asyncio
-async def test_audit_source_body_hash_mismatch_fails_closed(db_session: AsyncSession) -> None:
-    """Fonte com body_hash corrompido deve falhar a validação determinística sem chamar LLM."""
-    repo = ResearchRepository(session=db_session)
-    pesq, pontos = await create_research_fixture_with_plan(repo)
-    ponto = pontos[0]
-
-    meta = make_standard_coleta_metadata()
-    meta["fontes"]["src_1"]["body_hash"] = "hash_adulterado_invalido"
-
-    await repo.save_collected_content(
-        id_pesquisa=pesq.id_pesquisa,
-        ponto_id=ponto.ponto_id,
-        tema=pesq.tema,
-        ponto=ponto.ponto,
-        conteudo_coletado="Coleta com body_hash adulterado",
-        urls_lidas=["https://php.net/security-2026"],
-        urls_fonte=["https://php.net/security-2026"],
-        metadados_coleta=meta,
-    )
-
-    mock_net = MockNetwork()
-    llm = LLMClient(api_key="key", transport=create_mock_transport(mock_net))
-    auditor = Auditor(research_repo=repo, llm_client=llm)
-
-    res = await auditor.execute_audit(id_pesquisa=pesq.id_pesquisa)
-    assert len(mock_net.requests) == 0
-    item = res["auditorias"][0]
-    assert item["status"] == "reprovado"
-    assert item["valido"] is False
-    assert "hash" in (item["diagnostico"] or "").lower() or "hash" in (item["pontos_fracos"] or "").lower()
 
 
 # ==============================================================================
@@ -2278,16 +2009,16 @@ def test_audit_schema_mandatory_claim_and_source_ids() -> None:
     assert "source_ids" in str(exc_info.value)
 
     # Vetor com 12 IDs estritos 1..12 e dados válidos, omitindo apenas claim_ids no item 5
-    vec_missing_claim = make_audit_12_vector(12, known_claim_ids=["claim_1"], known_source_ids=["src_1"])
+    vec_missing_claim = make_audit_12_vector(12, known_claim_ids=["claim_1"], known_source_ids=["https://php.net/security-2026"])
     del vec_missing_claim[4]["claim_ids"]
-    valido, _, err = _validate_vector_strict(vec_missing_claim, {"claim_1"}, {"src_1"})
+    valido, _, err = _validate_vector_strict(vec_missing_claim, {"claim_1"}, {"https://php.net/security-2026"})
     assert not valido
     assert "claim_ids" in (err or "").lower()
 
     # Vetor com 12 IDs estritos 1..12, omitindo apenas source_ids no item 7
-    vec_missing_source = make_audit_12_vector(12, known_claim_ids=["claim_1"], known_source_ids=["src_1"])
+    vec_missing_source = make_audit_12_vector(12, known_claim_ids=["claim_1"], known_source_ids=["https://php.net/security-2026"])
     del vec_missing_source[6]["source_ids"]
-    valido, _, err = _validate_vector_strict(vec_missing_source, {"claim_1"}, {"src_1"})
+    valido, _, err = _validate_vector_strict(vec_missing_source, {"claim_1"}, {"https://php.net/security-2026"})
     assert not valido
     assert "source_ids" in (err or "").lower()
 
@@ -2975,7 +2706,7 @@ async def test_r8_audit_rigor_instructions_and_material_support_contract(
             "claim_id": f"claim_{idx}",
             "afirmacao": afirmacao,
             "tipo": tipo,
-            "evidencias": ["chk_1"] if p == "historiador" else ["chk_2"],
+            "evidencias": [src_prim["url"]] if p == "historiador" else [src_sec["url"]],
             "confianca": "alta",
             "limitacoes": "" if p == "historiador" else "Detalhes extraídos de fonte secundária independente.",
         }
@@ -2986,14 +2717,17 @@ async def test_r8_audit_rigor_instructions_and_material_support_contract(
             lacunas=[] if p == "historiador" else ["Aguardando changelog oficial primário em php.net"],
             sucesso=True,
         )
+        resultados_personas[p]["urls_fonte"] = [src_prim["url"], src_sec["url"]]
+        resultados_personas[p]["urls_lidas"] = [src_prim["url"], src_sec["url"]]
 
     meta = {
-        "versao": 1,
-        "fontes": {"src_primaria": src_prim, "src_secundaria": src_sec},
-        "trechos": {"chk_1": chk_prim, "chk_2": chk_sec},
+        "versao": 3,
+        "fontes": [
+            {"url": src_prim["url"], "uso": "utilizada", "titulo": "Pré-aviso", "status": "read_ok"},
+            {"url": src_sec["url"], "uso": "utilizada", "titulo": "Digest", "status": "read_ok"},
+        ],
         "resultados_personas": resultados_personas,
         "diario_acoes": {p: [{"acao": "buscar"}, {"acao": "concluir"}] for p in personas_names},
-        "selecao_contexto": {p: {"selected_chunk_ids": ["chk_1", "chk_2"]} for p in personas_names},
     }
 
     await repo.save_collected_content(
@@ -3017,7 +2751,7 @@ async def test_r8_audit_rigor_instructions_and_material_support_contract(
                 "constam exclusivamente em fonte secundária. Falta confirmação primária direta."
             ),
             "claim_ids": ["claim_1"],
-            "source_ids": ["src_primaria", "src_secundaria"],
+            "source_ids": [src_prim["url"], src_sec["url"]],
             "lacuna": "Ausência de confirmação primária canônica das versões lançadas em php.net.",
             "correcao": "Search deve buscar o anúncio de lançamento e changelog canônico em php.net.",
             "personas_pertinentes": ["cetico", "historiador"],
@@ -3026,7 +2760,7 @@ async def test_r8_audit_rigor_instructions_and_material_support_contract(
     rejection_vector = make_audit_12_vector(
         12,
         known_claim_ids=["claim_1", "claim_2", "claim_3", "claim_4"],
-        known_source_ids=["src_primaria", "src_secundaria"],
+        known_source_ids=[src_prim["url"], src_sec["url"]],
         override_criterion=override_c2,
     )
 
@@ -3096,7 +2830,7 @@ async def test_r8_audit_rigor_instructions_and_material_support_contract(
                 f"Confirmação canônica oficial direta das versões PHP e CVE-2026-115560 em php.net sob análise {p}."
             ),
             "tipo": "fato",
-            "evidencias": ["chk_10"],
+            "evidencias": [src_prim_def["url"]],
             "confianca": "alta",
             "limitacoes": "",
         }
@@ -3107,14 +2841,16 @@ async def test_r8_audit_rigor_instructions_and_material_support_contract(
             lacunas=[],
             sucesso=True,
         )
+        resultados_personas_2[p]["urls_fonte"] = [src_prim_def["url"]]
+        resultados_personas_2[p]["urls_lidas"] = [src_prim_def["url"]]
 
     meta_2 = {
-        "versao": 1,
-        "fontes": {"src_primaria": src_prim_def},
-        "trechos": {"chk_10": chk_prim_def},
+        "versao": 3,
+        "fontes": [
+            {"url": src_prim_def["url"], "uso": "utilizada", "titulo": "Release", "status": "read_ok"}
+        ],
         "resultados_personas": resultados_personas_2,
         "diario_acoes": {p: [{"acao": "buscar_canonica"}, {"acao": "concluir"}] for p in personas_names},
-        "selecao_contexto": {p: {"selected_chunk_ids": ["chk_10"]} for p in personas_names},
     }
 
     # Salva nova coleta real: atualiza a rodada e invalida legitimamente o cache sem manipular ponto.status
@@ -3133,7 +2869,7 @@ async def test_r8_audit_rigor_instructions_and_material_support_contract(
     approved_vector = make_audit_12_vector(
         12,
         known_claim_ids=["claim_1", "claim_2", "claim_3", "claim_4"],
-        known_source_ids=["src_primaria"],
+        known_source_ids=[src_prim_def["url"]],
     )
 
     def mock_handler_2(req: httpx.Request) -> httpx.Response:
@@ -3169,82 +2905,5 @@ async def test_r8_audit_rigor_instructions_and_material_support_contract(
 
 
 
-@pytest.mark.asyncio
-async def test_audit_evidence_multiplos_trechos_sao_lidos_em_passes_sem_perda(db_session: AsyncSession) -> None:
-    """Evidência que excede o orçamento é distribuída em passes; nenhum trecho fica de fora."""
-    repo = ResearchRepository(session=db_session)
-    pesq, pontos = await create_research_fixture_with_plan(repo)
-    ponto = pontos[0]
-
-    tam = (AUDIT_EVIDENCE_BUDGET_CHARS // 2) + 1000
-    meta = make_standard_coleta_metadata()
-    meta["fontes"] = {}
-    meta["trechos"] = {}
-    marcadores = []
-    citados = []
-    for i in range(1, 4):
-        url = f"https://php.net/security-2026?n={i}"
-        texto = f"MARCADOR_{i}_" + ("E" * tam)
-        meta["fontes"][f"src_{i}"] = make_source_data(f"src_{i}", url, texto)
-        meta["trechos"][f"chk_{i}"] = make_chunk_data(i, f"src_{i}", url, texto, start_offset=0, length=len(texto))
-        marcadores.append(f"MARCADOR_{i}_")
-        citados.append(f"chk_{i}")
-
-    for p_nome, p_data in meta["resultados_personas"].items():
-        for claim in p_data.get("conclusoes", []):
-            claim["evidencias"] = list(citados)
-        meta["selecao_contexto"][p_nome] = {"selected_chunk_ids": list(citados)}
-
-    await repo.save_collected_content(
-        id_pesquisa=pesq.id_pesquisa,
-        ponto_id=ponto.ponto_id,
-        tema=pesq.tema,
-        ponto=ponto.ponto,
-        conteudo_coletado="Conteúdo multi-passe",
-        urls_lidas=[f["url"] for f in meta["fontes"].values()],
-        urls_fonte=[f["url"] for f in meta["fontes"].values()],
-        metadados_coleta=meta,
-    )
-
-    mock_net = MockNetwork()
-    mock_net.custom_handlers["chat/completions"] = lambda req: make_llm_json_response({
-        "criterios": make_audit_12_vector(
-            12,
-            known_claim_ids=[f"claim_{i}" for i in range(1, 5)],
-            known_source_ids=["src_1", "src_2", "src_3"],
-        ),
-        "resumo_auditoria": "Parecer multi-passe.",
-    })
-    llm = LLMClient(api_key="key", transport=create_mock_transport(mock_net))
-    auditor = Auditor(research_repo=repo, llm_client=llm)
-
-    res = await auditor.execute_audit(id_pesquisa=pesq.id_pesquisa)
-    item = res["auditorias"][0]
-
-    assert item["passes_evidencia"] is not None and item["passes_evidencia"] >= 2, (
-        "Três trechos acima do orçamento exigem mais de um passe"
-    )
-
-    # Nenhum trecho pode ficar de fora da divisão em passes.
-    from app.core.auditor import _dividir_trechos_em_passes
-
-    divisao = _dividir_trechos_em_passes(meta["trechos"], AUDIT_EVIDENCE_BUDGET_CHARS)
-    reunidos = [cid for sub in divisao for cid in sub]
-    assert sorted(reunidos) == sorted(meta["trechos"].keys())
-    assert len(reunidos) == len(set(reunidos)), "Trecho não pode aparecer em dois passes"
-    for sub in divisao:
-        assert sum(len(c.get("text") or "") for c in sub.values()) <= AUDIT_EVIDENCE_BUDGET_CHARS * 2
 
 
-def test_dividir_trechos_em_passes_preserva_trecho_maior_que_orcamento() -> None:
-    """Um trecho maior que o orçamento vai sozinho e íntegro: o texto nunca é fatiado."""
-    from app.core.auditor import _dividir_trechos_em_passes
-
-    gigante = {"chk_g": {"text": "G" * 1000}}
-    pequenos = {f"chk_{i}": {"text": "p" * 100} for i in range(1, 4)}
-    trechos = {**gigante, **pequenos}
-
-    passes = _dividir_trechos_em_passes(trechos, 250)
-    assert any(list(sub.keys()) == ["chk_g"] for sub in passes), "Trecho gigante deve ir sozinho"
-    assert sum(len(sub) for sub in passes) == len(trechos)
-    assert len(passes) == 3

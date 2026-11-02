@@ -5,8 +5,9 @@ Implementa integralmente o contrato executável de Search (v4, DR-001..DR-015):
 - 4 personas analíticas especializadas operando sob contexto integral do plano (pedido, público, recorte temporal e eixo estruturado).
 - Reader explícito via r.jina.ai: SERP é apenas descoberta; snippet/descrição nunca conta como página lida.
 - Cache compartilhado in-flight de leituras bem-sucedidas; falhas não envenenam o cache nem reservam URLs.
-- Proveniência canônica com IDs de fontes (src_*) e trechos (chk_*), hashes SHA-256 e offsets exatos no corpo.
-- Seleção de contexto por relevância com orçamento explícito e ledger de trechos incluídos/excluídos.
+- Bruto da Jina volátil (PRD v3, I-2): o corpo lido vive só em RAM durante a persona.
+- Persistência por persona restrita a resumo (``analise``), URLs utilizadas/lidas, lacunas e motivo de parada.
+- Catálogo de URLs do ponto acumulado entre rodadas (``fontes``), sem body/hash/trechos/offsets.
 - Rejeição de IDs inventados pelo modelo, metatexto, respostas truncadas (finish_reason != stop) e vazamento de raciocínio interno.
 - Reserva atômica de rodada no banco antes de I/O com suporte a lease de recuperação e bloqueio de concorrência.
 - Finalização atômica conjunta de coleta, estado do ponto, envelopes e invalidação de dossiê prévio.
@@ -193,23 +194,6 @@ def _next_chunk_idx(chunks: Dict[str, Any]) -> int:
     return max_idx + 1
 
 
-def _next_source_idx(sources: Dict[str, Any]) -> int:
-    """Retorna o próximo índice numérico para criação de fonte estritamente superior aos existentes."""
-    max_idx = 0
-    for s_info in sources.values():
-        if isinstance(s_info, dict):
-            sid = s_info.get("source_id")
-            if sid:
-                m = re.search(r"\d+", str(sid))
-                if m:
-                    max_idx = max(max_idx, int(m.group(0)))
-    for sid_key in sources.keys():
-        m = re.search(r"\d+", str(sid_key))
-        if m:
-            max_idx = max(max_idx, int(m.group(0)))
-    return max_idx + 1
-
-
 def _unir_listas(*listas: Any) -> List[Any]:
     """Une listas preservando a ordem e sem repetição (dicts comparados por JSON)."""
     vistos: set = set()
@@ -323,31 +307,48 @@ def _recompor_personas(
 
 
 def _fontes_da_persona(
-    urls_lidas: Any, urls_fonte: Any, urls_read_ok: Set[str]
-) -> List[Dict[str, str]]:
-    """Classifica as fontes de uma persona: ``utilizada`` se eleita, senão ``lida_nao_utilizada``."""
+    urls_lidas: Any,
+    urls_fonte: Any,
+    catalogo: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Projeta as fontes da persona a partir do catálogo de URLs do ponto (PRD v3)."""
     eleitas = set(urls_fonte or [])
     urls = list(dict.fromkeys(list(urls_lidas or []) + list(eleitas)))
-    return [
-        {"url": u, "uso": "utilizada" if u in eleitas else "lida_nao_utilizada"}
-        for u in urls
-        if u in urls_read_ok
-    ]
+    fontes: List[Dict[str, Any]] = []
+    for u in urls:
+        rec = catalogo.get(u)
+        if not rec or rec.get("status") != "read_ok":
+            continue
+        fontes.append({
+            "url": u,
+            "uso": "utilizada" if u in eleitas else "lida_nao_utilizada",
+            "titulo": rec.get("titulo"),
+            "data_fonte": rec.get("data_fonte"),
+            "status": "read_ok",
+        })
+    return fontes
 
 
-def _promovivel_para_trecho(source_rec: Optional[Dict[str, Any]]) -> bool:
-    """Uma fonte só vira trecho quando foi lida de fato.
-
-    O Reader às vezes devolve um registro com status ``snippet_only`` e algum
-    texto de descrição. Criar trechos a partir dele produz um corpus que a
-    própria auditoria rejeita ("Fonte 'src_N' com status diferente de read_ok").
-    """
-    if not isinstance(source_rec, dict):
-        return False
-    if source_rec.get("status") != "read_ok":
-        return False
-    body = source_rec.get("body")
-    return isinstance(body, str) and bool(body.strip())
+def _catalogo_de_urls(
+    ponto_sources: Dict[str, Dict[str, Any]],
+    personas: List[Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    """Catálogo único do ponto: só URLs lidas, com uso derivado de ``urls_fonte`` (PRD v3)."""
+    eleitas: Set[str] = set()
+    for r in personas:
+        eleitas.update(r.get("urls_fonte") or [])
+    catalogo: Dict[str, Dict[str, Any]] = {}
+    for url, rec in ponto_sources.items():
+        if rec.get("status") != "read_ok":
+            continue
+        catalogo[url] = {
+            "url": url,
+            "status": "read_ok",
+            "uso": "utilizada" if url in eleitas else "lida_nao_utilizada",
+            "titulo": rec.get("titulo"),
+            "data_fonte": rec.get("data_fonte"),
+        }
+    return catalogo
 
 
 def _create_chunks_from_body(
@@ -673,13 +674,9 @@ class Searcher:
             if not body:
                 return None
 
-            now_iso = _format_iso_utc()
-            body_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
             record = {
                 "url": url,
                 "body": body,
-                "body_hash": body_hash,
-                "accessed_at": now_iso,
                 "status": "read_ok",
                 "length": len(body),
             }
@@ -788,7 +785,6 @@ class Searcher:
             ponto: Ponto,
             persona: str,
             eixo_dict: Dict[str, Any],
-            historico_trechos: List[str],
             ponto_sources: Dict[str, Dict[str, Any]],
             ponto_chunks: Dict[str, Dict[str, Any]],
             chunk_lock: asyncio.Lock,
@@ -830,23 +826,23 @@ class Searcher:
                 "2. Para concluir sua investigação (quando dispuser de evidências suficientes):\n"
                 '   {"acao": "concluir", "analise_final": "síntese aprofundada", '
                 '"conclusoes": [{"claim_id": "c1", "afirmacao": "fato comprovado", "tipo": "fato|inferencia|projecao|não_verificado", '
-                '"evidencias": ["<identificador_do_trecho_entregue>"], "confianca": "alta|média|baixa", "limitacoes": "ressalvas"}], '
+                '"evidencias": ["<url_ou_identificador_do_trecho_entregue>"], "confianca": "alta|média|baixa", "limitacoes": "ressalvas"}], '
                 '"lacunas": ["lacuna remanescente se houver"], "motivo_parada": "motivo explícito"}\n\n'
                 "3. Para encerrar por ausência de evidências aproveitáveis:\n"
                 '   {"acao": "parar_insuficiente", "motivo": "justificativa clara", "lacunas": ["pontos não encontrados"]}\n\n'
                 "DIRETRIZES DE QUALIDADE E REGRAS INVIOLÁVEIS:\n"
                 "- COBERTURA DAS SUBPERGUNTAS: Na análise_final, você DEVE cobrir explicitamente cada subpergunta do eixo: "
                 "apresente uma resposta substantiva sustentada pelas evidências web OU declare expressamente a lacuna em 'lacunas'.\n"
-                "- SUPORTE MATERIAL DAS CONCLUSÕES: Toda alegação em 'conclusoes' e na análise deve ter suporte textual primário substantivo "
-                "no corpo dos trechos citados. Título, link, cabeçalho, data isolada ou lista de identificadores NÃO comprovam condições técnicas "
+                "- SUPORTE MATERIAL DAS CONCLUSÕES: Toda alegação em 'conclusoes' e na análise deve ter suporte textual substantivo "
+                "no conteúdo das páginas lidas. Título, link, cabeçalho, data isolada ou lista de identificadores NÃO comprovam condições técnicas "
                 "(como RCE, severidade, exploração ou impacto). Se dispuser apenas de metadado ou título, classifique como 'inferencia' ou 'não_verificado'.\n"
                 "- AUSÊNCIA DE EVIDÊNCIA NÃO É PROVA DE INEXISTÊNCIA: Não encontrar registros de incidentes NÃO prova inexistência de danos nem desmente rumores automaticamente. "
                 "Explicite os limites da evidência sem criar falsas garantias de segurança absoluta ou imunidade.\n"
                 "- ANALOGIAS E DIDÁTICA: Analogias didáticas ou pedagógicas são recursos interpretativos e DEVEM ser tipadas como 'inferencia', NUNCA 'fato'. "
                 "Metáforas não acrescentam fatos nem atestam segurança universal ou ausência total de impacto.\n"
                 "- ADERÊNCIA AO PLANO: Mantenha a investigação a serviço do pedido original e público estabelecido, sem inventar cenários fictícios.\n"
-                "- CITAÇÃO DE EVIDÊNCIAS: Cite EXCLUSIVAMENTE IDs de trecho ('chk_*') que foram entregues a você pelo backend nas evidências desta persona. "
-                "Se citar evidência inexistente ou não entregue, a conclusão será marcada como 'não_verificado'.\n"
+                "- CITAÇÃO DE EVIDÊNCIAS: Cite EXCLUSIVAMENTE URLs de páginas lidas entregues a você ou identificadores de trecho ('chk_*') "
+                "presentes nas evidências desta persona. Se citar evidência inexistente ou não entregue, a conclusão será marcada como 'não_verificado'.\n"
                 "- Hipóteses são apenas suposições metodológicas a testar, NUNCA fatos estabelecidos.\n"
                 "- Proibido metatexto, vazamento de raciocínio operacional interno ou simular leitura de páginas não existentes.\n"
                 "- RESPOSTA EXPLÍCITA EM CASO DE FALHA OU AUSÊNCIA DE CONTEÚDO: Se a busca falhar ou não retornar conteúdo, declare insuficiência ou reformule a consulta. É ESTRITAMENTE PROIBIDO inventar fatos ou evidências."
@@ -1203,7 +1199,6 @@ class Searcher:
 
                     # c) Limite de no máximo as top URLs mais promissoras da SERP para este turno
                     urls_novas_selecionadas = urls_para_ler[:self.max_urls_per_turn]
-                    urls_nao_selecionadas = urls_para_ler[self.max_urls_per_turn:]
 
                     # d) Paralelização da leitura das URLs novas via asyncio.gather com timeout individual
                     results: List[Optional[Dict[str, Any]]] = []
@@ -1234,77 +1229,36 @@ class Searcher:
                             *[_fetch_single_url(u) for u, _ in urls_novas_selecionadas]
                         )
 
-                    # e) Integração segura dos resultados e snippets com chunk_lock
+                    # e) Integração segura dos resultados com chunk_lock
                     async with chunk_lock:
                         for (u, item), source_rec in zip(urls_novas_selecionadas, results):
-                            if source_rec is not None and source_rec.get("status") == "read_ok":
-                                if u not in persona_read_urls:
-                                    persona_read_urls.append(u)
-                                if u not in urls_lidas_nesta_busca:
-                                    urls_lidas_nesta_busca.append(u)
+                            if source_rec is None or source_rec.get("status") != "read_ok":
+                                # Reader sem corpo: não entra no catálogo nem conta como lida.
+                                continue
+                            if u not in persona_read_urls:
+                                persona_read_urls.append(u)
+                            if u not in urls_lidas_nesta_busca:
+                                urls_lidas_nesta_busca.append(u)
 
-                                rec_to_save = dict(source_rec)
-                                rec_to_save = _attach_source_date(rec_to_save, item, recency_policy)
-                                if u not in ponto_sources:
-                                    src_id = f"src_{_next_source_idx(ponto_sources)}"
-                                    rec_to_save["source_id"] = src_id
-                                    ponto_sources[u] = rec_to_save
-                                    novos_trechos = _create_chunks_from_body(
-                                        body=rec_to_save["body"],
-                                        source_id=src_id,
-                                        url=u,
-                                        start_chunk_idx=_next_chunk_idx(ponto_chunks),
-                                    )
-                                    for chk in novos_trechos:
-                                        ponto_chunks[chk["chunk_id"]] = chk
-                                elif ponto_sources[u].get("status") != "read_ok":
-                                    # F01: promoção para read_ok preservando source_id.
-                                    # Só promove quando o corpo veio de verdade: um
-                                    # snippet do Reader não pode virar trecho, senão
-                                    # a auditoria rejeita a fonte por status.
-                                    if _promovivel_para_trecho(rec_to_save):
-                                        src_id = ponto_sources[u]["source_id"]
-                                        rec_to_save["source_id"] = src_id
-                                        ponto_sources[u] = rec_to_save
-                                        novos_trechos = _create_chunks_from_body(
-                                            body=rec_to_save["body"],
-                                            source_id=src_id,
-                                            url=u,
-                                            start_chunk_idx=_next_chunk_idx(ponto_chunks),
-                                        )
-                                        for chk in novos_trechos:
-                                            ponto_chunks[chk["chunk_id"]] = chk
-                            else:
-                                # snippet_only: registrado sem incrementar urls_lidas
-                                if u not in ponto_sources:
-                                    src_id = f"src_{_next_source_idx(ponto_sources)}"
-                                    ponto_sources[u] = {
-                                        "source_id": src_id,
-                                        "url": u,
-                                        "body": "",
-                                        "body_hash": "",
-                                        "accessed_at": _format_iso_utc(),
-                                        "status": "snippet_only",
-                                        "description": item.get("description") or "",
-                                        "length": 0,
-                                    }
-                                    ponto_sources[u] = _attach_source_date(ponto_sources[u], item, recency_policy)
-
-                        # Snippets para URLs que excederam o limite de 4 do turno
-                        for u, item in urls_nao_selecionadas:
-                            if u not in ponto_sources:
-                                src_id = f"src_{_next_source_idx(ponto_sources)}"
-                                ponto_sources[u] = {
-                                    "source_id": src_id,
-                                    "url": u,
-                                    "body": "",
-                                    "body_hash": "",
-                                    "accessed_at": _format_iso_utc(),
-                                    "status": "snippet_only",
-                                    "description": item.get("description") or "",
-                                    "length": 0,
-                                }
-                                ponto_sources[u] = _attach_source_date(ponto_sources[u], item, recency_policy)
+                            rec = _attach_source_date(dict(source_rec), item, recency_policy)
+                            rec["titulo"] = item.get("title") or item.get("titulo")
+                            corpo = rec.get("body") or ""
+                            # Catálogo persistível: só metadados de URL, nunca o bruto.
+                            ponto_sources[u] = {
+                                "url": u,
+                                "status": "read_ok",
+                                "titulo": rec.get("titulo"),
+                                "data_fonte": rec.get("data_fonte"),
+                            }
+                            # Chunks vivem apenas em RAM para o contexto desta persona.
+                            if not any(chk.get("url") == u for chk in ponto_chunks.values()):
+                                for chk in _create_chunks_from_body(
+                                    body=corpo,
+                                    source_id=u,
+                                    url=u,
+                                    start_chunk_idx=_next_chunk_idx(ponto_chunks),
+                                ):
+                                    ponto_chunks[chk["chunk_id"]] = chk
 
                     diario_acoes.append({
                         "turno": turn,
@@ -1385,8 +1339,16 @@ class Searcher:
                         evs_validas: List[str] = []
                         if isinstance(raw_evs, list):
                             for e in raw_evs:
-                                if isinstance(e, str) and e.strip() in delivered_chunk_ids:
-                                    evs_validas.append(e.strip())
+                                if not isinstance(e, str):
+                                    continue
+                                ref = e.strip()
+                                url_ev: Optional[str] = None
+                                if ref in delivered_chunk_ids and ref in ponto_chunks:
+                                    url_ev = ponto_chunks[ref].get("url")
+                                elif ref in persona_read_urls:
+                                    url_ev = ref
+                                if url_ev and url_ev not in evs_validas:
+                                    evs_validas.append(str(url_ev))
 
                         if not evs_validas:
                             tipo = "não_verificado"
@@ -1402,19 +1364,14 @@ class Searcher:
 
                     conclusoes_finais = conclusoes_validadas
 
-                    # Conclusão com evidência real verificável é mínimo para habilitar sucesso
+                    # Conclusão com URL lida é o mínimo para habilitar sucesso (PRD v3)
                     urls_comprovadas = list(persona_read_urls)
                     for c_val in conclusoes_validadas:
-                        for eid in c_val["evidencias"]:
-                            if eid in ponto_chunks and ponto_chunks[eid]["url"] not in urls_comprovadas:
-                                urls_comprovadas.append(ponto_chunks[eid]["url"])
+                        for url_ev in c_val["evidencias"]:
+                            if url_ev not in urls_comprovadas:
+                                urls_comprovadas.append(url_ev)
 
-                    tem_evidencia_verificada = any(
-                        c["tipo"] != "não_verificado" and len(c["evidencias"]) > 0
-                        for c in conclusoes_validadas
-                    )
-
-                    if len(urls_comprovadas) > 0 and tem_evidencia_verificada and len(analise_cand) > 0:
+                    if len(urls_comprovadas) > 0 and len(analise_cand) > 0:
                         persona_success = True
                         analise_final = analise_cand
                         for u_comp in urls_comprovadas:
@@ -1568,54 +1525,41 @@ class Searcher:
                 reserved_attempt = ponto_reservado.tentativas or reserved_attempt
                 reserved_token = token_search_candidate
 
-                # 2. Carrega histórico e preserva trechos canônicos indexados anteriormente
+                # 2. Carrega histórico apenas como resumos e catálogo de URLs (PRD v3).
+                # O corpo lido na rodada anterior não existe mais: bruto é volátil.
                 coletas_anteriores = await point_repo.get_collected_content_for_point(
                     id_pesquisa, p_id
                 )
-                historico_trechos: List[str] = []
                 for c in coletas_anteriores:
-                    if c.metadados_coleta:
-                        try:
-                            m_antigo = json.loads(c.metadados_coleta)
-                            fontes_antigas = m_antigo.get("fontes", {})
-                            for f_id_key, f_info in fontes_antigas.items():
-                                u_real = f_info.get("url") or f_id_key
-                                b_text = f_info.get("body") or ""
-                                if b_text:
-                                    # PRD v2, I-2: histórico entregue sem truncamento algum.
-                                    historico_trechos.append(f"Fonte [{u_real}]: {b_text}")
-                                if u_real not in ponto_sources:
-                                    src_id = f_info.get("source_id") or (f_id_key if str(f_id_key).startswith("src_") else f"src_{_next_source_idx(ponto_sources)}")
-                                    f_info_copy = dict(f_info)
-                                    f_info_copy["source_id"] = src_id
-                                    f_info_copy["url"] = u_real
-                                    ponto_sources[u_real] = f_info_copy
-
-                            # Carrega trechos canônicos históricos diretamente, sem reindexar IDs
-                            trechos_antigos = m_antigo.get("trechos", {})
-                            if trechos_antigos:
-                                for cid, chk in trechos_antigos.items():
-                                    if cid not in ponto_chunks:
-                                        chk_copy = dict(chk)
-                                        src_chk = chk_copy.get("source_id")
-                                        if src_chk and src_chk in fontes_antigas:
-                                            chk_copy["url"] = fontes_antigas[src_chk].get("url") or chk_copy.get("url")
-                                        ponto_chunks[cid] = chk_copy
-                            else:
-                                # Fallback para coletas legadas sem mapa explícito de trechos
-                                for u_real, f_info in ponto_sources.items():
-                                    b_text = f_info.get("body") or ""
-                                    if b_text and not any(chk["url"] == u_real for chk in ponto_chunks.values()):
-                                        novos_trechos = _create_chunks_from_body(
-                                            body=b_text,
-                                            source_id=f_info["source_id"],
-                                            url=u_real,
-                                            start_chunk_idx=_next_chunk_idx(ponto_chunks),
-                                        )
-                                        for chk in novos_trechos:
-                                            ponto_chunks[chk["chunk_id"]] = chk
-                        except Exception:
-                            pass
+                    if not c.metadados_coleta:
+                        continue
+                    try:
+                        m_antigo = json.loads(c.metadados_coleta)
+                    except Exception:
+                        continue
+                    if not isinstance(m_antigo, dict):
+                        continue
+                    fontes_antigas = m_antigo.get("fontes")
+                    itens = (
+                        fontes_antigas.values()
+                        if isinstance(fontes_antigas, dict)
+                        else fontes_antigas if isinstance(fontes_antigas, list) else []
+                    )
+                    for f_info in itens:
+                        if not isinstance(f_info, dict):
+                            continue
+                        u_real = str(f_info.get("url") or "").strip()
+                        if not u_real or u_real in ponto_sources:
+                            continue
+                        if f_info.get("status") != "read_ok":
+                            continue
+                        ponto_sources[u_real] = {
+                            "url": u_real,
+                            "status": "read_ok",
+                            "titulo": f_info.get("titulo") or f_info.get("title"),
+                            "data_fonte": f_info.get("data_fonte"),
+                            "historico": True,
+                        }
 
                 # Contexto/read-only DB deve ser carregado em dados simples e transação encerrada antes da rede
                 await point_repo.session.commit()
@@ -1646,7 +1590,6 @@ class Searcher:
                             ponto=ponto,
                             persona=p,
                             eixo_dict=eixo_dict,
-                            historico_trechos=historico_trechos,
                             ponto_sources=ponto_sources,
                             ponto_chunks=ponto_chunks,
                             chunk_lock=chunk_lock,
@@ -1735,62 +1678,17 @@ class Searcher:
                     else None
                 )
 
-                fontes_dict = {
-                    rec["source_id"]: rec
-                    for rec in ponto_sources.values()
-                }
-
-                # Projeção canônica pública: estritamente união dos trechos entregues nesta chamada e trechos referenciados em conclusões
-                visible_chunk_ids: Set[str] = set()
-                for r in persona_results:
-                    for cid in r.get("delivered_chunk_ids", []):
-                        visible_chunk_ids.add(cid)
-                for r in recomposed_personas.values():
-                    for c in r.get("conclusoes", []):
-                        for eid in c.get("evidencias", []):
-                            visible_chunk_ids.add(eid)
-
-                trechos_publicos = {
-                    cid: ponto_chunks[cid]
-                    for cid in visible_chunk_ids
-                    if cid in ponto_chunks
-                }
-
-                visible_source_ids = {chk["source_id"] for chk in trechos_publicos.values()}
-                fontes_publicas = {
-                    rec["source_id"]: {
-                        "source_id": rec.get("source_id", "src_unknown"),
-                        "url": rec.get("url", ""),
-                        "body_hash": rec.get("body_hash", ""),
-                        "length": rec.get("length", 0),
-                        "accessed_at": rec.get("accessed_at", ""),
-                        "status": rec.get("status", "unknown"),
-                        "data_fonte": rec.get("data_fonte"),
-                        "data_fonte_origem": rec.get("data_fonte_origem"),
-                    }
-                    for rec in ponto_sources.values()
-                    if rec.get("source_id") in visible_source_ids or (rec.get("status") == "read_ok" and rec.get("url") in urls_lidas_dedup)
-                }
-
-                selecao_contexto_publico = {}
-                for p_name, p_led in ledgers_por_persona.items():
-                    selecao_contexto_publico[p_name] = {
-                        "selected_chunk_ids": p_led.get("selected_chunk_ids", []),
-                        "total_chunks_disponiveis": len(ponto_chunks),
-                        "total_chunks_excluidos": len(ponto_chunks) - len(p_led.get("selected_chunk_ids", [])),
-                        "total_delivered_chars": p_led.get("total_delivered_chars", 0),
-                        "budget_chars": p_led.get("budget_chars", EVIDENCE_BUDGET_CHARS),
-                    }
+                fontes_catalogo = _catalogo_de_urls(
+                    ponto_sources, list(recomposed_personas.values())
+                )
 
                 metadados_coleta_obj = {
-                    "versao": 1,
-                    "fontes": fontes_dict,
-                    "trechos": ponto_chunks,
-                    "selecao_contexto": ledgers_por_persona,
+                    "versao": 3,
+                    "fontes": fontes_catalogo,
                     "diario_acoes": diarios_por_persona,
                     "resultados_personas": recomposed_personas,
                     "recencia": {
-                        **build_recency_metadata(recency_policy, ponto_sources.values()),
+                        **build_recency_metadata(recency_policy, fontes_catalogo.values()),
                         "consultas_por_persona": {
                             p_name: [
                                 {
@@ -1893,11 +1791,6 @@ class Searcher:
                 )
                 sucesso_processamento = True
 
-                urls_read_ok: Set[str] = {
-                    str(rec["url"])
-                    for rec in ponto_sources.values()
-                    if rec.get("status") == "read_ok" and rec.get("url")
-                }
                 personas_lista = [
                     {
                         "persona": r["persona"],
@@ -1905,7 +1798,7 @@ class Searcher:
                         "reasoning": r.get("reasoning"),
                         "urls_fonte": r["urls_fonte"],
                         "urls_lidas": r["urls_lidas"],
-                        "fontes": _fontes_da_persona(r["urls_lidas"], r["urls_fonte"], urls_read_ok),
+                        "fontes": _fontes_da_persona(r["urls_lidas"], r["urls_fonte"], fontes_catalogo),
                         "queries_executadas": r["queries_executadas"],
                         "falha_coleta": not r["persona_success"],
                         "diagnostico": r["motivo_parada"] if not r["persona_success"] else None,
@@ -1932,7 +1825,7 @@ class Searcher:
                             "urls_fonte": p_prev_data.get("urls_fonte", []),
                             "urls_lidas": p_prev_data.get("urls_lidas", []),
                             "fontes": _fontes_da_persona(
-                                p_prev_data.get("urls_lidas"), p_prev_data.get("urls_fonte"), urls_read_ok
+                                p_prev_data.get("urls_lidas"), p_prev_data.get("urls_fonte"), fontes_catalogo
                             ),
                             "queries_executadas": p_prev_data.get("queries_executadas", 0),
                             "falha_coleta": not p_prev_data.get("sucesso", False),
@@ -1958,10 +1851,8 @@ class Searcher:
                     "diagnostico": diagnostico,
                     "personas": personas_lista,
                     "conteudo_relevante": conteudo_consolidado,
-                    "fontes": fontes_publicas,
-                    "trechos": trechos_publicos,
-                    "selecao_contexto": selecao_contexto_publico,
-                    "recencia": build_recency_metadata(recency_policy, ponto_sources.values()),
+                    "fontes": fontes_catalogo,
+                    "recencia": build_recency_metadata(recency_policy, fontes_catalogo.values()),
                 }
             except (asyncio.CancelledError, TimeoutError, asyncio.TimeoutError) as exc_interrompido:
                 # 1. Cancela explicitamente todas as tasks pendentes das personas e aguarda sua finalização limpa
@@ -2005,18 +1896,16 @@ class Searcher:
                             "tool_calls": env.tool_calls,
                         })
 
-                    fontes_salvar = {rec["source_id"]: rec for rec in ponto_sources.values()}
+                    fontes_salvar = _catalogo_de_urls(ponto_sources, [])
                     meta_cancel = {
-                        "versao": 1,
+                        "versao": 3,
                         "fontes": fontes_salvar,
-                        "trechos": ponto_chunks,
                         "status": "interrompido",
                         "diario_acoes": shared_diarios,
-                        "selecao_contexto": shared_ledgers,
-                        "recencia": build_recency_metadata(recency_policy, ponto_sources.values()),
+                        "recencia": build_recency_metadata(recency_policy, fontes_salvar.values()),
                     }
-                    urls_lidas_salvar = [u for u, rec in ponto_sources.items() if rec.get("status") == "read_ok"]
-                    urls_fonte_salvar = list(ponto_sources.keys())
+                    urls_lidas_salvar = list(fontes_salvar.keys())
+                    urls_fonte_salvar = list(fontes_salvar.keys())
 
                     # Realiza limpeza/liberação em sessão isolada e limpa para evitar conexões canceladas
                     cleanup_repo = point_repo

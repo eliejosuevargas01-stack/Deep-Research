@@ -436,12 +436,19 @@ class MockNetwork:
                                 for c_it in r_p.get("conclusoes", []):
                                     if isinstance(c_it, dict) and c_it.get("claim_id"):
                                         found_claims.append(str(c_it["claim_id"]))
-                        found_sources = list(parsed_ctx.get("fontes", {}).keys())
+                        fontes_ctx = parsed_ctx.get("fontes", {})
+                        if isinstance(fontes_ctx, dict):
+                            found_sources = list(fontes_ctx.keys())
+                        elif isinstance(fontes_ctx, list):
+                            found_sources = [
+                                str(f.get("url")) for f in fontes_ctx
+                                if isinstance(f, dict) and f.get("url")
+                            ]
                 except Exception:
                     pass
 
                 claims_to_use = found_claims or [f"claim_{i}" for i in range(1, 5)]
-                sources_to_use = found_sources or ["src_1"]
+                sources_to_use = found_sources or ["https://php.net/security-2026"]
 
                 content = json.dumps(
                     {

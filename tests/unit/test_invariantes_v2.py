@@ -68,32 +68,22 @@ def test_plan_request_nao_trunca_briefing() -> None:
 # I-5: histórico integral de rodadas (auditor e writer)
 # ---------------------------------------------------------------------------
 
-def _coleta(rodada: int, *, analise: str, trecho: str, com_personas: bool = True):
-    """Constrói um objeto de coleta compatível com os helpers de auditor/writer."""
+def _coleta(rodada: int, *, analise: str, com_personas: bool = True):
+    """Constrói uma coleta v3: catálogo de URLs + resumos, sem bruto."""
     import json
 
+    url = f"https://exemplo.org/rodada-{rodada}"
     meta = {
-        "fontes": {
-            f"src_{rodada}": {
-                "source_id": f"src_{rodada}",
-                "url": f"https://exemplo.org/rodada-{rodada}",
+        "versao": 3,
+        "fontes": [
+            {
+                "url": url,
+                "uso": "utilizada",
                 "titulo": f"Fonte da rodada {rodada}",
                 "status": "read_ok",
-                "body": "CORPO-INTEGRAL-QUE-NAO-DEVE-SER-DUPLICADO " * 10,
-                "body_hash": f"hash-{rodada}",
-                "length": 420,
+                "data_fonte": None,
             }
-        },
-        "trechos": {
-            f"chk_{rodada}": {
-                "chunk_id": f"chk_{rodada}",
-                "source_id": f"src_{rodada}",
-                "text": trecho,
-                "text_hash": f"thash-{rodada}",
-                "start_offset": 0,
-                "end_offset": len(trecho),
-            }
-        },
+        ],
         "auditorias": [{"id_auditoria": f"aud_{rodada}", "status": "reprovado", "valido": True}],
     }
     if com_personas:
@@ -102,13 +92,15 @@ def _coleta(rodada: int, *, analise: str, trecho: str, com_personas: bool = True
                 "analise": analise,
                 "sucesso": True,
                 "lacunas": [],
+                "urls_lidas": [url],
+                "urls_fonte": [url],
                 "conclusoes": [
                     {
                         "claim_id": f"c_{rodada}",
                         "afirmacao": f"Afirmação da rodada {rodada}",
                         "tipo": "fato",
                         "confianca": "alta",
-                        "evidencias": [f"chk_{rodada}"],
+                        "evidencias": [url],
                     }
                 ],
             }
@@ -128,10 +120,10 @@ def test_auditor_historico_rodadas_preserva_todas_as_retries() -> None:
 
     analise_longa = "Evidência detalhada. " * 2000  # ~40.000 chars
     coletas = [
-        _coleta(1, analise="análise r1", trecho="trecho r1", com_personas=False),
-        _coleta(2, analise="análise r2", trecho="trecho r2"),
-        _coleta(3, analise="análise r3", trecho="trecho r3"),
-        _coleta(4, analise=analise_longa, trecho=analise_longa),
+        _coleta(1, analise="análise r1", com_personas=False),
+        _coleta(2, analise="análise r2"),
+        _coleta(3, analise="análise r3"),
+        _coleta(4, analise=analise_longa),
     ]
 
     historico = _montar_historico_rodadas(coletas, coleta_corrente_id="coleta-4")
@@ -142,32 +134,33 @@ def test_auditor_historico_rodadas_preserva_todas_as_retries() -> None:
     assert historico[-1]["corrente"] is True
     # Rodada corrente não truncada
     assert historico[-1]["resultados_personas"]["historiador"]["analise"] == analise_longa
-    assert historico[-1]["trechos"]["chk_4"]["text"] == analise_longa
+    # Catálogo v3: só URL/uso/título/status, nunca corpo ou hash
+    fonte = historico[-1]["fontes"][0]
+    assert fonte["url"] == "https://exemplo.org/rodada-4"
+    assert fonte["uso"] == "utilizada"
+    assert "body" not in fonte and "body_hash" not in fonte
     # Rodada legada (sem personas) carrega o texto bruto, sem corte
     assert historico[0]["legado"] is True
     assert historico[0]["conteudo_coletado"] == "Síntese integral da rodada 1"
-    # Corpo de fonte não é duplicado no histórico, mas os metadados permanecem
-    assert "body" not in historico[-1]["fontes"]["src_4"]
-    assert historico[-1]["fontes"]["src_4"]["body_hash"] == "hash-4"
 
 
 def test_writer_rodadas_preserva_todas_as_retries() -> None:
-    """Contexto de redação carrega uma entrada por rodada, com texto integral."""
+    """Contexto de redação carrega uma entrada por rodada, com resumo integral."""
     from app.core.writer import _montar_rodada_escrita
 
     analise_longa = "Conteúdo coletado relevante. " * 1500  # ~45.000 chars
     coletas = [
-        _coleta(1, analise="análise r1", trecho="trecho r1", com_personas=False),
-        _coleta(2, analise="análise r2", trecho="trecho r2"),
-        _coleta(3, analise=analise_longa, trecho=analise_longa),
+        _coleta(1, analise="análise r1", com_personas=False),
+        _coleta(2, analise="análise r2"),
+        _coleta(3, analise=analise_longa),
     ]
 
     rodadas = [_montar_rodada_escrita(c, corrente_id="coleta-3") for c in coletas]
 
     assert [r["rodada"] for r in rodadas] == [1, 2, 3]
     assert rodadas[-1]["corrente"] is True
-    assert rodadas[-1]["personas_conclusoes"]["historiador"]["analise"] == analise_longa
-    assert rodadas[-1]["trechos"][0]["text"] == analise_longa
+    assert rodadas[-1]["personas"]["historiador"]["analise"] == analise_longa
+    assert "trechos" not in rodadas[-1]
     assert rodadas[0]["legado"] is True
     assert rodadas[0]["conteudo_coletado"] == "Síntese integral da rodada 1"
     # Nenhuma rodada é descartada nem substituída pela última

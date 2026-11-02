@@ -220,50 +220,6 @@ async def test_contradictory_state_read_failed_dominates_urls_lidas():
     assert summary.utilizadas[0].url == "https://failed.org/artigo"
 
 
-@pytest.mark.asyncio
-async def test_read_ok_empty_body_rejected():
-    """Defeito 2 reproduzido e resolvido: read_ok sem corpo material não qualifica como consultada."""
-    id_p = "test-empty-readok"
-    pesquisa = Pesquisa(
-        id_pesquisa=id_p,
-        tema="Tema Vazio",
-        criado_em="2026-10-26T10:00:00Z",
-        dossier_final="# Título\n\nCitando [Vazia](https://empty.org/page).",
-    )
-
-    meta = {
-        "fontes": {
-            "src_1": {
-                "source_id": "src_1",
-                "url": "https://empty.org/page",
-                "status": "read_ok",
-                "body": "",  # Corpo vazio não possui evidência material
-                "length": 0,
-            }
-        }
-    }
-    coleta = ConteudoColetado(
-        id="col-1",
-        id_pesquisa=id_p,
-        ponto_id="ponto-1",
-        rodada=1,
-        tema="Tema",
-        ponto="P1",
-        conteudo_coletado="",
-        urls_lidas="[]",
-        urls_fonte=json.dumps(["https://empty.org/page"]),
-        metadados_coleta=json.dumps(meta),
-        criado_em="2026-10-26T10:00:00Z",
-    )
-
-    repo = DummyRepo(pesquisa=pesquisa, coletas=[coleta])
-    service = SourceAccountingService(research_repo=cast(Any, repo))
-
-    summary = await service.get_source_summary(id_p)
-    assert summary is not None
-    assert len(summary.consultadas) == 0
-    assert summary.status == "indisponivel"
-    assert summary.total_consultadas is None
 
 
 @pytest.mark.asyncio
@@ -596,8 +552,8 @@ async def test_exact_slash_identity_no_invented_equivalence():
 
 
 @pytest.mark.asyncio
-async def test_malformed_evidence_length_string_and_dict_body():
-    """Defeito review2.2: length='unknown' não levanta ValueError e body deve ser string real."""
+async def test_read_ok_urls_contam_sem_depender_de_body():
+    """PRD v3: o catálogo só tem URLs; read_ok basta, body/hash não existem mais."""
     id_p = "test-malformed-shape"
     pesquisa = Pesquisa(
         id_pesquisa=id_p,
@@ -606,24 +562,11 @@ async def test_malformed_evidence_length_string_and_dict_body():
         dossier_final="Citando [Fonte](https://valid.org/doc).",
     )
     meta = {
-        "fontes": {
-            "src_1": {
-                "source_id": "src_1",
-                "url": "https://valid.org/doc",
-                "status": "read_ok",
-                "title": "Documento Válido",
-                "body": "Texto substantivo de evidência.",
-                "length": "unknown",  # String que quebrava com int(length)
-            },
-            "src_2": {
-                "source_id": "src_2",
-                "url": "https://invalid-body.org/doc",
-                "status": "read_ok",
-                "title": "Body Inválido",
-                "body": {"mensagem": "erro json em vez de texto markdown"},  # Dict em vez de str
-                "length": 150,
-            },
-        }
+        "versao": 3,
+        "fontes": [
+            {"url": "https://valid.org/doc", "uso": "utilizada", "titulo": "Documento Válido", "status": "read_ok"},
+            {"url": "https://invalid-body.org/doc", "uso": "lida_nao_utilizada", "titulo": "Outro", "status": "read_ok"},
+        ],
     }
     coleta = ConteudoColetado(
         id="col-1",
@@ -633,8 +576,8 @@ async def test_malformed_evidence_length_string_and_dict_body():
         tema="Tema",
         ponto="P1",
         conteudo_coletado="c",
-        urls_lidas="[]",
-        urls_fonte="[]",
+        urls_lidas=json.dumps(["https://valid.org/doc", "https://invalid-body.org/doc"]),
+        urls_fonte=json.dumps(["https://valid.org/doc"]),
         metadados_coleta=json.dumps(meta),
         criado_em="2026-10-26T10:00:00Z",
     )
@@ -642,12 +585,13 @@ async def test_malformed_evidence_length_string_and_dict_body():
     repo = DummyRepo(pesquisa=pesquisa, coletas=[coleta])
     service = SourceAccountingService(research_repo=cast(Any, repo))
 
-    # Não deve levantar exceção 500
     summary = await service.get_source_summary(id_p)
     assert summary is not None
-    # Apenas src_1 com body string real deve ser aceita
-    assert summary.total_consultadas == 1
-    assert summary.consultadas[0].url == "https://valid.org/doc"
+    assert summary.total_consultadas == 2
+    assert {c.url for c in summary.consultadas} == {
+        "https://valid.org/doc",
+        "https://invalid-body.org/doc",
+    }
     assert summary.status == "completo"
 
 
