@@ -147,6 +147,27 @@ def _urls_fora_do_acervo(workspace: Path) -> list[str]:
 
 
 
+def _mapear(caminho: Path) -> str:
+    """Traduz o caminho local para o caminho visto pelo processo Hermes.
+
+    `DR_HERMES_PATH_MAP="origem=destino[,origem=destino]"` cobre o caso em que a API
+    roda em container e o Hermes roda em outro (host ou container vizinho), como na
+    hermes-vps: /app/data=... → /opt/data/projects/deep-research/Deep-Research/data.
+    Sem a variável, o caminho passa intacto.
+    """
+    bruto = (os.environ.get("DR_HERMES_PATH_MAP") or "").strip()
+    if not bruto:
+        return str(caminho)
+    texto = str(caminho)
+    for par in bruto.split(","):
+        if "=" not in par:
+            continue
+        origem, destino = (p.strip().rstrip("/") for p in par.split("=", 1))
+        if texto == origem or texto.startswith(origem + "/"):
+            return destino + texto[len(origem):]
+    return texto
+
+
 async def executar(
     tema: str,
     pesquisa_id: str,
@@ -161,7 +182,8 @@ async def executar(
         raise ValueError("max_rodadas deve estar entre 1 e 3")
 
     workspace = criar_workspace(pesquisa_id, tema)
-    prompt = montar_prompt(tema, workspace, max_rodadas)
+    caminho_exec = _mapear(workspace)
+    prompt = montar_prompt(tema, Path(caminho_exec), max_rodadas)
     (workspace / "TEMA.md").write_text(
         f"# Tema\n\n{tema}\n\n## Prompt do turno\n\n```\n{prompt}\n```\n", encoding="utf-8"
     )
@@ -170,14 +192,15 @@ async def executar(
         _binario_hermes(),
         "-p", perfil,
         "-z", prompt,
-        "--in", str(workspace),
-        "--usage-file", str(workspace / "usage.json"),
+        "--in", caminho_exec,
+        "--usage-file", f"{caminho_exec}/usage.json",
     ]
     argv = _prefacio_sandbox(workspace, argv)
 
     env = {k: v for k, v in os.environ.items() if k not in {"HERMES_HOME", "HERMES_SESSION_ID"}}
-    env["HERMES_DR_ALLOWED_PATH"] = str(workspace)
-    env["DR_ALLOWED_PATH"] = str(workspace)
+    env["HERMES_DR_ALLOWED_PATH"] = caminho_exec
+    env["DR_ALLOWED_PATH"] = caminho_exec
+    env["DR_HERMES_EXEC_CWD"] = caminho_exec
     log_path = workspace / "hermes.log"
     inicio = time.monotonic()
 
