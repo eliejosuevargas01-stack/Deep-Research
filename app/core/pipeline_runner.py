@@ -308,6 +308,7 @@ class PipelineRunner:
                 # 2. Ciclo de Busca e Auditoria com Retentativas Automáticas
                 max_ciclos = 4
                 audit_res: Dict[str, Any] = {}
+                redacao_com_ressalvas = False
                 targeted_personas: Optional[List[str]] = None
 
                 for ciclo in range(1, max_ciclos + 1):
@@ -481,21 +482,14 @@ class PipelineRunner:
                     )
 
                     if todos_pendentes_no_teto or ciclo == max_ciclos:
-                        print(f"[DR-PIPE] teto atingido em {id_pesquisa}; redacao bloqueada", flush=True)
-                        final_status = "reprovado" if any(p.status == "reprovado" for p in pontos_frescos) else "parcial"
-                        await repo.update_pipeline_status(id_pesquisa, final_status)
-                        hub.publish(id_pesquisa, "pipeline.status", {
-                            "id_pesquisa": id_pesquisa,
-                            "status_pipeline": final_status,
-                            "timestamp": _format_iso_utc(),
-                            "criado_em": getattr(pesquisa, "criado_em", None),
-                            "concluido_em": None,
-                        })
-                        return {
-                            "status": final_status,
-                            "detalhe": "Teto de tentativas ou reprovação na auditoria; redação bloqueada.",
-                            "audit_res": audit_res,
-                        }
+                        # Teto de tentativas NUNCA impede o relatório final: segue para a
+                        # redação com ressalvas explícitas por ponto (PRD v3, RF-006-D).
+                        print(
+                            f"[DR-PIPE] teto atingido em {id_pesquisa}; segue para redacao com ressalvas",
+                            flush=True,
+                        )
+                        redacao_com_ressalvas = True
+                        break
 
                     # A auditoria reprovada derruba o status derivado para 'reprovado' (terminal).
                     # Com ciclos restantes o pipeline continua ativo: reafirma estado não-terminal
@@ -504,7 +498,7 @@ class PipelineRunner:
                         await repo.update_pipeline_status(id_pesquisa, "auditando")
 
                 # 3. Redação Final e Despacho ao Webhook (APENAS se aprovado na auditoria)
-                if not audit_res.get("pronto_para_writer"):
+                if not audit_res.get("pronto_para_writer") and not redacao_com_ressalvas:
                     logger.warning(f"[PipelineRunner] Redação bloqueada: pesquisa {id_pesquisa} não pronta para Writer.")
                     hub.publish(id_pesquisa, "pipeline.status", {
                         "id_pesquisa": id_pesquisa,
@@ -531,7 +525,10 @@ class PipelineRunner:
                 publish_stage_event(id_pesquisa, "stage.start", "writer", agent="redator final")
                 try:
                     writer_res = await asyncio.wait_for(
-                        writer.execute_writer(id_pesquisa=id_pesquisa),
+                        writer.execute_writer(
+                            id_pesquisa=id_pesquisa,
+                            permitir_reprovados=redacao_com_ressalvas,
+                        ),
                         timeout=STAGE_TIMEOUT_SECONDS,
                     )
                 finally:
@@ -548,10 +545,12 @@ class PipelineRunner:
                     "reasoning_dossier": reasoning_dossier,
                     "total_caracteres": len(dossier_final),
                 })
-                if final_status == "concluido" and dossier_final:
+                if dossier_final:
+                    # Relatório é entregue mesmo com ressalvas: o status acompanha a
+                    # qualidade real (concluido | incompleto), o texto nunca é omitido.
                     hub.publish(id_pesquisa, "report.final", {
                         "id_pesquisa": id_pesquisa,
-                        "status": "concluido",
+                        "status": final_status,
                         "dossier_final": dossier_final,
                         "total_caracteres": len(dossier_final),
                         "concluido_em": concluido_em,
@@ -564,6 +563,9 @@ class PipelineRunner:
                         "concluido_em": concluido_em,
                     })
                 else:
+                    # Writer sem dossiê (falha real ou stub): persiste o estado observado
+                    # para o registro não ficar preso em 'redigindo'.
+                    await repo.update_pipeline_status(id_pesquisa, final_status)
                     hub.publish(id_pesquisa, "pipeline.status", {
                         "id_pesquisa": id_pesquisa,
                         "status_pipeline": final_status,

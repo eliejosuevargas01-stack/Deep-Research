@@ -1480,7 +1480,7 @@ async def test_runner_calls_writer_without_triple_retry_or_fallback_concluido(
 
     writer_call_count = 0
 
-    async def spy_writer(self, id_pesquisa):
+    async def spy_writer(self, id_pesquisa, **kwargs):
         nonlocal writer_call_count
         writer_call_count += 1
         # Comportamento REAL do Writer em resultado incompleto (W08/W10): adquire a posse,

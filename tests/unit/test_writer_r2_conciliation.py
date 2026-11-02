@@ -159,7 +159,7 @@ async def test_r2_runner_keeps_new_stage_status_after_writer_window(
     real_writer = Writer.execute_writer
     janela = {"executada": False}
 
-    async def writer_com_janela(self2, id_pesquisa: str):  # assinatura compatível com o Runner
+    async def writer_com_janela(self2, id_pesquisa: str, **kwargs):  # assinatura compatível com o Runner
         res = await real_writer(self2, id_pesquisa=id_pesquisa)
         assert res.get("status") == "concluido", "Writer real deve publicar antes da janela."
         s_new = async_sessionmaker(

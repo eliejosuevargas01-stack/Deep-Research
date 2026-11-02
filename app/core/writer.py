@@ -335,6 +335,23 @@ def _montar_rodada_escrita(coleta: Any, corrente_id: Optional[str]) -> Dict[str,
 WRITER_MAX_CONTEXT_CHARS = int(os.environ.get("WRITER_MAX_CONTEXT_CHARS", "2000000"))
 # Teto REAL do prompt (instruções + contexto serializado). O modelo aceita 1.048.576 tokens;
 # ~2.4M caracteres ficam com folga confortável e evitam o 400 de context length.
+def _ultima_auditoria_aplicada(coleta: Any) -> Optional[Dict[str, Any]]:
+    """Última auditoria válida/aplicada da coleta, mesmo reprovada (RF-006-D)."""
+    meta = getattr(coleta, "metadados_coleta", None)
+    if not meta:
+        return None
+    try:
+        meta = json.loads(meta) if isinstance(meta, str) else meta
+    except Exception:
+        return None
+    if not isinstance(meta, dict):
+        return None
+    for a in reversed(meta.get("auditorias") or []):
+        if isinstance(a, dict) and a.get("valido") is True and a.get("aplicado") is True:
+            return a
+    return None
+
+
 WRITER_MAX_PROMPT_CHARS = int(os.environ.get("WRITER_MAX_PROMPT_CHARS", "2400000"))
 
 
@@ -401,7 +418,8 @@ class Writer:
         self,
         id_pesquisa: str,
         pesquisa: Pesquisa,
-    ) -> Tuple[List[Ponto], List[ConteudoColetado], List[Dict[str, Any]]]:
+        permitir_reprovados: bool = False,
+    ) -> Tuple[List[Ponto], List[ConteudoColetado], List[Dict[str, Any]], List[int]]:
         """Verifica prontidão estrita antes de cache e modelo (W01, v6)."""
         # 1. Valida integridade do plano estruturado
         plano_obj = {}
@@ -426,7 +444,7 @@ class Writer:
             )
 
         pontos_nao_aprovados = [p for p in pontos if p.status != "aprovado"]
-        if pontos_nao_aprovados:
+        if pontos_nao_aprovados and not permitir_reprovados:
             raise ValueError(
                 f"UNAPPROVED_POINTS: A pesquisa {id_pesquisa} possui pontos reprovados ou não aprovados: "
                 f"{[p.ponto_n for p in pontos_nao_aprovados]}. Redação bloqueada."
@@ -435,10 +453,15 @@ class Writer:
         # 3. Verifica evidência web e auditoria válida/aplicada na coleta atual de cada ponto
         coletas_atuais: List[ConteudoColetado] = []
         auditorias_atuais: List[Dict[str, Any]] = []
+        pontos_ok: List[Ponto] = []
+        pontos_ignorados: List[int] = []
 
         for p in pontos:
             todas_coletas = await self.research_repo.get_collected_content_for_point(id_pesquisa, p.ponto_id)
             if not todas_coletas:
+                if permitir_reprovados:
+                    pontos_ignorados.append(p.ponto_n)
+                    continue
                 raise ValueError(
                     f"NO_EVIDENCE_COLLECTED: Ponto {p.ponto_n} da pesquisa {id_pesquisa} não possui coleta web realizada."
                 )
@@ -463,6 +486,9 @@ class Writer:
                 except Exception:
                     pass
             if not urls_lidas:
+                if permitir_reprovados:
+                    pontos_ignorados.append(p.ponto_n)
+                    continue
                 raise ValueError(
                     f"NO_EVIDENCE_COLLECTED: Ponto {p.ponto_n} da pesquisa {id_pesquisa} não possui evidência web lida."
                 )
@@ -479,7 +505,7 @@ class Writer:
                                 and a.get("coleta_id") == ultima_coleta.id
                                 and a.get("valido") is True
                                 and a.get("aplicado") is True
-                                and a.get("status") == "aprovado"
+                                and (a.get("status") == "aprovado" or permitir_reprovados)
                             ):
                                 auditoria_valida_aplicada = a
                                 break
@@ -487,9 +513,12 @@ class Writer:
                     pass
 
             if not auditoria_valida_aplicada:
-                raise ValueError(
-                    f"READINESS_FAILED: Ponto {p.ponto_n} não possui auditoria estruturada válida e aplicada na coleta atual."
-                )
+                if permitir_reprovados:
+                    auditoria_valida_aplicada = _ultima_auditoria_aplicada(ultima_coleta) or {}
+                else:
+                    raise ValueError(
+                        f"READINESS_FAILED: Ponto {p.ponto_n} não possui auditoria estruturada válida e aplicada na coleta atual."
+                    )
 
             # Valida presença e integridade de evidências para todas as personas requeridas da pesquisa
             required_personas = set(resolve_required_search_personas(pesquisa))
@@ -529,8 +558,14 @@ class Writer:
 
             coletas_atuais.append(ultima_coleta)
             auditorias_atuais.append(auditoria_valida_aplicada)
+            pontos_ok.append(p)
 
-        return pontos, coletas_atuais, auditorias_atuais
+        if not coletas_atuais:
+            raise ValueError(
+                f"NO_EVIDENCE_COLLECTED: Nenhum ponto da pesquisa {id_pesquisa} possui coleta web utilizável."
+            )
+
+        return pontos_ok, coletas_atuais, auditorias_atuais, pontos_ignorados
 
     def _montar_contexto_estruturado(
         self,
@@ -722,7 +757,9 @@ class Writer:
             pesquisa_fresca = await self.research_repo.get_research(id_pesquisa)
             if not pesquisa_fresca:
                 return None
-            pontos, coletas, auditorias = await self._verificar_prontidao(id_pesquisa, pesquisa_fresca)
+            pontos, coletas, auditorias, ignorados = await self._verificar_prontidao(
+                id_pesquisa, pesquisa_fresca, permitir_reprovados=True
+            )
             contexto_fresco, _urls, _claims, _sources = self._montar_contexto_estruturado(
                 pesquisa_fresca, pontos, coletas, auditorias
             )
@@ -732,7 +769,7 @@ class Writer:
             formato_fresco = plano_fresco.get("formato_entrega") or "Dossiê analítico com citações canônicas"
             recency_block_fresco = _writer_recency_block(plano_fresco)
             sistema_fresco = self._construir_system_prompt(publico_fresco, formato_fresco, recency_block_fresco)
-            user_fresco = self._construir_user_prompt(pesquisa_fresca, contexto_fresco)
+            user_fresco = self._construir_user_prompt(pesquisa_fresca, contexto_fresco, ignorados)
             return self._calcular_input_hash(
                 pesquisa=pesquisa_fresca,
                 contexto_dict=contexto_fresco,
@@ -803,12 +840,42 @@ class Writer:
             "Cada item deve conter: id (int 1..12), aprovado (bool), justificativa (str), claim_ids (list[str]), source_ids (list[str]), correcao (str se aprovado=false, null se true)."
         )
 
-    def _construir_user_prompt(self, pesquisa: Pesquisa, contexto_dict: Dict[str, Any]) -> str:
+    def _construir_user_prompt(
+        self,
+        pesquisa: Pesquisa,
+        contexto_dict: Dict[str, Any],
+        pontos_sem_dados: Optional[List[int]] = None,
+    ) -> str:
+        pontos = contexto_dict.get("pontos") or []
+        nao_aprovados = [
+            p for p in pontos
+            if isinstance(p, dict) and p.get("status") and p.get("status") != "aprovado"
+        ]
+        sem_dados = pontos_sem_dados or []
+        ressalva = ""
+        if nao_aprovados:
+            lista = ", ".join(
+                f"ponto {p.get('ponto_n')} (status {p.get('status')}, auditoria {((p.get('auditoria_atual') or {}).get('status'))})"
+                for p in nao_aprovados
+            )
+            ressalva = (
+                f"\n\nATENÇÃO — PONTOS SEM APROVAÇÃO NA AUDITORIA: {lista}. "
+                "O relatório DEVE ser entregue mesmo assim: redija normalmente esses eixos com o material coletado e "
+                "inclua, ao final, a seção '## Ressalvas da auditoria' declarando explicitamente, por ponto, o que não "
+                "pôde ser comprovado, os critérios reprovados e as lacunas remanescentes. É proibido omitir o eixo, "
+                "inventar evidência ou apresentar a limitação como se não existisse."
+            )
+        if sem_dados:
+            ressalva += (
+                f"\n\nPONTOS SEM COLETA UTILIZÁVEL: {sem_dados}. Declare na seção '## Ressalvas da auditoria' "
+                "que esses pontos não puderam ser investigados e que o relatório cobre apenas os demais."
+            )
         return (
             f"Tema da Investigação: {pesquisa.tema}\n\n"
             f"{json.dumps(contexto_dict, ensure_ascii=False)}\n\n"
             "Elabore o dossiê analítico final em Markdown cumprindo estritamente a estrutura formal requerida, "
             "sem descartar informações e desenvolvendo exaustivamente cada eixo temático em prosa articulada e aprofundada."
+            f"{ressalva}"
         )
 
     async def _validar_cache_redacao(
@@ -1045,7 +1112,7 @@ class Writer:
 
         return True, qualidade_dict, None, envelope_eval, True
 
-    async def execute_writer(self, id_pesquisa: str) -> Dict[str, Any]:
+    async def execute_writer(self, id_pesquisa: str, permitir_reprovados: bool = False) -> Dict[str, Any]:
         """Executa o Writer sob UMA única fronteira de deadline TOTAL desde a entrada (W07, W12).
 
         O deadline absoluto (default 600s, configurável; lease_seconds=int(timeout_seconds))
@@ -1066,6 +1133,7 @@ class Writer:
             "entrega_em_curso": False,    # callback iniciado após publicação
             "entrega_registrada": False,  # resultado da entrega observado e persistido
             "artifact_hash": None,
+            "permitir_reprovados": permitir_reprovados,
         }
         try:
             async with asyncio.timeout(self.timeout_seconds):
@@ -1175,7 +1243,9 @@ class Writer:
             raise ValueError(f"RESEARCH_NOT_FOUND: Pesquisa não localizada: {id_pesquisa}")
 
         # 1. Prontidão estrita antes de cache e modelo (W01, v6)
-        pontos, coletas_atuais, auditorias_atuais = await self._verificar_prontidao(id_pesquisa, pesquisa)
+        pontos, coletas_atuais, auditorias_atuais, pontos_ignorados = await self._verificar_prontidao(
+            id_pesquisa, pesquisa, permitir_reprovados=bool(ctx.get("permitir_reprovados"))
+        )
 
         # 2. Monta o contexto estruturado e calcula os prompts canônicos
         contexto_dict, known_urls, known_claim_ids, known_source_ids = self._montar_contexto_estruturado(
@@ -1189,7 +1259,7 @@ class Writer:
 
         recency_block = _writer_recency_block(plano_obj)
         system_prompt = self._construir_system_prompt(publico, formato, recency_block)
-        user_prompt = self._construir_user_prompt(pesquisa, contexto_dict)
+        user_prompt = self._construir_user_prompt(pesquisa, contexto_dict, pontos_ignorados)
 
         # PRD v2, I-5: nada de cortar trechos/rodadas para caber. Se o prompt real
         # excede a janela, a saída é insuficiência explícita com o volume necessário.
@@ -1493,7 +1563,14 @@ class Writer:
         publicado = await self.research_repo.finalize_writer_publication(
             id_pesquisa=id_pesquisa,
             lease_token=lease_token,
-            dossier_final=dossier_final if status_final == "concluido" else None,
+            # Relatório é sempre entregue: com ressalvas (pontos reprovados), o dossiê é
+            # publicado mesmo quando a autoavaliação não atinge o limiar (PRD v3, RF-006-D).
+            dossier_final=(
+                dossier_final
+                if status_final == "concluido"
+                or (ctx.get("permitir_reprovados") and dossier_final)
+                else None
+            ),
             status_pipeline=status_final,
             metadados_redacao_dict=meta_redacao_publicacao,
             generation_attempts=completed_envelopes,

@@ -166,6 +166,7 @@
 - 🟡 **RF-006**: `POST /api/v1/writer` recebe `id_pesquisa` do banco (somente quando todos os pontos finalizados) → concatena tudo → LLM forte gera dossier completo com fontes canônicas marcadas → parser → banco → POST para webhook de callback.
 - 🟡 **RF-006-A** (v3): o contexto do `writer` contém os resumos integrais de todas as rodadas de cada ponto, mais as listas de URLs `utilizadas` e `lidas_nao_utilizadas`; nenhuma rodada anterior é descartada e nenhum texto bruto é enviado.
 - 🟡 **RF-006-B** (v2): a entrada do `writer` não é truncada por limite artificial.
+- 🟡 **RF-006-D** (v3): esgotar o teto de tentativas (4 buscas / 3 auditorias) **nunca** impede a entrega do relatório final. O pipeline segue para o `writer`, que redige os eixos disponíveis e publica o dossiê com a seção `## Ressalvas da auditoria` declarando, por ponto, status, critérios reprovados e lacunas. Ponto sem coleta utilizável é omitido do relatório e listado nessas ressalvas; o dossiê é persistido mesmo que a autoavaliação do texto não atinja o limiar, com `status_pipeline=incompleto`. Bloqueio só é permitido quando ainda há retry disponível.
 
 ### Administração e configuração
 

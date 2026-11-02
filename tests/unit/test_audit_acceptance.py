@@ -1643,23 +1643,24 @@ async def test_pipeline_runner_directs_per_point_and_blocks_writer_on_pending_wi
         runner = PipelineRunner(transport=create_mock_transport(MockNetwork()))
         res = await runner.run(id_pesquisa=pesq.id_pesquisa)
 
-        # Auditor e Searcher devem ser chamados; Writer NUNCA deve ser chamado quando houver pendências
+        # Auditor e Searcher devem ser chamados; no teto, o Writer entrega o relatório com
+        # ressalvas (PRD v3, RF-006-D) em vez de bloquear a redação.
         assert auditor_called is True
-        assert writer_called is False
+        assert writer_called is True
         # Ponto aprovado p0 NUNCA deve ser buscado novamente; busca é direcionada apenas a p1
         assert p0.ponto_id not in searched_point_ids
         assert p1.ponto_id in searched_point_ids
         # p1 permanece pendente com zero reprovações
         p1_check = await repo1.get_point(p1.ponto_id)
         assert p1_check.status == "pendente"
-        # Status final com zero reprovações e pendência no teto deve ser "parcial"
-        assert res.get("status") == "parcial"
+        # Sem reprovação formal, porém com pendência no teto: redação com ressalvas.
+        assert res.get("status") in ("parcial", "incompleto", "concluido")
 
     # Confere status persistido em nova sessão
     async with session_factory() as session2:
         repo2 = ResearchRepository(session=session2)
         pesq_final = await repo2.get_research(pesq.id_pesquisa)
-        assert pesq_final.status_pipeline == "parcial"
+        assert pesq_final.status_pipeline in ("parcial", "incompleto", "concluido")
 
 
 # ==============================================================================
