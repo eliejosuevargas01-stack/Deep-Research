@@ -181,7 +181,7 @@
 - 🟡 **`pontos`** — usada pelo plan (1 item por ponto) e pelo auditor (status). Campos: 🟡 `tema`, `id_pesquisa`, `ponto_id`, `ponto_n`, `ponto`, `aprovado|reprovado`, `pontos_fracos`, `tentativas`, `tentativas_auditoria`.
 - 🟡 **`conteudo_coletado`** — usada pelo search, pelo auditor e pelo writer. Uma linha **por rodada** de coleta do ponto (append-only). Campos: 🟡 `tema`, `id_pesquisa`, `ponto`, `ponto_id`, `rodada`, `conteudo_coletado`, `urls_lidas`, `urls_fonte`, `metadados_coleta`.
 - 🟡 **`metadados_coleta.resultados_personas`** — pacote consolidado das 4 personas do ponto (I-4), com `analise` (resumo acumulado), `urls_fonte`, `urls_lidas`, `lacunas`, `motivo_parada`, `sucesso`, `queries_executadas`.
-- 🟡 **`metadados_coleta.fontes`** (v3) — catálogo de URLs do ponto acumulado entre rodadas: `url`, `status` (`read_ok`), `uso` (`utilizada` | `lida_nao_utilizada`), `titulo`, `data_fonte`. **Sem `body`, sem `body_hash`, sem `trechos`, sem offsets** — o bruto da Jina não é persistido (I-2 v3).
+- 🟡 **`metadados_coleta.fontes`** (v3) — catálogo de URLs do ponto acumulado entre rodadas: `url`, `status` (`read_ok` | `snippet_only`), `uso` (`utilizada` | `lida_nao_utilizada`), `titulo`, `data_fonte`. URL eleita por persona que nunca foi lida entra com `status=snippet_only` e `uso=utilizada`; nunca é omitida do catálogo (RF-004-D). **Sem `body`, sem `body_hash`, sem `trechos`, sem offsets** — o bruto da Jina não é persistido (I-2 v3).
 - 🟡 **`metadados_coleta.auditorias`** — histórico estruturado de pareceres por rodada (12 critérios, corte, contagem, percentual, decisão, tarefas).
 - 🟡 **`credenciais`** (tabela criptografada) — 🟡 chave, base URL, preferência; override por variável de ambiente do container.
 

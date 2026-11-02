@@ -317,14 +317,14 @@ def _fontes_da_persona(
     fontes: List[Dict[str, Any]] = []
     for u in urls:
         rec = catalogo.get(u)
-        if not rec or rec.get("status") != "read_ok":
+        if not rec or rec.get("status") not in ("read_ok", "snippet_only"):
             continue
         fontes.append({
             "url": u,
             "uso": "utilizada" if u in eleitas else "lida_nao_utilizada",
             "titulo": rec.get("titulo"),
             "data_fonte": rec.get("data_fonte"),
-            "status": "read_ok",
+            "status": rec.get("status"),
         })
     return fontes
 
@@ -348,6 +348,18 @@ def _catalogo_de_urls(
             "titulo": rec.get("titulo"),
             "data_fonte": rec.get("data_fonte"),
         }
+    # URL eleita que nunca foi lida continua no catálogo como snippet_only:
+    # sem isso o auditor reprova o ponto sem julgar conteúdo (RF-004-D).
+    for url in sorted(eleitas):
+        if url not in catalogo:
+            rec = ponto_sources.get(url) or {}
+            catalogo[url] = {
+                "url": url,
+                "status": "snippet_only",
+                "uso": "utilizada",
+                "titulo": rec.get("titulo"),
+                "data_fonte": rec.get("data_fonte"),
+            }
     return catalogo
 
 
@@ -841,8 +853,9 @@ class Searcher:
                 "- ANALOGIAS E DIDÁTICA: Analogias didáticas ou pedagógicas são recursos interpretativos e DEVEM ser tipadas como 'inferencia', NUNCA 'fato'. "
                 "Metáforas não acrescentam fatos nem atestam segurança universal ou ausência total de impacto.\n"
                 "- ADERÊNCIA AO PLANO: Mantenha a investigação a serviço do pedido original e público estabelecido, sem inventar cenários fictícios.\n"
-                "- CITAÇÃO DE EVIDÊNCIAS: Cite EXCLUSIVAMENTE URLs de páginas lidas entregues a você ou identificadores de trecho ('chk_*') "
-                "presentes nas evidências desta persona. Se citar evidência inexistente ou não entregue, a conclusão será marcada como 'não_verificado'.\n"
+                "- CITAÇÃO DE EVIDÊNCIAS: Cite EXCLUSIVAMENTE URLs. É PROIBIDO citar identificadores internos de trecho ('chk_*'), de fonte ('src_*') "
+                "ou offsets. Ao citar URL que você viu apenas no resultado de busca e não leu, marque-a como 'snippet_only'; ao citar página lida, use a URL lida. "
+                "Se citar evidência inexistente, a conclusão será marcada como 'não_verificado'.\n"
                 "- Hipóteses são apenas suposições metodológicas a testar, NUNCA fatos estabelecidos.\n"
                 "- Proibido metatexto, vazamento de raciocínio operacional interno ou simular leitura de páginas não existentes.\n"
                 "- RESPOSTA EXPLÍCITA EM CASO DE FALHA OU AUSÊNCIA DE CONTEÚDO: Se a busca falhar ou não retornar conteúdo, declare insuficiência ou reformule a consulta. É ESTRITAMENTE PROIBIDO inventar fatos ou evidências."
@@ -1180,6 +1193,13 @@ class Searcher:
                             continue
                         urls_encontradas.append(u)
                         persona_source_urls.append(u)
+                        if u not in ponto_sources:
+                            ponto_sources[u] = {
+                                "url": u,
+                                "status": "snippet_only",
+                                "titulo": item.get("title") or item.get("titulo"),
+                                "data_fonte": item.get("data") or item.get("published_time"),
+                            }
                         if u not in seen_turn_urls:
                             seen_turn_urls.add(u)
                             valid_serp_items.append((u, item))
@@ -1554,11 +1574,12 @@ class Searcher:
                         u_real = str(f_info.get("url") or "").strip()
                         if not u_real or u_real in ponto_sources:
                             continue
-                        if f_info.get("status") != "read_ok":
+                        st_antigo = f_info.get("status")
+                        if st_antigo not in ("read_ok", "snippet_only"):
                             continue
                         ponto_sources[u_real] = {
                             "url": u_real,
-                            "status": "read_ok",
+                            "status": st_antigo,
                             "titulo": f_info.get("titulo") or f_info.get("title"),
                             "data_fonte": f_info.get("data_fonte"),
                             "historico": True,

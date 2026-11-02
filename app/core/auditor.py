@@ -875,8 +875,8 @@ class Auditor:
 
         catalogo_err = None
         for url, item in fontes.items():
-            if item.get("status") != "read_ok":
-                catalogo_err = f"URL '{url}' com status diferente de read_ok"
+            if item.get("status") not in ("read_ok", "snippet_only"):
+                catalogo_err = f"URL '{url}' com status inválido: {item.get('status')!r}"
                 break
             uso = item.get("uso")
             if uso not in ("utilizada", "lida_nao_utilizada"):

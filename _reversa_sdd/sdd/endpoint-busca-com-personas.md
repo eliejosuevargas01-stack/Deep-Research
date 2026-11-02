@@ -103,7 +103,7 @@
 | RF-03 | 🟡 O sistema deve orquestrar a execução dos pontos recuperados conforme o campo `execution_mode`, com isolamento transacional de sessão por ponto quando em paralelo e barreira de sincronização. | Must | 🟡 Dado N pontos pendentes e `execution_mode=parallel`, o sistema processa N pontos em tarefas assíncronas concorrentes com sessões isoladas; com `sequential`, processa um ponto por vez, em ordem crescente de `ponto_n`, sem nunca ter dois pontos em voo. |
 | RF-04 | 🟡 O sistema deve injetar os prompts diretivos das personas (`historiador`, `visionario`, `cetico`, `futurista`) configuradas via variáveis de ambiente para diversificar os ângulos de busca. | Must | 🟡 Dado o acionamento de cada trabalhador, Quando o LLM recebe o contexto, Então o sistema fornece as instruções da persona atribuída sem recorrer a fallback hardcoded. |
 | RF-05 | 🟡 O sistema deve fornecer às instâncias do LLM a ferramenta Jina SERP (`s.jina.ai`) e o Jina Reader (`r.jina.ai`), interceptando cada URL antes da requisição para descartar links já catalogados na tabela de URLs lidas para a pesquisa corrente. | Must | 🟡 Dado o retorno de links pela SERP, Quando uma URL já existente é identificada pelo filtro, Então o sistema descarta o scrap redundante e preserva a cota de requisições. |
-| RF-06 | 🟡 O sistema deve catalogar as URLs consultadas por rodada em `metadados_coleta.fontes` (com `status` de leitura, `titulo`, `data_fonte` e `uso`: `utilizada` ou `lida_nao_utilizada`) e manter memória restrita ao ciclo de chamadas de ferramentas. | Must | 🟡 Dado o término de leitura de uma página web, Quando o trabalhador conclui a iteração, Então a URL aparece no catálogo da rodada com `status=read_ok`; nenhum corpo de página é gravado. |
+| RF-06 | 🟡 O sistema deve catalogar as URLs consultadas por rodada em `metadados_coleta.fontes` (com `status`: `read_ok` para página lida ou `snippet_only` para URL eleita vista apenas na SERP; `titulo`, `data_fonte` e `uso`: `utilizada` ou `lida_nao_utilizada`) e manter memória restrita ao ciclo de chamadas de ferramentas. | Must | 🟡 Dado o término de leitura de uma página web, Quando o trabalhador conclui a iteração, Então a URL aparece no catálogo da rodada com `status=read_ok`; nenhum corpo de página é gravado. |
 | RF-07 | 🟡 O sistema deve consolidar o **resumo denso** devolvido por cada persona, sem truncamento, gravando na tabela `conteudo_coletado` os campos `tema`, `id_pesquisa`, `ponto`, `ponto_id`, `rodada`, `conteudo_coletado` (síntese da rodada, nunca corpo de página), `urls_lidas`, `urls_fonte` e `metadados_coleta`. | Must | 🟡 Dado o encerramento da busca de um ponto, Quando o parser finaliza o empacotamento, Então persiste a síntese integral e as coleções de URLs da rodada, com o bruto já descartado da RAM. |
 | RF-08 | 🟡 O sistema deve atualizar o status dos pontos correspondentes para `coletado` na tabela `pontos` e responder código HTTP 200 com o sumário de processamento. | Must | 🟡 Dado o processamento bem-sucedido de todos os pontos, Quando a resposta é emitida, Então o sistema entrega código HTTP 200 contendo total de pontos e URLs processadas. |
 
@@ -246,7 +246,7 @@ conteudo_coletado {
       "source_id": "src_1",
       "url": "https://...",
       "titulo": "...",
-      "status": "read_ok",
+      "status": "read_ok",   // read_ok | snippet_only
       "uso": "utilizada",
       "data_fonte": "YYYY-MM-DD"
     }
@@ -272,7 +272,7 @@ conteudo_coletado {
 🟡 Regras do resumo (`analise`):
 - 🟡 É a **única** representação do conteúdo das páginas que atravessa estágios. Deve ser denso e autossuficiente: afirmações, números, métricas, datas, identificadores, tensões entre fontes e o que cada URL sustenta.
 - 🟡 Não é transcrição literal nem recorte de página; é conhecimento destilado pelo especialista, sem limite artificial de tamanho (I-2).
-- 🟡 `urls_utilizadas` lista as URLs que sustentaram o resumo; `urls_lidas_nao_utilizadas` lista as que foram abertas e descartadas por inutilidade ou repetição. Ambas são subconjuntos das URLs com `status=read_ok` no catálogo `fontes`.
+- 🟡 `urls_utilizadas` lista as URLs que sustentaram o resumo; `urls_lidas_nao_utilizadas` lista as que foram abertas e descartadas por inutilidade ou repetição. `urls_utilizadas` é subconjunto das URLs do catálogo, podendo incluir `status=snippet_only` (eleita sem leitura); `urls_lidas_nao_utilizadas` só contém `status=read_ok`.
 - 🟡 `uso` no catálogo é atributo da URL no ponto (`utilizada` quando citada por alguma persona/rodada; `lida_nao_utilizada` caso contrário), não do parecer de auditoria.
 
 🟡 **Campos proibidos no schema (v1.2):** qualquer chave que carregue corpo de página, excerto, offsets, hash de corpo ou seleção de excertos por orçamento. Uma rodada que os contenha viola o contrato e é rejeitada na escrita.

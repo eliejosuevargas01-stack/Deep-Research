@@ -23,7 +23,13 @@ class FonteColetaItem(BaseModel):
     )
     titulo: Optional[str] = Field(default=None, description="Título público da página quando disponível")
     data_fonte: Optional[str] = Field(default=None, description="Data de publicação observada na fonte")
-    status: Literal["read_ok"] = Field(default="read_ok", description="Toda fonte do catálogo foi lida")
+    status: Literal["read_ok", "snippet_only"] = Field(
+        default="read_ok",
+        description=(
+            "read_ok: página lida integralmente; snippet_only: URL eleita vista apenas no resultado "
+            "de busca (PRD v3, RF-004-D)"
+        ),
+    )
 
 
 class PersonaColetaItem(BaseModel):

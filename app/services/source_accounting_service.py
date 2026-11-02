@@ -328,8 +328,11 @@ class SourceAccountingService:
                     continue
                 canon_key, clean_url, domain = normalized
                 status = str(finfo.get("status") or "").lower().strip()
+                if status == "snippet_only":
+                    # URL eleita sem leitura: não entra em "consultadas", mas não invalida a fonte.
+                    continue
                 if status != "read_ok":
-                    # PRD v3: o catálogo só contém read_ok; status divergente é falha explícita.
+                    # PRD v3: status desconhecido no catálogo é falha explícita.
                     disqualified_canon_keys.add(canon_key)
                     continue
                 titulo = finfo.get("titulo") or finfo.get("title")
