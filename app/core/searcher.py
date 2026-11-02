@@ -1524,6 +1524,9 @@ class Searcher:
                 )
                 reserved_attempt = ponto_reservado.tentativas or reserved_attempt
                 reserved_token = token_search_candidate
+                # Persiste a posse antes de qualquer I/O: o lease precisa sobreviver a
+                # cancelamento/rollback para o fence CAS do cleanup enxergá-lo.
+                await point_repo.session.commit()
 
                 # 2. Carrega histórico apenas como resumos e catálogo de URLs (PRD v3).
                 # O corpo lido na rodada anterior não existe mais: bruto é volátil.
@@ -1914,11 +1917,16 @@ class Searcher:
                         cleanup_session = self.session_factory()
                         cleanup_repo = ResearchRepository(session=cleanup_session)
                     else:
-                        # Single-session fallback: rollback prévio para limpar estado de erro/transação pendente
+                        # Single-session fallback: a conexão pode ter ficado em transação
+                        # inválida (CancelledError no meio de um statement). Fecha a sessão
+                        # (descartando a conexão quebrada) e reabre no mesmo engine; a posse
+                        # já foi commitada, então o fence CAS a enxerga.
                         try:
-                            if cleanup_repo.session.in_transaction() or cleanup_repo.session.is_active:
-                                await _shield_and_wait(cleanup_repo.session.rollback())
-                        except Exception:
+                            _engine = cleanup_repo.session.bind
+                            if _engine is not None:
+                                cleanup_session = AsyncSession(bind=_engine, expire_on_commit=False)
+                                cleanup_repo = ResearchRepository(session=cleanup_session)
+                        except BaseException:
                             pass
 
                     effective_token = reserved_token or token_search_candidate
@@ -1963,6 +1971,13 @@ class Searcher:
                     finally:
                         if cleanup_session is not None:
                             await cleanup_session.close()
+                    # Limpa estado de erro da sessão original (pode ter um statement
+                    # cancelado no meio); a posse já está persistida na nova sessão.
+                    if cleanup_session is not None:
+                        try:
+                            await _shield_and_wait(point_repo.session.rollback())
+                        except BaseException:
+                            pass
                 if is_cancel:
                     raise
                 raise SearchTimeoutError(
