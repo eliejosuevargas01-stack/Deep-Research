@@ -59,8 +59,8 @@ def _urls(texto: str) -> List[str]:
 
 
 def _paginas_lidas(texto: str) -> int:
-    totais = [int(m) for m in _TOTAL_RE.findall(texto)]
-    return totais[-1] if totais else 0
+    """Soma dos ledgers `TOTAL: N páginas` de todas as rodadas do arquivo."""
+    return sum(int(m) for m in _TOTAL_RE.findall(texto))
 
 
 def _tentativas(texto: str) -> int:
