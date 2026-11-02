@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   XCircle,
   RotateCcw,
@@ -8,6 +8,7 @@ import {
   Sparkles,
   BookOpen,
   ChevronRight,
+  ChevronDown,
   PanelRight,
 } from 'lucide-react';
 import { AuditResponse, PlanResponse, SearchResponse } from '../types/api';
@@ -477,6 +478,81 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
     };
   }, [isRailOpen]);
 
+  // Hook e Estado de Rolagem estilo Chat (Bottom-pinned com auto-scroll)
+  const feedScrollRef = useRef<HTMLDivElement>(null);
+  const bottomAnchorRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [novosUpdates, setNovosUpdates] = useState(0);
+  const isAutoScrollingRef = useRef(false);
+
+  // Marcar o body para ativar o layout chat-scroll sem interferir em outras telas
+  useEffect(() => {
+    document.body.classList.add('execution-active-chat-view');
+    return () => {
+      document.body.classList.remove('execution-active-chat-view');
+    };
+  }, []);
+
+  // Monitorar se o usuário rolou para cima (para ler histórico sem ser puxado para baixo)
+  const handleScroll = useCallback(() => {
+    const el = feedScrollRef.current;
+    if (!el || isAutoScrollingRef.current) return;
+    const distancia = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const estaNoFim = distancia <= 80;
+    if (estaNoFim) {
+      setAutoScroll(true);
+      setNovosUpdates(0);
+    } else {
+      setAutoScroll(false);
+    }
+  }, []);
+
+  // Rolagem suave e garantida para o fim da timeline
+  const scrollToBottom = useCallback((suave = true) => {
+    const el = feedScrollRef.current;
+    if (!el) return;
+    isAutoScrollingRef.current = true;
+    if (suave) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
+    setAutoScroll(true);
+    setNovosUpdates(0);
+    setTimeout(() => {
+      isAutoScrollingRef.current = false;
+    }, 150);
+  }, []);
+
+  // Ao montar ou mudar de estágio macro, rolar para o fim
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      scrollToBottom(false);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [stage, scrollToBottom]);
+
+  // Enquanto estiver em auto-scroll (padrão de chat), manter o fim visível
+  useEffect(() => {
+    if (!autoScroll) {
+      setNovosUpdates((prev) => prev + 1);
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      const el = feedScrollRef.current;
+      if (!el || !autoScroll) return;
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [
+    autoScroll,
+    tokensAoVivo,
+    reasoningItems?.length,
+    searchResult,
+    auditResult,
+    cycleNumber,
+  ]);
+
   const decorridoTotal =
     elapsedSeconds != null
       ? Math.max(0, elapsedSeconds)
@@ -561,13 +637,14 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
               : 0;
 
   return (
-    <article className="execution-card">
+    <article className="execution-card execution-card--chat-layout">
       {/* Região dinâmica atômica e concisa para tecnologias assistivas */}
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {succinctStatus}
       </div>
 
-      <header className="card-header execution-heading-row">
+      <div className="execution-card-static-top">
+        <header className="card-header execution-heading-row">
         <div className="execution-heading-main" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <ConvergenceLogo phase={stage === 'auditing' ? 'audit' : (stage === 'writing' || stage === 'completed') ? 'synthesis' : 'stream'} size={18} />
           <h1 className="card-title execution-heading-title">
@@ -780,33 +857,55 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
           </div>
         </div>
       )}
+      </div>
 
+      {/* Feed da timeline com rolagem estilo chat (novos eventos ancorados na base, rola para cima) */}
+      <div
+        className="execution-feed-scroll"
+        ref={feedScrollRef}
+        onScroll={handleScroll}
+        tabIndex={0}
+        role="region"
+        aria-label="Feed de execução ao vivo"
+      >
+        <LinearTimeline
+          plan={plan}
+          searchResult={searchResult}
+          auditResult={auditResult}
+          reasoningItems={reasoningItems}
+          onRefazerBuscaPonto={onRefazerBuscaPonto}
+          onReauditarPonto={onReauditarPonto}
+          pontoEmReprocesso={pontoEmReprocesso}
+          rigorAtual={plan?.preferencias?.criterios_minimos ?? auditResult?.auditorias?.[0]?.criterios_minimos ?? null}
+        />
 
-      {/* Timeline linear: 1 trilho, nós por ponto, reasoning sob demanda.
-          Substitui o stage-tracker em caixas + feed de cartões + breakdown
-          aninhado — zero box-in-box, zero despejo de reasoning. */}
-      <LinearTimeline
-        plan={plan}
-        searchResult={searchResult}
-        auditResult={auditResult}
-        reasoningItems={reasoningItems}
-        onRefazerBuscaPonto={onRefazerBuscaPonto}
-        onReauditarPonto={onReauditarPonto}
-        pontoEmReprocesso={pontoEmReprocesso}
-        rigorAtual={plan?.preferencias?.criterios_minimos ?? auditResult?.auditorias?.[0]?.criterios_minimos ?? null}
-      />
-      {/* Estado: Redigindo */}
-      {stage === 'writing' && (
-        <div className="alert-banner info">
-          <span className="spinner" aria-hidden="true" />
-          <div>
-            <strong>Pontos aprovados. Redigindo o dossiê.</strong>
-            <p className="execution-banner-copy">
-              Consolidando evidências canônicas e redigindo o relatório analítico integral em Markdown.
-            </p>
+        {/* Estado: Redigindo */}
+        {stage === 'writing' && (
+          <div className="alert-banner info">
+            <span className="spinner" aria-hidden="true" />
+            <div>
+              <strong>Pontos aprovados. Redigindo o dossiê.</strong>
+              <p className="execution-banner-copy">
+                Consolidando evidências canônicas e redigindo o relatório analítico integral em Markdown.
+              </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        <div ref={bottomAnchorRef} className="execution-chat-anchor" aria-hidden="true" />
+
+        {!autoScroll && (
+          <button
+            type="button"
+            className="execution-chat-jump-btn"
+            onClick={() => scrollToBottom(true)}
+            aria-label="Rolar para o fim da timeline"
+          >
+            <ChevronDown size={14} aria-hidden="true" />
+            <span>{novosUpdates > 0 ? `${novosUpdates} nova${novosUpdates > 1 ? 's' : ''} atualizaç${novosUpdates > 1 ? 'ões' : 'ão'} ↓` : 'Ir para o fim ↓'}</span>
+          </button>
+        )}
+      </div>
 
       {/* O detalhamento por ponto vive na timeline linear acima — sem breakdown aninhado. */}
     </article>

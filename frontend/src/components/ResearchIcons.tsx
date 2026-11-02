@@ -1,3 +1,6 @@
+import React from 'react';
+void React;
+
 export type ConvergencePhase = 'stream' | 'audit' | 'synthesis';
 export type PersonaType =
   | 'planejador'

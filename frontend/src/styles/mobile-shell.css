@@ -933,12 +933,12 @@
   }
 
   /* CICLO 2: Respiro inferior de timeline garantindo distância da dock TabBar */
-  .execution-card,
-  .workspace-main:has(.execution-card) {
+  .execution-card:not(.execution-card--chat-layout),
+  .workspace-main:has(.execution-card:not(.execution-card--chat-layout)) {
     padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  .execution-card .tl-linear {
+  .execution-card:not(.execution-card--chat-layout) .tl-linear {
     padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
   }
 

@@ -339,39 +339,194 @@
 }
 
 /* =========================================================================
-   Desktop Layout & Smooth Scroll (.workspace-main)
+   Chat-Like Scroll Behavior for ExecutionView
+   "essa tela não deve ter scroll pra baixo, deve ter scroll pra cima,
+    como se fosse um app de chat onde as mensagens vão indo para cima"
    ========================================================================= */
-@media (min-width: 900px) {
-  html body .workspace-main:has(.execution-card) {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    scroll-behavior: smooth;
+
+.execution-card--chat-layout {
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  border-radius: var(--radius-lg, 14px) !important;
+  box-sizing: border-box !important;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.execution-card-static-top {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  padding: 14px 18px 10px !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  background: var(--color-surface) !important;
+  z-index: 10 !important;
+}
+
+.execution-feed-scroll {
+  position: relative !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-behavior: smooth !important;
+  padding: 16px 18px 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.execution-feed-scroll .tl-container {
+  height: auto !important;
+  overflow: visible !important;
+  flex: 1 0 auto !important;
+}
+
+.execution-feed-scroll .tl-linear {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.execution-chat-anchor {
+  height: 1px !important;
+  width: 100% !important;
+  pointer-events: none !important;
+  flex-shrink: 0 !important;
+}
+
+.execution-chat-jump-btn {
+  position: sticky !important;
+  bottom: 14px !important;
+  margin-top: -38px !important;
+  align-self: center !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 7px 16px !important;
+  background: var(--color-primary, #6366f1) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 9999px !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28) !important;
+  cursor: pointer !important;
+  z-index: 25 !important;
+  animation: fadeInJump 0.2s ease-out !important;
+  transition: transform 0.15s ease, background 0.15s ease !important;
+}
+
+.execution-chat-jump-btn:hover {
+  transform: translateY(-1px) !important;
+  filter: brightness(1.1) !important;
+}
+
+@keyframes fadeInJump {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================================
+   Container Restraints: Mobile & Desktop Scoping
+   ========================================================================= */
+@media (max-width: 899px) {
+  body.execution-active-chat-view,
+  body:has(.execution-card--chat-layout) {
+    overflow: hidden !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+  }
+
+  body.execution-active-chat-view #root,
+  body.execution-active-chat-view .app-shell,
+  body.execution-active-chat-view .app-main,
+  body.execution-active-chat-view .app-container,
+  body:has(.execution-card--chat-layout) #root,
+  body:has(.execution-card--chat-layout) .app-shell,
+  body:has(.execution-card--chat-layout) .app-main,
+  body:has(.execution-card--chat-layout) .app-container {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+  }
+
+  body.execution-active-chat-view .workspace-main,
+  body:has(.execution-card--chat-layout) .workspace-main {
+    height: calc(100dvh - 58px - 64px) !important;
+    max-height: calc(100dvh - 58px - 64px) !important;
+    overflow: hidden !important;
+    padding: 8px 12px !important;
+    margin: 0 !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+  }
+
+  body.execution-active-chat-view .workspace-grid,
+  body:has(.execution-card--chat-layout) .workspace-grid {
     height: 100% !important;
-    min-height: 0;
-    overscroll-behavior: contain;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
   }
 
-  html body .workspace-main:has(.execution-card) > .workspace-grid {
-    height: auto !important;
-    min-height: 100% !important;
-    align-items: start !important;
+  body.execution-active-chat-view .workspace-grid > div:first-child,
+  body:has(.execution-card--chat-layout) .workspace-grid > div:first-child {
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+  }
+}
+
+@media (min-width: 900px) {
+  html body .workspace-main:has(.execution-card),
+  body.execution-active-chat-view .workspace-main {
+    overflow: hidden !important;
+    height: calc(100vh - 58px) !important;
+    max-height: calc(100vh - 58px) !important;
+    min-height: 0 !important;
+    padding: 16px 24px !important;
+    box-sizing: border-box !important;
   }
 
-  html body .workspace-main:has(.execution-card) > .workspace-grid > div:first-child {
-    overflow: visible !important;
-    height: auto !important;
-    min-height: 0;
+  html body .workspace-main:has(.execution-card) > .workspace-grid,
+  body.execution-active-chat-view .workspace-main > .workspace-grid {
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    align-items: stretch !important;
   }
 
-  html body .workspace-main:has(.execution-card) .execution-card {
-    height: auto !important;
-    overflow: visible !important;
-    gap: 12px !important;
-  }
-
-  html body .workspace-main:has(.execution-card) .tl-container {
-    height: auto;
-    overflow: visible;
+  html body .workspace-main:has(.execution-card) > .workspace-grid > div:first-child,
+  body.execution-active-chat-view .workspace-main > .workspace-grid > div:first-child {
+    overflow: hidden !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
   }
 
   /* Densidade do cabeçalho de execução no desktop */
