@@ -23,6 +23,7 @@ import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 import httpx
 from app.config import get_settings
+from app.tools import llm_capture
 from app.tools.errors import LLMCallError
 from app.tools.llm_types import (
     LLMEnvelope,
@@ -160,6 +161,51 @@ class LLMClient:
         await self.aclose()
 
     async def call_envelope(
+        self,
+        model: str,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: Optional[str] = None,
+        response_format: Optional[Dict[str, Any]] = None,
+        prompt_id: Optional[str] = None,
+        prompt_version: Optional[str] = None,
+        **kwargs: Any,
+    ) -> LLMEnvelope:
+        """Captura entrada/saída JSON de cada chamada e delega à implementação."""
+        request = {
+            "model": model,
+            "base_url": self.base_url,
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": tool_choice,
+            "response_format": response_format,
+            "prompt_id": prompt_id,
+            "prompt_version": prompt_version,
+            "params": kwargs,
+        }
+        try:
+            envelope = await self._call_envelope_impl(
+                model=model,
+                messages=messages,
+                tools=tools,
+                tool_choice=tool_choice,
+                response_format=response_format,
+                prompt_id=prompt_id,
+                prompt_version=prompt_version,
+                **kwargs,
+            )
+        except BaseException as exc:
+            llm_capture.record(
+                "error",
+                request=request,
+                envelope=getattr(exc, "envelope", None),
+                error=str(exc),
+            )
+            raise
+        llm_capture.record("ok", request=request, envelope=envelope)
+        return envelope
+
+    async def _call_envelope_impl(
         self,
         model: str,
         messages: List[Dict[str, Any]],
