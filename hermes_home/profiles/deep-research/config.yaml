@@ -1,0 +1,23 @@
+# Perfil `deep-research` — pipeline único em Hermes (SDD v10).
+#
+# O modelo é o 9router (endpoint OpenAI-compatible): a URL e a chave vêm do
+# ambiente do container, nunca ficam neste arquivo.
+#   LLM_BASE_URL      ex.: https://<9router>/v1
+#   OPENAI_API_KEY    chave do 9router
+#   LLM_MODEL_STRONG  modelo usado pelo planner e pelos subagentes
+# Não existe nenhuma rota/chave Jina neste perfil.
+
+model:
+  default: "${LLM_MODEL_STRONG}"
+  provider: custom
+  base_url: "${LLM_BASE_URL}"
+  api_key: "${OPENAI_API_KEY}"
+
+delegation:
+  # planner (depth 0) -> subagentes (depth 1); 2 permite um filho delegar de novo.
+  max_spawn_depth: 2
+  # 4 searchers em paralelo + auditor/redator, com folga.
+  max_concurrent_children: 6
+  # 0 = sem teto de filhos por execução `-z`: uma pesquisa com 3 rodadas gasta
+  # 4 buscas + auditor por rodada + redator (até 16 subagentes).
+  oneshot_max_children: 0

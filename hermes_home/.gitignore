@@ -1,0 +1,29 @@
+# Estado de execução local do Hermes — nunca vai para a imagem.
+# A imagem copia apenas profiles/deep-research/{SOUL.md,config.yaml,README.md}.
+/SOUL.md
+/logs/
+/audio_cache/
+/image_cache/
+/memories/
+/pairing/
+/sessions/
+/skills/
+/cron/
+/hooks/
+/state.db*
+/auth.lock
+/models_dev_cache.json
+profiles/*/state.db*
+profiles/*/logs/
+profiles/*/sessions/
+profiles/*/memories/
+profiles/*/cache/
+profiles/*/audio_cache/
+profiles/*/image_cache/
+profiles/*/cron/
+profiles/*/hooks/
+profiles/*/pairing/
+profiles/*/skills/
+profiles/*/auth.lock
+profiles/*/models_dev_cache.json
+profiles/*/.skills_prompt_snapshot.json
