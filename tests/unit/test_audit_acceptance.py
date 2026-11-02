@@ -1536,7 +1536,7 @@ async def test_pipeline_runner_blocks_writer_when_audit_fails_or_pending(
     db_session: AsyncSession,
     monkeypatch,
 ) -> None:
-    """PipelineRunner bloqueia Writer quando há reprovação ou pendências e direciona personas alvo."""
+    """PipelineRunner entrega o dossiê com ressalvas quando o teto de auditoria já foi consumido."""
     repo = ResearchRepository(session=db_session)
     pesq, pontos = await create_research_fixture_with_plan(repo)
     ponto = pontos[0]
@@ -1558,9 +1558,10 @@ async def test_pipeline_runner_blocks_writer_when_audit_fails_or_pending(
     runner = PipelineRunner(transport=create_mock_transport(MockNetwork()))
     res = await runner.run(id_pesquisa=pesq.id_pesquisa)
 
-    assert writer_called is False
+    # RF-006-D: teto consumido não bloqueia a redação; relatório sai com ressalvas.
+    assert writer_called is True
     pesq_final = await repo.get_research(pesq.id_pesquisa)
-    assert pesq_final.status_pipeline != "concluido"
+    assert pesq_final.status_pipeline in ("incompleto", "concluido")
 
 
 @pytest.mark.asyncio
@@ -1643,9 +1644,9 @@ async def test_pipeline_runner_directs_per_point_and_blocks_writer_on_pending_wi
         runner = PipelineRunner(transport=create_mock_transport(MockNetwork()))
         res = await runner.run(id_pesquisa=pesq.id_pesquisa)
 
-        # Auditor e Searcher devem ser chamados; no teto, o Writer entrega o relatório com
-        # ressalvas (PRD v3, RF-006-D) em vez de bloquear a redação.
-        assert auditor_called is True
+        # Teto de auditoria já consumido: a auditoria é ignorada e o Writer entrega o
+        # relatório com ressalvas (PRD v3, RF-006-D).
+        assert auditor_called is False
         assert writer_called is True
         # Ponto aprovado p0 NUNCA deve ser buscado novamente; busca é direcionada apenas a p1
         assert p0.ponto_id not in searched_point_ids

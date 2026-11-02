@@ -419,6 +419,24 @@ class PipelineRunner:
                         except Exception:
                             pass
 
+                    # Teto de auditoria/busca NUNCA bloqueia o relatório: se nenhum ponto
+                    # pendente tem tentativa disponível, pular a auditoria (que levantaria
+                    # MAX_ATTEMPTS_EXCEEDED) e ir direto à redação com ressalvas.
+                    _pts_pre = await repo.list_points(id_pesquisa)
+                    _pend = [p for p in _pts_pre if p.status != "aprovado"]
+                    _teto_pre = bool(_pend) and all(
+                        (p.tentativas or 0) >= 4 or (p.tentativas_auditoria or 0) >= 3
+                        for p in _pend
+                    )
+                    if _teto_pre:
+                        print(
+                            f"[DR-PIPE] teto ja consumido em {id_pesquisa}; "
+                            "auditoria ignorada e redacao com ressalvas",
+                            flush=True,
+                        )
+                        redacao_com_ressalvas = True
+                        break
+
                     print(f"[DR-PIPE] iniciando auditoria {id_pesquisa} (ciclo {ciclo})", flush=True)
                     await repo.update_pipeline_status(id_pesquisa, "auditando")
                     hub.publish(id_pesquisa, "pipeline.status", {
@@ -432,6 +450,18 @@ class PipelineRunner:
                             auditor.execute_audit(id_pesquisa=id_pesquisa),
                             timeout=STAGE_TIMEOUT_SECONDS,
                         )
+                    except ValueError as exc:
+                        if "MAX_ATTEMPTS_EXCEEDED" not in str(exc):
+                            raise
+                        # Corrida entre ciclos: o teto foi consumido depois da checagem
+                        # acima — ainda assim o relatório é entregue com ressalvas.
+                        print(
+                            f"[DR-PIPE] auditoria recusou por teto em {id_pesquisa}; "
+                            "segue para redacao com ressalvas",
+                            flush=True,
+                        )
+                        redacao_com_ressalvas = True
+                        break
                     finally:
                         publish_stage_event(id_pesquisa, "stage.end", "audit", agent="auditor")
                     pontos_auditados = await repo.list_points(id_pesquisa)
