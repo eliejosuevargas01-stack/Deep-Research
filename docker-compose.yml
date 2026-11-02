@@ -1,12 +1,10 @@
 services:
   api:
     container_name: deep-research
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     # No Linux, network_mode: host conecta diretamente ao namespace de rede do host.
-    # Isso preserva o IP do cliente como 127.0.0.1 (loopback autêntico) ao acessar via 127.0.0.1,
-    # permitindo emissão de sessão de navegador local segura sem depender de bridge gateway (172.x).
-    # Para plataformas sem suporte a network_mode: host (ex: macOS/Windows), o script local
-    # 'scripts/run_app.py' deve ser utilizado diretamente no ambiente host.
     network_mode: host
     command: ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8085"]
     env_file:
@@ -17,6 +15,13 @@ services:
       - N_PONTOS=${N_PONTOS:-1}
       - HOST=127.0.0.1
       - PORT=8085
+      - HERMES_HOME=/app/hermes_home
+      - HERMES_PROFILE=deep-research
+      - DR_HERMES_BIN=/usr/local/bin/hermes
+      - DR_HERMES_PESQUISAS_DIR=/app/data/pesquisas
+      - DR_MAX_RODADAS=${DR_MAX_RODADAS:-3}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - ./data:/app/data
     restart: unless-stopped

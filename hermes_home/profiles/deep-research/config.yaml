@@ -1,0 +1,5 @@
+models:
+  base_url: ${LLM_BASE_URL}
+  api_key: ${OPENAI_API_KEY}
+profile:
+  name: deep-research

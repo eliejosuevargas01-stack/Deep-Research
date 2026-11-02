@@ -1,16 +1,20 @@
-# Backend-only image: sem estágio Node/frontend.
+# Backend-only image: empacota hermes-agent + perfil deep-research
 FROM python:3.12-slim
 
 WORKDIR /app
 
 COPY pyproject.toml ./
 COPY app ./app
+COPY hermes_home ./hermes_home
 
-RUN pip install --no-cache-dir . && mkdir -p /app/data
+RUN pip install --no-cache-dir hermes-agent==0.19.0 && pip install --no-cache-dir . && mkdir -p /app/data /app/data/pesquisas
 
 ENV PYTHONUNBUFFERED=1
 ENV HOST=0.0.0.0
 ENV PORT=8000
+ENV HERMES_HOME=/app/hermes_home
+ENV HERMES_PROFILE=deep-research
+ENV DR_HERMES_BIN=/usr/local/bin/hermes
 
 EXPOSE 8000
 

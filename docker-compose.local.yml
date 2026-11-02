@@ -3,7 +3,7 @@ services:
     container_name: deep-research-local
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.backend
     network_mode: host
     command: ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8085"]
     env_file:
@@ -13,6 +13,11 @@ services:
       - N_PONTOS=1
       - PERSONAS_CONFIG=planejador,historiador,visionario,cetico,futurista,auditor,redator final
       - LLM_BASE_URL=http://127.0.0.1:20128/v1
+      - HERMES_HOME=/app/hermes_home
+      - HERMES_PROFILE=deep-research
+      - DR_HERMES_BIN=/usr/local/bin/hermes
+      - DR_HERMES_PESQUISAS_DIR=/app/data/pesquisas
+      - DR_MAX_RODADAS=${DR_MAX_RODADAS:-3}
     volumes:
       - deep_research_local_data:/app/data
     restart: "no"
