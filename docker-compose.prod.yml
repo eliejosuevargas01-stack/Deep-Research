@@ -1,0 +1,30 @@
+services:
+  api:
+    container_name: deep-research-api-prod
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "127.0.0.1:8010:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/deep_research.db
+      - HERMES_HOME=/app/hermes_home
+      - HERMES_PROFILE=deep-research
+      - DR_HERMES_BIN=/usr/local/bin/hermes
+      - DR_HERMES_PESQUISAS_DIR=/app/data/pesquisas
+      - DR_MAX_RODADAS=${DR_MAX_RODADAS:-3}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DR_HERMES_PATH_MAP=${DR_HERMES_PATH_MAP:-}
+    volumes:
+      - ./data:/app/data
+      - /root/.hermes/projects/deep-research:/root/.hermes/projects/deep-research:ro
+    networks:
+      - proxy
+    restart: unless-stopped
+
+networks:
+  proxy:
+    external: true
