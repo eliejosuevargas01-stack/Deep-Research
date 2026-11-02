@@ -418,6 +418,206 @@ def _trechos_entregues(
     return filtrados or trechos
 
 
+def _uniao_simples(*listas: Any) -> List[Any]:
+    """Une listas preservando a ordem e sem repetição."""
+    saida: List[Any] = []
+    for lista in listas:
+        for item in lista or []:
+            if item not in saida:
+                saida.append(item)
+    return saida
+
+
+def _remapear_referencias(resultado: Dict[str, Any], mapa: Dict[str, str]) -> Dict[str, Any]:
+    """Reescreve, no resultado de uma persona, as referências a chunk_ids remapeados."""
+    if not mapa:
+        return resultado
+
+    def _map_lista(valor: Any) -> Any:
+        return [mapa.get(str(v), v) for v in valor] if isinstance(valor, list) else valor
+
+    novo = dict(resultado)
+    novo["conclusoes"] = [
+        (
+            {
+                **c,
+                **{
+                    k: _map_lista(c.get(k))
+                    for k in ("evidencias", "trecho_ids", "trechos")
+                    if isinstance(c.get(k), list)
+                },
+            }
+            if isinstance(c, dict)
+            else c
+        )
+        for c in (resultado.get("conclusoes") or [])
+    ]
+    for chave in ("evidencias", "trechos", "trechos_citados"):
+        if isinstance(resultado.get(chave), list):
+            novo[chave] = _map_lista(resultado[chave])
+    return novo
+
+
+def _somar_resultado_persona(acumulado: Dict[str, Any], rodada: Dict[str, Any]) -> Dict[str, Any]:
+    """Soma uma rodada ao resultado acumulado da persona (append-only, I-5/RF-005-A)."""
+    analise = str(acumulado.get("analise") or "").strip()
+    nova = str(rodada.get("analise") or "").strip()
+    if nova and nova not in analise:
+        analise = f"{analise}\n\n---\n\n{nova}".strip()
+
+    conclusoes: Dict[str, Any] = {}
+    sem_id: List[Any] = []
+    for c in list(acumulado.get("conclusoes") or []) + list(rodada.get("conclusoes") or []):
+        if isinstance(c, dict) and c.get("claim_id"):
+            conclusoes[str(c["claim_id"])] = c
+        else:
+            sem_id.append(c)
+
+    return {
+        **acumulado,
+        **rodada,
+        "analise": analise,
+        "conclusoes": list(conclusoes.values()) + sem_id,
+        "lacunas": _uniao_simples(acumulado.get("lacunas"), rodada.get("lacunas")),
+        "urls_lidas": _uniao_simples(acumulado.get("urls_lidas"), rodada.get("urls_lidas")),
+        "urls_fonte": _uniao_simples(acumulado.get("urls_fonte"), rodada.get("urls_fonte")),
+        "sucesso": bool(acumulado.get("sucesso") or rodada.get("sucesso")),
+    }
+
+
+def _agregar_metadados_coletas(coletas: List[Any]) -> Dict[str, Any]:
+    """União determinística de TODAS as rodadas do ponto (PRD v2, I-5 / RF-005-A).
+
+    Os gates estruturais da auditoria precisam enxergar fontes, trechos, personas,
+    diário e seleção de contexto de qualquer rodada: um claim da rodada 1 continua
+    válido depois de um retry da rodada 2.
+
+    ``source_id``/``chunk_id`` são estáveis entre rodadas. Quando a mesma chave
+    reaparece com conteúdo diferente, a rodada mais antiga é remapeada com sufixo
+    ``__r<rodada>`` (ou ``__c<id>`` sem rodada) e as referências nos claims e na
+    seleção de contexto daquela rodada são reescritas para o ID novo. Chave
+    idêntica com URL/hash idênticos é reutilizada, sem duplicar corpus.
+    """
+    fontes: Dict[str, Any] = {}
+    trechos: Dict[str, Any] = {}
+    personas: Dict[str, Any] = {}
+    diarios: Dict[str, Any] = {}
+    selecao: Dict[str, Any] = {}
+
+    def _id_livre(base: str, usados: Dict[str, Any], sufixo: str) -> str:
+        novo = f"{base}{sufixo}"
+        i = 2
+        while novo in usados:
+            novo = f"{base}{sufixo}_{i}"
+            i += 1
+        return novo
+
+    for col in coletas or []:
+        meta_r: Dict[str, Any] = {}
+        meta_bruta = getattr(col, "metadados_coleta", None)
+        if meta_bruta:
+            try:
+                parseado = json.loads(meta_bruta) if isinstance(meta_bruta, str) else meta_bruta
+                if isinstance(parseado, dict):
+                    meta_r = parseado
+            except Exception:
+                meta_r = {}
+
+        rodada = getattr(col, "rodada", None)
+        sufixo = f"__r{rodada}" if rodada is not None else f"__c{getattr(col, 'id', len(fontes))}"
+        mapa_fontes: Dict[str, str] = {}
+        mapa_trechos: Dict[str, str] = {}
+
+        fontes_meta = meta_r.get("fontes")
+        fontes_r: Dict[str, Any] = fontes_meta if isinstance(fontes_meta, dict) else {}
+        for sid, fonte in fontes_r.items():
+            if not isinstance(fonte, dict):
+                continue
+            sid = str(sid)
+            existente = fontes.get(sid)
+            if existente is None:
+                fontes[sid] = dict(fonte)
+                continue
+            if (
+                existente.get("url") == fonte.get("url")
+                and existente.get("body_hash") == fonte.get("body_hash")
+            ):
+                continue
+            novo_sid = _id_livre(sid, fontes, sufixo)
+            mapa_fontes[sid] = novo_sid
+            nova_fonte = dict(fonte)
+            nova_fonte["source_id"] = novo_sid
+            fontes[novo_sid] = nova_fonte
+
+        trechos_meta = meta_r.get("trechos")
+        trechos_r: Dict[str, Any] = trechos_meta if isinstance(trechos_meta, dict) else {}
+        for cid, chk in trechos_r.items():
+            if not isinstance(chk, dict):
+                continue
+            cid = str(cid)
+            existente = trechos.get(cid)
+            novo_chk = dict(chk)
+            novo_chk["source_id"] = mapa_fontes.get(str(chk.get("source_id")), chk.get("source_id"))
+            if existente is None:
+                trechos[cid] = novo_chk
+                continue
+            if (
+                existente.get("text_hash") == chk.get("text_hash")
+                and existente.get("url") == chk.get("url")
+            ):
+                continue
+            novo_cid = _id_livre(cid, trechos, sufixo)
+            mapa_trechos[cid] = novo_cid
+            novo_chk["chunk_id"] = novo_cid
+            trechos[novo_cid] = novo_chk
+
+        personas_r = meta_r.get("resultados_personas")
+        personas_r = personas_r if isinstance(personas_r, dict) else {}
+        for p_nome, p_data in personas_r.items():
+            if not isinstance(p_data, dict):
+                continue
+            p_nome = str(p_nome)
+            convertido = _remapear_referencias(p_data, mapa_trechos)
+            personas[p_nome] = (
+                _somar_resultado_persona(personas[p_nome], convertido)
+                if p_nome in personas
+                else convertido
+            )
+
+        diario_r = meta_r.get("diario_acoes")
+        if isinstance(diario_r, dict):
+            for p_nome, registro in diario_r.items():
+                if isinstance(registro, list):
+                    diarios[p_nome] = _uniao_simples(diarios.get(p_nome), registro)
+
+        selecao_r = meta_r.get("selecao_contexto")
+        if isinstance(selecao_r, dict):
+            for p_nome, valor in selecao_r.items():
+                if isinstance(valor, dict):
+                    anterior_sel = selecao.get(p_nome)
+                    anterior: Dict[str, Any] = anterior_sel if isinstance(anterior_sel, dict) else {}
+                    ids_selecionados = [
+                        mapa_trechos.get(str(c), c) for c in (valor.get("selected_chunk_ids") or [])
+                    ]
+                    selecao[p_nome] = {
+                        **anterior,
+                        **valor,
+                        "selected_chunk_ids": _uniao_simples(
+                            anterior.get("selected_chunk_ids"), ids_selecionados
+                        ),
+                    }
+                elif isinstance(valor, list):
+                    selecao[p_nome] = _uniao_simples(selecao.get(p_nome), valor)
+
+    return {
+        "fontes": fontes,
+        "trechos": trechos,
+        "resultados_personas": personas,
+        "diario_acoes": diarios,
+        "selecao_contexto": selecao,
+    }
+
+
 def _montar_historico_rodadas(coletas: List[Any], coleta_corrente_id: Optional[str]) -> List[Dict[str, Any]]:
     """Monta o histórico integral das rodadas de coleta do ponto (PRD v2, I-5).
 
@@ -813,22 +1013,37 @@ class Auditor:
 
         ultima_coleta = coletas_ponto[-1]
 
-        # Parse das URLs e metadados da última coleta
-        urls_lidas = []
-        if ultima_coleta.urls_lidas:
-            try:
-                urls_lidas = json.loads(ultima_coleta.urls_lidas)
-            except Exception:
-                urls_lidas = []
+        # PRD v2, I-5/RF-005-A: os gates estruturais leem a UNIÃO de todas as
+        # rodadas do ponto, não apenas a última coleta — claim de rodada anterior
+        # (chunk_id antigo) continua válido depois de um retry.
+        agregado = _agregar_metadados_coletas(coletas_ponto)
+        fontes = agregado["fontes"]
+        trechos = agregado["trechos"]
+        resultados_personas = agregado["resultados_personas"]
+        diario_acoes = agregado["diario_acoes"]
+        selecao_contexto = agregado["selecao_contexto"]
 
-        meta = {}
+        # Metadados da última coleta permanecem para recência, pareceres e cache
+        meta: Dict[str, Any] = {}
         if ultima_coleta.metadados_coleta:
             try:
                 meta = json.loads(ultima_coleta.metadados_coleta)
             except Exception:
                 meta = {}
+        if not isinstance(meta, dict):
+            meta = {}
 
-        claims_map, sources_map = _extract_claims_and_sources_maps(meta)
+        claims_map, sources_map = _extract_claims_and_sources_maps(agregado)
+
+        # I-5 + staleness: o contexto acumula todas as rodadas, mas a aprovação exige
+        # evidência válida da RODADA CORRENTE. Rodada corrente sem leitura não aprova
+        # com base em histórico.
+        urls_lidas: List[str] = []
+        if ultima_coleta.urls_lidas:
+            try:
+                urls_lidas = json.loads(ultima_coleta.urls_lidas)
+            except Exception:
+                urls_lidas = []
 
         if not urls_lidas:
             diag_coleta = ponto.pontos_fracos or "Ausência de evidência web na última coleta"
@@ -846,7 +1061,8 @@ class Auditor:
             )
             return item
 
-        if not meta or not isinstance(meta, dict) or not isinstance(meta.get("fontes"), dict) or not meta.get("fontes"):
+        fontes_correntes = meta.get("fontes") if isinstance(meta.get("fontes"), dict) else {}
+        if not fontes_correntes:
             item = await self._handle_precondition_failure(
                 id_pesquisa=id_pesquisa,
                 ponto=ponto,
@@ -856,16 +1072,6 @@ class Auditor:
                 diagnostico="Ausência de fontes canônicas com corpo na última coleta",
             )
             return item
-
-        fontes = meta.get("fontes", {})
-        trechos = meta.get("trechos", {})
-        if not isinstance(trechos, dict):
-            trechos = {}
-        resultados_personas = meta.get("resultados_personas", {})
-        if not isinstance(resultados_personas, dict):
-            resultados_personas = {}
-        diario_acoes = meta.get("diario_acoes", {})
-        selecao_contexto = meta.get("selecao_contexto", {})
 
         # 1. Validação estrita das personas canônicas da pesquisa atual
         missing_personas = required_personas - set(resultados_personas.keys())

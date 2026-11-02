@@ -7,10 +7,20 @@ Derivado de:
 Atende a T022.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from app.schemas.execution import ExecutionMode
+
+
+class FonteColetaItem(BaseModel):
+    """Fonte web de uma persona com o uso já classificado na fase de busca."""
+
+    url: str = Field(..., description="URL canônica da fonte")
+    uso: Literal["utilizada", "lida_nao_utilizada"] = Field(
+        ...,
+        description="utilizada: eleita como referência pela persona; lida_nao_utilizada: apenas lida",
+    )
 
 
 class PersonaColetaItem(BaseModel):
@@ -31,6 +41,14 @@ class PersonaColetaItem(BaseModel):
     urls_fonte: List[str] = Field(
         default_factory=list,
         description="Lista de URLs canônicas selecionadas como referência pela persona",
+    )
+    urls_lidas: List[str] = Field(
+        default_factory=list,
+        description="Lista de URLs efetivamente lidas pela persona (status read_ok)",
+    )
+    fontes: List[FonteColetaItem] = Field(
+        default_factory=list,
+        description="Fontes da persona com uso classificado já na fase de busca",
     )
     queries_executadas: int = Field(
         default=0,
