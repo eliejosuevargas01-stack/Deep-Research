@@ -210,6 +210,131 @@ def _next_source_idx(sources: Dict[str, Any]) -> int:
     return max_idx + 1
 
 
+def _unir_listas(*listas: Any) -> List[Any]:
+    """Une listas preservando a ordem e sem repetição (dicts comparados por JSON)."""
+    vistos: set = set()
+    uniao: List[Any] = []
+    for lista in listas:
+        for item in lista or []:
+            chave = json.dumps(item, sort_keys=True, default=str) if isinstance(item, (dict, list)) else item
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            uniao.append(item)
+    return uniao
+
+
+def _fundir_resultado_persona(anterior: Dict[str, Any], atual: Dict[str, Any]) -> Dict[str, Any]:
+    """Soma a rodada ``atual`` ao resultado acumulado da persona (PRD v2, I-5/RF-004-C).
+
+    Append-only: análise, conclusões (dedupe por ``claim_id``), lacunas, URLs e diário
+    anteriores permanecem; a rodada nova só acrescenta.
+    """
+    if not isinstance(anterior, dict):
+        return dict(atual)
+
+    analise = str(anterior.get("analise") or "").strip()
+    analise_nova = str(atual.get("analise") or "").strip()
+    if analise_nova and analise_nova not in analise:
+        analise = f"{analise}\n\n---\n\n{analise_nova}".strip()
+
+    conclusoes: Dict[str, Any] = {}
+    sem_id: List[Any] = []
+    for c in list(anterior.get("conclusoes") or []) + list(atual.get("conclusoes") or []):
+        if isinstance(c, dict) and c.get("claim_id"):
+            conclusoes[str(c["claim_id"])] = c
+        else:
+            sem_id.append(c)
+
+    return {
+        **anterior,
+        **atual,
+        "analise": analise,
+        "reasoning": "\n\n---\n\n".join(
+            r for r in (anterior.get("reasoning"), atual.get("reasoning")) if r
+        ) or None,
+        "conclusoes": list(conclusoes.values()) + sem_id,
+        "lacunas": _unir_listas(anterior.get("lacunas"), atual.get("lacunas")),
+        "urls_lidas": _unir_listas(anterior.get("urls_lidas"), atual.get("urls_lidas")),
+        "urls_fonte": _unir_listas(anterior.get("urls_fonte"), atual.get("urls_fonte")),
+        "diario_acoes": _unir_listas(anterior.get("diario_acoes"), atual.get("diario_acoes")),
+        "queries_executadas": int(anterior.get("queries_executadas") or 0) + int(atual.get("queries_executadas") or 0),
+        "sucesso": bool(anterior.get("sucesso") or atual.get("sucesso")),
+        "motivo_parada": atual.get("motivo_parada") or anterior.get("motivo_parada"),
+    }
+
+
+def _recompor_personas(
+    resultados_rodada: Dict[str, Any],
+    coletas_anteriores: List[Any],
+    target_personas: List[str],
+    diarios_por_persona: Dict[str, Any],
+    ledgers_por_persona: Dict[str, Any],
+) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
+    """Recompõe o acumulado de TODAS as rodadas do ponto (PRD v2, I-5/RF-004-C).
+
+    Persona reexecutada soma a rodada nova ao registro anterior em vez de
+    substituí-lo; persona não executada nesta rodada carrega a última versão
+    acumulada (que já contém as rodadas que a produziram).
+    """
+    recomposed: Dict[str, Any] = {p: dict(r) for p, r in resultados_rodada.items()}
+    pendentes_fusao = set(resultados_rodada)
+
+    historico: List[Dict[str, Any]] = []
+    for coleta_anterior in reversed(coletas_anteriores or []):
+        if not coleta_anterior.metadados_coleta:
+            continue
+        try:
+            meta_anterior = json.loads(coleta_anterior.metadados_coleta)
+        except Exception:
+            continue
+        if isinstance(meta_anterior, dict):
+            historico.append(meta_anterior)
+
+    for meta_anterior in historico:
+        res_anterior = meta_anterior.get("resultados_personas")
+        res_anterior = res_anterior if isinstance(res_anterior, dict) else {}
+        diario_anterior = meta_anterior.get("diario_acoes")
+        diario_anterior = diario_anterior if isinstance(diario_anterior, dict) else {}
+        ledger_anterior = meta_anterior.get("selecao_contexto")
+        ledger_anterior = ledger_anterior if isinstance(ledger_anterior, dict) else {}
+
+        for p_req in target_personas:
+            registro = res_anterior.get(p_req)
+            if isinstance(registro, dict):
+                if p_req in pendentes_fusao:
+                    recomposed[p_req] = _fundir_resultado_persona(registro, recomposed[p_req])
+                    pendentes_fusao.discard(p_req)
+                elif p_req not in recomposed:
+                    recomposed[p_req] = registro
+
+            diario_prev = diario_anterior.get(p_req)
+            if isinstance(diario_prev, list):
+                if p_req in diarios_por_persona:
+                    diarios_por_persona[p_req] = _unir_listas(diario_prev, diarios_por_persona[p_req])
+                else:
+                    diarios_por_persona[p_req] = diario_prev
+
+            ledger_prev = ledger_anterior.get(p_req)
+            if p_req not in ledgers_por_persona and isinstance(ledger_prev, dict):
+                ledgers_por_persona[p_req] = ledger_prev
+
+    return recomposed, diarios_por_persona, ledgers_por_persona
+
+
+def _fontes_da_persona(
+    urls_lidas: Any, urls_fonte: Any, urls_read_ok: Set[str]
+) -> List[Dict[str, str]]:
+    """Classifica as fontes de uma persona: ``utilizada`` se eleita, senão ``lida_nao_utilizada``."""
+    eleitas = set(urls_fonte or [])
+    urls = list(dict.fromkeys(list(urls_lidas or []) + list(eleitas)))
+    return [
+        {"url": u, "uso": "utilizada" if u in eleitas else "lida_nao_utilizada"}
+        for u in urls
+        if u in urls_read_ok
+    ]
+
+
 def _promovivel_para_trecho(source_rec: Optional[Dict[str, Any]]) -> bool:
     """Uma fonte só vira trecho quando foi lida de fato.
 
@@ -1566,8 +1691,13 @@ class Searcher:
                     ledgers_por_persona[res["persona"]] = res["ledger_contexto"]
                     resultados_por_persona[res["persona"]] = {
                         "analise": res["analise"],
+                        "reasoning": res.get("reasoning"),
+                        "urls_lidas": res["urls_lidas"],
+                        "urls_fonte": res["urls_fonte"],
+                        "queries_executadas": res["queries_executadas"],
                         "conclusoes": res["conclusoes"],
                         "lacunas": res["lacunas"],
+                        "diario_acoes": res["diario_acoes"],
                         "motivo_parada": res["motivo_parada"],
                         "sucesso": res["persona_success"],
                     }
@@ -1577,37 +1707,24 @@ class Searcher:
                         blocos_reasonings.append(f"### Raciocínio ({p_name}):\n{res['reasoning']}")
 
                 # 5. Avaliação do status do ponto com recomposição DR-010 para retentativas parciais
-                # PRD v2, I-5: a recomposição varre TODAS as rodadas anteriores, da mais
-                # recente para a mais antiga, em vez de olhar apenas a última coleta.
-                recomposed_personas = dict(resultados_por_persona)
-                if len(active_personas) < len(target_personas) and coletas_anteriores:
-                    for coleta_anterior in reversed(coletas_anteriores):
-                        faltantes = [p for p in target_personas if p not in recomposed_personas]
-                        if not faltantes:
-                            break
-                        if not coleta_anterior.metadados_coleta:
-                            continue
-                        try:
-                            m_prev = json.loads(coleta_anterior.metadados_coleta)
-                            res_prev = m_prev.get("resultados_personas", {})
-                            for p_name_req in faltantes:
-                                if p_name_req in res_prev:
-                                    recomposed_personas[p_name_req] = res_prev[p_name_req]
-                        except Exception:
-                            continue
+                # PRD v2, I-5: persona reexecutada SOMA a rodada ao histórico; nunca sobrescreve.
+                recomposed_personas, diarios_por_persona, ledgers_por_persona = _recompor_personas(
+                    resultados_por_persona,
+                    coletas_anteriores,
+                    target_personas,
+                    diarios_por_persona,
+                    ledgers_por_persona,
+                )
 
                 # Incorpora análises e URLs preservadas no Markdown consolidado e métricas globais
                 for p_req in target_personas:
-                    if p_req not in [r["persona"] for r in persona_results] and p_req in recomposed_personas:
-                        p_prev_data = recomposed_personas[p_req]
-                        if p_prev_data.get("analise"):
-                            blocos_analises.append(f"### Perspectiva {p_req.capitalize()}\n\n{p_prev_data['analise']}")
-                        for u in p_prev_data.get("urls_lidas", []):
-                            if u not in todas_urls_lidas:
-                                todas_urls_lidas.append(u)
-                        for u in p_prev_data.get("urls_fonte", []):
-                            if u not in todas_urls_fonte:
-                                todas_urls_fonte.append(u)
+                    p_prev_data = recomposed_personas.get(p_req)
+                    if not isinstance(p_prev_data, dict):
+                        continue
+                    if p_req not in [r["persona"] for r in persona_results] and p_prev_data.get("analise"):
+                        blocos_analises.append(f"### Perspectiva {p_req.capitalize()}\n\n{p_prev_data['analise']}")
+                    todas_urls_lidas.extend(p_prev_data.get("urls_lidas") or [])
+                    todas_urls_fonte.extend(p_prev_data.get("urls_fonte") or [])
 
                 urls_lidas_dedup = list(dict.fromkeys(todas_urls_lidas))
                 urls_fonte_dedup = list(dict.fromkeys(todas_urls_fonte))
@@ -1776,12 +1893,19 @@ class Searcher:
                 )
                 sucesso_processamento = True
 
+                urls_read_ok: Set[str] = {
+                    str(rec["url"])
+                    for rec in ponto_sources.values()
+                    if rec.get("status") == "read_ok" and rec.get("url")
+                }
                 personas_lista = [
                     {
                         "persona": r["persona"],
                         "analise": r["analise"],
                         "reasoning": r.get("reasoning"),
                         "urls_fonte": r["urls_fonte"],
+                        "urls_lidas": r["urls_lidas"],
+                        "fontes": _fontes_da_persona(r["urls_lidas"], r["urls_fonte"], urls_read_ok),
                         "queries_executadas": r["queries_executadas"],
                         "falha_coleta": not r["persona_success"],
                         "diagnostico": r["motivo_parada"] if not r["persona_success"] else None,
@@ -1806,6 +1930,10 @@ class Searcher:
                             "analise": p_prev_data.get("analise", ""),
                             "reasoning": p_prev_data.get("reasoning"),
                             "urls_fonte": p_prev_data.get("urls_fonte", []),
+                            "urls_lidas": p_prev_data.get("urls_lidas", []),
+                            "fontes": _fontes_da_persona(
+                                p_prev_data.get("urls_lidas"), p_prev_data.get("urls_fonte"), urls_read_ok
+                            ),
                             "queries_executadas": p_prev_data.get("queries_executadas", 0),
                             "falha_coleta": not p_prev_data.get("sucesso", False),
                             "diagnostico": p_prev_data.get("motivo_parada") if not p_prev_data.get("sucesso", False) else None,

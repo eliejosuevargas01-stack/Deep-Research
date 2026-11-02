@@ -294,6 +294,8 @@ class SourceAccountingService:
         # 1. Mapeamento de fontes consultadas a partir das evidências reais de leitura
         consultadas_map: Dict[str, FonteItem] = {}
         disqualified_canon_keys: Set[str] = set()
+        # URLs eleitas como fonte pelas personas: permitem classificar uso já na busca
+        urls_fonte_keys: Set[str] = set()
 
         for col in coletas:
             meta_col: Dict[str, Any] = {}
@@ -358,6 +360,31 @@ class SourceAccountingService:
                     else:
                         # Falha explícita, snippet_only ou read_ok vazio: desqualificado
                         disqualified_canon_keys.add(canon_key)
+
+            # URLs eleitas pelas personas em QUALQUER rodada (uso sem depender de dossiê)
+            personas_meta = meta_col.get("resultados_personas") if isinstance(meta_col, dict) else None
+            if isinstance(personas_meta, dict):
+                for p_data in personas_meta.values():
+                    if not isinstance(p_data, dict):
+                        continue
+                    for raw_u in p_data.get("urls_fonte") or []:
+                        normalized_f = normalize_and_validate_url(raw_u)
+                        if normalized_f:
+                            urls_fonte_keys.add(normalized_f[0])
+            if col.urls_fonte:
+                try:
+                    fonte_col = (
+                        json.loads(col.urls_fonte)
+                        if isinstance(col.urls_fonte, str)
+                        else col.urls_fonte
+                    )
+                except Exception:
+                    fonte_col = []
+                if isinstance(fonte_col, list):
+                    for raw_u in fonte_col:
+                        normalized_f = normalize_and_validate_url(raw_u)
+                        if normalized_f:
+                            urls_fonte_keys.add(normalized_f[0])
 
             # Processa urls_lidas: fallback para coletas históricas sem metadados estruturados
             if col.urls_lidas:
@@ -469,17 +496,33 @@ class SourceAccountingService:
         consultadas_list = sorted(consultadas_map.values(), key=lambda x: (x.dominio or "", x.url))
 
         if not has_dossier:
-            # Evidências existem, mas o dossiê final ainda não foi publicado
+            # PRD v2, I-5/RF-004: o uso é computável já na fase de busca — fonte eleita
+            # pelas personas (urls_fonte) é "utilizada"; as demais read_ok são
+            # "lida_nao_utilizada". Nada depende do dossiê nem de dossier_override.
+            utilizadas_busca: List[FonteItem] = []
+            nao_utilizadas_busca: List[FonteItem] = []
+            for canon_key, item in sorted(
+                consultadas_map.items(), key=lambda kv: (kv[1].dominio or "", kv[1].url)
+            ):
+                if canon_key in urls_fonte_keys:
+                    item.uso = "utilizada"
+                    utilizadas_busca.append(item)
+                else:
+                    item.uso = "lida_nao_utilizada"
+                    nao_utilizadas_busca.append(item)
             return FontesResumo(
                 id_pesquisa=id_pesquisa,
                 status="parcial",
                 total_consultadas=len(consultadas_list),
-                total_utilizadas=None,
-                total_nao_utilizadas=None,
+                total_utilizadas=len(utilizadas_busca),
+                total_nao_utilizadas=len(nao_utilizadas_busca),
                 consultadas=consultadas_list,
-                utilizadas=[],
-                nao_utilizadas=[],
-                observacao="Dossiê final ainda não publicado; fontes utilizadas e não utilizadas não consolidadas.",
+                utilizadas=utilizadas_busca,
+                nao_utilizadas=nao_utilizadas_busca,
+                observacao=(
+                    "Dossiê final ainda não publicado; uso classificado na fase de busca "
+                    "(urls_fonte das personas contra fontes read_ok)."
+                ),
                 artifact_hash=None,
             )
 

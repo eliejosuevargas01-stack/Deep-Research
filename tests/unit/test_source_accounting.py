@@ -534,10 +534,10 @@ async def test_privacy_and_security_guarantees():
     assert summary is not None
     data = summary.model_dump()
 
-    # Valida campos permitidos
+    # Valida campos permitidos (uso é classificação pública desde I-5/RF-004)
     for key in ("consultadas", "utilizadas", "nao_utilizadas"):
         for item in data[key]:
-            assert set(item.keys()) == {"url", "titulo", "dominio"}
+            assert set(item.keys()) == {"url", "titulo", "dominio", "uso"}
             assert "source_id" not in item
             assert "body" not in item
             assert "body_hash" not in item
@@ -652,8 +652,12 @@ async def test_malformed_evidence_length_string_and_dict_body():
 
 
 @pytest.mark.asyncio
-async def test_evidence_with_no_dossier_returns_partial_with_unknown_used_unused():
-    """Defeito review2.3: Pesquisa com evidências mas sem dossiê final retorna parcial com contadores utilizados desconhecidos."""
+async def test_evidence_with_no_dossier_classifica_uso_na_fase_de_busca():
+    """PRD v2, I-5/RF-004: sem dossiê, o uso é classificado pelas urls_fonte das personas.
+
+    Contrato alterado (antes: contadores desconhecidos/None). A classificação por
+    URL precisa existir já na fase de busca, sem depender de dossier_override.
+    """
     id_p = "test-no-dossier"
     pesquisa = Pesquisa(
         id_pesquisa=id_p,
@@ -670,8 +674,19 @@ async def test_evidence_with_no_dossier_returns_partial_with_unknown_used_unused
                 "title": "Leitura Realizada",
                 "body": "Texto substantivo de coleta em andamento.",
                 "length": 500,
-            }
-        }
+            },
+            "src_2": {
+                "source_id": "src_2",
+                "url": "https://example.org/eleita",
+                "status": "read_ok",
+                "title": "Fonte Eleita",
+                "body": "Outro texto substantivo lido e eleito como fonte.",
+                "length": 500,
+            },
+        },
+        "resultados_personas": {
+            "historiador": {"urls_fonte": ["https://example.org/eleita"]},
+        },
     }
     coleta = ConteudoColetado(
         id="col-1",
@@ -681,8 +696,8 @@ async def test_evidence_with_no_dossier_returns_partial_with_unknown_used_unused
         tema="Tema",
         ponto="P1",
         conteudo_coletado="c",
-        urls_lidas=json.dumps(["https://example.org/leitura"]),
-        urls_fonte="[]",
+        urls_lidas=json.dumps(["https://example.org/leitura", "https://example.org/eleita"]),
+        urls_fonte=json.dumps(["https://example.org/eleita"]),
         metadados_coleta=json.dumps(meta),
         criado_em="2026-10-26T10:00:00Z",
     )
@@ -692,12 +707,12 @@ async def test_evidence_with_no_dossier_returns_partial_with_unknown_used_unused
 
     summary = await service.get_source_summary(id_p)
     assert summary is not None
-    # Deve retornar parcial: consultadas conhecidas, mas utilizadas e não utilizadas desconhecidas (None)
     assert summary.status == "parcial"
-    assert summary.total_consultadas == 1
-    assert summary.total_utilizadas is None
-    assert summary.total_nao_utilizadas is None
-    assert len(summary.consultadas) == 1
-    assert summary.utilizadas == []
-    assert summary.nao_utilizadas == []
+    assert summary.total_consultadas == 2
+    assert summary.total_utilizadas == 1
+    assert summary.total_nao_utilizadas == 1
+    assert [u.url for u in summary.utilizadas] == ["https://example.org/eleita"]
+    assert summary.utilizadas[0].uso == "utilizada"
+    assert [u.url for u in summary.nao_utilizadas] == ["https://example.org/leitura"]
+    assert summary.nao_utilizadas[0].uso == "lida_nao_utilizada"
     assert summary.artifact_hash is None

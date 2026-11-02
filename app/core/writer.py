@@ -337,75 +337,35 @@ def _montar_rodada_escrita(coleta: Any, corrente_id: Optional[str]) -> Dict[str,
 
 
 # Orçamento de contexto da redação. O Writer monta o acervo inteiro (trechos + rodadas) e
-# estourava o limite do modelo depois de várias rodadas de busca (1.85M tokens > 1.05M).
-# O corte é determinístico e progressivo: primeiro metadados volumosos, depois acervo antigo.
+# Teto do contexto acumulado do writer. Estourar o limite NÃO corta história:
+# levanta WriterContextOverflow (insuficiência explícita, PRD v2 I-5).
 WRITER_MAX_CONTEXT_CHARS = int(os.environ.get("WRITER_MAX_CONTEXT_CHARS", "2000000"))
 # Teto REAL do prompt (instruções + contexto serializado). O modelo aceita 1.048.576 tokens;
 # ~2.4M caracteres ficam com folga confortável e evitam o 400 de context length.
 WRITER_MAX_PROMPT_CHARS = int(os.environ.get("WRITER_MAX_PROMPT_CHARS", "2400000"))
 
 
+class WriterContextOverflow(RuntimeError):
+    """Contexto acumulado maior que a janela do writer: insuficiência explícita, nunca corte.
+
+    PRD v2, I-5: cortar trechos/rodadas silenciosamente perde histórico integral.
+    O chamador recebe o erro com o código e o volume necessário para decidir.
+    """
+
+
 def _tamanho_json(dados: Any) -> int:
     return len(json.dumps(dados, ensure_ascii=False))
 
 
-def _limitar_contexto_writer(
-    pontos_data: List[Dict[str, Any]],
-    limite: int,
-    referenciados: Optional[Set[str]] = None,
-) -> Dict[str, int]:
-    """Reduz o contexto até caber no orçamento. Retorna o que foi cortado, para auditoria.
-
-    Trechos citados por claims (``referenciados``) têm prioridade absoluta: cortar evidência
-    citada derruba a avaliação do artigo por falta de lastro.
-    """
-    cortes = {"trechos_removidos": 0, "rodadas_removidas": 0}
-    refs = referenciados or set()
-    if _tamanho_json(pontos_data) <= limite:
-        return cortes
-
-    # 1. Prioriza trechos citados, limita tamanho por trecho e quantidade por ponto.
-    for ponto in pontos_data:
-        trechos = ponto.get("trechos") or []
-        trechos.sort(key=lambda t: 0 if str(t.get("chunk_id")) in refs else 1)
-        for trecho in trechos:
-            trecho["text"] = (trecho.get("text") or "")[:4000]
-        cortes["trechos_removidos"] += max(0, len(trechos) - 120)
-        ponto["trechos"] = trechos[:120]
-    if _tamanho_json(pontos_data) <= limite:
-        return cortes
-
-    # 2. Corta rodadas antigas e a síntese bruta dos workers.
-    for ponto in pontos_data:
-        rodadas = ponto.get("rodadas") or []
-        if len(rodadas) > 2:
-            cortes["rodadas_removidas"] += len(rodadas) - 2
-        ponto["rodadas"] = rodadas[-2:]
-        ponto["sintese_coletada_workers"] = (ponto.get("sintese_coletada_workers") or "")[:15000]
-    if _tamanho_json(pontos_data) <= limite:
-        return cortes
-
-    # 3. Reduz trechos pela metade até caber (mínimo de 1 por ponto).
-    while _tamanho_json(pontos_data) > limite:
-        reduziu = False
-        for ponto in pontos_data:
-            trechos = ponto.get("trechos") or []
-            if len(trechos) > 1:
-                novo_total = max(1, len(trechos) // 2)
-                cortes["trechos_removidos"] += len(trechos) - novo_total
-                ponto["trechos"] = trechos[:novo_total]
-                reduziu = True
-        if not reduziu:
-            break
-
-    # 4. Último recurso: sem trechos e só a rodada mais recente.
-    if _tamanho_json(pontos_data) > limite:
-        for ponto in pontos_data:
-            cortes["trechos_removidos"] += len(ponto.get("trechos") or [])
-            ponto["trechos"] = []
-            ponto["rodadas"] = (ponto.get("rodadas") or [])[-1:]
-            ponto["sintese_coletada_workers"] = ""
-    return cortes
+def _validar_contexto_writer(pontos_data: List[Dict[str, Any]], limite: int) -> int:
+    """Valida o orçamento do contexto acumulado; estourar o limite levanta erro explícito."""
+    total = _tamanho_json(pontos_data)
+    if total > limite:
+        raise WriterContextOverflow(
+            f"WRITER_CONTEXT_OVERFLOW: contexto acumulado com {total} chars excede o limite de "
+            f"{limite} chars (pontos={[p.get('ponto_n') for p in pontos_data]})"
+        )
+    return total
 
 
 class Writer:
@@ -677,7 +637,6 @@ class Writer:
             # 3. Conclusões/claims por persona e análises completas
             personas_raw = meta_col.get("resultados_personas", {}) if isinstance(meta_col, dict) else {}
             personas_compactas: Dict[str, Any] = {}
-            chunk_ids_referenciados: Set[str] = set()
             if isinstance(personas_raw, dict):
                 for p_nome, r_p in personas_raw.items():
                     if isinstance(r_p, dict):
@@ -687,7 +646,6 @@ class Writer:
                                 cid = str(c_item["claim_id"])
                                 known_claim_ids.add(cid)
                                 evs = [str(e) for e in (c_item.get("evidencias") or []) if e]
-                                chunk_ids_referenciados.update(evs)
                                 claims_list.append({
                                     "claim_id": cid,
                                     "afirmacao": c_item.get("afirmacao"),
@@ -759,15 +717,8 @@ class Writer:
                 ],
             })
 
-        cortes_contexto = _limitar_contexto_writer(
-            pontos_data, WRITER_MAX_CONTEXT_CHARS, chunk_ids_referenciados
-        )
-        if any(cortes_contexto.values()):
-            print(
-                f"[DR-WRITER] contexto reduzido para caber no modelo: {cortes_contexto} "
-                f"(limite {WRITER_MAX_CONTEXT_CHARS} chars)",
-                flush=True,
-            )
+        # PRD v2, I-5: o contexto entra integral. Sem corte silencioso de trechos/rodadas.
+        _validar_contexto_writer(pontos_data, WRITER_MAX_CONTEXT_CHARS)
 
         contexto_estruturado = {
             "plano": plano_obj,
@@ -1310,39 +1261,19 @@ class Writer:
         system_prompt = self._construir_system_prompt(publico, formato, recency_block)
         user_prompt = self._construir_user_prompt(pesquisa, contexto_dict)
 
-        # O corte do acervo mede só `pontos_data`; o prompt final inclui instruções, plano e
-        # serialização. Aqui o orçamento é medido no prompt REAL e reduzido até caber.
-        for _ in range(8):
-            if len(system_prompt) + len(user_prompt) <= WRITER_MAX_PROMPT_CHARS:
-                break
-            reduziu = False
-            for ponto_ctx in contexto_dict.get("pontos", []):
-                trechos_ctx = ponto_ctx.get("trechos") or []
-                if len(trechos_ctx) > 1:
-                    ponto_ctx["trechos"] = trechos_ctx[: max(1, len(trechos_ctx) // 2)]
-                    reduziu = True
-            if not reduziu:
-                # Rodadas carregam o acervo completo de novo: fora primeiro.
-                for ponto_ctx in contexto_dict.get("pontos", []):
-                    if ponto_ctx.get("rodadas"):
-                        ponto_ctx["rodadas"] = []
-                        reduziu = True
-            if not reduziu:
-                for ponto_ctx in contexto_dict.get("pontos", []):
-                    if ponto_ctx.get("trechos"):
-                        ponto_ctx["trechos"] = []
-                        reduziu = True
-                    if ponto_ctx.get("sintese_coletada_workers"):
-                        ponto_ctx["sintese_coletada_workers"] = ""
-                        reduziu = True
-            if not reduziu:
-                break
-            contexto_json_str = json.dumps(contexto_dict, ensure_ascii=False)
-            user_prompt = self._construir_user_prompt(pesquisa, contexto_dict)
+        # PRD v2, I-5: nada de cortar trechos/rodadas para caber. Se o prompt real
+        # excede a janela, a saída é insuficiência explícita com o volume necessário.
+        prompt_chars = len(system_prompt) + len(user_prompt)
+        if prompt_chars > WRITER_MAX_PROMPT_CHARS:
+            raise WriterContextOverflow(
+                f"WRITER_CONTEXT_OVERFLOW: prompt final de {prompt_chars} chars excede o limite de "
+                f"{WRITER_MAX_PROMPT_CHARS} chars (pontos="
+                f"{[p.get('ponto_n') for p in contexto_dict.get('pontos', [])]})"
+            )
 
         print(
             f"[DR-WRITER] prompt final: sistema {len(system_prompt)} + usuario {len(user_prompt)} "
-            f"= {len(system_prompt) + len(user_prompt)} chars (limite {WRITER_MAX_PROMPT_CHARS})",
+            f"= {prompt_chars} chars (limite {WRITER_MAX_PROMPT_CHARS})",
             flush=True,
         )
         prompt_avaliacao_sys = self._construir_prompt_avaliacao(recency_block)
