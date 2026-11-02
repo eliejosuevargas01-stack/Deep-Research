@@ -54,10 +54,32 @@ def _slug(tema: str, limite: int = 60) -> str:
     return (normalizado[:limite].rstrip("-") or "pesquisa")
 
 
+def _ajustar_dono(caminho: Path) -> None:
+    """Entrega o workspace ao uid que roda o Hermes (container vizinho, ex.: hermes-vps).
+
+    A API costuma rodar como root; o Hermes roda como `hermes` (uid 10000) e precisa
+    gravar nos mesmos arquivos. Sem `DR_HERMES_RUNAS_UID` nada muda.
+    """
+    bruto = (os.environ.get("DR_HERMES_RUNAS_UID") or "").strip()
+    if not bruto or os.geteuid() != 0:
+        return
+    try:
+        uid = int(bruto)
+        gid = int(os.environ.get("DR_HERMES_RUNAS_GID") or uid)
+    except ValueError:
+        return
+    for alvo in [caminho, *caminho.rglob("*")]:
+        try:
+            os.chown(alvo, uid, gid)
+        except OSError:
+            pass
+
+
 def criar_workspace(pesquisa_id: str, tema: str) -> Path:
     """Cria (ou reabre) o diretório isolado de uma pesquisa."""
     destino = _raiz_pesquisas() / f"{_slug(tema)}-{pesquisa_id[:8]}"
     destino.mkdir(parents=True, exist_ok=True)
+    _ajustar_dono(destino)
     return destino
 
 
