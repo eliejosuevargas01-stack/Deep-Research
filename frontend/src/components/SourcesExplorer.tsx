@@ -45,14 +45,6 @@ interface SourcesExplorerProps {
   isActive?: boolean;
 }
 
-/**
- * Lista de fontes do painel de contexto (DESIGN.md §7).
- *
- * Linhas abertas: favicon 16px na cor original, título truncado em 1 linha,
- * domínio em mono 11px e badge de estado. Agrupamento por ponto quando o dado
- * existe. A rolagem fica no corpo do painel — esta lista não abre um segundo
- * scroller.
- */
 export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
   const lista = Array.isArray(items) ? items : [];
 
@@ -148,7 +140,6 @@ export function derivarFontesParaExplorer(
   search: SearchResponse | null | undefined,
   opts?: {
     emColeta?: boolean;
-    pontosReprovados?: Set<string> | null;
     reasoningItems?: Array<{
       reasoning?: string | null;
       pointNumber?: number;
@@ -213,42 +204,9 @@ export function derivarFontesParaExplorer(
     }
   }
 
-  // 2. Fontes extraídas dinamicamente do raciocínio das personas em tempo real
-  if (opts?.reasoningItems && Array.isArray(opts.reasoningItems)) {
-    const urlRegex = /(?:https?:\/\/)[^\s)\]"'>;,]+/gi;
-    for (const item of opts.reasoningItems) {
-      const texto = item.reasoning ?? '';
-      const matches = texto.match(urlRegex) ?? [];
-      for (const raw of matches) {
-        const url = raw.trim().replace(/[.,;:)\]]+$/, '');
-        if (!url || !/^https?:\/\//i.test(url)) continue;
-        const normalizada = url.replace(/^http:\/\//i, 'https://');
-        if (vistos.has(normalizada)) continue;
-        vistos.add(normalizada);
-        let dominio: string | null = null;
-        try {
-          dominio = new URL(url).hostname.replace(/^www\./, '');
-        } catch {
-          dominio = null;
-        }
-        itens.push({
-          url,
-          titulo: null,
-          dominio,
-          status: opts?.emColeta ? 'lendo' : 'utilizada',
-          ponto_n: typeof item.pointNumber === 'number' ? item.pointNumber : null,
-        });
-      }
-    }
-  }
-
   return itens;
 }
 
-/**
- * Converte um FontesResumo retornado pelo backend em itens para o SourcesExplorer,
- * garantindo que recarregar a página preserve a listagem completa de fontes.
- */
 export function converterFontesResumoParaExplorer(resumo?: FontesResumo | null): FonteExplorerItem[] {
   if (!resumo) return [];
   const items: FonteExplorerItem[] = [];

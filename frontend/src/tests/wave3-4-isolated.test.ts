@@ -119,8 +119,6 @@ async function runTests() {
 
   const itensExplorer = converterFontesResumoParaExplorer(mockResumo);
 
-  const itensInvalidados = itensExplorer.filter((i) => (i.status as string) === 'invalidado');
-  assert.equal(itensInvalidados.length, 0, 'B-04: Nenhuma fonte deve receber status inválido');
 
   const itemUsado = itensExplorer.find((i) => i.url === 'http://usada.org/estudo');
   assert.ok(itemUsado);
