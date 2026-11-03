@@ -48,7 +48,7 @@
   font-weight: 500;
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
   min-height: 26px;
 }
 
@@ -661,7 +661,7 @@ button.tl-entrada-linha:focus-visible {
   color: var(--color-text-primary);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
   position: relative;
 }
 

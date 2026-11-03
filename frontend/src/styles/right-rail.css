@@ -577,7 +577,7 @@ a.rr-source:focus-visible {
   background: var(--color-surface-inset);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
@@ -735,6 +735,6 @@ a.rr-source:focus-visible {
   .rr-rail__tab,
   .rr-copy,
   .rr-source {
-    transition: none;
+    transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out;
   }
 }

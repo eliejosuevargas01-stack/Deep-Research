@@ -795,7 +795,7 @@
   scroll-snap-align: start;
   user-select: none;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms cubic-bezier(0.16, 1, 0.3, 1), transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .topic-pills-track .topic-pill:hover,

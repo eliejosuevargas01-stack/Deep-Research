@@ -179,7 +179,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .planning-dot { animation: none; }
-  .planning-progress span { transition: none; }
+  .planning-progress span { transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out; }
 }
 
 /* Passos como trilha vertical: 5 itens longos não quebram 3+2. */

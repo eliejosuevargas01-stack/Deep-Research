@@ -462,7 +462,7 @@ a.gdr-source-chip:focus-visible,
   .gdr-source-chip,
   .composer-box,
   .reasoning-copy-btn {
-    transition: none;
+    transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out;
   }
 }
 
@@ -531,7 +531,7 @@ a.gdr-source-chip:focus-visible,
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: -0.01em;
   transition:
@@ -632,7 +632,7 @@ a.gdr-source-chip:hover,
   .preferences-toggle-btn,
   .dock-panel,
   .preferences-panel {
-    transition: none !important;
+    transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out;
   }
 
   .gdr-source-chip:hover,
@@ -811,6 +811,6 @@ a.gdr-source-chip:hover,
 
 @media (prefers-reduced-motion: reduce) {
   .tl-entrada {
-    transition: none !important;
+    transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out;
   }
 }

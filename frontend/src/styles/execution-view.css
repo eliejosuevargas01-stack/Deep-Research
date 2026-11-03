@@ -673,7 +673,7 @@ button.exec-telemetry-chip {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
-  transition: all 140ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease, transform 140ms ease;
 }
 
 button.exec-telemetry-chip::before,

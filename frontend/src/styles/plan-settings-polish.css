@@ -115,7 +115,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gdr-plan-action {
-    transition: none !important;
+    transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out;
   }
 }
 

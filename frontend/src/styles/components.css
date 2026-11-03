@@ -2222,7 +2222,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 140ms ease-out;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out, opacity 140ms ease-out, transform 140ms ease-out;
 }
 
 .btn-header-rail:hover {
@@ -2439,13 +2439,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Movimento fora, feedback de estado dentro: zerar toda transição em 0.01ms
+     apagava também o crossfade de cor/opacidade que sinaliza foco e resultado. */
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+    transition-property: background-color, border-color, color, opacity, fill, stroke !important;
+    transition-duration: 150ms !important;
+    transition-timing-function: ease-out !important;
   }
 }
 

@@ -806,7 +806,7 @@
   .composer-anchor .dock-btn,
   .composer-anchor .composer-send-btn,
   .composer-anchor .dock-panel {
-    transition: none;
+    transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out;
     animation: none;
   }
 }
