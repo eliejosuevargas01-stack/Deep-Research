@@ -204,6 +204,33 @@ export function derivarFontesParaExplorer(
     }
   }
 
+  // Fontes só existiam quando a busca inteira voltava: durante a coleta a aba ficava
+  // vazia. As linhas "- lendo <url>" do feed são a leitura em andamento.
+  if (opts?.reasoningItems?.length) {
+    const achado = /https?:\/\/[^\s)\]>"']+/g;
+    for (const item of opts.reasoningItems) {
+      const texto = item.reasoning ?? '';
+      for (const bruto of texto.match(achado) ?? []) {
+        const url = bruto.replace(/[.,;:]+$/, '');
+        if (vistos.has(url)) continue;
+        vistos.add(url);
+        let dominio: string | null = null;
+        try {
+          dominio = new URL(url).hostname.replace(/^www\./, '');
+        } catch {
+          dominio = null;
+        }
+        itens.push({
+          url,
+          titulo: null,
+          dominio,
+          status: 'lendo',
+          ponto_n: item.pointNumber ?? null,
+        });
+      }
+    }
+  }
+
   return itens;
 }
 

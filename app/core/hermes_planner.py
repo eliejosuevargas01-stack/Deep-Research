@@ -2,21 +2,21 @@
 
 Um único processo `HERMES_PROFILE=deep-research hermes -z <prompt>` roda o ciclo
 inteiro: plano, 4 searchers, auditor (até 3 reprovações) e redator. A troca entre
-papéis é por arquivos Markdown dentro do diretório isolado da pesquisa — não há
-JSON de etapa para etapa.
+papéis é por artefatos JSON no diretório isolado da pesquisa; o backend valida cada
+artefato e persiste no banco.
 
-Contrato de arquivos no diretório da pesquisa:
-    PLAN.md                       (planner, reescrevível)
-    HISTORIADOR_SEARCH.md         (append-only)
-    VISIONARIO_SEARCH.md          (append-only)
-    CETICO_SEARCH.md              (append-only)
-    FUTURISTA_SEARCH.md           (append-only)
-    AUDITORIA.md                  (append-only, 1 seção por rodada)
-    DOSSIE.md                     (redator, final)
+Contrato de arquivos no diretório da pesquisa (`app/schemas/artefatos.py`):
+    PLAN.json                     planner   contrato DR-006 + personas
+    HISTORIADOR_SEARCH.json       searcher  tentativas da persona
+    VISIONARIO_SEARCH.json        searcher
+    CETICO_SEARCH.json            searcher
+    FUTURISTA_SEARCH.json         searcher
+    AUDITORIA.json                auditor   rodadas com os 12 critérios
+    DOSSIE.json                   redator   dossiê final + fontes
 
-ponytail: append-only é garantido por instrução no SOUL do perfil; se precisar de
-garantia física, montar cada arquivo com `chattr +a` ou rodar o subagente em sandbox
-com sistema de arquivos somente-acréscimo.
+ponytail: o searcher reescreve o próprio JSON ao acrescentar tentativa; concorrência
+entre personas não existe porque cada uma tem arquivo próprio (auditor é escritor
+único de AUDITORIA.json).
 """
 
 from __future__ import annotations
@@ -32,13 +32,18 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 PERSONAS: Dict[str, str] = {
-    "historiador": "HISTORIADOR_SEARCH.md",
-    "visionario": "VISIONARIO_SEARCH.md",
-    "cetico": "CETICO_SEARCH.md",
-    "futurista": "FUTURISTA_SEARCH.md",
+    "historiador": "HISTORIADOR_SEARCH.json",
+    "visionario": "VISIONARIO_SEARCH.json",
+    "cetico": "CETICO_SEARCH.json",
+    "futurista": "FUTURISTA_SEARCH.json",
 }
 
-ARQUIVOS_OBRIGATORIOS = ["PLAN.md", *PERSONAS.values(), "AUDITORIA.md", "DOSSIE.md"]
+ARQUIVOS_OBRIGATORIOS = [
+    "PLAN.json",
+    *PERSONAS.values(),
+    "AUDITORIA.json",
+    "DOSSIE.json",
+]
 
 
 def _raiz_pesquisas() -> Path:
@@ -93,23 +98,33 @@ def _binario_hermes() -> str:
     return caminho
 
 
-def montar_prompt(tema: str, workspace: Path, max_rodadas: int = 3) -> str:
+def montar_prompt(tema: str, workspace: Path, max_rodadas: int = 3, n_pontos: int = 1) -> str:
     """Prompt do turno. O protocolo completo vive no SOUL do perfil planner."""
     return (
         f"Tema da pesquisa: {tema}\n"
         f"Diretório de trabalho: {workspace}\n"
-        f"Máximo de reprovações do auditor: {max_rodadas}\n\n"
+        f"Máximo de reprovações do auditor: {max_rodadas}\n"
+        f"Pontos analíticos (perguntas) do plano: exatamente {n_pontos}\n\n"
         "Execute o protocolo completo descrito no seu SOUL e responda apenas "
-        "`OK <caminho absoluto do DOSSIE.md>`."
+        "`OK <caminho absoluto do DOSSIE.json>`."
     )
 
 
+def _json_do_workspace(workspace: Path, nome: str) -> Optional[dict]:
+    """Lê um artefato JSON do workspace; ausente ou torto devolve None."""
+    alvo = workspace / nome
+    if not alvo.exists():
+        return None
+    try:
+        return json.loads(alvo.read_text(encoding="utf-8", errors="replace"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
 def _conta_rodadas_auditoria(workspace: Path) -> int:
-    auditoria = workspace / "AUDITORIA.md"
-    if not auditoria.exists():
-        return 0
-    texto = auditoria.read_text(encoding="utf-8", errors="replace")
-    return len(re.findall(r"^##\s+Rodada\s+\d+", texto, flags=re.MULTILINE))
+    dados = _json_do_workspace(workspace, "AUDITORIA.json") or {}
+    rodadas = dados.get("rodadas")
+    return len(rodadas) if isinstance(rodadas, list) else 0
 
 
 def _inventario(workspace: Path) -> Dict[str, int]:
@@ -133,15 +148,17 @@ def _urls_fora_do_acervo(workspace: Path) -> list[str]:
     Não corrige nem remove: sinaliza, porque reescrever saída de agente por regex
     esconde o problema em vez de expor.
     """
-    dossie = workspace / "DOSSIE.md"
-    if not dossie.exists():
+    dossie = _json_do_workspace(workspace, "DOSSIE.json")
+    if not dossie:
         return []
     acervo: set[str] = set()
     for nome in PERSONAS.values():
-        arquivo = workspace / nome
-        if arquivo.exists():
-            acervo |= _urls(arquivo.read_text(encoding="utf-8", errors="replace"))
-    return sorted(_urls(dossie.read_text(encoding="utf-8", errors="replace")) - acervo)
+        dados = _json_do_workspace(workspace, nome) or {}
+        for tentativa in dados.get("tentativas") or []:
+            acervo |= {str(u).rstrip(".,;)]") for u in (tentativa.get("urls_lidas") or [])}
+            acervo |= {str(u).rstrip(".,;)]") for u in (tentativa.get("urls_fonte") or [])}
+    citadas = _urls(str(dossie.get("dossier_final") or ""))
+    return sorted(citadas - acervo)
 
 
 
@@ -223,9 +240,9 @@ async def _ciclo(ex: Execucao) -> None:
 
     workspace = ex.workspace
     duracao = round(time.monotonic() - ex.inicio, 1)
-    dossie = workspace / "DOSSIE.md"
+    dossie = workspace / "DOSSIE.json"
     inventario = _inventario(workspace)
-    concluido = bool(inventario.get("DOSSIE.md"))
+    concluido = bool(inventario.get("DOSSIE.json"))
 
     usage: Optional[Dict[str, Any]] = None
     if (workspace / "usage.json").exists():
@@ -248,6 +265,10 @@ async def _ciclo(ex: Execucao) -> None:
         "usage": usage,
     }
 
+    from app.core.hermes_adapter import persistir_ciclo
+
+    await persistir_ciclo(ex.pesquisa_id, workspace)
+
 
 async def iniciar(
     tema: str,
@@ -255,6 +276,7 @@ async def iniciar(
     *,
     perfil: Optional[str] = None,
     max_rodadas: Optional[int] = None,
+    n_pontos: int = 1,
     timeout_segundos: Optional[int] = None,
 ) -> Execucao:
     """Dispara o perfil Hermes e volta assim que o processo existe (sem esperar o ciclo)."""
@@ -268,7 +290,7 @@ async def iniciar(
 
     workspace = criar_workspace(pesquisa_id, tema)
     caminho_exec = _mapear(workspace)
-    prompt = montar_prompt(tema, Path(caminho_exec), max_rodadas)
+    prompt = montar_prompt(tema, Path(caminho_exec), max_rodadas, n_pontos)
     (workspace / "TEMA.md").write_text(
         f"# Tema\n\n{tema}\n\n## Prompt do turno\n\n```\n{prompt}\n```\n", encoding="utf-8"
     )
@@ -308,12 +330,12 @@ def execucao_existente(pesquisa_id: str) -> Optional["Execucao"]:
     return _EXECUCOES.get(pesquisa_id)
 
 
-async def obter_ou_iniciar(tema: str, pesquisa_id: str) -> "Execucao":
+async def obter_ou_iniciar(tema: str, pesquisa_id: str, n_pontos: int = 1) -> "Execucao":
     """Retoma o ciclo em memória; se o processo morreu com o servidor, começa de novo."""
     ex = _EXECUCOES.get(pesquisa_id)
     if ex is not None and (ex.tarefa is None or not ex.tarefa.done()):
         return ex
-    return await iniciar(tema, pesquisa_id)
+    return await iniciar(tema, pesquisa_id, n_pontos=n_pontos)
 
 
 async def executar(
@@ -322,6 +344,7 @@ async def executar(
     *,
     perfil: Optional[str] = None,
     max_rodadas: Optional[int] = None,
+    n_pontos: int = 1,
     timeout_segundos: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Roda a pesquisa inteira e devolve o inventário final (usado por CLI/testes)."""
@@ -330,6 +353,7 @@ async def executar(
         pesquisa_id,
         perfil=perfil,
         max_rodadas=max_rodadas,
+        n_pontos=n_pontos,
         timeout_segundos=timeout_segundos,
     )
     return await ex.aguardar()

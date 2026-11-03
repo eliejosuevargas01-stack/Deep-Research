@@ -1383,3 +1383,30 @@
   padding-bottom: 48px;
   z-index: auto;
 }
+
+/* Dossiê: medida de leitura no CSS, coluna centrada no espaço disponível.
+   O teto de 56ch estava inline no componente e deixava dois terços do
+   cartão vazios. Tabelas, listas de fontes e blocos de código usam a
+   largura toda porque não são texto corrido. */
+.report-card {
+  max-width: 1000px;
+  margin-inline: auto;
+}
+
+.report-content {
+  max-width: 100%;
+}
+
+.report-card .markdown-body > p,
+.report-card .markdown-body > ul,
+.report-card .markdown-body > ol,
+.report-card .markdown-body > blockquote {
+  max-width: 100%;
+}
+
+.report-card .markdown-body table,
+.report-card .markdown-body pre,
+.report-card .markdown-body h1,
+.report-card .markdown-body h2 {
+  max-width: 100%;
+}

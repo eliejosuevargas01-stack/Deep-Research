@@ -371,7 +371,7 @@ def test_b16_plan_responses_include_reasoning_planejamento() -> None:
 
 @pytest.mark.asyncio
 async def test_b16_create_plan_endpoint_includes_reasoning(tmp_path) -> None:
-    """Endpoint real create_plan preenche reasoning_planejamento a partir do PLAN.md."""
+    """Endpoint real create_plan preenche reasoning_planejamento a partir do PLAN.json."""
     import json
 
     from app.api.v1.endpoints import plan as plan_mod
@@ -380,25 +380,40 @@ async def test_b16_create_plan_endpoint_includes_reasoning(tmp_path) -> None:
     from starlette.responses import Response
 
     plano = {
-        "versao": "v10",
-        "tema": "Tema B16 Endpoint",
-        "objetivo": "Raciocínio metodológico do planner Hermes",
-        "escopo": "Escopo",
-        "perguntas": ["Eixo 1"],
+        "pedido_original": "Tema B16 Endpoint",
+        "pedido_normalizado": "Raciocínio metodológico do planner Hermes",
+        "publico": "técnico",
+        "formato_entrega": "relatório",
+        "recorte_temporal": None,
+        "data_referencia": "2026-11-01",
+        "politica_recencia": "auto",
+        "pressupostos": [],
+        "ambiguidades": [],
+        "pergunta_de_esclarecimento": None,
+        "eixos": [
+            {
+                "pergunta_principal": "Eixo 1",
+                "subperguntas": ["sub 1"],
+                "hipoteses": ["hipótese 1"],
+                "consultas_iniciais": ["consulta 1"],
+                "fontes_primarias_desejadas": ["fonte 1"],
+                "riscos_de_vies": ["viés 1"],
+                "evidencias_que_refutariam": ["evidência 1"],
+                "criterio_de_conclusao": "conclusão observável",
+                "investigabilidade": "fonte pública verificável",
+                "eixo_essencial": True,
+            }
+        ],
         "personas": {
             "historiador": "h",
             "visionario": "v",
             "cetico": "c",
             "futurista": "f",
         },
-        "criterios_evidencia": ["fonte"],
-        "criterios_aprovacao": {"minimo": 11, "total": 12},
     }
     workspace = tmp_path / "pesq-b16-001"
     workspace.mkdir()
-    (workspace / "PLAN.md").write_text(
-        "```json\n" + json.dumps(plano, ensure_ascii=False) + "\n```\n", encoding="utf-8"
-    )
+    (workspace / "PLAN.json").write_text(json.dumps(plano, ensure_ascii=False), encoding="utf-8")
 
     mock_pesq = SimpleNamespace(
         id_pesquisa="pesq-b16-001",
@@ -430,7 +445,10 @@ async def test_b16_create_plan_endpoint_includes_reasoning(tmp_path) -> None:
 
         assert isinstance(resp, PlanResponse)
         assert resp.id_pesquisa == "pesq-b16-001"
-        assert resp.reasoning_planejamento == plano["objetivo"]
+        assert resp.reasoning_planejamento == plano["pedido_normalizado"]
+        assert resp.plano_estruturado is not None
+        assert resp.pontos[0].eixo_estruturado is not None
+        assert resp.pontos[0].eixo_estruturado.hipoteses == ["hipótese 1"]
 
 
 # ---------------------------------------------------------------------------

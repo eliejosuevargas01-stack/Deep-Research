@@ -42,4 +42,4 @@ async def search_points(
     await hermes_adapter.aguardar_coletas(
         payload.id_pesquisa, timeout=float(os.environ.get("DR_SEARCH_TIMEOUT", "3600"))
     )
-    return SearchResponse(**hermes_adapter.search_payload(payload.id_pesquisa, workspace))
+    return SearchResponse(**await hermes_adapter.persistir_busca(repo, pesquisa, workspace))

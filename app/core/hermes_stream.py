@@ -11,23 +11,90 @@ Contrato de arquivos: ver `hermes_planner` e o addendum v10.
 from __future__ import annotations
 
 import asyncio
+import json
+import os
 import re
 from pathlib import Path
 from typing import Dict, Optional
 
-from app.core.hermes_ids import ponto_de
+from app.core.hermes_ids import ponto_de, pontos_de
 from app.core.pipeline_runner import get_pipeline_event_hub
 
 PERSONAS = {
-    "historiador": "HISTORIADOR_SEARCH.md",
-    "visionario": "VISIONARIO_SEARCH.md",
-    "cetico": "CETICO_SEARCH.md",
-    "futurista": "FUTURISTA_SEARCH.md",
+    "historiador": "HISTORIADOR_SEARCH.json",
+    "visionario": "VISIONARIO_SEARCH.json",
+    "cetico": "CETICO_SEARCH.json",
+    "futurista": "FUTURISTA_SEARCH.json",
 }
 
-_RODADA = re.compile(r"^##\s+Rodada\s+(\d+)\s*[—:-]\s*(APROVADO|REPROVADO)\s*[—:-]\s*nota\s*(\d+)\s*/\s*12", re.M)
-_TOTAL = re.compile(r"TOTAL:\s*(\d+)\s*p[áa]ginas", re.I)
-_TENTATIVA = re.compile(r"^tentativa\s+(\d+)", re.M | re.I)
+PLANO = "PLAN.json"
+AUDITORIA = "AUDITORIA.json"
+DOSSIE = "DOSSIE.json"
+
+
+class _Delegacao:
+    """Traduz os logs dos subagentes em atividade visível por persona.
+
+    Os 4 searchers só escrevem o `*_SEARCH.json` no fim; sem isso a UI fica minutos
+    sem sinal de vida. Lemos os logs de delegação e publicamos um delta curto por
+    ferramenta executada.
+    """
+
+    def __init__(self, dono: "WatchHermes") -> None:
+        self.dono = dono
+        self.dir: Optional[Path] = None
+        self.offsets: dict[str, int] = {}
+
+    def _raiz(self) -> Optional[Path]:
+        home = os.environ.get("HERMES_HOME")
+        perfil = os.environ.get("HERMES_PROFILE", "deep-research")
+        if not home:
+            return None
+        base = Path(home) / "profiles" / perfil / "cache" / "delegation" / "live"
+        if not base.exists():
+            return None
+        dirs = sorted((d for d in base.iterdir() if d.is_dir()), key=lambda d: d.stat().st_mtime)
+        return dirs[-1] if dirs else None
+
+    def bombear(self) -> None:
+        atual = self._raiz()
+        if atual is None:
+            return
+        if atual != self.dir:
+            self.dir = atual
+            self.offsets.clear()
+            for persona in PERSONAS:
+                self.dono._inicia("search", persona)
+            self.dono._status("buscando")
+        for indice, persona in enumerate(PERSONAS):
+            log = atual / f"task-{indice}.log"
+            if not log.exists():
+                continue
+            tamanho = log.stat().st_size
+            anterior = self.offsets.get(log.name, 0)
+            if tamanho <= anterior:
+                continue
+            with log.open("rb") as fh:
+                fh.seek(anterior)
+                bruto = fh.read(min(tamanho - anterior, 20000))
+            self.offsets[log.name] = anterior + len(bruto)
+            texto = bruto.decode("utf-8", errors="replace")
+            resumo = _resumo_atividade(texto)
+            if resumo:
+                self.dono._pub("agent.delta", stage="search", agent=persona, kind="reasoning", text=resumo)
+
+
+def _resumo_atividade(texto: str) -> Optional[str]:
+    """Extrai um sinal curto (url/ferramenta) do log do subagente."""
+    urls = re.findall(r"https?://[^\s\"')\]]+", texto)
+    if urls:
+        # Uma linha por leitura: o renderer é Markdown, então linha solta viraria
+        # parágrafo colado ("lendo a. lendo b"). Item de lista mantém uma por linha.
+        return f"- lendo {urls[-1][:200]}\n"
+    ferramentas = re.findall(r"\"tool\": \"([a-zA-Z_]+)\"", texto)
+    if ferramentas:
+        return f"- usando {ferramentas[-1]}\n"
+    return None
 
 
 class _Arquivo:
@@ -53,6 +120,7 @@ class WatchHermes:
         self.personas_fechadas: set[str] = set()
         self.rodadas: set[int] = set()
         self.pendentes: list[tuple[str, dict]] = []
+        self.delegacao = _Delegacao(self)
 
     # ----- publicação -----------------------------------------------------
     def _pub(self, evento: str, **dados) -> None:
@@ -62,8 +130,14 @@ class WatchHermes:
             # criar card fantasma na UI com o id da pesquisa no lugar do ponto.
             self.pendentes.append((evento, dados))
             return
-        dados.setdefault("ponto_id", ponto)
-        self.hub.publish(self.id, evento, {"id_pesquisa": self.id, **dados})
+        if "ponto_id" in dados or dados.get("stage") == "plan":
+            dados.setdefault("ponto_id", ponto)
+            self.hub.publish(self.id, evento, {"id_pesquisa": self.id, **dados})
+            return
+        # Evento de ponto: replica para cada ponto do plano (mesmo ciclo cobre todos).
+        for indice, ponto_id in enumerate(pontos_de(self.id), start=1):
+            corpo = {**dados, "ponto_id": ponto_id, "ponto_n": indice}
+            self.hub.publish(self.id, evento, {"id_pesquisa": self.id, **corpo})
 
     def _status(self, novo: str) -> None:
         if novo == self.status:
@@ -112,12 +186,22 @@ class WatchHermes:
                 pass
             await asyncio.sleep(self.intervalo)
 
+    def _json(self, nome: str) -> Optional[dict]:
+        """Lê o artefato JSON já gravado; arquivo em escrita ou torto devolve None."""
+        try:
+            return json.loads((self.ws / nome).read_text(encoding="utf-8", errors="replace"))
+        except (OSError, json.JSONDecodeError):
+            return None
+
     def _tick(self) -> None:
+        self.delegacao.bombear()
         while self.pendentes and ponto_de(self.id) != self.id:
             evento, dados = self.pendentes.pop(0)
-            dados["ponto_id"] = ponto_de(self.id)
-            self.hub.publish(self.id, evento, {"id_pesquisa": self.id, **dados})
-        delta_plano = self._novo("PLAN.md")
+            for indice, ponto_id in enumerate(pontos_de(self.id), start=1):
+                corpo = {**dados, "ponto_id": ponto_id, "ponto_n": indice}
+                self.hub.publish(self.id, evento, {"id_pesquisa": self.id, **corpo})
+
+        delta_plano = self._novo(PLANO)
         if delta_plano:
             self._inicia("plan", "planejador")
             self._pub("agent.delta", stage="plan", agent="planejador", kind="reasoning", text=delta_plano)
@@ -130,45 +214,48 @@ class WatchHermes:
             self._status("buscando")
             self._inicia("search", persona)
             self._pub("agent.delta", stage="search", agent=persona, kind="reasoning", text=delta)
-            texto = self.arquivos[nome].texto
-            if _TOTAL.search(delta) or _TENTATIVA.search(delta):
+            tentativas = (self._json(nome) or {}).get("tentativas") or []
+            if tentativas:
                 self.personas_fechadas.add(persona)
                 self._pub(
                     "search.progress",
                     persona=persona,
-                    queries_executadas=len(_TENTATIVA.findall(texto)) or 1,
-                    urls_lidas=sum(int(m) for m in _TOTAL.findall(texto)),
-                    falha_coleta=False,
+                    queries_executadas=sum(len(t.get("consultas") or []) for t in tentativas),
+                    urls_lidas=sum(int(t.get("paginas_lidas") or 0) for t in tentativas),
+                    falha_coleta=not any(t.get("urls_fonte") for t in tentativas),
                     reasoning_coleta=None,
                 )
 
-        delta_aud = self._novo("AUDITORIA.md")
+        delta_aud = self._novo(AUDITORIA)
         if delta_aud:
             self._status("auditando")
             self._inicia("audit", "auditor")
             self._pub("agent.delta", stage="audit", agent="auditor", kind="reasoning", text=delta_aud)
-            for numero, veredito, nota in _RODADA.findall(self.arquivos["AUDITORIA.md"].texto):
-                n = int(numero)
-                if n in self.rodadas:
+            for rodada in (self._json(AUDITORIA) or {}).get("rodadas") or []:
+                numero = int(rodada.get("rodada") or 0)
+                if not numero or numero in self.rodadas:
                     continue
-                self.rodadas.add(n)
+                self.rodadas.add(numero)
+                veredito = str(rodada.get("veredito") or "").upper()
+                nota = int(rodada.get("nota") or 0)
                 self._pub(
                     "audit.result",
                     ponto_n=1,
                     status="aprovado" if veredito == "APROVADO" else "reprovado",
-                    pontuacao_percentual=round(int(nota) / 12 * 100, 2),
-                    criterios_aprovados=int(nota),
+                    pontuacao_percentual=round(nota / 12 * 100, 2),
+                    criterios_aprovados=nota,
                     reasoning_auditoria=None,
-                    pontos_fracos=None,
+                    pontos_fracos=rodada.get("lacunas"),
                 )
-                self._pub("point.status", ponto_n=1, status=veredito.lower(), tentativas=n)
+                self._pub("point.status", ponto_n=1, status=veredito.lower() or "reprovado", tentativas=numero)
 
-        delta_dos = self._novo("DOSSIE.md")
+        delta_dos = self._novo(DOSSIE)
         if delta_dos:
             self._status("redigindo")
             self._inicia("writer", "redator")
             self._pub("agent.delta", stage="writer", agent="redator", kind="reasoning", text=delta_dos)
-            self._pub("writer.progress", status="redigindo", total_caracteres=len(self.arquivos["DOSSIE.md"].texto))
+            texto = (self._json(DOSSIE) or {}).get("dossier_final") or ""
+            self._pub("writer.progress", status="redigindo", total_caracteres=len(texto))
 
     # ----- consolidação final --------------------------------------------
     def consolidar(self, sucesso: bool) -> None:
@@ -177,39 +264,39 @@ class WatchHermes:
             estagio, _, agent = chave.partition(":")
             self._encerra(estagio, agent or None)
         for persona, nome in PERSONAS.items():
-            texto = self.arquivos.get(nome, _Arquivo()).texto
-            if not texto:
+            tentativas = (self._json(nome) or {}).get("tentativas") or []
+            if not tentativas:
                 continue
             self._pub(
                 "search.progress",
                 persona=persona,
-                queries_executadas=len(_TENTATIVA.findall(texto)) or 1,
-                urls_lidas=sum(int(m) for m in _TOTAL.findall(texto)),
-                falha_coleta=False,
-                reasoning_coleta=texto[-12000:],
+                queries_executadas=sum(len(t.get("consultas") or []) for t in tentativas),
+                urls_lidas=sum(int(t.get("paginas_lidas") or 0) for t in tentativas),
+                falha_coleta=not any(t.get("urls_fonte") for t in tentativas),
+                reasoning_coleta="\n\n".join(str(t.get("analise") or "") for t in tentativas)[-12000:],
             )
-        auditoria = self.arquivos.get("AUDITORIA.md", _Arquivo()).texto
-        if auditoria:
-            ultima = _RODADA.findall(auditoria)[-1:] or []
-            if ultima:
-                _, veredito, nota = ultima[0]
-                self._pub(
-                    "audit.result",
-                    ponto_n=1,
-                    status="aprovado" if veredito == "APROVADO" else "reprovado",
-                    pontuacao_percentual=round(int(nota) / 12 * 100, 2),
-                    criterios_aprovados=int(nota),
-                    reasoning_auditoria=auditoria[-12000:],
-                    pontos_fracos=None,
-                )
-        dossie = self.arquivos.get("DOSSIE.md", _Arquivo()).texto
+        rodadas = (self._json(AUDITORIA) or {}).get("rodadas") or []
+        if rodadas:
+            ultima = rodadas[-1]
+            veredito = str(ultima.get("veredito") or "").upper()
+            nota = int(ultima.get("nota") or 0)
+            self._pub(
+                "audit.result",
+                ponto_n=1,
+                status="aprovado" if veredito == "APROVADO" else "reprovado",
+                pontuacao_percentual=round(nota / 12 * 100, 2),
+                criterios_aprovados=nota,
+                reasoning_auditoria=json.dumps(ultima, ensure_ascii=False)[-12000:],
+                pontos_fracos=ultima.get("lacunas"),
+            )
+        dossie = (self._json(DOSSIE) or {}).get("dossier_final") or ""
         if dossie:
             self._pub("writer.progress", status="concluido", total_caracteres=len(dossie))
             self._status("concluido")
             self._pub("report.final", status="concluido", dossier_final=dossie,
                       total_caracteres=len(dossie), concluido_em=None)
         else:
-            self._status("concluido" if sucesso else "falha")
+            self._status("concluido" if (sucesso or dossie) else "falha")
 
 
 async def acompanhar(id_pesquisa: str, workspace: Path, parar: asyncio.Event) -> None:
@@ -225,4 +312,4 @@ async def acompanhar(id_pesquisa: str, workspace: Path, parar: asyncio.Event) ->
         except (asyncio.CancelledError, Exception):
             pass
         watcher._tick()
-        watcher.consolidar(sucesso=bool(watcher.arquivos.get("DOSSIE.md", _Arquivo()).texto))
+        watcher.consolidar(sucesso=bool((watcher._json(DOSSIE) or {}).get("dossier_final")))

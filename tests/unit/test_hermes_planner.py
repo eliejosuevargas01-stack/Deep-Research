@@ -46,7 +46,7 @@ async def test_executar_invoca_hermes_com_perfil_por_env(tmp_path, monkeypatch):
     assert capturado["env"]["HERMES_PROFILE"] == "deep-research"
     assert capturado["env"]["HERMES_HOME"] == "/app/hermes-home"
     assert capturado["cwd"] == str(workspace)
-    assert resultado["status"] == "falha"  # sem DOSSIE.md, mesmo com exit 0
+    assert resultado["status"] == "falha"  # sem DOSSIE.json, mesmo com exit 0
 
 
 @pytest.mark.asyncio

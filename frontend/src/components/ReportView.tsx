@@ -524,9 +524,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
         className="markdown-body markdown-content report-content"
         aria-label="Conteúdo do dossiê"
         style={{
-          maxWidth: '56ch',
-          marginLeft: 'auto',
-          marginRight: 'auto',
+          lineHeight: 1.65,
         }}
       >
         <ReactMarkdown
@@ -543,9 +541,6 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
                 {...props}
                 className="markdown-content report-content"
                 style={{
-                  maxWidth: '56ch',
-                  marginLeft: 'auto',
-                  marginRight: 'auto',
                   lineHeight: 1.6,
                 }}
               >
@@ -556,7 +551,6 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
               <li
                 {...props}
                 style={{
-                  maxWidth: '56ch',
                   lineHeight: 1.55,
                 }}
               >

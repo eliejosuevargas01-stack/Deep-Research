@@ -289,6 +289,25 @@ class ResearchRepository:
         await self.session.refresh(pesquisa)
         return pesquisa
 
+    async def set_research_tokens(
+        self,
+        id_pesquisa: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        total_tokens: int,
+    ) -> Optional[Pesquisa]:
+        """Grava o consumo do ciclo (usage.json do processo Hermes) na pesquisa."""
+        stmt = select(Pesquisa).where(Pesquisa.id_pesquisa == id_pesquisa)
+        pesquisa = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not pesquisa:
+            return None
+        pesquisa.tokens_prompt = int(prompt_tokens or 0)
+        pesquisa.tokens_completion = int(completion_tokens or 0)
+        pesquisa.tokens_total = int(total_tokens or 0)
+        await self.session.commit()
+        await self.session.refresh(pesquisa)
+        return pesquisa
+
     async def update_pipeline_status(
         self,
         id_pesquisa: str,

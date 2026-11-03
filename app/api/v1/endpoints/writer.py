@@ -31,9 +31,7 @@ async def write_dossier(
             detail="Pesquisa não encontrada para redação no pipeline Hermes.",
         )
     workspace = await hermes_adapter.aguardar_arquivo(
-        payload.id_pesquisa, "DOSSIE.md", timeout=float(os.environ.get("DR_WRITER_TIMEOUT", "3600"))
+        payload.id_pesquisa, "DOSSIE.json", tema=pesquisa.tema, timeout=float(os.environ.get("DR_WRITER_TIMEOUT", "3600"))
     )
-    dados = hermes_adapter.writer_payload(payload.id_pesquisa, pesquisa.tema, workspace)
-    if dados.get("dossier_final"):
-        await repo.update_research_dossier(payload.id_pesquisa, dados["dossier_final"])
+    dados = await hermes_adapter.persistir_dossie(repo, pesquisa, workspace)
     return WriterResponse(**dados)

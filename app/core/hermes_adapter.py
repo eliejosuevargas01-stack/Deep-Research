@@ -1,31 +1,63 @@
 """Adaptador entre a UI e o perfil Hermes embutido.
 
-A pesquisa inteira roda uma vez no processo Hermes; as etapas /plan, /search,
-/audit e /writer derivam suas respostas dos documentos Markdown produzidos lá —
-sem Jina e sem chamada direta ao modelo por etapa.
+O ciclo Hermes grava artefatos JSON no workspace, um por etapa, com os mesmos campos
+que o banco usa — nada aqui deriva dado de Markdown:
 
-Contrato de arquivos (ver app/core/hermes_planner.py):
-    PLAN.md, HISTORIADOR_SEARCH.md, VISIONARIO_SEARCH.md, CETICO_SEARCH.md,
-    FUTURISTA_SEARCH.md, AUDITORIA.md, DOSSIE.md
+    PLAN.json                                  planner   (contrato DR-006 + personas)
+    HISTORIADOR_SEARCH.json ... 4 personas     searchers (tentativas, URLs, lacunas)
+    AUDITORIA.json                             auditor   (rodadas com os 12 critérios)
+    DOSSIE.json                                redator   (dossiê final + fontes)
+
+Cada artefato é validado por Pydantic; artefato torto vira 422 com diagnóstico, nunca
+uma tela plausível e vazia. O que a API devolve vem do banco.
 """
 
 from __future__ import annotations
 
 import asyncio
-import os
-import time
 import json
+import os
 import re
+import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+from pydantic import ValidationError
 
 from app.core import hermes_planner
+from app.core.hermes_ids import pontos_de
+from app.schemas.artefatos import (
+    AuditoriaArtefato,
+    BuscaArtefato,
+    DossieArtefato,
+    PlanoArtefato,
+)
+from app.schemas.plan import PlanoInvestigacao
 
 _LOCKS: Dict[str, asyncio.Lock] = {}
 
+PERSONA_ARQUIVOS = {
+    "historiador": "HISTORIADOR_SEARCH.json",
+    "visionario": "VISIONARIO_SEARCH.json",
+    "cetico": "CETICO_SEARCH.json",
+    "futurista": "FUTURISTA_SEARCH.json",
+}
+PLANO_ARQUIVO = "PLAN.json"
+AUDITORIA_ARQUIVO = "AUDITORIA.json"
+DOSSIE_ARQUIVO = "DOSSIE.json"
+ARQUIVOS_OBRIGATORIOS = [
+    PLANO_ARQUIVO,
+    *PERSONA_ARQUIVOS.values(),
+    AUDITORIA_ARQUIVO,
+    DOSSIE_ARQUIVO,
+]
+
+CHAVES_PLANO = tuple(PlanoInvestigacao.model_fields)
+_BLOCO_JSON = re.compile(r"```json\s*(\{.*?\})\s*```", re.S)
+
 
 def registrar_pontos(id_pesquisa: str, pontos) -> None:
-    """Liga a pesquisa ao primeiro ponto do plano (os eventos caem no card certo)."""
+    """Liga a pesquisa aos pontos do plano (os eventos caem no card certo)."""
     from app.core import hermes_ids
 
     hermes_ids.registrar(id_pesquisa, pontos)
@@ -43,50 +75,271 @@ def _pub(id_pesquisa: str, evento: str, **dados) -> None:
         pass
 
 
-PERSONA_ARQUIVOS = {
-    "historiador": "HISTORIADOR_SEARCH.md",
-    "visionario": "VISIONARIO_SEARCH.md",
-    "cetico": "CETICO_SEARCH.md",
-    "futurista": "FUTURISTA_SEARCH.md",
-}
-
-_URL_RE = re.compile(r"https?://[^\s)\]>\"]+")
-_RODADA_RE = re.compile(r"^##\s+Rodada\s+(\d+)\s*[—:-]\s*(APROVADO|REPROVADO)\s*[—:-]\s*nota\s*(\d+)\s*/\s*12", re.M)
-_TOTAL_RE = re.compile(r"TOTAL:\s*(\d+)\s*p[áa]ginas", re.I)
+def _ler_json(caminho: Path) -> Any:
+    texto = caminho.read_text(encoding="utf-8", errors="replace").strip()
+    cerca = _BLOCO_JSON.search(texto)
+    if cerca:
+        texto = cerca.group(1)
+    return json.loads(texto)
 
 
-def _urls(texto: str) -> List[str]:
-    vistos: List[str] = []
-    for url in _URL_RE.findall(texto):
-        limpa = url.rstrip(".,;)]")
-        if limpa not in vistos:
-            vistos.append(limpa)
-    return vistos
+def _artefato(modelo, caminho: Path) -> Dict[str, Any]:
+    """Lê e valida um artefato: {"valido", "erro", "dados"}."""
+    if not caminho.exists():
+        return {"valido": False, "erro": f"{caminho.name} ausente", "dados": None}
+    try:
+        bruto = _ler_json(caminho)
+    except json.JSONDecodeError as exc:
+        return {"valido": False, "erro": f"JSON inválido em {caminho.name}: {exc}", "dados": None}
+    try:
+        return {"valido": True, "erro": None, "dados": modelo.model_validate(bruto).model_dump()}
+    except ValidationError as exc:
+        primeiro = exc.errors()[0]
+        local = ".".join(str(p) for p in primeiro["loc"]) or "raiz"
+        return {
+            "valido": False,
+            "erro": f"{caminho.name} fora do contrato em {local}: {primeiro['msg']}",
+            "dados": None,
+        }
 
 
-def _paginas_lidas(texto: str) -> int:
-    """Soma dos ledgers `TOTAL: N páginas` de todas as rodadas do arquivo."""
-    return sum(int(m) for m in _TOTAL_RE.findall(texto))
+def plan_payload(workspace: Path) -> Dict[str, Any]:
+    """Plano estruturado: PLAN.json validado contra o contrato DR-006."""
+    leitura = _artefato(PlanoArtefato, workspace / PLANO_ARQUIVO)
+    if not leitura["valido"]:
+        return {"valido": False, "erro": leitura["erro"], "plano": None}
+    plano = dict(leitura["dados"])
+    validado = PlanoInvestigacao.model_validate(plano).model_dump()
+    validado["personas"] = plano["personas"]
+    return {"valido": True, "erro": None, "plano": validado}
 
 
-def _tentativas(texto: str) -> int:
-    return len(re.findall(r"^tentativa\s+\d+", texto, flags=re.M | re.I)) or 1
+def pontos_do_plano(plano: Dict[str, Any], limite: Optional[int] = None) -> List[str]:
+    """Um ponto por eixo; o card mostra a pergunta principal do eixo."""
+    eixos = [e for e in (plano.get("eixos") or []) if isinstance(e, dict)]
+    pontos = [str(e.get("pergunta_principal") or "").strip() for e in eixos]
+    pontos = [p for p in pontos if p]
+    if not pontos:
+        pontos = [str(plano.get("pedido_original") or plano.get("pedido_normalizado") or "Investigação")]
+    if limite and limite > 0:
+        pontos = pontos[:limite]
+    return pontos
 
 
-async def garantir_pesquisa(pesquisa_id: str, tema: str) -> Path:
-    """Garante o ciclo Hermes rodando e devolve o workspace assim que PLAN.md existe.
+def busca_personas(workspace: Path) -> List[Dict[str, Any]]:
+    """Uma entrada por persona a partir dos quatro JSON de busca."""
+    saida: List[Dict[str, Any]] = []
+    for persona, nome in PERSONA_ARQUIVOS.items():
+        leitura = _artefato(BuscaArtefato, workspace / nome)
+        if not leitura["valido"]:
+            continue
+        tentativas = leitura["dados"]["tentativas"]
+        analise = "\n\n".join(
+            f"### Tentativa {t['rodada']}\n\n{t['analise']}" for t in tentativas
+        )
+        urls_lidas: List[str] = []
+        urls_fonte: List[str] = []
+        lacunas: List[str] = []
+        for t in tentativas:
+            for url in t["urls_lidas"]:
+                if url not in urls_lidas:
+                    urls_lidas.append(url)
+            for url in t["urls_fonte"]:
+                if url not in urls_fonte:
+                    urls_fonte.append(url)
+            lacunas.extend(t["lacunas"])
+        saida.append(
+            {
+                "persona": persona,
+                "analise": analise,
+                "urls_fonte": urls_fonte,
+                "urls_lidas": urls_lidas,
+                "queries_executadas": sum(len(t["consultas"]) for t in tentativas),
+                "tentativas": len(tentativas),
+                "paginas_lidas": sum(t["paginas_lidas"] for t in tentativas),
+                "falha_coleta": not urls_fonte,
+                "lacunas": lacunas or None,
+            }
+        )
+    return saida
 
-    O ciclo continua em background: `/search`, `/audit` e `/writer` esperam o arquivo
-    que lhes interessa. Lock por pesquisa evita dois ciclos para o mesmo id.
-    """
+
+def search_payload(pesquisa_id: str, workspace: Path) -> Dict[str, Any]:
+    """SearchResponse a partir dos quatro *_SEARCH.json."""
+    personas = busca_personas(workspace)
+    total_lidas = sum(p["paginas_lidas"] for p in personas)
+    total_fontes = sum(len(p["urls_fonte"]) for p in personas)
+    caracteres = sum(len(p["analise"]) for p in personas)
+    tentativas = max([p["tentativas"] for p in personas] or [1])
+    pontos = pontos_de(pesquisa_id)
+    api_personas = [
+        {
+            "persona": p["persona"],
+            "analise": p["analise"],
+            "urls_fonte": p["urls_fonte"],
+            "urls_lidas": p["urls_lidas"],
+            "queries_executadas": p["queries_executadas"],
+            "falha_coleta": p["falha_coleta"],
+            "lacunas": p["lacunas"],
+        }
+        for p in personas
+    ]
+    for indice, ponto_id in enumerate(pontos, start=1):
+        for p in personas:
+            _pub(
+                pesquisa_id,
+                "search.progress",
+                ponto_id=ponto_id,
+                persona=p["persona"],
+                queries_executadas=p["queries_executadas"],
+                urls_lidas=p["paginas_lidas"] or len(p["urls_lidas"]),
+                falha_coleta=p["falha_coleta"],
+                reasoning_coleta=p["analise"][-12000:],
+            )
+        _pub(pesquisa_id, "point.status", ponto_id=ponto_id, ponto_n=indice, status="coletado", tentativas=tentativas)
+    return {
+        "id_pesquisa": pesquisa_id,
+        "total_pontos_processados": len(pontos),
+        "status_pesquisa": "coletado",
+        "total_falhas_coleta": sum(1 for p in personas if p["falha_coleta"]),
+        "resumo_coletas": [
+            {
+                "ponto_id": ponto_id,
+                "ponto_n": indice,
+                "status": "coletado",
+                "falha_coleta": not personas,
+                "total_urls_lidas": total_lidas,
+                "total_urls_fonte": total_fontes,
+                "tamanho_conteudo_caracteres": caracteres,
+                "tentativas": tentativas,
+                "personas": api_personas,
+            }
+            for indice, ponto_id in enumerate(pontos, start=1)
+        ],
+    }
+
+
+def audit_payload(pesquisa_id: str, workspace: Path, criterios_minimos: int = 11) -> Dict[str, Any]:
+    """AuditResponse a partir da última rodada de AUDITORIA.json."""
+    pontos = pontos_de(pesquisa_id)
+    leitura = _artefato(AuditoriaArtefato, workspace / AUDITORIA_ARQUIVO)
+    if not leitura["valido"]:
+        return {
+            "id_pesquisa": pesquisa_id,
+            "total_pontos": len(pontos),
+            "aprovados": 0,
+            "reprovados": len(pontos),
+            "pronto_para_writer": False,
+            "auditorias": [
+                {
+                    "ponto_id": pesquisa_id,
+                    "ponto_n": 1,
+                    "status": "reprovado",
+                    "pontuacao_percentual": 0.0,
+                    "criterios_aprovados": 0,
+                    "criterios_minimos": criterios_minimos,
+                    "valido": False,
+                    "diagnostico": leitura["erro"],
+                }
+            ],
+        }
+    rodada = leitura["dados"]["rodadas"][-1]
+    aprovado = rodada["veredito"] == "APROVADO" and rodada["nota"] >= criterios_minimos
+    criterios = [
+        {
+            "id": c["id"],
+            "aprovado": c["aprovado"],
+            "justificativa": c["justificativa"],
+            "claim_ids": [],
+            "source_ids": [],
+        }
+        for c in rodada["criterios"]
+    ]
+    fracos = rodada.get("lacunas")
+    reasoning = json.dumps(rodada, ensure_ascii=False)
+    for indice, ponto_id in enumerate(pontos, start=1):
+        _pub(
+            pesquisa_id,
+            "audit.result",
+            ponto_id=ponto_id,
+            ponto_n=indice,
+            status="aprovado" if aprovado else "reprovado",
+            pontuacao_percentual=round(rodada["nota"] / 12 * 100, 2),
+            criterios_aprovados=rodada["nota"],
+            reasoning_auditoria=reasoning,
+            pontos_fracos=fracos,
+        )
+        _pub(
+            pesquisa_id,
+            "point.status",
+            ponto_id=ponto_id,
+            ponto_n=indice,
+            status="aprovado" if aprovado else "reprovado",
+            tentativas=rodada["rodada"],
+        )
+    return {
+        "id_pesquisa": pesquisa_id,
+        "total_pontos": len(pontos),
+        "aprovados": len(pontos) if aprovado else 0,
+        "reprovados": 0 if aprovado else len(pontos),
+        "pronto_para_writer": aprovado,
+        "auditorias": [
+            {
+                "ponto_id": ponto_id,
+                "ponto_n": indice,
+                "status": "aprovado" if aprovado else "reprovado",
+                "pontuacao_percentual": round(rodada["nota"] / 12 * 100, 2),
+                "criterios_aprovados": rodada["nota"],
+                "criterios_minimos": criterios_minimos,
+                "valido": True,
+                "criterios": criterios,
+                "pontos_fracos": fracos,
+                "reasoning_auditoria": reasoning,
+                "resumo_auditoria": f"Rodada {rodada['rodada']}: {rodada['veredito']} {rodada['nota']}/12 (auditor Hermes)",
+            }
+            for indice, ponto_id in enumerate(pontos, start=1)
+        ],
+    }
+
+
+def writer_payload(pesquisa_id: str, tema: str, workspace: Path) -> Dict[str, Any]:
+    """WriterResponse a partir de DOSSIE.json."""
+    leitura = _artefato(DossieArtefato, workspace / DOSSIE_ARQUIVO)
+    texto = leitura["dados"]["dossier_final"] if leitura["valido"] else ""
+    if texto.strip():
+        _pub(pesquisa_id, "writer.progress", status="concluido", total_caracteres=len(texto))
+        _pub(pesquisa_id, "pipeline.status", status_pipeline="concluido")
+        _pub(
+            pesquisa_id,
+            "report.final",
+            status="concluido",
+            dossier_final=texto,
+            total_caracteres=len(texto),
+            concluido_em=None,
+        )
+    return {
+        "id_pesquisa": pesquisa_id,
+        "tema": tema,
+        "status": "concluido" if texto.strip() else "falha",
+        "total_caracteres_dossier": len(texto),
+        "concluido_em": None,
+        "webhook_entrega": None,
+        "dossier_final": texto or None,
+        "diagnostico": None if texto.strip() else leitura["erro"],
+        "metadados": {"pipeline": "hermes", "diretorio": str(workspace), "artefato": DOSSIE_ARQUIVO},
+    }
+
+
+async def garantir_pesquisa(pesquisa_id: str, tema: str, n_pontos: int = 1) -> Path:
+    """Garante o ciclo Hermes rodando e devolve o workspace assim que PLAN.json é válido."""
     workspace = hermes_planner.criar_workspace(pesquisa_id, tema)
-    if (workspace / "PLAN.md").exists() and (workspace / "DOSSIE.md").exists():
+    if plan_payload(workspace)["valido"] and (workspace / DOSSIE_ARQUIVO).exists():
         return workspace
     lock = _LOCKS.setdefault(pesquisa_id, asyncio.Lock())
     async with lock:
         ex = hermes_planner.execucao_existente(pesquisa_id)
         if ex is None or (ex.tarefa is not None and ex.tarefa.done()):
-            ex = await hermes_planner.obter_ou_iniciar(tema, pesquisa_id)
+            ex = await hermes_planner.obter_ou_iniciar(tema, pesquisa_id, n_pontos)
         limite = time.monotonic() + float(os.environ.get("DR_PLAN_TIMEOUT", "180"))
         while time.monotonic() < limite:
             if plan_payload(workspace)["valido"]:
@@ -94,7 +347,12 @@ async def garantir_pesquisa(pesquisa_id: str, tema: str) -> Path:
             if ex.tarefa is not None and ex.tarefa.done():
                 break
             await asyncio.sleep(2.0)
-    raise ValueError("planner não escreveu PLAN.md válido dentro do tempo esperado")
+    raise ValueError(f"planner não escreveu {PLANO_ARQUIVO} válido dentro do tempo esperado")
+
+
+def _workspace_exato(pesquisa_id: str, tema: str) -> Path:
+    """Workspace determinístico da pesquisa (mesma regra de `criar_workspace`)."""
+    return hermes_planner._raiz_pesquisas() / f"{hermes_planner._slug(tema)}-{pesquisa_id[:8]}"
 
 
 def _raiz_para(pesquisa_id: str) -> List[Path]:
@@ -107,7 +365,7 @@ def _raiz_para(pesquisa_id: str) -> List[Path]:
 
 
 async def aguardar_coletas(pesquisa_id: str, timeout: float = 3600.0) -> None:
-    """Espera os quatro *_SEARCH.md existirem e pararem de crescer."""
+    """Espera os quatro *_SEARCH.json existirem e pararem de crescer."""
     ex = hermes_planner.execucao_existente(pesquisa_id)
     if ex is None:
         return
@@ -131,170 +389,155 @@ async def aguardar_coletas(pesquisa_id: str, timeout: float = 3600.0) -> None:
         await asyncio.sleep(3.0)
 
 
-async def aguardar_arquivo(pesquisa_id: str, nome: str, timeout: float = 3600.0) -> Path:
-    """Espera (sem reiniciar o ciclo) o arquivo aparecer; devolve o workspace."""
+async def aguardar_arquivo(
+    pesquisa_id: str, nome: str, timeout: float = 3600.0, tema: Optional[str] = None
+) -> Path:
+    """Espera (sem reiniciar o ciclo) o arquivo aparecer; devolve o workspace.
+
+    Com `tema`, o workspace é resolvido pelo slug exato: ids que compartilham os
+    primeiros 8 caracteres (ex.: `plan-179…`) apontavam para a pasta de outra
+    pesquisa e misturavam dossiê e tokens.
+    """
     ex = hermes_planner.execucao_existente(pesquisa_id)
     if ex is not None:
         await ex.aguardar_arquivo(nome, timeout=timeout)
         return ex.workspace
+    if tema:
+        exato = _workspace_exato(pesquisa_id, tema)
+        if (exato / nome).exists():
+            return exato
+        raise ValueError(f"{nome} ausente em {exato.name}")
     for workspace in _raiz_para(pesquisa_id):
         if (workspace / nome).exists():
             return workspace
     raise ValueError(f"pesquisa sem ciclo ativo e sem {nome}")
 
 
-def search_payload(pesquisa_id: str, workspace: Path) -> Dict[str, Any]:
-    """SearchResponse a partir dos *_SEARCH.md."""
-    personas: List[Dict[str, Any]] = []
-    total_lidas = 0
-    total_fontes = 0
-    caracteres = 0
-    tentativas = 1
-    for persona, nome in PERSONA_ARQUIVOS.items():
-        arquivo = workspace / nome
-        if not arquivo.exists():
-            continue
-        texto = arquivo.read_text(encoding="utf-8", errors="replace")
-        urls = _urls(texto)
-        lidas = _paginas_lidas(texto)
-        total_lidas += lidas
-        total_fontes += len(urls)
-        caracteres += len(texto)
-        tentativas = max(tentativas, _tentativas(texto))
-        personas.append(
-            {
-                "persona": persona,
-                "analise": texto,
-                "urls_fonte": urls,
-                "queries_executadas": _tentativas(texto),
-                "falha_coleta": not urls,
-                "lacunas": None,
-            }
-        )
-    for p in personas:
-        _pub(
-            pesquisa_id,
-            "search.progress",
-            ponto_id=pesquisa_id,
-            persona=p["persona"],
-            queries_executadas=p["queries_executadas"],
-            urls_lidas=_paginas_lidas(p["analise"]),
-            falha_coleta=p["falha_coleta"],
-            reasoning_coleta=p["analise"][-12000:],
-        )
-    _pub(pesquisa_id, "point.status", ponto_id=pesquisa_id, ponto_n=1, status="coletado", tentativas=tentativas)
-    return {
-        "id_pesquisa": pesquisa_id,
-        "total_pontos_processados": 1,
-        "status_pesquisa": "coletado",
-        "total_falhas_coleta": sum(1 for p in personas if p["falha_coleta"]),
-        "resumo_coletas": [
-            {
-                "ponto_id": pesquisa_id,
-                "ponto_n": 1,
-                "status": "coletado",
-                "falha_coleta": not personas,
-                "total_urls_lidas": total_lidas,
-                "total_urls_fonte": total_fontes,
-                "tamanho_conteudo_caracteres": caracteres,
-                "tentativas": tentativas,
-                "personas": personas,
-            }
-        ],
-    }
+# ---------------------------------------------------------------------------
+# Persistência: o JSON é a produção do agente, o banco é a verdade da tela.
+# ---------------------------------------------------------------------------
+
+async def _aplicar_tokens(repo, pesquisa_id: str, workspace: Path) -> None:
+    """Copia o consumo do processo (usage.json) para a pesquisa — barato e idempotente."""
+    usage = _artefato_usage(workspace)
+    if not usage:
+        return
+    await repo.set_research_tokens(
+        pesquisa_id,
+        int(usage.get("input_tokens") or 0),
+        int(usage.get("output_tokens") or 0),
+        int(usage.get("total_tokens") or 0),
+    )
 
 
-def audit_payload(pesquisa_id: str, workspace: Path, criterios_minimos: int = 11) -> Dict[str, Any]:
-    """AuditResponse a partir das seções `## Rodada N — VEREDITO — nota X/12`."""
-    auditoria = workspace / "AUDITORIA.md"
-    texto = auditoria.read_text(encoding="utf-8", errors="replace") if auditoria.exists() else ""
-    rodadas = _RODADA_RE.findall(texto)
-    if not rodadas:
-        return {
-            "id_pesquisa": pesquisa_id,
-            "total_pontos": 1,
-            "aprovados": 0,
-            "reprovados": 1,
-            "pronto_para_writer": False,
-            "auditorias": [
-                {
-                    "ponto_id": pesquisa_id,
-                    "ponto_n": 1,
-                    "status": "reprovado",
-                    "pontuacao_percentual": 0.0,
-                    "criterios_aprovados": 0,
-                    "criterios_minimos": criterios_minimos,
-                    "valido": False,
-                    "diagnostico": "AUDITORIA.md ausente ou sem rodada legível",
-                }
-            ],
+async def persistir_busca(repo, pesquisa, workspace: Path) -> Dict[str, Any]:
+    """Grava a coleta de cada persona em conteudo_coletado (idempotente)."""
+    payload = search_payload(pesquisa.id_pesquisa, workspace)
+    if not await repo.get_collected_content(pesquisa.id_pesquisa):
+        resumo = payload["resumo_coletas"][0] if payload["resumo_coletas"] else None
+        personas = resumo["personas"] if resumo else []
+        urls = sorted({u for p in personas for u in (p["urls_fonte"] or [])})
+        conteudo = "\n\n".join(f"## {p['persona']}\n\n{p['analise']}" for p in personas)
+        for ponto in await repo.list_points(pesquisa.id_pesquisa):
+            await repo.save_collected_content(
+                id_pesquisa=pesquisa.id_pesquisa,
+                ponto_id=ponto.ponto_id,
+                tema=pesquisa.tema,
+                ponto=ponto.ponto,
+                conteudo_coletado=conteudo,
+                urls_lidas=urls,
+                urls_fonte=urls,
+                reasoning_coleta=None,
+                status_ponto="coletado",
+                metadados_coleta={
+                    "personas": [p["persona"] for p in personas],
+                    "tentativas": resumo["tentativas"] if resumo else 1,
+                    "origem": "hermes-json",
+                },
+                invalidar_dossier=False,
+                rodada=1,
+            )
+        await repo.update_pipeline_status(pesquisa.id_pesquisa, "coletado")
+    await _aplicar_tokens(repo, pesquisa.id_pesquisa, workspace)
+    return payload
+
+
+async def persistir_auditoria(repo, pesquisa, workspace: Path) -> Dict[str, Any]:
+    """Grava o veredito da última rodada nos pontos e no status da pesquisa."""
+    payload = audit_payload(pesquisa.id_pesquisa, workspace)
+    auditoria = payload["auditorias"][0] if payload["auditorias"] else {}
+    aprovado = bool(payload["aprovados"])
+    motivo = auditoria.get("pontos_fracos")
+    for ponto in await repo.list_points(pesquisa.id_pesquisa):
+        await repo.update_point_status(
+            ponto.ponto_id,
+            "aprovado" if aprovado else "reprovado",
+            pontos_fracos=None if aprovado else (motivo or "auditoria reprovada"),
+            incrementar_tentativa=True,
+            reasoning_auditoria=auditoria.get("reasoning_auditoria"),
+        )
+    await repo.update_pipeline_status(pesquisa.id_pesquisa, "redigindo" if aprovado else "reprovado")
+    await _aplicar_tokens(repo, pesquisa.id_pesquisa, workspace)
+    return payload
+
+
+async def persistir_dossie(repo, pesquisa, workspace: Path) -> Dict[str, Any]:
+    """Grava o dossiê final e fecha a pesquisa como concluída."""
+    payload = writer_payload(pesquisa.id_pesquisa, pesquisa.tema, workspace)
+    if payload.get("dossier_final"):
+        await repo.update_research_dossier(
+            pesquisa.id_pesquisa,
+            payload["dossier_final"],
+            reasoning_dossier=payload.get("reasoning_dossier"),
+        )
+    await _aplicar_tokens(repo, pesquisa.id_pesquisa, workspace)
+    return payload
+
+
+def _artefato_usage(workspace: Path) -> Optional[Dict[str, Any]]:
+    """`usage.json` do processo Hermes; ausente ou torto devolve None."""
+    alvo = workspace / "usage.json"
+    if not alvo.exists():
+        return None
+    try:
+        dados = json.loads(alvo.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return dados if isinstance(dados, dict) else None
+
+
+async def persistir_ciclo(pesquisa_id: str, workspace: Path) -> None:
+    """Ao fim do ciclo, aplica tudo que existe em disco no banco. Nunca derruba a pesquisa."""
+    from app.db.research_repository import ResearchRepository
+    from app.db.session import get_sessionmaker
+
+    try:
+        async with get_sessionmaker()() as session:
+            repo = ResearchRepository(session=session)
+            pesquisa = await repo.get_research(pesquisa_id)
+            if pesquisa is None:
+                return
+            await persistir_busca(repo, pesquisa, workspace)
+            await persistir_auditoria(repo, pesquisa, workspace)
+            await persistir_dossie(repo, pesquisa, workspace)
+
+            # Consumo real do ciclo: o usage.json é a única fonte dos tokens gastos.
+            await _aplicar_tokens(repo, pesquisa_id, workspace)
+    except Exception as exc:
+        print(f"[DR-PERSIST] {pesquisa_id}: {exc}", flush=True)
+
+
+def meta_personas(workspace: Path) -> List[Dict[str, Any]]:
+    """Resumo por persona lido dos JSON de busca."""
+    return [
+        {
+            "persona": p["persona"],
+            "tentativas": p["tentativas"],
+            "urls": len(p["urls_fonte"]),
+            "paginas_lidas": p["paginas_lidas"],
         }
-    numero, veredito, nota = rodadas[-1]
-    aprovado = veredito == "APROVADO" and int(nota) >= criterios_minimos
-    _pub(
-        pesquisa_id,
-        "audit.result",
-        ponto_id=pesquisa_id,
-        ponto_n=1,
-        status="aprovado" if aprovado else "reprovado",
-        pontuacao_percentual=round(int(nota) / 12 * 100, 2),
-        criterios_aprovados=int(nota),
-        reasoning_auditoria=texto[-12000:],
-        pontos_fracos=None,
-    )
-    _pub(
-        pesquisa_id,
-        "point.status",
-        ponto_id=pesquisa_id,
-        ponto_n=1,
-        status="aprovado" if aprovado else "reprovado",
-        tentativas=int(numero),
-    )
-    return {
-        "id_pesquisa": pesquisa_id,
-        "total_pontos": 1,
-        "aprovados": 1 if aprovado else 0,
-        "reprovados": 0 if aprovado else 1,
-        "pronto_para_writer": aprovado,
-        "auditorias": [
-            {
-                "ponto_id": pesquisa_id,
-                "ponto_n": 1,
-                "status": "aprovado" if aprovado else "reprovado",
-                "pontuacao_percentual": round(int(nota) / 12 * 100, 2),
-                "criterios_aprovados": int(nota),
-                "criterios_minimos": criterios_minimos,
-                "valido": True,
-                "resumo_auditoria": f"Rodada {numero}: {veredito} {nota}/12 (auditor Hermes)",
-            }
-        ],
-    }
-
-
-def writer_payload(pesquisa_id: str, tema: str, workspace: Path) -> Dict[str, Any]:
-    """WriterResponse a partir do DOSSIE.md."""
-    dossie = workspace / "DOSSIE.md"
-    texto = dossie.read_text(encoding="utf-8", errors="replace") if dossie.exists() else ""
-    if texto.strip():
-        _pub(pesquisa_id, "writer.progress", status="concluido", total_caracteres=len(texto))
-        _pub(pesquisa_id, "pipeline.status", status_pipeline="concluido")
-        _pub(
-            pesquisa_id,
-            "report.final",
-            status="concluido",
-            dossier_final=texto,
-            total_caracteres=len(texto),
-            concluido_em=None,
-        )
-    return {
-        "id_pesquisa": pesquisa_id,
-        "tema": tema,
-        "status": "concluido" if texto.strip() else "falha",
-        "total_caracteres_dossier": len(texto),
-        "dossier_final": texto or None,
-        "diagnostico": None if texto.strip() else "DOSSIE.md ausente",
-        "metadados": {"pipeline": "hermes", "diretorio": str(workspace)},
-    }
+        for p in busca_personas(workspace)
+    ]
 
 
 def relatorio(workspace: Path) -> Dict[str, Any]:
@@ -306,106 +549,16 @@ def relatorio(workspace: Path) -> Dict[str, Any]:
     }
 
 
-_BLOCO_JSON = re.compile(r"```json\s*(\{.*?\})\s*```", re.S)
-_META_RE = re.compile(r"<!--\s*meta\s*(\{.*?\})\s*-->", re.S)
-
-CHAVES_PLANO = ("versao", "tema", "objetivo", "escopo", "perguntas", "personas",
-                "criterios_evidencia", "criterios_aprovacao")
-
-
-def _json_solto(texto: str) -> Optional[str]:
-    """Último objeto JSON balanceado fora de cerca ``` (o planner nem sempre cerca)."""
-    candidatos: List[str] = []
-    inicio = texto.find("{")
-    while inicio != -1:
-        profundidade = 0
-        dentro_str = False
-        escape = False
-        for i in range(inicio, len(texto)):
-            ch = texto[i]
-            if dentro_str:
-                if escape:
-                    escape = False
-                elif ch == "\\":
-                    escape = True
-                elif ch == '"':
-                    dentro_str = False
-                continue
-            if ch == '"':
-                dentro_str = True
-            elif ch == "{":
-                profundidade += 1
-            elif ch == "}":
-                profundidade -= 1
-                if profundidade == 0:
-                    candidatos.append(texto[inicio : i + 1])
-                    break
-        inicio = texto.find("{", inicio + 1)
-    return max(candidatos, key=len) if candidatos else None
-
-
-def plan_payload(workspace: Path) -> Dict[str, Any]:
-    """Plano estruturado: último bloco ```json de PLAN.md, validado contra o contrato."""
-    plano_md = workspace / "PLAN.md"
-    if not plano_md.exists():
-        return {"valido": False, "erro": "PLAN.md ausente", "plano": None}
-    texto_plano = plano_md.read_text(encoding="utf-8", errors="replace")
-    blocos = _BLOCO_JSON.findall(texto_plano) or ([_json_solto(texto_plano)] if _json_solto(texto_plano) else [])
-    if not blocos:
-        return {"valido": False, "erro": "PLAN.md sem bloco ```json de contrato", "plano": None}
-    try:
-        plano = json.loads(blocos[-1])
-    except json.JSONDecodeError as exc:
-        return {"valido": False, "erro": f"JSON inválido em PLAN.md: {exc}", "plano": None}
-    faltando = [c for c in CHAVES_PLANO if c not in plano]
-    if faltando:
-        return {"valido": False, "erro": f"chaves ausentes: {', '.join(faltando)}", "plano": plano}
-    personas = plano.get("personas") or {}
-    if set(personas) != set(PERSONA_ARQUIVOS):
-        return {
-            "valido": False,
-            "erro": f"personas deve conter exatamente {sorted(PERSONA_ARQUIVOS)}",
-            "plano": plano,
-        }
-    return {"valido": True, "erro": None, "plano": plano}
-
-
-def pontos_do_plano(plano: Dict[str, Any]) -> List[str]:
-    """Um único ponto: o perfil Hermes pesquisa o tema inteiro em um bloco.
-
-    As `perguntas` do plano são sub-perguntas do mesmo ponto — virar cada uma em um
-    ponto duplicaria os cards na UI sem que exista coleta separada por pergunta.
-    """
-    return [str(plano.get("tema") or plano.get("objetivo") or "Investigação")]
-
-
-def meta_personas(workspace: Path) -> List[Dict[str, Any]]:
-    """Linhas `<!-- meta {...} -->` de cada *_SEARCH.md (contrato por seção)."""
-    itens: List[Dict[str, Any]] = []
-    for persona, nome in PERSONA_ARQUIVOS.items():
-        arquivo = workspace / nome
-        if not arquivo.exists():
-            continue
-        for bruto in _META_RE.findall(arquivo.read_text(encoding="utf-8", errors="replace")):
-            try:
-                meta = json.loads(bruto)
-            except json.JSONDecodeError:
-                continue
-            meta.setdefault("persona", persona)
-            itens.append(meta)
-    return itens
-
-
 def estagio(workspace: Path) -> str:
-    """Fase corrente derivada dos arquivos já gravados."""
-    if (workspace / "DOSSIE.md").exists():
+    """Fase corrente derivada dos artefatos já gravados."""
+    if (workspace / DOSSIE_ARQUIVO).exists():
         return "concluido"
-    if (workspace / "AUDITORIA.md").exists():
+    if (workspace / AUDITORIA_ARQUIVO).exists():
         return "auditando"
     buscas = sum(1 for nome in PERSONA_ARQUIVOS.values() if (workspace / nome).exists())
     if buscas:
         return f"buscando({buscas}/4)"
-    if (workspace / "PLAN.md").exists():
+    if (workspace / PLANO_ARQUIVO).exists():
         return "planejado"
     return "iniciando"
 

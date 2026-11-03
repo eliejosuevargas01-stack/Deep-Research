@@ -30,10 +30,6 @@ async def audit_research(
             detail="Pesquisa não encontrada para auditoria no pipeline Hermes.",
         )
     workspace = await hermes_adapter.aguardar_arquivo(
-        payload.id_pesquisa, "AUDITORIA.md", timeout=float(os.environ.get("DR_AUDIT_TIMEOUT", "3600"))
+        payload.id_pesquisa, "AUDITORIA.json", tema=pesquisa.tema, timeout=float(os.environ.get("DR_AUDIT_TIMEOUT", "3600"))
     )
-    return AuditResponse(
-        **hermes_adapter.audit_payload(
-            payload.id_pesquisa, workspace, payload.criterios_minimos or 11
-        )
-    )
+    return AuditResponse(**await hermes_adapter.persistir_auditoria(repo, pesquisa, workspace))
