@@ -196,9 +196,9 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
         </div>
 
         {/* Campo 2: Personas na busca */}
-        <div className="dock-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+        <div className="dock-field dock-field--stack">
           <span className="dock-label">Personas na busca</span>
-          <div className="dock-chips" style={{ width: '100%', justifyContent: 'flex-start' }} role="group" aria-label="Personas na busca">
+          <div className="dock-chips dock-chips--full" role="group" aria-label="Personas na busca">
             {ALL_PERSONAS.map(({ id, label }) => {
               const on = selectedPersonas.includes(id);
               return (
@@ -243,14 +243,14 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
         </div>
 
         {/* Campo 4: Recência da pesquisa */}
-        <div className="dock-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+        <div className="dock-field dock-field--stack">
+          <div className="dock-row-between">
             <span className="dock-label">Recência da pesquisa</span>
-            <span style={{ fontSize: '0.74rem', color: 'var(--color-text-muted)' }}>
+            <span className="dock-hint">
               {RECENCIA_OPCOES.find((o) => o.id === recencia)?.desc ?? 'Período aceito'}
             </span>
           </div>
-          <div className="dock-chips" style={{ width: '100%', justifyContent: 'flex-start' }} role="group" aria-label="Recência da pesquisa">
+          <div className="dock-chips dock-chips--full" role="group" aria-label="Recência da pesquisa">
             {RECENCIA_OPCOES.map((opcao) => {
               const on = recencia === opcao.id;
               return (
@@ -273,7 +273,7 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
         {/* Campo 5: Rigor da auditoria */}
         <div className="dock-field">
           <span className="dock-label">Rigor da auditoria</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="dock-row">
             <div className="dock-stepper" role="group" aria-label="Rigor da auditoria">
               <button
                 type="button"
@@ -293,18 +293,17 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
                 <Plus size={13} aria-hidden="true" />
               </button>
             </div>
-            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>/ 12 critérios</span>
+            <span className="dock-hint dock-hint--dense">/ 12 critérios</span>
           </div>
         </div>
 
         {/* Campo 6: Modo de entrega */}
-        <div className="dock-field" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+        <div className="dock-field dock-field--stack">
           <span className="dock-label">Entrega do dossiê</span>
-          <div className="dock-segment" style={{ width: '100%', display: 'flex' }} role="group" aria-label="Modo de entrega">
+          <div className="dock-segment dock-segment--full" role="group" aria-label="Modo de entrega">
             <button
               type="button"
-              style={{ flex: 1 }}
-              className={!asyncExecute ? 'is-on' : ''}
+              className={`dock-segment__btn${!asyncExecute ? ' is-on' : ''}`}
               aria-pressed={!asyncExecute}
               onClick={() => onChangeAsyncExecute(false)}
               disabled={disabled || currentPlanActive}
@@ -313,8 +312,7 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
             </button>
             <button
               type="button"
-              style={{ flex: 1 }}
-              className={asyncExecute ? 'is-on' : ''}
+              className={`dock-segment__btn${asyncExecute ? ' is-on' : ''}`}
               aria-pressed={asyncExecute}
               onClick={() => onChangeAsyncExecute(true)}
               disabled={disabled || currentPlanActive}
@@ -323,15 +321,14 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
             </button>
           </div>
           {asyncExecute && (
-            <div style={{ width: '100%', marginTop: '4px' }}>
+            <div className="dock-field--webhook">
               <label htmlFor="webhook-callback-url" className="dock-field-label">
                 URL de callback
               </label>
               <input
                 id="webhook-callback-url"
                 type="url"
-                className="points-custom-input"
-                style={{ width: '100%', boxSizing: 'border-box', height: '34px', padding: '0 10px', fontSize: '0.82rem' }}
+                className="points-custom-input dock-input--full"
                 value={callbackUrl}
                 onChange={(e) => onChangeCallbackUrl(e.target.value)}
                 placeholder="https://api.exemplo.com/webhook/pesquisa"

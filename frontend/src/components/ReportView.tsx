@@ -450,8 +450,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
 
       {/* Cabeçalho e Barra de Ações do Dossiê */}
       <header className="report-header-actions">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="report-header-meta">
+          <div className="report-header-badges">
             <span
               className={`status-badge-chip ${isComplete ? 'concluido' : 'reprovado'}`}
             >
@@ -467,7 +467,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
                 </>
               )}
             </span>
-            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+            <span className="report-date">
               {report.concluido_em
                 ? new Date(report.concluido_em).toLocaleString('pt-BR')
                 : 'Conclusão registrada'}
@@ -475,8 +475,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
           </div>
           <h1
             id="dossier-heading"
-            className="card-title"
-            style={{ fontSize: 'clamp(1.5rem, 6vw, 1.75rem)', lineHeight: 1.2 }}
+            className="card-title report-title--dossier"
           >
             {formatarTitulo(report.tema)}
           </h1>
@@ -560,9 +559,6 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
       <section
         className="markdown-body markdown-content report-content"
         aria-label="Conteúdo do dossiê"
-        style={{
-          lineHeight: 1.65,
-        }}
       >
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
@@ -574,23 +570,12 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
             h3: ({ children }) => <h3>{children}</h3>,
             h4: ({ children }) => <h4>{children}</h4>,
             p: ({ children, node: _node, ...props }) => (
-              <p
-                {...props}
-                className="markdown-content report-content"
-                style={{
-                  lineHeight: 1.6,
-                }}
-              >
+              <p {...props} className="markdown-content report-content report-paragraph">
                 {children}
               </p>
             ),
             li: ({ children, node: _node, ...props }) => (
-              <li
-                {...props}
-                style={{
-                  lineHeight: 1.55,
-                }}
-              >
+              <li {...props} className="report-list-item">
                 {children}
               </li>
             ),
@@ -605,7 +590,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
                   target="_blank"
                   rel="noopener noreferrer"
                   {...props}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                  className="report-link"
                 >
                   <span>{children}</span>
                   <ExternalLink size={12} aria-hidden="true" />

@@ -203,7 +203,7 @@
   font: inherit;
   font-size: 13px;
   line-height: 1.45;
-  text-align: left;
+  text-align: start;
   color: var(--color-text-primary);
   overflow: hidden;
   position: relative;
@@ -316,7 +316,7 @@ button.tl-entrada-linha:focus-visible {
   align-items: center;
   gap: 5px;
   flex: 0 0 auto;
-  margin-left: 8px;
+  margin-inline-start: 8px;
   font-family: var(--font-mono, monospace);
   font-size: 11px;
   line-height: 1.4;
@@ -475,7 +475,7 @@ button.tl-entrada-linha:focus-visible {
 .tl-linear .tl-entrada-corpo .reasoning-markdown-content ul,
 .tl-linear .tl-entrada-corpo .reasoning-markdown-content ol {
   margin: 4px 0 6px;
-  padding-left: 20px;
+  padding-inline-start: 20px;
 }
 
 .tl-linear .tl-entrada-corpo .reasoning-markdown-content li {
@@ -699,7 +699,7 @@ button.tl-entrada-linha:focus-visible {
   }
 
   .tl-linear .tl-entrada-corpo {
-    padding-left: 26px;
+    padding-inline-start: 26px;
     max-height: 30vh;
     overflow-y: auto;
     overscroll-behavior: contain;

@@ -156,7 +156,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
           </div>
         </div>
 
-        <div className="query-banner-actions plan-header-primary-action" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="query-banner-actions plan-header-primary-action plan-actions-row">
           {/* Botão Primário Definitivo de Início */}
           <button
             type="button"
@@ -233,18 +233,18 @@ export const PlanView: React.FC<PlanViewProps> = ({
 
       {/* Cartão Principal do Plano com Foco Direto nos Eixos */}
       <article className="plan-card" aria-labelledby="plan-heading">
-        <header className="plan-header plan-header--compact" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--color-border-subtle, rgba(0,0,0,0.06))', marginBottom: '16px' }}>
-          <div className="plan-header-main-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '8px' }}>
-            <div className="plan-badge-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <header className="plan-header plan-header--compact">
+          <div className="plan-header-main-row">
+            <div className="plan-badge-row">
               <div className="plan-ai-icon" aria-hidden="true">
                 <Sparkles size={16} />
               </div>
-              <h2 id="plan-heading" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+              <h2 id="plan-heading" className="plan-subheading">
                 Eixos investigativos formulados
               </h2>
 
               {/* Chips de Metadados Essenciais */}
-              <div className="plan-snapshot-chips" aria-label="Resumo do plano" style={{ display: 'inline-flex', gap: '6px' }}>
+              <div className="plan-snapshot-chips" aria-label="Resumo do plano">
                 <span className="pill pill-violet" title="Número de eixos formulados">
                   {`${activePointsCount} ${activePointsCount === 1 ? 'ponto analítico' : 'pontos analíticos'}`}
                 </span>

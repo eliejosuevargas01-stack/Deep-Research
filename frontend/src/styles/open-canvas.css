@@ -9,7 +9,7 @@
 
 .workspace-grid > :first-child {
   /* respiro antes do hairline do inspetor: a coluna encostava em x=1044 */
-  padding-right: 24px;
+  padding-inline-end: 24px;
 }
 
 .workspace-grid > .sidebar-container {
@@ -128,8 +128,8 @@
 
 .reasoning-feed-stream {
   border-left: 1px solid var(--color-border);
-  padding-left: 34px;
-  margin-left: 6px;
+  padding-inline-start: 34px;
+  margin-inline-start: 6px;
 }
 
 .reasoning-card {
@@ -545,7 +545,7 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  text-align: left;
+  text-align: start;
   width: 100%;
 }
 
@@ -659,7 +659,7 @@
 .settings-container section.card > p,
 .settings-container .alert-banner.info > div {
   max-width: 490px;
-  text-align: left;
+  text-align: start;
 }
 
 /* A chamada do cabeçalho corria a 1060px (144 caracteres por linha em 1440). */
@@ -722,7 +722,7 @@
 
 .docs-step:first-child {
   border-left: 0;
-  padding-left: 0;
+  padding-inline-start: 0;
 }
 
 .docs-step h3 {
@@ -749,7 +749,7 @@
 
   .docs-step:nth-child(3) {
     border-left: 0;
-    padding-left: 0;
+    padding-inline-start: 0;
   }
 
   .docs-step:nth-child(n + 3) {
@@ -765,7 +765,7 @@
   .docs-step,
   .docs-step:nth-child(3) {
     border-left: 0;
-    padding-left: 0;
+    padding-inline-start: 0;
   }
 
   .docs-step + .docs-step {
@@ -941,7 +941,7 @@
     width: 100% !important;
     max-width: none !important;
     margin-top: 16px;
-    padding-left: 0;
+    padding-inline-start: 0;
     border-left: 0;
     border-top: 1px solid var(--color-border);
   }
