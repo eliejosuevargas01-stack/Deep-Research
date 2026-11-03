@@ -1,3 +1,4 @@
+import os
 """Endpoint POST /api/v1/audit para auditoria de qualidade analítica.
 
 A auditoria roda no perfil Hermes; a resposta deriva das seções de AUDITORIA.md.
@@ -28,7 +29,9 @@ async def audit_research(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pesquisa não encontrada para auditoria no pipeline Hermes.",
         )
-    workspace = hermes_planner.criar_workspace(payload.id_pesquisa, pesquisa.tema)
+    workspace = await hermes_adapter.aguardar_arquivo(
+        payload.id_pesquisa, "AUDITORIA.md", timeout=float(os.environ.get("DR_AUDIT_TIMEOUT", "3600"))
+    )
     return AuditResponse(
         **hermes_adapter.audit_payload(
             payload.id_pesquisa, workspace, payload.criterios_minimos or 11

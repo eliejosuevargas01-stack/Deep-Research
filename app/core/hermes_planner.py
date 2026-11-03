@@ -166,18 +166,105 @@ def _mapear(caminho: Path) -> str:
     return texto
 
 
-async def executar(
+_EXECUCOES: Dict[str, "Execucao"] = {}
+
+
+class Execucao:
+    """Um ciclo Hermes em andamento (ou concluído) para uma pesquisa."""
+
+    def __init__(self, pesquisa_id: str, workspace: Path, processo, parar: asyncio.Event,
+                 observador: "asyncio.Task", inicio: float, timeout: int) -> None:
+        self.pesquisa_id = pesquisa_id
+        self.workspace = workspace
+        self.processo = processo
+        self.parar = parar
+        self.observador = observador
+        self.inicio = inicio
+        self.timeout = timeout
+        self.codigo: Optional[int] = None
+        self.erro: Optional[str] = None
+        self.resultado: Optional[Dict[str, Any]] = None
+        self.tarefa: Optional["asyncio.Task"] = None
+
+    async def aguardar(self) -> Dict[str, Any]:
+        """Bloqueia até o processo Hermes terminar e devolve o inventário final."""
+        if self.tarefa is not None:
+            await self.tarefa
+        return self.resultado or {}
+
+    async def aguardar_arquivo(self, nome: str, timeout: float) -> bool:
+        """Espera o arquivo existir e parar de crescer por 2s (ou o ciclo terminar)."""
+        limite = time.monotonic() + timeout
+        anterior = -1
+        while time.monotonic() < limite:
+            alvo = self.workspace / nome
+            tamanho = alvo.stat().st_size if alvo.exists() else 0
+            if tamanho and tamanho == anterior:
+                return True
+            anterior = tamanho
+            if self.tarefa is not None and self.tarefa.done():
+                return (self.workspace / nome).exists()
+            await asyncio.sleep(2.0)
+        return (self.workspace / nome).exists()
+
+
+async def _ciclo(ex: Execucao) -> None:
+    try:
+        try:
+            ex.codigo = await asyncio.wait_for(ex.processo.wait(), timeout=ex.timeout)
+        except asyncio.TimeoutError:
+            ex.processo.kill()
+            await ex.processo.wait()
+            ex.codigo = -1
+            ex.erro = f"tempo esgotado após {ex.timeout}s"
+    finally:
+        ex.parar.set()
+        await ex.observador
+
+    workspace = ex.workspace
+    duracao = round(time.monotonic() - ex.inicio, 1)
+    dossie = workspace / "DOSSIE.md"
+    inventario = _inventario(workspace)
+    concluido = bool(inventario.get("DOSSIE.md"))
+
+    usage: Optional[Dict[str, Any]] = None
+    if (workspace / "usage.json").exists():
+        try:
+            usage = json.loads((workspace / "usage.json").read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            usage = None
+
+    ex.resultado = {
+        "pesquisa_id": ex.pesquisa_id,
+        "diretorio": str(workspace),
+        "status": "concluido" if concluido and ex.codigo == 0 else "falha",
+        "dossie": str(dossie) if concluido else None,
+        "arquivos": inventario,
+        "rodadas_auditoria": _conta_rodadas_auditoria(workspace),
+        "urls_fora_do_acervo": _urls_fora_do_acervo(workspace),
+        "duracao_segundos": duracao,
+        "exit_code": ex.codigo,
+        "erro": ex.erro if ex.erro else (None if ex.codigo == 0 else f"hermes saiu com código {ex.codigo}"),
+        "usage": usage,
+    }
+
+
+async def iniciar(
     tema: str,
     pesquisa_id: str,
     *,
     perfil: Optional[str] = None,
-    max_rodadas: int = 3,
-    timeout_segundos: int = 3600,
-) -> Dict[str, Any]:
-    """Roda a pesquisa inteira em um processo Hermes e devolve o inventário final."""
+    max_rodadas: Optional[int] = None,
+    timeout_segundos: Optional[int] = None,
+) -> Execucao:
+    """Dispara o perfil Hermes e volta assim que o processo existe (sem esperar o ciclo)."""
     perfil = perfil or os.environ.get("DR_HERMES_PROFILE", "deep-research")
+    if max_rodadas is None:
+        max_rodadas = int(os.environ.get("DR_MAX_RODADAS", "3"))
     if max_rodadas < 1 or max_rodadas > 3:
         raise ValueError("max_rodadas deve estar entre 1 e 3")
+    if timeout_segundos is None:
+        timeout_segundos = int(os.environ.get("DR_HERMES_TIMEOUT", "3600"))
 
     workspace = criar_workspace(pesquisa_id, tema)
     caminho_exec = _mapear(workspace)
@@ -192,16 +279,17 @@ async def executar(
         "-z", prompt,
         "--usage-file", f"{caminho_exec}/usage.json",
     ]
-    # HERMES_HOME (perfil embutido na imagem) é herdado; só a sessão do processo pai é descartada.
     env = {k: v for k, v in os.environ.items() if k != "HERMES_SESSION_ID"}
     env["HERMES_PROFILE"] = perfil
     env["HERMES_DR_ALLOWED_PATH"] = caminho_exec
     env["DR_ALLOWED_PATH"] = caminho_exec
     env["DR_HERMES_EXEC_CWD"] = caminho_exec
-    log_path = workspace / "hermes.log"
-    inicio = time.monotonic()
 
-    with log_path.open("wb") as log:
+    from app.core import hermes_stream
+
+    parar = asyncio.Event()
+    observador = asyncio.create_task(hermes_stream.acompanhar(pesquisa_id, workspace, parar))
+    with (workspace / "hermes.log").open("wb") as log:
         processo = await asyncio.create_subprocess_exec(
             *argv,
             cwd=str(workspace),
@@ -210,37 +298,38 @@ async def executar(
             stdout=log,
             stderr=asyncio.subprocess.STDOUT,
         )
-        try:
-            codigo = await asyncio.wait_for(processo.wait(), timeout=timeout_segundos)
-            erro = None
-        except asyncio.TimeoutError:
-            processo.kill()
-            await processo.wait()
-            codigo = -1
-            erro = f"tempo esgotado após {timeout_segundos}s"
+    ex = Execucao(pesquisa_id, workspace, processo, parar, observador, time.monotonic(), timeout_segundos)
+    ex.tarefa = asyncio.create_task(_ciclo(ex))
+    _EXECUCOES[pesquisa_id] = ex
+    return ex
 
-    duracao = round(time.monotonic() - inicio, 1)
-    dossie = workspace / "DOSSIE.md"
-    inventario = _inventario(workspace)
-    concluido = bool(inventario.get("DOSSIE.md"))
 
-    usage: Optional[Dict[str, Any]] = None
-    if (workspace / "usage.json").exists():
-        try:
-            usage = json.loads((workspace / "usage.json").read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            usage = None
+def execucao_existente(pesquisa_id: str) -> Optional["Execucao"]:
+    return _EXECUCOES.get(pesquisa_id)
 
-    return {
-        "pesquisa_id": pesquisa_id,
-        "diretorio": str(workspace),
-        "status": "concluido" if concluido and codigo == 0 else "falha",
-        "dossie": str(dossie) if concluido else None,
-        "arquivos": inventario,
-        "rodadas_auditoria": _conta_rodadas_auditoria(workspace),
-        "urls_fora_do_acervo": _urls_fora_do_acervo(workspace),
-        "duracao_segundos": duracao,
-        "exit_code": codigo,
-        "erro": erro if erro else (None if codigo == 0 else f"hermes saiu com código {codigo}"),
-        "usage": usage,
-    }
+
+async def obter_ou_iniciar(tema: str, pesquisa_id: str) -> "Execucao":
+    """Retoma o ciclo em memória; se o processo morreu com o servidor, começa de novo."""
+    ex = _EXECUCOES.get(pesquisa_id)
+    if ex is not None and (ex.tarefa is None or not ex.tarefa.done()):
+        return ex
+    return await iniciar(tema, pesquisa_id)
+
+
+async def executar(
+    tema: str,
+    pesquisa_id: str,
+    *,
+    perfil: Optional[str] = None,
+    max_rodadas: Optional[int] = None,
+    timeout_segundos: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Roda a pesquisa inteira e devolve o inventário final (usado por CLI/testes)."""
+    ex = await iniciar(
+        tema,
+        pesquisa_id,
+        perfil=perfil,
+        max_rodadas=max_rodadas,
+        timeout_segundos=timeout_segundos,
+    )
+    return await ex.aguardar()

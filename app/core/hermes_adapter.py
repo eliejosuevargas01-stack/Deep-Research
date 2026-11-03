@@ -12,6 +12,8 @@ Contrato de arquivos (ver app/core/hermes_planner.py):
 from __future__ import annotations
 
 import asyncio
+import os
+import time
 import json
 import re
 from pathlib import Path
@@ -20,6 +22,26 @@ from typing import Any, Dict, List
 from app.core import hermes_planner
 
 _LOCKS: Dict[str, asyncio.Lock] = {}
+
+
+def registrar_pontos(id_pesquisa: str, pontos) -> None:
+    """Liga a pesquisa ao primeiro ponto do plano (os eventos caem no card certo)."""
+    from app.core import hermes_ids
+
+    hermes_ids.registrar(id_pesquisa, pontos)
+
+
+def _pub(id_pesquisa: str, evento: str, **dados) -> None:
+    """Publica no hub SSE; observabilidade nunca derruba a resposta HTTP."""
+    try:
+        from app.core import hermes_ids
+        from app.core.pipeline_runner import get_pipeline_event_hub
+
+        dados.setdefault("ponto_id", hermes_ids.ponto_de(id_pesquisa))
+        get_pipeline_event_hub().publish(id_pesquisa, evento, {"id_pesquisa": id_pesquisa, **dados})
+    except Exception:
+        pass
+
 
 PERSONA_ARQUIVOS = {
     "historiador": "HISTORIADOR_SEARCH.md",
@@ -52,18 +74,73 @@ def _tentativas(texto: str) -> int:
 
 
 async def garantir_pesquisa(pesquisa_id: str, tema: str) -> Path:
-    """Roda o planner uma única vez por pesquisa; reusa se o dossiê já existe.
+    """Garante o ciclo Hermes rodando e devolve o workspace assim que PLAN.md existe.
 
-    Lock por pesquisa: dois /search concorrentes (webhook + clique repetido) não
-    pagam dois ciclos completos de planner.
+    O ciclo continua em background: `/search`, `/audit` e `/writer` esperam o arquivo
+    que lhes interessa. Lock por pesquisa evita dois ciclos para o mesmo id.
     """
     workspace = hermes_planner.criar_workspace(pesquisa_id, tema)
-    if not (workspace / "DOSSIE.md").exists():
-        lock = _LOCKS.setdefault(pesquisa_id, asyncio.Lock())
-        async with lock:
-            if not (workspace / "DOSSIE.md").exists():
-                await hermes_planner.executar(tema, pesquisa_id)
-    return workspace
+    if (workspace / "PLAN.md").exists() and (workspace / "DOSSIE.md").exists():
+        return workspace
+    lock = _LOCKS.setdefault(pesquisa_id, asyncio.Lock())
+    async with lock:
+        ex = hermes_planner.execucao_existente(pesquisa_id)
+        if ex is None or (ex.tarefa is not None and ex.tarefa.done()):
+            ex = await hermes_planner.obter_ou_iniciar(tema, pesquisa_id)
+        limite = time.monotonic() + float(os.environ.get("DR_PLAN_TIMEOUT", "180"))
+        while time.monotonic() < limite:
+            if plan_payload(workspace)["valido"]:
+                return workspace
+            if ex.tarefa is not None and ex.tarefa.done():
+                break
+            await asyncio.sleep(2.0)
+    raise ValueError("planner não escreveu PLAN.md válido dentro do tempo esperado")
+
+
+def _raiz_para(pesquisa_id: str) -> List[Path]:
+    """Workspaces existentes para o id (o slug do tema varia)."""
+    base = hermes_planner._raiz_pesquisas()
+    sufixo = f"-{pesquisa_id[:8]}"
+    if not base.exists():
+        return []
+    return sorted(d for d in base.iterdir() if d.is_dir() and d.name.endswith(sufixo))
+
+
+async def aguardar_coletas(pesquisa_id: str, timeout: float = 3600.0) -> None:
+    """Espera os quatro *_SEARCH.md existirem e pararem de crescer."""
+    ex = hermes_planner.execucao_existente(pesquisa_id)
+    if ex is None:
+        return
+    limite = time.monotonic() + timeout
+    while time.monotonic() < limite:
+        tamanhos = {}
+        for nome in PERSONA_ARQUIVOS.values():
+            alvo = ex.workspace / nome
+            tamanhos[nome] = alvo.stat().st_size if alvo.exists() else 0
+        if all(tamanhos.values()):
+            await asyncio.sleep(4.0)
+            estaveis = all(
+                (ex.workspace / nome).stat().st_size == tamanho
+                for nome, tamanho in tamanhos.items()
+                if (ex.workspace / nome).exists()
+            )
+            if estaveis:
+                return
+        if ex.tarefa is not None and ex.tarefa.done():
+            return
+        await asyncio.sleep(3.0)
+
+
+async def aguardar_arquivo(pesquisa_id: str, nome: str, timeout: float = 3600.0) -> Path:
+    """Espera (sem reiniciar o ciclo) o arquivo aparecer; devolve o workspace."""
+    ex = hermes_planner.execucao_existente(pesquisa_id)
+    if ex is not None:
+        await ex.aguardar_arquivo(nome, timeout=timeout)
+        return ex.workspace
+    for workspace in _raiz_para(pesquisa_id):
+        if (workspace / nome).exists():
+            return workspace
+    raise ValueError(f"pesquisa sem ciclo ativo e sem {nome}")
 
 
 def search_payload(pesquisa_id: str, workspace: Path) -> Dict[str, Any]:
@@ -94,6 +171,18 @@ def search_payload(pesquisa_id: str, workspace: Path) -> Dict[str, Any]:
                 "lacunas": None,
             }
         )
+    for p in personas:
+        _pub(
+            pesquisa_id,
+            "search.progress",
+            ponto_id=pesquisa_id,
+            persona=p["persona"],
+            queries_executadas=p["queries_executadas"],
+            urls_lidas=_paginas_lidas(p["analise"]),
+            falha_coleta=p["falha_coleta"],
+            reasoning_coleta=p["analise"][-12000:],
+        )
+    _pub(pesquisa_id, "point.status", ponto_id=pesquisa_id, ponto_n=1, status="coletado", tentativas=tentativas)
     return {
         "id_pesquisa": pesquisa_id,
         "total_pontos_processados": 1,
@@ -142,6 +231,25 @@ def audit_payload(pesquisa_id: str, workspace: Path, criterios_minimos: int = 11
         }
     numero, veredito, nota = rodadas[-1]
     aprovado = veredito == "APROVADO" and int(nota) >= criterios_minimos
+    _pub(
+        pesquisa_id,
+        "audit.result",
+        ponto_id=pesquisa_id,
+        ponto_n=1,
+        status="aprovado" if aprovado else "reprovado",
+        pontuacao_percentual=round(int(nota) / 12 * 100, 2),
+        criterios_aprovados=int(nota),
+        reasoning_auditoria=texto[-12000:],
+        pontos_fracos=None,
+    )
+    _pub(
+        pesquisa_id,
+        "point.status",
+        ponto_id=pesquisa_id,
+        ponto_n=1,
+        status="aprovado" if aprovado else "reprovado",
+        tentativas=int(numero),
+    )
     return {
         "id_pesquisa": pesquisa_id,
         "total_pontos": 1,
@@ -167,6 +275,17 @@ def writer_payload(pesquisa_id: str, tema: str, workspace: Path) -> Dict[str, An
     """WriterResponse a partir do DOSSIE.md."""
     dossie = workspace / "DOSSIE.md"
     texto = dossie.read_text(encoding="utf-8", errors="replace") if dossie.exists() else ""
+    if texto.strip():
+        _pub(pesquisa_id, "writer.progress", status="concluido", total_caracteres=len(texto))
+        _pub(pesquisa_id, "pipeline.status", status_pipeline="concluido")
+        _pub(
+            pesquisa_id,
+            "report.final",
+            status="concluido",
+            dossier_final=texto,
+            total_caracteres=len(texto),
+            concluido_em=None,
+        )
     return {
         "id_pesquisa": pesquisa_id,
         "tema": tema,
@@ -220,9 +339,12 @@ def plan_payload(workspace: Path) -> Dict[str, Any]:
 
 
 def pontos_do_plano(plano: Dict[str, Any]) -> List[str]:
-    """Textos dos pontos focais: as `perguntas` do plano, uma por ponto."""
-    perguntas = [str(p).strip() for p in (plano.get("perguntas") or []) if str(p).strip()]
-    return perguntas or [str(plano.get("objetivo") or plano.get("tema") or "Investigação")]
+    """Um único ponto: o perfil Hermes pesquisa o tema inteiro em um bloco.
+
+    As `perguntas` do plano são sub-perguntas do mesmo ponto — virar cada uma em um
+    ponto duplicaria os cards na UI sem que exista coleta separada por pergunta.
+    """
+    return [str(plano.get("tema") or plano.get("objetivo") or "Investigação")]
 
 
 def meta_personas(workspace: Path) -> List[Dict[str, Any]]:

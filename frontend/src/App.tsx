@@ -982,7 +982,7 @@ export const App: React.FC = () => {
 
       const plan = await api.createPlan({
         tema,
-        n_pontos: nPontos,
+        n_pontos: 1,
         personas: selectedPersonas,
         idPesquisa: planejamentoId,
         recencia,

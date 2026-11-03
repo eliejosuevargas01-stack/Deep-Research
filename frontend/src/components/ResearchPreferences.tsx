@@ -67,8 +67,6 @@ interface PreferencesPopoverContentProps {
 const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
   onClose,
   triggerElement,
-  nPontos,
-  onChangeNPontos,
   selectedPersonas,
   onChangePersonas,
   disabled = false,
@@ -171,28 +169,10 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
       </header>
 
       <div className="dock-fields">
-        {/* Campo 1: Pontos analíticos */}
+        {/* Campo 1: o perfil Hermes pesquisa o tema inteiro em um único ponto */}
         <div className="dock-field">
           <span className="dock-label">Pontos analíticos</span>
-          <div className="dock-stepper" role="group" aria-label="Pontos analíticos">
-            <button
-              type="button"
-              onClick={() => onChangeNPontos(Math.max(1, nPontos - 1))}
-              disabled={disabled || currentPlanActive || nPontos <= 1}
-              aria-label="Diminuir pontos"
-            >
-              <Minus size={13} aria-hidden="true" />
-            </button>
-            <output aria-live="polite">{nPontos}</output>
-            <button
-              type="button"
-              onClick={() => onChangeNPontos(Math.min(20, nPontos + 1))}
-              disabled={disabled || currentPlanActive || nPontos >= 20}
-              aria-label="Aumentar pontos"
-            >
-              <Plus size={13} aria-hidden="true" />
-            </button>
-          </div>
+          <span className="dock-value" aria-label="Pontos analíticos">1 · tema único</span>
         </div>
 
         {/* Campo 2: Personas na busca */}

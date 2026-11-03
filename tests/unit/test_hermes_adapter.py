@@ -75,7 +75,7 @@ def test_plan_payload_valida_bloco_json(workspace):
     assert set(resultado["plano"]) >= set(hermes_adapter.CHAVES_PLANO)
 
     pontos = hermes_adapter.pontos_do_plano(resultado["plano"])
-    assert pontos == PLANO["perguntas"]
+    assert pontos == [PLANO["tema"]]  # perfil Hermes = um ponto (tema inteiro)
     resposta = PlanResponse(
         id_pesquisa="abcd1234-0000-0000-0000-000000000000",
         tema=resultado["plano"]["tema"],
@@ -89,7 +89,7 @@ def test_plan_payload_valida_bloco_json(workspace):
             n_pontos=len(pontos), personas=sorted(resultado["plano"]["personas"])
         ),
     )
-    assert resposta.n_pontos == 2
+    assert resposta.n_pontos == 1
 
 
 def test_plan_payload_rejeita_bloco_incompleto(workspace):
@@ -143,7 +143,6 @@ async def test_endpoints_hermes_devolvem_os_schemas_atuais(db_session, workspace
     from app.api.v1.endpoints import audit as audit_mod
     from app.api.v1.endpoints import search as search_mod
     from app.api.v1.endpoints import writer as writer_mod
-    from app.core import hermes_planner
     from app.db.research_repository import ResearchRepository
     from app.schemas.audit import AuditRequest
     from app.schemas.search import SearchRequest
@@ -156,11 +155,14 @@ async def test_endpoints_hermes_devolvem_os_schemas_atuais(db_session, workspace
         id_pesquisa="abcd1234-0000-0000-0000-000000000000",
     )
 
-    with patch.object(hermes_adapter, "garantir_pesquisa", AsyncMock(return_value=workspace)):
+    with (
+        patch.object(hermes_adapter, "garantir_pesquisa", AsyncMock(return_value=workspace)),
+        patch.object(hermes_adapter, "aguardar_coletas", AsyncMock(return_value=None)),
+        patch.object(hermes_adapter, "aguardar_arquivo", AsyncMock(return_value=workspace)),
+    ):
         busca = await search_mod.search_points(
             SearchRequest(id_pesquisa=pesquisa.id_pesquisa), db_session
         )
-    with patch.object(hermes_planner, "criar_workspace", return_value=workspace):
         auditoria = await audit_mod.audit_research(
             AuditRequest(id_pesquisa=pesquisa.id_pesquisa), db_session
         )

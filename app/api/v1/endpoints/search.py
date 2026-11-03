@@ -1,3 +1,4 @@
+import os
 """Endpoint POST /api/v1/search para busca web concorrente com 4 personas.
 
 A coleta roda no perfil Hermes; a resposta deriva dos quatro `*_SEARCH.md`.
@@ -38,4 +39,7 @@ async def search_points(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"HERMES_UNAVAILABLE: {exc}",
         ) from exc
+    await hermes_adapter.aguardar_coletas(
+        payload.id_pesquisa, timeout=float(os.environ.get("DR_SEARCH_TIMEOUT", "3600"))
+    )
     return SearchResponse(**hermes_adapter.search_payload(payload.id_pesquisa, workspace))

@@ -69,6 +69,7 @@ async def create_plan(
             plano_estruturado=plano["plano"],
         )
     pontos = await repo.list_points(id_pesquisa)
+    hermes_adapter.registrar_pontos(id_pesquisa, [p.ponto_id for p in pontos])
     if payload.n_pontos is not None and payload.n_pontos != len(pontos):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

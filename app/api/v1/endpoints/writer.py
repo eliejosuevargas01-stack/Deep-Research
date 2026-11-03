@@ -1,3 +1,4 @@
+import os
 """Endpoint POST /api/v1/writer para entrega do dossiê final.
 
 O dossiê é o DOSSIE.md gravado pelo redator Hermes.
@@ -29,7 +30,9 @@ async def write_dossier(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pesquisa não encontrada para redação no pipeline Hermes.",
         )
-    workspace = hermes_planner.criar_workspace(payload.id_pesquisa, pesquisa.tema)
+    workspace = await hermes_adapter.aguardar_arquivo(
+        payload.id_pesquisa, "DOSSIE.md", timeout=float(os.environ.get("DR_WRITER_TIMEOUT", "3600"))
+    )
     dados = hermes_adapter.writer_payload(payload.id_pesquisa, pesquisa.tema, workspace)
     if dados.get("dossier_final"):
         await repo.update_research_dossier(payload.id_pesquisa, dados["dossier_final"])
