@@ -313,12 +313,44 @@ CHAVES_PLANO = ("versao", "tema", "objetivo", "escopo", "perguntas", "personas",
                 "criterios_evidencia", "criterios_aprovacao")
 
 
+def _json_solto(texto: str) -> Optional[str]:
+    """Último objeto JSON balanceado fora de cerca ``` (o planner nem sempre cerca)."""
+    candidatos: List[str] = []
+    inicio = texto.find("{")
+    while inicio != -1:
+        profundidade = 0
+        dentro_str = False
+        escape = False
+        for i in range(inicio, len(texto)):
+            ch = texto[i]
+            if dentro_str:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    dentro_str = False
+                continue
+            if ch == '"':
+                dentro_str = True
+            elif ch == "{":
+                profundidade += 1
+            elif ch == "}":
+                profundidade -= 1
+                if profundidade == 0:
+                    candidatos.append(texto[inicio : i + 1])
+                    break
+        inicio = texto.find("{", inicio + 1)
+    return max(candidatos, key=len) if candidatos else None
+
+
 def plan_payload(workspace: Path) -> Dict[str, Any]:
     """Plano estruturado: último bloco ```json de PLAN.md, validado contra o contrato."""
     plano_md = workspace / "PLAN.md"
     if not plano_md.exists():
         return {"valido": False, "erro": "PLAN.md ausente", "plano": None}
-    blocos = _BLOCO_JSON.findall(plano_md.read_text(encoding="utf-8", errors="replace"))
+    texto_plano = plano_md.read_text(encoding="utf-8", errors="replace")
+    blocos = _BLOCO_JSON.findall(texto_plano) or ([_json_solto(texto_plano)] if _json_solto(texto_plano) else [])
     if not blocos:
         return {"valido": False, "erro": "PLAN.md sem bloco ```json de contrato", "plano": None}
     try:

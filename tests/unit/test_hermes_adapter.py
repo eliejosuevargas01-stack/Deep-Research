@@ -66,6 +66,18 @@ def workspace(tmp_path):
     return ws
 
 
+def test_plan_payload_aceita_json_sem_cerca(workspace):
+    """O planner as vezes escreve o objeto solto, sem ```json."""
+    import json as _json
+
+    from app.core.hermes_adapter import CHAVES_PLANO
+
+    solto = {k: ("x" if k != "personas" else {p: "x" for p in hermes_adapter.PERSONA_ARQUIVOS}) for k in CHAVES_PLANO}
+    (workspace / "PLAN.md").write_text("# Plano\n\n" + _json.dumps(solto), encoding="utf-8")
+    resultado = hermes_adapter.plan_payload(workspace)
+    assert resultado["valido"] is True
+
+
 def test_plan_payload_valida_bloco_json(workspace):
     resultado = hermes_adapter.plan_payload(workspace)
 

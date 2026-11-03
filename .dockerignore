@@ -57,3 +57,5 @@ frontend/docs/
 frontend/references/
 frontend/android/
 *.bak-*/
+
+test-data/
