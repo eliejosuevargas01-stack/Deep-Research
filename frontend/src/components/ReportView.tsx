@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
@@ -49,6 +49,28 @@ function isSafeUrl(url?: string): boolean {
  *    - Exige fornecimento obrigatório de artifact_hash pelo backend (inclusive para relatórios legados).
  *    - Exige igualdade exata (case-insensitive) entre artifact_hash e localHash.
  */
+/** Slug estável para ancorar títulos do dossiê (índice e h2 usam o mesmo). */
+export function slugIndice(titulo: string): string {
+  return titulo
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/** Sumário do dossiê: só H2 (as seções canônicas do relatório). */
+export function extrairIndice(markdown: string): Array<{ id: string; titulo: string }> {
+  const itens: Array<{ id: string; titulo: string }> = [];
+  for (const linha of markdown.split('\n')) {
+    const m = /^##\s+(.+)$/.exec(linha.trim());
+    if (!m) continue;
+    const titulo = m[1].trim();
+    itens.push({ id: slugIndice(titulo), titulo });
+  }
+  return itens;
+}
+
 export function verifySourcesBinding(
   currentReportId: string,
   publishedText: string,
@@ -184,6 +206,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
   const [retryTrigger, setRetryTrigger] = useState<number>(0);
 
   const markdownText = report.dossier_final || report.dossier_resumo || '';
+  const indice = useMemo(() => extrairIndice(markdownText), [markdownText]);
   const isComplete = report.status === 'concluido';
   const fallbackSources = extractSourcesFromMarkdown(markdownText);
   const publishedText = report.dossier_final || '';
@@ -519,6 +542,20 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
         </span>
       </div>
 
+      {/* Índice: um dossiê de 10 mil px sem mapa obriga o leitor a rolar às cegas */}
+      {indice.length > 1 && (
+        <nav className="report-toc" aria-label="Neste relatório">
+          <p className="report-toc__titulo">Neste relatório</p>
+          <ol className="report-toc__lista">
+            {indice.map((item: { id: string; titulo: string }) => (
+              <li key={item.id}>
+                <a href={`#${item.id}`}>{item.titulo}</a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )}
+
       {/* Corpo Formatado do Dossiê */}
       <section
         className="markdown-body markdown-content report-content"
@@ -532,8 +569,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
           components={{
             // O dossiê costuma começar com "# Título", o que geraria um segundo <h1>
             // ao lado do <h1> da página. Rebaixa todos os níveis em um degrau.
-            h1: ({ children }) => <h2>{children}</h2>,
-            h2: ({ children }) => <h2>{children}</h2>,
+            h1: ({ children }) => <h2 id={slugIndice(String(children))}>{children}</h2>,
+            h2: ({ children }) => <h2 id={slugIndice(String(children))}>{children}</h2>,
             h3: ({ children }) => <h3>{children}</h3>,
             h4: ({ children }) => <h4>{children}</h4>,
             p: ({ children, node: _node, ...props }) => (

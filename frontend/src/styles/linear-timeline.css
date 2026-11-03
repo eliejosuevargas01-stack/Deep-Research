@@ -580,7 +580,7 @@ button.tl-entrada-linha:focus-visible {
   padding: 1.5px 8px;
   border-radius: 999px;
   font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   font-weight: 600;
@@ -597,6 +597,13 @@ button.tl-entrada-linha:focus-visible {
   color: var(--color-danger-text);
   background: color-mix(in srgb, var(--color-danger-text) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-danger-text) 24%, transparent);
+}
+
+/* Estado em andamento: existia na UI e não no CSS, então o chip saía sem cor. */
+.tl-linear .tl-callout-status.auditando {
+  color: var(--color-warning-text, #8a5a00);
+  background: color-mix(in srgb, var(--color-warning-text, #8a5a00) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning-text, #8a5a00) 26%, transparent);
 }
 
 .tl-linear .tl-criterios {
@@ -699,11 +706,32 @@ button.tl-entrada-linha:focus-visible {
   }
 }
 
+@keyframes tl-corpo-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tl-linear .tl-entrada.aberto .tl-entrada-corpo:not([hidden]) {
+  animation: tl-corpo-reveal 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tl-linear .tl-chevron,
   button.tl-entrada-linha,
   .tl-linear .tl-acao {
-    transition: none;
+    transition-property: background-color, border-color, color, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
+  }
+
+  .tl-linear .tl-entrada.aberto .tl-entrada-corpo:not([hidden]) {
+    animation: none;
   }
 
   /* SMIL congelado: esconde os <animate> e o traço fica na posição estática. */

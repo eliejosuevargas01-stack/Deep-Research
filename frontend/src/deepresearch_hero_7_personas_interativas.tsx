@@ -744,7 +744,7 @@ export function DeepResearchCharacters({
                 dominantBaseline="central"
                 fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
                 fontSize="8.5"
-                fontFamily="system-ui, -apple-system, sans-serif"
+                fontFamily="var(--font-sans, Outfit, system-ui, sans-serif)"
                 fontWeight="600"
                 letterSpacing="0.02em"
               >
@@ -863,7 +863,7 @@ export function DeepResearchCharacters({
                 dominantBaseline="central"
                 fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
                 fontSize="8.5"
-                fontFamily="system-ui, -apple-system, sans-serif"
+                fontFamily="var(--font-sans, Outfit, system-ui, sans-serif)"
                 fontWeight="600"
                 letterSpacing="0.02em"
               >
@@ -978,7 +978,7 @@ export function DeepResearchCharacters({
                 dominantBaseline="central"
                 fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
                 fontSize="8.5"
-                fontFamily="system-ui, -apple-system, sans-serif"
+                fontFamily="var(--font-sans, Outfit, system-ui, sans-serif)"
                 fontWeight="600"
                 letterSpacing="0.02em"
               >
@@ -1102,7 +1102,7 @@ export function DeepResearchCharacters({
                 textAnchor="middle"
                 dominantBaseline="central"
                 fontSize="8.5"
-                fontFamily="system-ui, -apple-system, sans-serif"
+                fontFamily="var(--font-sans, Outfit, system-ui, sans-serif)"
                 fontWeight="600"
                 letterSpacing="0.02em"
                 fill={isHovered ? ui.strokeMain : ui.strokeSecondary}
@@ -1361,7 +1361,7 @@ export function DeepResearchCharacters({
                 dominantBaseline="central"
                 fill={ceticoCares || isHovered ? ui.strokeMain : ui.strokeSecondary}
                 fontSize="8.5"
-                fontFamily="system-ui, -apple-system, sans-serif"
+                fontFamily="var(--font-sans, Outfit, system-ui, sans-serif)"
                 fontWeight="600"
                 letterSpacing="0.02em"
               >
@@ -1617,7 +1617,7 @@ export function DeepResearchCharacters({
                 dominantBaseline="central"
                 fill={isAuditorBlowingWhistle || isHovered ? ui.strokeMain : ui.strokeSecondary}
                 fontSize="8.5"
-                fontFamily="system-ui, -apple-system, sans-serif"
+                fontFamily="var(--font-sans, Outfit, system-ui, sans-serif)"
                 fontWeight="600"
                 letterSpacing="0.02em"
               >
@@ -1859,7 +1859,7 @@ export function DeepResearchCharacters({
                 dominantBaseline="central"
                 fill={isHovered || phase === 'synthesis' ? ui.strokeMain : ui.strokeSecondary}
                 fontSize="8.5"
-                fontFamily="system-ui, -apple-system, sans-serif"
+                fontFamily="var(--font-sans, Outfit, system-ui, sans-serif)"
                 fontWeight="600"
                 letterSpacing="0.02em"
               >

@@ -138,7 +138,7 @@ export const DocsView: React.FC = () => {
         </p>
         <ul>
           <li>
-            <strong>Fontes Consultadas (<code>consultadas</code>):</strong> Páginas lidas (status <code>read_ok</code>, texto obtido pelo Jina Web Reader). O catálogo do ponto também lista URLs eleitas sem leitura como <code>snippet_only</code>, marcadas com uso <code>utilizada</code>.
+            <strong>Fontes Consultadas (<code>consultadas</code>):</strong> Páginas efetivamente abertas pelo coletor. O catálogo por ponto também lista URLs eleitas sem leitura, marcadas com uso distinto, para separar consulta de citação.
           </li>
           <li>
             <strong>Fontes Utilizadas (<code>utilizadas</code>):</strong> Fontes explicitamente citadas no dossiê final publicado e rastreáveis às evidências comprovadas da pesquisa.
@@ -160,13 +160,13 @@ export const DocsView: React.FC = () => {
           header <code>X-Hub-Signature-256</code> com HMAC-SHA256 utilizando a chave <code>WEBHOOK_HMAC_SECRET</code>.
         </p>
 
-        <h2>8. Escopo dos Checkpoints</h2>
+        <h2>8. Arquitetura em vigor</h2>
         <ul>
           <li>
-            <strong>Checkpoint 1 (Atual):</strong> Execução síncrona com transições de estado reais (Plan → Search → Audit → Writer), renderização de dossiês Markdown e administração de credenciais.
+            <strong>Pipeline atual:</strong> ciclo único no perfil Hermes com artefatos JSON (PLAN, SEARCH, AUDITORIA, DOSSIE) validados e persistidos no banco; streaming por SSE; administração de credenciais.
           </li>
           <li>
-            <strong>Checkpoint 2 (Futuro):</strong> Suporte a Server-Sent Events (SSE) para streaming em tempo real de tokens e eventos detalhados do agente.
+            <strong>Streaming:</strong> Server-Sent Events já ativo — eventos canônicos por etapa, ponto e persona, com replay do histórico.
           </li>
         </ul>
       </div>

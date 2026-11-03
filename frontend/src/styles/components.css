@@ -2239,6 +2239,7 @@
 
 .btn-header-rail-badge {
   display: inline-flex;
+  font-variant-numeric: tabular-nums;
   align-items: center;
   justify-content: center;
   min-width: 17px;
@@ -2247,7 +2248,7 @@
   border-radius: var(--radius-full, 999px);
   background: var(--violet);
   color: #fff;
-  font-size: 0.68rem;
+  font-size: 11px;
   font-weight: 700;
   font-family: var(--font-mono);
 }

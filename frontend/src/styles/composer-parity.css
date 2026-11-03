@@ -192,6 +192,7 @@
 }
 
 .composer-anchor .composer-counter {
+  font-variant-numeric: tabular-nums;
   margin: 0 2px 0 8px;
   font-family: var(--font-mono);
   font-size: 11px;
@@ -278,7 +279,7 @@
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1;
 }
@@ -482,6 +483,7 @@
 }
 
 .composer-anchor .dock-stepper output {
+  font-variant-numeric: tabular-nums;
   min-width: 28px;
   text-align: center;
   font-family: var(--font-mono);
@@ -595,7 +597,7 @@
   background: var(--color-surface-subtle);
   color: var(--color-text-primary);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .composer-anchor .dock-keys span {
@@ -807,4 +809,26 @@
     transition: none;
     animation: none;
   }
+}
+
+/* Campos do popover de parâmetros: rótulo visível e ajuda/erro associados. */
+.dock-field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.dock-hint-inline {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.dock-hint-inline.is-erro {
+  color: var(--color-danger-text);
 }

@@ -630,6 +630,7 @@
 
 .exec-telemetry-chip {
   position: relative;
+  font-variant-numeric: tabular-nums;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -667,6 +668,7 @@
 
 button.exec-telemetry-chip {
   position: relative;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
   background: var(--color-surface);
   border: 1px solid var(--color-border);

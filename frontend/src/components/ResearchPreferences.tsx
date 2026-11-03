@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Minus, Plus } from 'lucide-react';
 import type { RecenciaPolitica } from '../types/api';
-import { RIGOR_MAXIMO, RIGOR_MINIMO, RIGOR_PADRAO, normalizarRigor } from '../services/api';
+import { RIGOR_MAXIMO, RIGOR_MINIMO, RIGOR_PADRAO, normalizarRigor, validarCallbackUrl } from '../services/api';
 
 export const ALL_PERSONAS = [
   { id: 'historiador', label: 'Historiador', desc: 'Antecedentes, precedentes e séries históricas' },
@@ -324,7 +324,11 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
           </div>
           {asyncExecute && (
             <div style={{ width: '100%', marginTop: '4px' }}>
+              <label htmlFor="webhook-callback-url" className="dock-field-label">
+                URL de callback
+              </label>
               <input
+                id="webhook-callback-url"
                 type="url"
                 className="points-custom-input"
                 style={{ width: '100%', boxSizing: 'border-box', height: '34px', padding: '0 10px', fontSize: '0.82rem' }}
@@ -332,8 +336,18 @@ const PreferencesPopoverContent: React.FC<PreferencesPopoverContentProps> = ({
                 onChange={(e) => onChangeCallbackUrl(e.target.value)}
                 placeholder="https://api.exemplo.com/webhook/pesquisa"
                 disabled={disabled || currentPlanActive}
-                aria-label="URL de callback do webhook"
+                aria-invalid={callbackUrl.trim().length > 0 && !validarCallbackUrl(callbackUrl).valida}
+                aria-describedby="webhook-callback-ajuda"
               />
+              <p
+                id="webhook-callback-ajuda"
+                className={`dock-hint-inline${callbackUrl.trim() && !validarCallbackUrl(callbackUrl).valida ? ' is-erro' : ''}`}
+                role={callbackUrl.trim() && !validarCallbackUrl(callbackUrl).valida ? 'alert' : undefined}
+              >
+                {callbackUrl.trim() && !validarCallbackUrl(callbackUrl).valida
+                  ? validarCallbackUrl(callbackUrl).motivo
+                  : 'O servidor entrega o dossiê neste endereço ao concluir.'}
+              </p>
             </div>
           )}
         </div>
