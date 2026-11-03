@@ -2,6 +2,7 @@
 
 import pytest
 
+from app.core import hermes_ids
 from app.core.hermes_stream import WatchHermes
 from app.core.pipeline_runner import get_pipeline_event_hub
 
@@ -38,6 +39,7 @@ def workspace(tmp_path):
 
 def test_publica_ciclo_completo(workspace):
     pid = "teste-stream-completo"
+    hermes_ids.registrar(pid, [f"{pid}-ponto1"])
     w = WatchHermes(pid, workspace)
     hub = get_pipeline_event_hub()
     hub.clear(pid)
@@ -62,10 +64,13 @@ def test_publica_ciclo_completo(workspace):
     assert historico["search.progress"]["urls_lidas"] == 3
     assert historico["report.final"]["total_caracteres"] == len(DOSSIE)
     assert historico["pipeline.status"]["status_pipeline"] == "concluido"
+    assert historico["audit.result"]["ponto_id"] == f"{pid}-ponto1"
+    assert "search.progress" in eventos and historico["search.progress"]["ponto_id"] == f"{pid}-ponto1"
 
 
 def test_sem_dossie_marca_falha(workspace):
     pid = "teste-stream-falha"
+    hermes_ids.registrar(pid, [f"{pid}-ponto1"])
     hub = get_pipeline_event_hub()
     hub.clear(pid)
     w = WatchHermes(pid, workspace)

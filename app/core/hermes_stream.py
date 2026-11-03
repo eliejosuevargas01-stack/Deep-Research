@@ -52,10 +52,16 @@ class WatchHermes:
         self.personas_iniciadas: set[str] = set()
         self.personas_fechadas: set[str] = set()
         self.rodadas: set[int] = set()
+        self.pendentes: list[tuple[str, dict]] = []
 
     # ----- publicação -----------------------------------------------------
     def _pub(self, evento: str, **dados) -> None:
         ponto = ponto_de(self.id)
+        if ponto == self.id and dados.get("stage") != "plan":
+            # O plano ainda não virou registro no banco: segura eventos por ponto para não
+            # criar card fantasma na UI com o id da pesquisa no lugar do ponto.
+            self.pendentes.append((evento, dados))
+            return
         dados.setdefault("ponto_id", ponto)
         self.hub.publish(self.id, evento, {"id_pesquisa": self.id, **dados})
 
@@ -107,6 +113,10 @@ class WatchHermes:
             await asyncio.sleep(self.intervalo)
 
     def _tick(self) -> None:
+        while self.pendentes and ponto_de(self.id) != self.id:
+            evento, dados = self.pendentes.pop(0)
+            dados["ponto_id"] = ponto_de(self.id)
+            self.hub.publish(self.id, evento, {"id_pesquisa": self.id, **dados})
         delta_plano = self._novo("PLAN.md")
         if delta_plano:
             self._inicia("plan", "planejador")
@@ -125,7 +135,6 @@ class WatchHermes:
                 self.personas_fechadas.add(persona)
                 self._pub(
                     "search.progress",
-                    ponto_id=self.id,
                     persona=persona,
                     queries_executadas=len(_TENTATIVA.findall(texto)) or 1,
                     urls_lidas=sum(int(m) for m in _TOTAL.findall(texto)),
@@ -145,7 +154,6 @@ class WatchHermes:
                 self.rodadas.add(n)
                 self._pub(
                     "audit.result",
-                    ponto_id=self.id,
                     ponto_n=1,
                     status="aprovado" if veredito == "APROVADO" else "reprovado",
                     pontuacao_percentual=round(int(nota) / 12 * 100, 2),
@@ -153,7 +161,7 @@ class WatchHermes:
                     reasoning_auditoria=None,
                     pontos_fracos=None,
                 )
-                self._pub("point.status", ponto_id=self.id, ponto_n=1, status=veredito.lower(), tentativas=n)
+                self._pub("point.status", ponto_n=1, status=veredito.lower(), tentativas=n)
 
         delta_dos = self._novo("DOSSIE.md")
         if delta_dos:
@@ -174,7 +182,6 @@ class WatchHermes:
                 continue
             self._pub(
                 "search.progress",
-                ponto_id=self.id,
                 persona=persona,
                 queries_executadas=len(_TENTATIVA.findall(texto)) or 1,
                 urls_lidas=sum(int(m) for m in _TOTAL.findall(texto)),
@@ -188,7 +195,6 @@ class WatchHermes:
                 _, veredito, nota = ultima[0]
                 self._pub(
                     "audit.result",
-                    ponto_id=self.id,
                     ponto_n=1,
                     status="aprovado" if veredito == "APROVADO" else "reprovado",
                     pontuacao_percentual=round(int(nota) / 12 * 100, 2),
