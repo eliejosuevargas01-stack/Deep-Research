@@ -29,6 +29,7 @@ async def audit_research(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pesquisa não encontrada para auditoria no pipeline Hermes.",
         )
+    await hermes_adapter.marcar_inicio_etapa(repo, payload.id_pesquisa, "auditando")
     workspace = await hermes_adapter.aguardar_arquivo(
         payload.id_pesquisa, "AUDITORIA.json", tema=pesquisa.tema, timeout=float(os.environ.get("DR_AUDIT_TIMEOUT", "3600"))
     )

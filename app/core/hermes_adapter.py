@@ -501,6 +501,20 @@ async def persistir_busca(repo, pesquisa, workspace: Path) -> Dict[str, Any]:
     return payload
 
 
+async def marcar_inicio_etapa(repo, id_pesquisa: str, etapa: str) -> None:
+    """Marca o estágio antes de esperar o Hermes.
+
+    Sem isso a pesquisa fica em `planejado` durante toda a coleta e quem recarrega
+    a página no meio do run vê a tela de aprovar plano.
+    """
+    if etapa not in ("buscando", "auditando", "redigindo"):
+        raise ValueError(f"etapa inválida: {etapa}")
+    try:
+        await repo.update_pipeline_status(id_pesquisa, etapa)
+    except Exception:  # noqa: BLE001 - estado é informativo; nunca derruba o estágio
+        pass
+
+
 async def persistir_auditoria(repo, pesquisa, workspace: Path) -> Dict[str, Any]:
     """Grava o veredito da última rodada nos pontos e no status da pesquisa."""
     payload = audit_payload(pesquisa.id_pesquisa, workspace)

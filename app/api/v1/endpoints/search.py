@@ -39,6 +39,7 @@ async def search_points(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"HERMES_UNAVAILABLE: {exc}",
         ) from exc
+    await hermes_adapter.marcar_inicio_etapa(repo, payload.id_pesquisa, "buscando")
     await hermes_adapter.aguardar_coletas(
         payload.id_pesquisa, timeout=float(os.environ.get("DR_SEARCH_TIMEOUT", "3600"))
     )

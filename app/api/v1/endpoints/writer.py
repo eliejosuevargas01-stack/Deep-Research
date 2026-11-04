@@ -30,6 +30,7 @@ async def write_dossier(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pesquisa não encontrada para redação no pipeline Hermes.",
         )
+    await hermes_adapter.marcar_inicio_etapa(repo, payload.id_pesquisa, "redigindo")
     workspace = await hermes_adapter.aguardar_arquivo(
         payload.id_pesquisa, "DOSSIE.json", tema=pesquisa.tema, timeout=float(os.environ.get("DR_WRITER_TIMEOUT", "3600"))
     )
