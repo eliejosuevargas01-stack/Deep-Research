@@ -14,31 +14,42 @@ import { apresentarErro } from '../utils/erros';
 import { CredentialSanitizedListItem } from '../types/api';
 import '../styles/plan-settings-polish.css';
 
-const FIELD_ORDER = [
-  'LLM_BASE_URL',
-  'JINA_BASE_URL',
-  'N_PONTOS',
-  'CALLBACK_WEBHOOK_URL',
-] as const;
+const FIELD_ORDER = ['LLM_BASE_URL', 'N_PONTOS', 'CALLBACK_WEBHOOK_URL'] as const;
 
 const FIELD_ELEMENT_IDS: Record<string, string> = {
   LLM_BASE_URL: 'llm-base-url',
-  JINA_BASE_URL: 'jina-base-url',
   N_PONTOS: 'n-pontos',
   CALLBACK_WEBHOOK_URL: 'callback-url',
 };
+
+export const PAPEIS_MODELO = [
+  ['MODELO_PADRAO', 'Modelo padrão (fallback)'],
+  ['MODELO_PLANEJADOR', 'Planejador (agente principal)'],
+  ['MODELO_HISTORIADOR', 'Historiador'],
+  ['MODELO_PRAGMATICO', 'Pragmático'],
+  ['MODELO_CETICO', 'Cético'],
+  ['MODELO_VISIONARIO', 'Visionário / Futurista'],
+  ['MODELO_AUDITOR', 'Auditor (12 critérios)'],
+  ['MODELO_REDATOR', 'Redator do dossiê'],
+] as const;
 
 export interface SettingsFormData {
   OPENAI_API_KEY: string;
   LLM_BASE_URL: string;
   LLM_MODEL_LIGHT: string;
   LLM_MODEL_STRONG: string;
-  JINA_API_KEY: string;
-  JINA_BASE_URL: string;
   N_PONTOS: string;
   PERSONAS_CONFIG: string;
   CALLBACK_WEBHOOK_URL: string;
   WEBHOOK_HMAC_SECRET: string;
+  MODELO_PADRAO: string;
+  MODELO_PLANEJADOR: string;
+  MODELO_HISTORIADOR: string;
+  MODELO_PRAGMATICO: string;
+  MODELO_CETICO: string;
+  MODELO_VISIONARIO: string;
+  MODELO_AUDITOR: string;
+  MODELO_REDATOR: string;
 }
 
 export const initialSettingsFormData: SettingsFormData = {
@@ -46,9 +57,15 @@ export const initialSettingsFormData: SettingsFormData = {
   LLM_BASE_URL: '',
   LLM_MODEL_LIGHT: '',
   LLM_MODEL_STRONG: '',
-  JINA_API_KEY: '',
-  JINA_BASE_URL: '',
   N_PONTOS: '',
+  MODELO_PADRAO: '',
+  MODELO_PLANEJADOR: '',
+  MODELO_HISTORIADOR: '',
+  MODELO_PRAGMATICO: '',
+  MODELO_CETICO: '',
+  MODELO_VISIONARIO: '',
+  MODELO_AUDITOR: '',
+  MODELO_REDATOR: '',
   PERSONAS_CONFIG: '',
   CALLBACK_WEBHOOK_URL: '',
   WEBHOOK_HMAC_SECRET: '',
@@ -69,7 +86,7 @@ interface SettingsViewProps {
 }
 
 function safeClientMask(chave: string, mascarado: string, tipo?: string): string {
-  const sensitiveKeys = ['WEBHOOK_HMAC_SECRET', 'OPENAI_API_KEY', 'JINA_API_KEY', 'API_SECRET_KEY'];
+  const sensitiveKeys = ['WEBHOOK_HMAC_SECRET', 'OPENAI_API_KEY', 'API_SECRET_KEY'];
   const isSensitive =
     sensitiveKeys.includes(chave) ||
     /(KEY|SECRET|TOKEN|PASS|CREDENTIAL|WEBHOOK)/i.test(chave) ||
@@ -128,6 +145,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [saveErrorDetalhe, setSaveErrorDetalhe] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [modelosDisponiveis, setModelosDisponiveis] = useState<string[]>([]);
 
   // Referências aos inputs reais para acessibilidade e foco pós-validação
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -175,6 +193,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   useEffect(() => {
     loadCredentials();
+  }, []);
+
+  // Configuração viva do Hermes: base URL e modelos por subagente.
+  useEffect(() => {
+    let cancelado = false;
+    api
+      .getHermesSettings()
+      .then((cfg) => {
+        if (cancelado) return;
+        const modelos = (cfg.modelos_por_papel ?? {}) as Record<string, string>;
+        setFormData((prev) => ({
+          ...prev,
+          LLM_BASE_URL: prev.LLM_BASE_URL || String(cfg.openai_base_url ?? ''),
+          MODELO_PADRAO: prev.MODELO_PADRAO || String(cfg.modelo_padrao ?? ''),
+          MODELO_PLANEJADOR: prev.MODELO_PLANEJADOR || modelos.planejador || '',
+          MODELO_HISTORIADOR: prev.MODELO_HISTORIADOR || modelos.historiador || '',
+          MODELO_PRAGMATICO: prev.MODELO_PRAGMATICO || modelos.pragmatico || '',
+          MODELO_CETICO: prev.MODELO_CETICO || modelos.cetico || '',
+          MODELO_VISIONARIO: prev.MODELO_VISIONARIO || modelos.visionario || '',
+          MODELO_AUDITOR: prev.MODELO_AUDITOR || modelos.auditor || '',
+          MODELO_REDATOR: prev.MODELO_REDATOR || modelos.redator || '',
+        }));
+        setModelosDisponiveis(Object.values(modelos).filter((m): m is string => Boolean(m)));
+      })
+      .catch(() => {
+        /* configuração nova: sem dados ainda */
+      });
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Testar Conexão com o backend
@@ -227,9 +276,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       errors.LLM_BASE_URL = 'A URL deve ser válida e iniciar com http:// ou https://';
     }
 
-    if (formData.JINA_BASE_URL.trim() && !isValidUrl(formData.JINA_BASE_URL)) {
-      errors.JINA_BASE_URL = 'A URL deve ser válida e iniciar com http:// ou https://';
-    }
 
     if (formData.CALLBACK_WEBHOOK_URL.trim() && !isValidUrl(formData.CALLBACK_WEBHOOK_URL)) {
       errors.CALLBACK_WEBHOOK_URL = 'A URL deve ser válida e iniciar com http:// ou https://';
@@ -272,7 +318,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setSaveErrorDetalhe(null);
     setSaveErrorMessage(null);
 
-    const changedEntries: Array<{ chave: string; valor: string; tipo: 'llm' | 'jina' | 'webhook' | 'parametro'; base_url?: string }> = [];
+    const changedEntries: Array<{ chave: string; valor: string; tipo: 'llm' | 'webhook' | 'parametro'; base_url?: string }> = [];
 
     // Mapeamento estrito das chaves autorizadas
     if (formData.OPENAI_API_KEY.trim()) {
@@ -287,12 +333,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (formData.LLM_MODEL_STRONG.trim()) {
       changedEntries.push({ chave: 'LLM_MODEL_STRONG', valor: formData.LLM_MODEL_STRONG.trim(), tipo: 'llm' });
     }
-    if (formData.JINA_API_KEY.trim()) {
-      changedEntries.push({ chave: 'JINA_API_KEY', valor: formData.JINA_API_KEY.trim(), tipo: 'jina' });
-    }
-    if (formData.JINA_BASE_URL.trim()) {
-      changedEntries.push({ chave: 'JINA_BASE_URL', valor: formData.JINA_BASE_URL.trim(), tipo: 'jina', base_url: formData.JINA_BASE_URL.trim() });
-    }
     if (formData.N_PONTOS.trim()) {
       changedEntries.push({ chave: 'N_PONTOS', valor: formData.N_PONTOS.trim(), tipo: 'parametro' });
     }
@@ -306,7 +346,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       changedEntries.push({ chave: 'WEBHOOK_HMAC_SECRET', valor: formData.WEBHOOK_HMAC_SECRET.trim(), tipo: 'webhook' });
     }
 
-    if (changedEntries.length === 0) {
+    const modelosPayload: Record<string, string> = {};
+    for (const [campo] of PAPEIS_MODELO) {
+      const valor = formData[campo].trim();
+      if (valor) modelosPayload[campo.toLowerCase()] = valor;
+    }
+    if (formData.LLM_BASE_URL.trim()) modelosPayload.openai_base_url = formData.LLM_BASE_URL.trim();
+    if (formData.OPENAI_API_KEY.trim()) modelosPayload.openai_api_key = formData.OPENAI_API_KEY.trim();
+
+    if (changedEntries.length === 0 && Object.keys(modelosPayload).length === 0) {
       setSaveErrorMessage('Nenhum campo com novo valor foi preenchido para salvar.');
       setIsSaving(false);
       return;
@@ -330,6 +378,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         } catch (err: unknown) {
           failedKeys.push({
             chave: item.chave,
+            erro: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      // Provedor e modelos vão para a configuração que o Hermes lê ao iniciar.
+      if (Object.keys(modelosPayload).length > 0) {
+        try {
+          await api.saveHermesSettings(modelosPayload);
+          savedKeys.push('MODELOS_HERMES');
+        } catch (err: unknown) {
+          failedKeys.push({
+            chave: 'MODELOS_HERMES',
             erro: err instanceof Error ? err.message : String(err),
           });
         }
@@ -589,46 +650,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               />
             </div>
 
-            {/* JINA API Key */}
-            <div className="form-group">
-              <label htmlFor="jina-key" className="form-label">
-                <span>JINA_API_KEY</span>
-                <span className="form-label-hint">Busca web e scraping</span>
-              </label>
-              <input
-                id="jina-key"
-                type="password"
-                className="form-input"
-                placeholder="jina_..."
-                value={formData.JINA_API_KEY}
-                onChange={(e) => handleFieldChange('JINA_API_KEY', e.target.value)}
-                autoComplete="off"
-              />
-            </div>
-
-            {/* JINA Base URL */}
-            <div className="form-group">
-              <label htmlFor="jina-base-url" className="form-label">
-                <span>JINA_BASE_URL</span>
-                <span className="form-label-hint">Endpoint Jina</span>
-              </label>
-              <input
-                ref={(el) => { inputRefs.current['JINA_BASE_URL'] = el; }}
-                id="jina-base-url"
-                type="url"
-                className={`form-input ${fieldErrors.JINA_BASE_URL ? 'error' : ''}`}
-                placeholder="https://s.jina.ai"
-                value={formData.JINA_BASE_URL}
-                onChange={(e) => handleFieldChange('JINA_BASE_URL', e.target.value)}
-                aria-invalid={Boolean(fieldErrors.JINA_BASE_URL)}
-                aria-describedby={fieldErrors.JINA_BASE_URL ? 'error-jina-base-url' : undefined}
-              />
-              {fieldErrors.JINA_BASE_URL && (
-                <span id="error-jina-base-url" className="form-field-error" role="alert">
-                  {fieldErrors.JINA_BASE_URL}
-                </span>
-              )}
-            </div>
+            {/* Modelos por subagente (Hermes) */}
+            <fieldset className="form-group settings-models">
+              <legend className="form-label">
+                <span>Modelos por subagente</span>
+                <span className="form-label-hint">Cada papel usa o modelo escolhido; vazio cai no padrão</span>
+              </legend>
+              {PAPEIS_MODELO.map(([campo, rotulo]) => (
+                <label key={campo} htmlFor={`modelo-${campo}`} className="settings-models__row">
+                  <span>{rotulo}</span>
+                  <input
+                    id={`modelo-${campo}`}
+                    type="text"
+                    className="form-input"
+                    list="modelos-disponiveis"
+                    placeholder={formData.MODELO_PADRAO || 'ex.: gpt-4o-mini'}
+                    value={formData[campo]}
+                    onChange={(e) => handleFieldChange(campo, e.target.value)}
+                  />
+                </label>
+              ))}
+              <datalist id="modelos-disponiveis">
+                {[formData.MODELO_PADRAO, formData.LLM_MODEL_STRONG, formData.LLM_MODEL_LIGHT, ...modelosDisponiveis]
+                  .filter((m, i, arr) => Boolean(m) && arr.indexOf(m) === i)
+                  .map((modelo) => (
+                    <option key={modelo} value={modelo} />
+                  ))}
+              </datalist>
+            </fieldset>
 
             {/* N_PONTOS */}
             <div className="form-group">

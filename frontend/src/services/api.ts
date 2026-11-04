@@ -345,6 +345,28 @@ export const api = {
     return res.json();
   },
 
+  /** Provedor OpenAI-compatible e modelos por subagente (perfil Hermes). */
+  async getHermesSettings(): Promise<Record<string, unknown>> {
+    const res = await fetch('/api/v1/settings/hermes', {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: buildHeaders(),
+    });
+    if (!res.ok) throw await apiError(res);
+    return res.json();
+  },
+
+  async saveHermesSettings(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const res = await fetch('/api/v1/settings/hermes', {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: buildHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw await apiError(res);
+    return res.json();
+  },
+
   async getPipelineStatus(id_pesquisa: string): Promise<PipelineStatusResumo> {
     const res = await fetch(`/api/v1/pipeline/${encodeURIComponent(id_pesquisa)}/status`, {
       method: 'GET',
