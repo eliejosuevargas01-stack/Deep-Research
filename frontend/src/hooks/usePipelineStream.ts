@@ -54,6 +54,8 @@ interface UsePipelineStreamOptions {
   onSearchProgress?: (event: SearchProgressEvent) => void;
   onAuditResult?: (event: AuditResultEvent) => void;
   onWriterProgress?: (event: WriterProgressEvent) => void;
+  /** Consumo real do processo Hermes (usage.json) durante a execução. */
+  onUsageProgress?: (event: { tokens_prompt: number; tokens_completion: number; tokens_total: number }) => void;
   onReportFinal?: (event: ReportFinalEvent) => void;
   onAgentDelta?: (event: AgentDeltaEvent) => void;
   onStageLifecycle?: (event: StageLifecycleEvent) => void;
@@ -428,6 +430,24 @@ export function usePipelineStream(options: UsePipelineStreamOptions) {
         }
       } catch (err) {
         console.warn('[usePipelineStream] Erro ao parsear audit.result:', err);
+      }
+    });
+
+    es.addEventListener('usage.progress', (event: MessageEvent) => {
+      if (!isMountedRef.current || activeIdRef.current !== idPesquisa) return;
+      try {
+        const data = JSON.parse(event.data) as {
+          tokens_prompt?: number;
+          tokens_completion?: number;
+          tokens_total?: number;
+        };
+        callbacksRef.current.onUsageProgress?.({
+          tokens_prompt: Number(data.tokens_prompt ?? 0),
+          tokens_completion: Number(data.tokens_completion ?? 0),
+          tokens_total: Number(data.tokens_total ?? 0),
+        });
+      } catch (err) {
+        console.warn('[usePipelineStream] Erro ao parsear usage.progress:', err);
       }
     });
 

@@ -327,6 +327,13 @@ export const App: React.FC = () => {
         }
       }
     },
+    onUsageProgress: (uso) => {
+      registrarTokensAoVivo({
+        prompt_tokens: uso.tokens_prompt,
+        completion_tokens: uso.tokens_completion,
+        total_tokens: uso.tokens_total,
+      });
+    },
     onWriterProgress: (evento) => {
       setWriterProgress({
         status: String(evento.status ?? 'redigindo'),

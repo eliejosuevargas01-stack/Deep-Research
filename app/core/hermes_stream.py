@@ -173,6 +173,7 @@ class WatchHermes:
         self.personas_fechadas: set[str] = set()
         self.rodadas: set[int] = set()
         self.pendentes: list[tuple[str, dict]] = []
+        self.uso_publicado: dict = {}
         self.delegacao = _Delegacao(self)
 
     # ----- publicação -----------------------------------------------------
@@ -246,8 +247,28 @@ class WatchHermes:
         except (OSError, json.JSONDecodeError):
             return None
 
+    def _publicar_uso(self) -> None:
+        """Consumo real (usage.json) ao vivo: a tela não espera o fim do ciclo.
+
+        O `usage.json` é reescrito a cada turno; publicamos só quando o total muda
+        e o frontend mantém o máximo (nunca regride para um turno parcial).
+        """
+        from app.core import usage as usage_mod
+
+        total = usage_mod.resumo_uso(self.ws)["total"]
+        if not total.get("total_tokens") or total == self.uso_publicado:
+            return
+        self.uso_publicado = dict(total)
+        self._pub(
+            "usage.progress",
+            tokens_prompt=int(total.get("input_tokens") or 0),
+            tokens_completion=int(total.get("output_tokens") or 0),
+            tokens_total=int(total.get("total_tokens") or 0),
+        )
+
     def _tick(self) -> None:
         self.delegacao.bombear()
+        self._publicar_uso()
         while self.pendentes and ponto_de(self.id) != self.id:
             evento, dados = self.pendentes.pop(0)
             for indice, ponto_id in enumerate(pontos_de(self.id), start=1):
