@@ -41,6 +41,7 @@ import {
   WriterResponse,
 } from './types/api';
 import { converterFontesResumoParaExplorer, derivarFontesParaExplorer } from './components/SourcesExplorer';
+import { resolverEstagioInicial } from './utils/estagio';
 import { usePipelineStream, formatPersonaTitle } from './hooks/usePipelineStream';
 import { RefreshCw, RotateCcw } from 'lucide-react';
 
@@ -544,10 +545,7 @@ export const App: React.FC = () => {
       setActiveResearchId(id);
 
       const status = detalhe.status_pipeline ?? '';
-      const estagio: PipelineStage = writer
-        ? 'completed'
-        : STAGE_POR_STATUS[status] ??
-          (status === 'concluido' ? 'completed' : status === 'falha' ? 'failed' : status === 'reprovado' ? 'rejected' : 'idle');
+      const estagio = resolverEstagioInicial(status, Boolean(writer));
       setPipelineStage(estagio);
       setFailedStage(null);
 
@@ -2088,6 +2086,32 @@ export const App: React.FC = () => {
                       >
                         <ReportView report={writerResult} onReset={handleResetResearch} />
                       </Suspense>
+
+                      {/* A trilha não some quando o dossiê fica pronto: as 4 personas e os
+                          12 critérios continuam auditáveis na tela final. */}
+                      <details className="report-process">
+                        <summary>Processo de pesquisa e auditoria (4 personas · 12 critérios)</summary>
+                        <ExecutionView
+                          stage="completed"
+                          plan={currentPlan}
+                          searchResult={searchResult}
+                          auditResult={auditResult}
+                          cycleNumber={cycleNumber}
+                          maxCycles={4}
+                          errorMessage={null}
+                          streamError={null}
+                          onReconnect={reconnect}
+                          failedStage={null}
+                          isRetrying={false}
+                          onReset={handleResetResearch}
+                          reasoningItems={reasoningItems}
+                          startedAt={effectiveStartedAt}
+                          tokensAoVivo={tokensAoVivo ?? tokensEfetivos}
+                          sourcesCount={effectiveSourcesCount}
+                          isRailOpen={isRailOpen}
+                          onToggleRail={handleToggleRail}
+                        />
+                      </details>
                     </div>
                   )}
                 </div>

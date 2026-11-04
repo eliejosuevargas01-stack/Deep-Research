@@ -45,21 +45,96 @@ def _extract_preferencias(pesquisa: Any) -> Any:
     return None
 
 
+def _criterios_do_reasoning(reasoning: Any) -> Optional[Dict[str, Any]]:
+    """Rodada de auditoria persistida em `reasoning_auditoria` (JSON da rodada)."""
+    dados = _parse_json_maybe(reasoning)
+    if not isinstance(dados, dict):
+        return None
+    brutos = dados.get("criterios")
+    if not isinstance(brutos, list) or not brutos:
+        return None
+    criterios = []
+    for c in brutos:
+        if not isinstance(c, dict):
+            continue
+        criterios.append(
+            {
+                "id": int(c.get("id") or len(criterios) + 1),
+                "nome": str(c.get("nome") or ""),
+                "aprovado": bool(c.get("aprovado")),
+                "justificativa": str(c.get("justificativa") or ""),
+                "claim_ids": [],
+                "source_ids": [],
+            }
+        )
+    if not criterios:
+        return None
+    return {
+        "rodada": int(dados.get("rodada") or 1),
+        "criterios": criterios,
+        "aprovados": sum(1 for c in criterios if c["aprovado"]),
+        "veredito": str(dados.get("veredito") or "").upper(),
+        "lacunas": dados.get("lacunas"),
+    }
+
+
+def _resumo_auditoria_markdown(veredito: str, aprovados: int, total: int, criterios, lacunas) -> str:
+    linhas = [f"**Veredito:** {veredito or 'EM ANÁLISE'} — {aprovados}/{total} critérios aprovados", ""]
+    for c in criterios or []:
+        marca = "✓" if c["aprovado"] else "✗"
+        nome = f" {c['nome']}" if c.get("nome") else ""
+        linhas.append(f"- {marca} **Critério {c['id']}{nome}:** {c['justificativa']}")
+    if lacunas:
+        linhas += ["", f"**Lacunas:** {lacunas}"]
+    return "\n".join(linhas)
+
+
 def _build_auditoria(pesquisa: Any, pontos: List[Any]) -> Optional[Dict[str, Any]]:
     auditorias = []
     aprovados = 0
     reprovados = 0
     total_pontos = len(pontos) if pontos is not None else 0
     for p in pontos or []:
-        status_p = getattr(p, "status", None) if not isinstance(p, dict) else p.get("status")
-        ponto_id = getattr(p, "ponto_id", None) if not isinstance(p, dict) else p.get("ponto_id")
-        ponto_n = getattr(p, "ponto_n", None) if not isinstance(p, dict) else p.get("ponto_n")
-        pontos_fracos = getattr(p, "pontos_fracos", None) if not isinstance(p, dict) else p.get("pontos_fracos")
-        reasoning_auditoria = (
-            getattr(p, "reasoning_auditoria", None)
-            if not isinstance(p, dict)
-            else p.get("reasoning_auditoria")
-        )
+        def campo(nome):
+            return getattr(p, nome, None) if not isinstance(p, dict) else p.get(nome)
+
+        status_p = campo("status")
+        ponto_id = campo("ponto_id")
+        ponto_n = campo("ponto_n")
+        pontos_fracos = campo("pontos_fracos")
+        reasoning_auditoria = campo("reasoning_auditoria")
+
+        rodada = _criterios_do_reasoning(reasoning_auditoria)
+        if rodada:
+            total_criterios = len(rodada["criterios"])
+            minimos = int(rodada.get("minimos") or 11)
+            veredito = rodada["veredito"] or ("APROVADO" if rodada["aprovados"] >= minimos else "REPROVADO")
+            valido = veredito == "APROVADO"
+            auditorias.append(
+                {
+                    "ponto_id": ponto_id,
+                    "ponto_n": ponto_n,
+                    "status": "aprovado" if valido else "reprovado",
+                    "pontuacao_percentual": round(rodada["aprovados"] / max(total_criterios, 1) * 100, 2),
+                    "criterios_aprovados": rodada["aprovados"],
+                    "criterios_minimos": minimos,
+                    "total_criterios": total_criterios,
+                    "valido": valido,
+                    "criterios": rodada["criterios"],
+                    "pontos_fracos": pontos_fracos or rodada.get("lacunas"),
+                    "diagnostico": None if valido else rodada.get("lacunas"),
+                    "resumo_auditoria": _resumo_auditoria_markdown(
+                        veredito, rodada["aprovados"], total_criterios, rodada["criterios"], rodada.get("lacunas")
+                    ),
+                    "reasoning_auditoria": reasoning_auditoria,
+                    "rodada": rodada["rodada"],
+                }
+            )
+            if valido:
+                aprovados += 1
+            else:
+                reprovados += 1
+            continue
 
         if status_p == "aprovado":
             aprovados += 1
