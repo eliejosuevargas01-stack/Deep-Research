@@ -126,6 +126,30 @@ def _resumo_atividade(texto: str) -> Optional[str]:
     return None
 
 
+def _parecer_markdown(rodada: dict) -> str:
+    """Parecer legível da rodada — nunca o JSON bruto no acordeão do Auditor."""
+    criterios = rodada.get("criterios") or []
+    aprovados = sum(1 for c in criterios if c.get("aprovado"))
+    veredito = str(rodada.get("veredito") or "EM ANÁLISE").upper()
+    linhas = [f"**Rodada {rodada.get('rodada') or 1}** — {veredito} · {aprovados}/{len(criterios) or 12} critérios", ""]
+    for c in criterios:
+        marca = "✓" if c.get("aprovado") else "✗"
+        nome = f" {c['nome']}" if c.get("nome") else ""
+        linhas.append(f"- {marca} **Critério {c.get('id')}{nome}:** {c.get('justificativa') or ''}")
+    if rodada.get("lacunas"):
+        linhas += ["", f"**Lacunas:** {rodada['lacunas']}"]
+    return "\n".join(linhas)
+
+
+def _parecer_auditoria(workspace: Path) -> Optional[str]:
+    try:
+        dados = json.loads((workspace / "AUDITORIA.json").read_text(encoding="utf-8", errors="replace"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    rodadas = dados.get("rodadas") or []
+    return _parecer_markdown(rodadas[-1]) if rodadas else None
+
+
 class _Arquivo:
     __slots__ = ("offset", "texto")
 
@@ -233,7 +257,6 @@ class WatchHermes:
         delta_plano = self._novo(PLANO)
         if delta_plano:
             self._inicia("plan", "planejador")
-            self._pub("agent.delta", stage="plan", agent="planejador", kind="reasoning", text=delta_plano)
             self._status("planejado")
 
         for persona, nome in PERSONAS.items():
@@ -242,7 +265,6 @@ class WatchHermes:
                 continue
             self._status("buscando")
             self._inicia("search", persona)
-            self._pub("agent.delta", stage="search", agent=persona, kind="reasoning", text=delta)
             tentativas = (self._json(nome) or {}).get("tentativas") or []
             if tentativas:
                 self.personas_fechadas.add(persona)
@@ -259,7 +281,9 @@ class WatchHermes:
         if delta_aud:
             self._status("auditando")
             self._inicia("audit", "auditor")
-            self._pub("agent.delta", stage="audit", agent="auditor", kind="reasoning", text=delta_aud)
+            parecer = _parecer_auditoria(self.ws)
+            if parecer:
+                self._pub("agent.delta", stage="audit", agent="auditor", kind="reasoning", text=parecer)
             for rodada in (self._json(AUDITORIA) or {}).get("rodadas") or []:
                 numero = int(rodada.get("rodada") or 0)
                 if not numero or numero in self.rodadas:
@@ -273,7 +297,7 @@ class WatchHermes:
                     status="aprovado" if veredito == "APROVADO" else "reprovado",
                     pontuacao_percentual=round(nota / 12 * 100, 2),
                     criterios_aprovados=nota,
-                    reasoning_auditoria=None,
+                    reasoning_auditoria=_parecer_markdown(rodada),
                     pontos_fracos=rodada.get("lacunas"),
                 )
                 self._pub("point.status", ponto_n=1, status=veredito.lower() or "reprovado", tentativas=numero)
@@ -282,7 +306,6 @@ class WatchHermes:
         if delta_dos:
             self._status("redigindo")
             self._inicia("writer", "redator")
-            self._pub("agent.delta", stage="writer", agent="redator", kind="reasoning", text=delta_dos)
             texto = (self._json(DOSSIE) or {}).get("dossier_final") or ""
             self._pub("writer.progress", status="redigindo", total_caracteres=len(texto))
 
@@ -315,7 +338,7 @@ class WatchHermes:
                 status="aprovado" if veredito == "APROVADO" else "reprovado",
                 pontuacao_percentual=round(nota / 12 * 100, 2),
                 criterios_aprovados=nota,
-                reasoning_auditoria=json.dumps(ultima, ensure_ascii=False)[-12000:],
+                reasoning_auditoria=_parecer_markdown(ultima),
                 pontos_fracos=ultima.get("lacunas"),
             )
         dossie = (self._json(DOSSIE) or {}).get("dossier_final") or ""

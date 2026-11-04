@@ -258,6 +258,9 @@ def audit_payload(pesquisa_id: str, workspace: Path, criterios_minimos: int = 11
     ]
     fracos = rodada.get("lacunas")
     reasoning = json.dumps(rodada, ensure_ascii=False)
+    from app.core.hermes_stream import _parecer_markdown
+
+    parecer = _parecer_markdown(rodada)
     for indice, ponto_id in enumerate(pontos, start=1):
         _pub(
             pesquisa_id,
@@ -267,7 +270,7 @@ def audit_payload(pesquisa_id: str, workspace: Path, criterios_minimos: int = 11
             status="aprovado" if aprovado else "reprovado",
             pontuacao_percentual=round(rodada["nota"] / 12 * 100, 2),
             criterios_aprovados=rodada["nota"],
-            reasoning_auditoria=reasoning,
+            reasoning_auditoria=parecer,
             pontos_fracos=fracos,
         )
         _pub(

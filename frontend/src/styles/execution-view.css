@@ -751,3 +751,24 @@ button.exec-telemetry-chip--fontes:hover {
   border-top: 1px solid var(--color-border);
   background: transparent;
 }
+/* Trilha das personas/auditoria preservada abaixo do dossiê concluído. */
+.report-process {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  padding: 4px 16px 12px;
+  background: var(--color-surface, transparent);
+}
+
+.report-process > summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+}
+
+.report-process > summary:focus-visible {
+  outline: 2px solid var(--color-accent, currentColor);
+  outline-offset: 2px;
+}
