@@ -187,8 +187,8 @@ async function runPlanSettingsPolishTests() {
     'OPENAI_API_KEY deve ser input type="password"'
   );
   assert.ok(
-    htmlSettings.includes('id="jina-key" type="password"'),
-    'JINA_API_KEY deve ser input type="password"'
+    htmlSettings.includes('id="modelo-modelo_padrao"') || htmlSettings.includes('PAPEIS_MODELO'),
+    'SettingsView deve oferecer os modelos por subagente (Jina removida)'
   );
   assert.ok(
     htmlSettings.includes('id="webhook-secret" type="password"'),
@@ -204,8 +204,8 @@ async function runPlanSettingsPolishTests() {
     'Input de LLM_BASE_URL presente com id canônico'
   );
   assert.ok(
-    htmlSettings.includes('id="jina-base-url"'),
-    'Input de JINA_BASE_URL presente com id canônico'
+    !htmlSettings.toLowerCase().includes('jina'),
+    'Nenhum campo Jina deve restar na tela de configurações'
   );
   assert.ok(
     htmlSettings.includes('id="n-pontos"'),
