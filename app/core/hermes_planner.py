@@ -292,6 +292,8 @@ async def _ciclo(ex: Execucao) -> None:
     from app.core import usage as usage_mod
 
     resumo_usage = usage_mod.gravar_resumo(workspace)
+    # Sem usage.json, o acumulado dos `usage_<etapa>.json` responde pelos tokens.
+    usage = usage or resumo_usage["total"] or None
 
     ex.resultado = {
         "pesquisa_id": ex.pesquisa_id,
@@ -346,9 +348,18 @@ async def iniciar(
     max_rodadas: Optional[int] = None,
     n_pontos: int = 1,
     timeout_segundos: Optional[int] = None,
+    etapa: Optional[str] = None,
+    ponto: int = 1,
+    rodada: int = 1,
 ) -> Execucao:
-    """Dispara o perfil Hermes e volta assim que o processo existe (sem esperar o ciclo)."""
+    """Dispara o perfil Hermes e volta assim que o processo existe (sem esperar o ciclo).
+
+    `etapa` decide o `--usage-file`: cada invocação grava o próprio arquivo
+    (`usage_plan.json`, `usage_search_ponto_1.json`, ...) em vez de sobrescrever
+    o mesmo `usage.json`. Sem etapa, mantém o contrato antigo de um arquivo só.
+    """
     perfil = perfil or os.environ.get("DR_HERMES_PROFILE", "deep-research")
+    etapa = etapa or os.environ.get("DR_HERMES_ETAPA") or None
     if max_rodadas is None:
         max_rodadas = int(os.environ.get("DR_MAX_RODADAS", "3"))
     if max_rodadas < 1 or max_rodadas > 3:
@@ -358,7 +369,7 @@ async def iniciar(
 
     workspace = criar_workspace(pesquisa_id, tema)
     caminho_exec = _mapear(workspace)
-    from app.core import hermes_config
+    from app.core import hermes_config, usage as usage_mod
 
     config_modelos = hermes_config.carregar()
     (workspace / "MODELS.json").write_text(
@@ -376,7 +387,7 @@ async def iniciar(
         _binario_hermes(),
         "-p", perfil,
         "-z", prompt,
-        "--usage-file", f"{caminho_exec}/usage.json",
+        "--usage-file", f"{caminho_exec}/{usage_mod.nome_arquivo_uso(etapa, ponto, rodada)}",
     ]
     modelo_planejador = config_modelos.get("modelo_planejador") or config_modelos.get("modelo_padrao")
     if modelo_planejador:
@@ -430,6 +441,9 @@ async def executar(
     max_rodadas: Optional[int] = None,
     n_pontos: int = 1,
     timeout_segundos: Optional[int] = None,
+    etapa: Optional[str] = None,
+    ponto: int = 1,
+    rodada: int = 1,
 ) -> Dict[str, Any]:
     """Roda a pesquisa inteira e devolve o inventário final (usado por CLI/testes)."""
     ex = await iniciar(
@@ -439,5 +453,8 @@ async def executar(
         max_rodadas=max_rodadas,
         n_pontos=n_pontos,
         timeout_segundos=timeout_segundos,
+        etapa=etapa,
+        ponto=ponto,
+        rodada=rodada,
     )
     return await ex.aguardar()
