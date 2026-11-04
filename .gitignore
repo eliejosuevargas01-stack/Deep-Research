@@ -93,3 +93,10 @@ scripts/audit_round1.js
 scripts/capture_*.js
 scripts/verify_*.js
 scripts/test_*.js
+
+# Estado de runtime do perfil Hermes embutido
+hermes_home/cache/
+hermes_home/backups/
+hermes_home/*.lock
+hermes_home/.install_id*
+hermes_home/.env
