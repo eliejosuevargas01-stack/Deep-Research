@@ -9,6 +9,8 @@ a verdade; `usage.json` cobre o caso de um único turno acumulado.
 from __future__ import annotations
 
 import json
+import os
+import sqlite3
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -30,6 +32,71 @@ def _soma(usos) -> Dict[str, int]:
     return {campo: sum(int(u.get(campo) or 0) for u in usos) for campo in CAMPOS}
 
 
+def _state_db() -> Optional[Path]:
+    """state.db do perfil Hermes: fonte real de tokens, inclusive de subagentes."""
+    home = os.environ.get("HERMES_HOME") or ""
+    perfil = os.environ.get("HERMES_PROFILE") or os.environ.get("DR_HERMES_PROFILE") or "deep-research"
+    candidatos = []
+    if home:
+        candidatos.append(Path(home) / "profiles" / perfil / "state.db")
+    candidatos.append(Path.home() / ".hermes" / "profiles" / perfil / "state.db")
+    for caminho in candidatos:
+        if caminho.exists():
+            return caminho
+    # Perfil do processo pode divergir (HERMES_PROFILE do shell/gateway): usa o
+    # state.db mais recente entre os perfis em vez de fingir que não há consumo.
+    base = Path(home) / "profiles" if home else None
+    if base and base.is_dir():
+        achados = sorted(base.glob("*/state.db"), key=lambda c: c.stat().st_mtime, reverse=True)
+        if achados:
+            return achados[0]
+    return None
+
+
+def _do_state_db(workspace: Path) -> Optional[Dict[str, Any]]:
+    """Soma tokens das sessões (principal + subagentes) daquele workspace.
+
+    O `--usage-file` do CLI cobre um turno e não vê delegados; a sessão do Hermes
+    vê. As duas fontes são monotônicas entre si: vale a maior.
+    """
+    caminho = _state_db()
+    if caminho is None:
+        return None
+    raiz = str(workspace)
+    try:
+        conexao = sqlite3.connect(f"file:{caminho}?mode=ro", uri=True, timeout=5)
+    except sqlite3.Error:
+        return None
+    try:
+        linhas = conexao.execute(
+            "select coalesce(model,''), coalesce(title, display_name, ''),"
+            " sum(coalesce(input_tokens,0)), sum(coalesce(output_tokens,0))"
+            " from sessions where cwd = ? or cwd like ? group by 1,2",
+            (raiz, raiz + "/%"),
+        ).fetchall()
+    except sqlite3.Error:
+        return None
+    finally:
+        conexao.close()
+    if not linhas:
+        return None
+    total = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    por_agente: Dict[str, Dict[str, int]] = {}
+    for modelo, titulo, entrada, saida in linhas:
+        entrada, saida = int(entrada or 0), int(saida or 0)
+        total["input_tokens"] += entrada
+        total["output_tokens"] += saida
+        total["total_tokens"] += entrada + saida
+        rotulo = (titulo or modelo or "agente").strip()
+        alvo = por_agente.setdefault(
+            rotulo[:60], {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        )
+        alvo["input_tokens"] += entrada
+        alvo["output_tokens"] += saida
+        alvo["total_tokens"] += entrada + saida
+    return {"total": total, "por_agente": por_agente, "modelo": linhas[0][0] or None}
+
+
 def resumo_uso(workspace: Path) -> Dict[str, Any]:
     """Totais e quebra por etapa/agente da pesquisa."""
     por_etapa = {}
@@ -45,7 +112,16 @@ def resumo_uso(workspace: Path) -> Dict[str, Any]:
     else:
         total = {campo: 0 for campo in CAMPOS}
 
+    estado = _do_state_db(workspace)
+    if estado:
+        total = {
+            campo: max(int(total.get(campo) or 0), int(estado["total"].get(campo) or 0))
+            for campo in CAMPOS
+        }
+
     por_agente: Dict[str, Dict[str, int]] = {}
+    if estado:
+        por_agente.update(estado["por_agente"])
     agentes = (cumulativo or {}).get("agents")
     if isinstance(agentes, dict):
         for agente, uso in agentes.items():
@@ -57,7 +133,7 @@ def resumo_uso(workspace: Path) -> Dict[str, Any]:
         "total": total,
         "por_etapa": por_etapa,
         "por_agente": por_agente,
-        "modelo": (cumulativo or {}).get("model"),
+        "modelo": (cumulativo or {}).get("model") or (estado or {}).get("modelo"),
         "api_calls": int((cumulativo or {}).get("api_calls") or 0),
     }
 
