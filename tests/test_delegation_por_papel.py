@@ -88,6 +88,22 @@ def test_papel_desconhecido_cai_no_modelo_padrao(modelos):
     assert rota.route_task({"goal": "Tarefa sem persona reconhecível"}, {})["model"] == "modelo-plano"
 
 
+def test_modelos_vem_do_workspace_da_tarefa(tmp_path, monkeypatch):
+    """Gateway é daemon: o arquivo por pesquisa viaja no contexto da tarefa."""
+    plugin = _carregar_plugin()
+    workspace = tmp_path / "pesquisas" / "tema-abc12345"
+    workspace.mkdir(parents=True)
+    (workspace / "MODELS.json").write_text(
+        json.dumps({"planejador": "m-pai", "cetico": "m-cetico-novo"}), encoding="utf-8"
+    )
+    monkeypatch.setenv("DR_MODELOS_FILE", str(tmp_path / "outra-pesquisa.json"))
+    tarefa = {
+        "goal": "Pesquise no papel de cético",
+        "context": f"CONTRATO:cetico TEMA: X WORKSPACE: {workspace} RODADA: 1",
+    }
+    assert plugin.DelegationPorPapel().route_task(tarefa, {})["model"] == "m-cetico-novo"
+
+
 def test_sem_arquivo_nem_config_herda_o_pai(tmp_path, monkeypatch):
     plugin = _carregar_plugin()
     monkeypatch.setenv("DR_MODELOS_FILE", str(tmp_path / "inexistente.json"))

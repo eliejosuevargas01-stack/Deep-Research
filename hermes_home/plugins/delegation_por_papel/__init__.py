@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
@@ -27,6 +28,29 @@ PAPEIS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("auditor", ("auditor", "audite", "auditoria", "12 critérios", "12 criterios")),
     ("redator", ("redator", "redija", "dossiê", "dossie")),
 )
+
+
+def _do_workspace(task: Mapping[str, Any]) -> dict[str, str]:
+    """MODELS.json do workspace citado no contexto da tarefa.
+
+    O gateway do Hermes é um daemon: variável de ambiente dele pode ser de outra
+    pesquisa. O caminho do workspace viaja no contexto de cada tarefa, então é a
+    fonte correta por execução.
+    """
+    texto = f"{task.get('context') or ''}\n{task.get('goal') or ''}"
+    achado = re.search(r"WORKSPACE:\s*(\S+)", texto)
+    if not achado:
+        return {}
+    caminho = Path(achado.group(1)) / "MODELS.json"
+    if not caminho.exists():
+        return {}
+    try:
+        dados = json.loads(caminho.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(dados, dict):
+        return {}
+    return {str(k).lower(): str(v) for k, v in dados.items() if isinstance(v, str) and v.strip()}
 
 
 def _do_arquivo() -> dict[str, str]:
@@ -69,7 +93,7 @@ class DelegationPorPapel(DelegationProvider):
         return "Cada subagente usa o modelo do seu papel; sem papel reconhecido, herda o pai."
 
     def route_task(self, task: Mapping[str, Any], config: Mapping[str, Any]) -> dict[str, Any]:
-        modelos = _do_arquivo() or _do_config(config)
+        modelos = _do_workspace(task) or _do_arquivo() or _do_config(config)
         if not modelos:
             return {}
 
