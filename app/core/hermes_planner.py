@@ -387,6 +387,7 @@ async def iniciar(
     env["HERMES_DR_ALLOWED_PATH"] = caminho_exec
     env["DR_ALLOWED_PATH"] = caminho_exec
     env["DR_HERMES_EXEC_CWD"] = caminho_exec
+    env["DR_MODELOS_FILE"] = f"{caminho_exec}/MODELS.json"
     env.update(_hermes_home_isolado(workspace, perfil))
 
     from app.core import hermes_stream

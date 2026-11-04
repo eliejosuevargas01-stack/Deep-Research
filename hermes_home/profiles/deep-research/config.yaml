@@ -14,6 +14,9 @@ model:
   api_key: "${OPENAI_API_KEY}"
 
 delegation:
+  # Cada subagente roda no modelo do seu papel (plugin hermes_home/plugins/delegation_por_papel,
+  # alimentado por MODELS.json da pesquisa); sem papel reconhecido, herda a rota do pai.
+  backend: por_papel
   # planner (depth 0) -> subagentes (depth 1); 2 permite um filho delegar de novo.
   max_spawn_depth: 2
   # 4 searchers em paralelo + auditor/redator, com folga.

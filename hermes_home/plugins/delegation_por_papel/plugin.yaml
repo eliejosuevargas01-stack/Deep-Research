@@ -1,0 +1,5 @@
+name: por_papel
+version: 1.0.0
+description: "Delegação por papel: cada subagente (Historiador, Pragmático, Cético, Visionário, Auditor, Redator) roda no modelo configurado para o seu papel, lido de MODELS.json da pesquisa; sem papel reconhecido, usa o modelo padrão."
+author: DeepResearch
+kind: backend
