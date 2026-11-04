@@ -1,46 +1,99 @@
 # SPEC — Especificação Técnica: Hermes Deep Research
 
+**Versão:** 1.2  
+**Core Engine:** Hermes (`hermes-agent` + perfil `deep-research` + plugin `por_papel`)  
+
 ---
 
-## 1. Fluxo de Dados e Máquina de Estados
+## 1. Arquitetura de Execução e Máquina de Estados
+
+O sistema **não faz chamadas diretas a APIs externas de LLM ou de busca** a partir do código Python. O backend atua exclusivamente como camada de persistência, hidratação de prompts a partir do banco de dados, configuração dinâmica do perfil Hermes (`config.yaml`) e acompanhamento do processo **Hermes**, que realiza todo o trabalho pesado de varredura web, delegação paralela de subagentes (`delegate_task`), auditoria e redação.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Ingestao: POST /research
-    Ingestao --> Planner_Scoping: Gera research_id no Banco
-    Planner_Scoping --> FanOut_Buscadores: Cria N pontos (1..10) + 12 perguntas/ponto
+    Ingestao --> Hermes_Planner: Cria research_id e workspace isolado
+    Hermes_Planner --> FanOut_Buscadores: Varredura web exploratória + cria N pontos (1..10) + 12 perguntas/ponto
 
-    state "Loop por Ponto (Paralelo 1..N)" as LoopPonto {
-        FanOut_Buscadores --> Persistencia_Busca: 4 Personas (Historiador, Cético, Visionário, Futurista)
-        Persistencia_Busca --> Hidratacao_Auditor: Salva R(k) no Banco + calcula URLs não usadas
-        Hidratacao_Auditor --> Auditor_12Q: Injeta informacao_coletada_acumulada no 1º prompt
-        Auditor_12Q --> Avaliacao_Planner: Retorna 12 booleans (true/false)
+    state "Loop por Ponto no Hermes (Todos os N pontos em paralelo — até 40 subagentes)" as LoopPonto {
+        FanOut_Buscadores --> Persistencia_Busca: 4 Personas por ponto (Historiador, Cético, Visionário, Futurista)
+        Persistencia_Busca --> Hidratacao_Auditor: Salva R(k) no Banco + calcula URLs não usadas + lê tokens do Hermes
+        Hidratacao_Auditor --> Hermes_Auditor_12Q: Injeta informacao_coletada_acumulada (R1..Rk) no 1º prompt
+        Hermes_Auditor_12Q --> Avaliacao_Planner: Retorna 12 booleans (true/false)
         Avaliacao_Planner --> FanOut_Buscadores: Avaliacao < veracidade_alvo e tentativa_atual < max_rodadas_auditoria
         Avaliacao_Planner --> Hidratacao_Redator: Avaliacao >= veracidade_alvo ou tentativa_atual == max_rodadas_auditoria
     }
 
-    Hidratacao_Redator --> Redator_Final: Injeta contexto total + resultado_final_auditor
-    Redator_Final --> Callback_Webhook: Escreve relatório + lacunas e envia POST
+    Hidratacao_Redator --> Hermes_Redator_Final: Injeta contexto total (R1..Rn) + resultado_final_auditor
+    Hermes_Redator_Final --> Callback_Webhook: Escreve relatório + lacunas, consolida telemetria e envia POST
     Callback_Webhook --> [*]
 ```
 
 ---
 
-## 2. Estratégia de Injeção no 1º Prompt (Banco + Hermes)
+## 2. Configuração do Perfil Hermes (`config.yaml`) e Escala de 40 Subagentes
 
-O **Hermes** governa o fluxo por meio de ferramentas de orquestração leve, enquanto o backend faz a leitura e gravação pesada no PostgreSQL:
+Toda a configuração operacional do Hermes vive em `hermes_home/profiles/deep-research/config.yaml` e é gerenciada em tempo de execução pelo endpoint `GET /config` e `PUT /config` (alias `/api/v1/settings`).
 
-1. **Quando o Hermes chama `spawn_buscadores(research_id, ponto_id, rodada)`:**
-   - Se `rodada == 1`, o backend monta o 1º prompt para cada persona com `tema`, `ponto`, `subperguntas` e `hipoteses`.
-   - Se `rodada > 1`, o backend consulta no banco quais perguntas receberam `false` no auditor da rodada anterior e reúne `urls_lidas` acumuladas daquele ponto, injetando os dois conjuntos no 1º prompt dos buscadores.
-2. **Quando o Hermes chama `spawn_auditor(research_id, ponto_id, rodada)`:**
-   - O backend executa um `SELECT` de `agent_executions` daquele ponto e rodada inicial até a atual, concatena `informacao_coletada` de todas as personas e rodadas e injeta no 1º prompt do auditor junto com `perguntas_auditoria`.
-3. **Quando o Hermes chama `spawn_redator(research_id, ponto_id)`:**
-   - O backend executa o mesmo acumulado por ponto e combina com `resultado_final_auditor` para injetar no 1º prompt do redator.
+### 2.1. Estrutura Canônica do `hermes_home/profiles/deep-research/config.yaml`
+
+```yaml
+model:
+  default: "deepseek/deepseek-v3.2"
+  provider: custom
+  base_url: "http://9router:20128/v1"
+  api_key: "${LLM_API_KEY}"
+
+delegation:
+  # Plugin bundled em /opt/hermes/plugins/delegation/por_papel
+  backend: por_papel
+  # planner (depth 0) -> subagentes (depth 1); 2 permite sub-delegação controlada
+  max_spawn_depth: 2
+  # 10 pontos simultâneos x 4 personas = até 40 subagentes concorrentes por rodada
+  max_concurrent_children: 40
+  # 0 = sem limite acumulado por execução (4 rodadas x 40 buscas + 40 auditorias + 10 redatores = até 210 filhos)
+  oneshot_max_children: 0
+  backends:
+    por_papel:
+      modelos:
+        planner: "deepseek/deepseek-v3.2"
+        historiador: "deepseek/deepseek-v3.2"
+        cetico: "deepseek/deepseek-v3.2"
+        visionario: "deepseek/deepseek-v3.2"
+        futurista: "deepseek/deepseek-v3.2"
+        auditor: "deepseek/deepseek-v3.2"
+        redator: "deepseek/deepseek-v3.2"
+```
+
+### 2.2. Regras de Delegação, Modelos por Papel e Isolamento
+
+1. **Roteamento de Modelo por Subagente (`backend: por_papel`):**
+   - O plugin `delegation_por_papel` (instalado no diretório de plugins bundled do Hermes `/opt/hermes/plugins/delegation/por_papel`) intercepta cada `delegate_task` do Hermes e seleciona o modelo específico configurado para o papel da tarefa (`planner`, `historiador`, `cetico`, `visionario`, `futurista`, `auditor`, `redator`) a partir do `MODELS.json` gravado no workspace da pesquisa e do bloco `delegation.backends.por_papel.modelos` do `config.yaml`.
+2. **Capacidade de 40 Subagentes Simultâneos (Zero Limite de 3 Pontos Paralelos):**
+   - Não existe `max_pontos_paralelos: 3`. Quando `profundidade = 10`, todos os 10 pontos acionam suas 4 personas em paralelo, totalizando **40 subagentes simultâneos** (`max_concurrent_children: 40`).
+3. **Isolamento Estrito de Workspace por Pesquisa:**
+   - Cada `research_id` possui um diretório próprio isolado (`data/workspaces/{research_id}/`). O processo Hermes roda com `cwd` fixado nesse diretório e permissão restrita exclusivamente aos arquivos dessa pesquisa, impedindo leitura ou reaproveitamento de relatórios de outras pesquisas.
+4. **Rastreamento Real de Tokens e Telemetria (`state.db` do Hermes):**
+   - O backend extrai os tokens reais (`prompt_tokens`, `completion_tokens`, `reasoning_tokens`, `total_tokens`), `tool_calls` e `reasoning_trace` diretamente do banco de sessões do Hermes (`state.db` filtrado pelo `cwd`/workspace da pesquisa) e dos recibos de execução de cada subagente, garantindo que 100% dos tokens gastos pelo agente principal e por todos os subagentes delegados sejam somados em `agent_executions` e `research_runs`.
 
 ---
 
-## 3. Convenção Canônica de Nomes e Contratos
+## 3. Estratégia de Execução e Injeção no 1º Prompt (Banco + Hermes)
+
+1. **Varredura Exploratória do Planner (`spawn_planner`):**
+   - O Planner no Hermes recebe o `tema`, `profundidade`, `veracidade_alvo`, `max_rodadas_auditoria` e `atualidade`.
+   - Ele executa uma **busca exploratória simples na web** (`web_search` e abertura livre de páginas com `web_extract`) apenas para coletar contexto suficiente sobre o estado atual do tema e, em seguida, formula os `N` pontos estruturados com `subperguntas`, `hipoteses`, `lacunas_iniciais` e as 12 `perguntas_auditoria`.
+2. **Quando o Hermes dispara os Buscadores (`spawn_buscadores(research_id, ponto_id, rodada)`):**
+   - Se `rodada == 1`, o backend monta o 1º prompt para cada uma das 4 personas com `tema`, `atualidade`, `ponto_enunciado`, `subperguntas`, `hipoteses` e `lacunas_iniciais`.
+   - Se `rodada > 1`, o backend consulta no banco quais perguntas receberam `false` no auditor da rodada anterior (`perguntas_auditoria_pendentes`) e reúne todas as `urls_lidas` acumuladas daquele ponto (`urls_lidas_ignoradas`), injetando os dois conjuntos no 1º prompt dos 4 buscadores.
+3. **Quando o Hermes dispara o Auditor (`spawn_auditor(research_id, ponto_id, rodada)`):**
+   - O backend executa um `SELECT` em `agent_executions` daquele ponto desde a rodada 1 até a rodada atual (`R1..Rk`), concatena integralmente `informacao_coletada` de todas as personas e rodadas sem qualquer resumo ou corte, e injeta no 1º prompt do auditor junto com `atualidade` e `perguntas_auditoria`.
+4. **Quando o Hermes dispara o Redator (`spawn_redator(research_id, ponto_id)`):**
+   - O backend reúne `informacao_coletada_acumulada_integral` (`R1..Rn`), `urls_usadas_acumuladas` e `resultado_final_auditor` e injeta no 1º prompt do redator daquele ponto.
+
+---
+
+## 4. Convenção Canônica de Nomes e Contratos
 
 Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em todos os payloads de entrada, saída e persistência:
 
@@ -52,6 +105,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 - `atualidade`
 - `callback_url`
 - `ponto_id`
+- `enunciado`
 - `subperguntas`
 - `hipoteses`
 - `lacunas_iniciais`
@@ -62,16 +116,15 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 - `urls_lidas_nao_usadas`
 - `informacao_coletada`
 - `informacao_coletada_acumulada`
+- `informacao_coletada_acumulada_integral`
 - `perguntas_respondidas`
 - `resultado_final_auditor`
 
-> Qualquer documento, endpoint ou tabela que usar `veracidade`, `callback`, `max_tentativas`, `urls_lidas_mas_nao_usadas` em vez dos nomes acima deve ser tratado como documentação antiga e será normalizado antes da implementação.
-
 ---
 
-## 4. Contratos JSON (Schemas de Entrada e Saída)
+## 5. Contratos JSON (Schemas de Entrada, Configuração e Saída)
 
-### 4.1. Payload inicial do usuário
+### 5.1. Payload inicial do usuário (`POST /research`)
 ```json
 {
   "tema": "matriz energetica no Brasil.",
@@ -83,7 +136,28 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 }
 ```
 
-### 4.2. Saída do planner (decomposição inicial)
+### 5.2. Payload de Configuração do Hermes (`GET /config` e `PUT /config`)
+```json
+{
+  "base_url": "http://9router:20128/v1",
+  "api_key": "sk-...",
+  "default_model": "deepseek/deepseek-v3.2",
+  "max_concurrent_children": 40,
+  "max_spawn_depth": 2,
+  "oneshot_max_children": 0,
+  "modelos_por_papel": {
+    "planner": "deepseek/deepseek-v3.2",
+    "historiador": "gemini/gemini-3.5-flash-lite",
+    "cetico": "deepseek/deepseek-v3.2",
+    "visionario": "gemini/gemini-3.5-flash-lite",
+    "futurista": "gemini/gemini-3.5-flash-lite",
+    "auditor": "ocg/deepseek-v4.1-flash",
+    "redator": "ocg/deepseek-v4.1-flash"
+  }
+}
+```
+
+### 5.3. Saída do planner (após varredura exploratória inicial no Hermes)
 ```json
 {
   "research_id": "123ABC321",
@@ -131,7 +205,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 }
 ```
 
-### 4.3. Payload de entrada do subagente buscador
+### 5.4. Payload de entrada do subagente buscador no Hermes
 ```json
 {
   "research_id": "123ABC321",
@@ -139,6 +213,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
   "rodada": 2,
   "persona": "historiador",
   "tema": "matriz energetica no Brasil.",
+  "atualidade": "24H",
   "ponto_enunciado": "Quais são as matrizes energéticas do Brasil e sua participação atual",
   "subperguntas": [
     "Qual o percentual atual de renováveis vs não-renováveis?",
@@ -147,6 +222,9 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
   ],
   "hipoteses": [
     "Fontes renováveis representam mais de 45% da matriz energética total."
+  ],
+  "lacunas_iniciais": [
+    "Dados consolidados das últimas 24 horas do ONS."
   ],
   "perguntas_auditoria_pendentes": {
     "4": "Os dados respeitam a janela de atualidade exigida (24H)?",
@@ -160,7 +238,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 }
 ```
 
-### 4.4. Saída padronizada do subagente buscador
+### 5.5. Saída padronizada do subagente buscador
 ```json
 {
   "research_id": "123ABC321",
@@ -168,7 +246,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
   "rodada": 2,
   "persona": "historiador",
   "tema": "matriz energetica no Brasil.",
-  "informacao_coletada": "Texto denso, detalhado e sem resumo prematuro contendo todos os fatos, números, citações e evidências extraídas das leituras...",
+  "informacao_coletada": "Texto denso, detalhado e sem resumo prematuro contendo todos os fatos, números, citações e evidências extraídas das leituras via web_search e web_extract...",
   "urls_usadas": [
     "https://www.epe.gov.br/pt/publicacoes-dados-abertos/publicacoes/balanco-energetico-nacional"
   ],
@@ -179,9 +257,9 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 }
 ```
 
-> O backend calcula automaticamente `urls_lidas_nao_usadas = urls_lidas - urls_usadas` ao persistir no banco.
+> O backend valida e higieniza todas as URLs e calcula automaticamente `urls_lidas_nao_usadas = urls_lidas - urls_usadas` ao persistir no banco.
 
-### 4.5. Entrada e saída do auditor
+### 5.6. Entrada e saída do auditor
 
 **Entrada injetada no 1º prompt do auditor:**
 ```json
@@ -189,6 +267,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
   "research_id": "123ABC321",
   "ponto_id": 1,
   "persona": "auditor",
+  "atualidade": "24H",
   "soul": "Você é o auditor. Seu objetivo é avaliar rigorosamente todas as informações coletadas em todas as rodadas e responder somente com true ou false para cada uma das 12 perguntas.",
   "tentativa_atual": 2,
   "max_rodadas_auditoria": 4,
@@ -238,7 +317,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 }
 ```
 
-### 4.6. Decisão do planner
+### 5.7. Decisão de avaliação de veracidade
 ```json
 {
   "research_id": "123ABC321",
@@ -265,7 +344,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 }
 ```
 
-### 4.7. Entrada e saída do redator
+### 5.8. Entrada e saída do redator
 
 **Entrada injetada no 1º prompt do redator:**
 ```json
@@ -331,7 +410,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 
 ---
 
-## 5. Schema do Banco de Dados (PostgreSQL)
+## 6. Schema do Banco de Dados (PostgreSQL / SQLite Paritário)
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -379,18 +458,19 @@ CREATE TABLE research_points (
     UNIQUE (research_id, ponto_id)
 );
 
--- 3. Log Imutável de Execuções de Agentes (Telemetria + Histórico Sem Truncamento)
+-- 3. Log Imutável de Execuções de Agentes no Hermes (Telemetria + Histórico Sem Truncamento)
 CREATE TABLE agent_executions (
     execution_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     research_id VARCHAR(64) NOT NULL REFERENCES research_runs(research_id) ON DELETE CASCADE,
     ponto_id INT,                        -- NULL apenas no Planner global ou consolidador final
     rodada INT NOT NULL DEFAULT 1,
     agent_role VARCHAR(32) NOT NULL,     -- 'planner', 'historiador', 'cetico', 'visionario', 'futurista', 'auditor', 'redator'
+    model_used VARCHAR(128),             -- Modelo efetivamente utilizado pelo agente/subagente no Hermes
     input_prompt_payload JSONB NOT NULL, -- Tudo o que entrou no 1º prompt do agente
     raw_output_payload JSONB NOT NULL,   -- O JSON retornado pelo agente
     informacao_coletada TEXT,            -- Preenchido pelos 4 subagentes buscadores
     reasoning_trace TEXT,                -- Pensamento bruto (<think> / reasoning_content)
-    tool_calls JSONB DEFAULT '[]'::jsonb,-- Histórico completo de chamadas de ferramentas e respostas
+    tool_calls JSONB DEFAULT '[]'::jsonb,-- Histórico completo de chamadas de ferramentas (web_search, web_extract, etc.)
     urls_usadas JSONB DEFAULT '[]'::jsonb,
     urls_lidas JSONB DEFAULT '[]'::jsonb,
     urls_lidas_nao_usadas JSONB DEFAULT '[]'::jsonb,
@@ -407,7 +487,7 @@ CREATE INDEX idx_executions_lookup ON agent_executions (research_id, ponto_id, r
 
 ---
 
-## 6. Query de Hidratação Sem Truncamento (Backend → 1º Prompt)
+## 7. Query de Hidratação Sem Truncamento (Backend → 1º Prompt no Hermes)
 
 Para montar o 1º prompt do **Auditor** ou do **Redator** para um `ponto_id`, o backend executa:
 
@@ -421,8 +501,9 @@ FROM agent_executions
 WHERE research_id = $1
   AND ponto_id = $2
   AND agent_role IN ('historiador', 'cetico', 'visionario', 'futurista')
+  AND informacao_coletada IS NOT NULL
 GROUP BY rodada
 ORDER BY rodada ASC;
 ```
 
-Essa query garante que `Rodada 1 + Rodada 2 + Rodada 3 + Rodada 4` entrem ordenadas e completas no prompt inicial do agente avaliador/redator em uma única operação de leitura.
+Essa query garante que `Rodada 1 + Rodada 2 + ... + Rodada K` entrem ordenadas e 100% completas no prompt inicial do agente avaliador ou redator em uma única operação de leitura.
