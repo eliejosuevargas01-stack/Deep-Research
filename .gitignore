@@ -81,3 +81,15 @@ frontend-recovery-browser-evidence/
 scripts/.shim_cache/
 *.shim_cache/
 .shim_cache/
+
+# Evidências locais de auditoria e workspaces efêmeros
+artifacts/
+frontend/artifacts/
+test-data/
+.worktrees/
+.hermes/
+dist.bak-*/
+scripts/audit_round1.js
+scripts/capture_*.js
+scripts/verify_*.js
+scripts/test_*.js
