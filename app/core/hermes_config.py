@@ -155,7 +155,15 @@ def sincronizar_perfil(dados: Dict[str, str] | None = None, perfil: str | None =
         padrao = re.compile(rf"(?m)^(\s{{2}}{campo}:\s*).*$")
         return padrao.sub(lambda m: m.group(1) + json.dumps(valor), atual, count=1)
 
+    def garante_backend(atual: str) -> str:
+        """O plugin por papel só roda com delegation.backend: por_papel."""
+        padrao = re.compile(r"(?m)^(\s{2}backend:\s*).*$")
+        if not padrao.search(atual):
+            return atual
+        return padrao.sub(lambda m: m.group(1) + "por_papel", atual, count=1)
+
     novo = texto
+    novo = garante_backend(novo)
     novo = troca("default", modelo, novo)
     novo = troca("base_url", base, novo)
     novo = troca("api_key", chave, novo)
