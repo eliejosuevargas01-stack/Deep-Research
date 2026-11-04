@@ -14,6 +14,7 @@ import {
 import { AuditResponse, PlanResponse, SearchResponse } from '../types/api';
 import { ReasoningFeedItem } from '../types/stream';
 import { LinearTimeline } from './LinearTimeline';
+import { ExecutionCompass } from './ExecutionCompass';
 import '../styles/execution-view.css';
 import { formatarTitulo } from '../utils/texto';
 import { ConvergenceLogo } from './ResearchIcons';
@@ -392,6 +393,8 @@ interface ExecutionViewProps {
   onToggleRail?: (targetTab?: 'contexto' | 'fontes') => void;
   /** Estado de abertura da gaveta lateral */
   isRailOpen?: boolean;
+  /** Progresso real da redação (SSE writer.progress). */
+  writerProgress?: { status: string; total_caracteres: number } | null;
 }
 
 export const ExecutionView: React.FC<ExecutionViewProps> = ({
@@ -418,6 +421,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
   sourcesCount,
   onToggleRail,
   isRailOpen = false,
+  writerProgress = null,
 }) => {
   // Cronômetro visível: tempo desde o início da execução. A região é
   // aria-live="off" para não narrar cada segundo no leitor de tela.
@@ -720,6 +724,16 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
           rotulo="Redação do dossiê"
         />
       </p>
+
+      <ExecutionCompass
+        stage={stage}
+        plan={plan}
+        searchResult={searchResult}
+        auditResult={auditResult}
+        cycleNumber={cycleNumber}
+        maxCycles={maxCycles}
+        writerProgress={writerProgress}
+      />
 
       {/* Barra de telemetria compacta: tokens e fontes ao vivo com gatilho para o painel lateral */}
       {(Boolean(tokensAoVivo && tokensAoVivo.total_tokens > 0) || typeof sourcesCount === 'number' || Boolean(onToggleRail)) && (
