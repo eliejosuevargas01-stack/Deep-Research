@@ -365,6 +365,7 @@ async def iniciar(
         json.dumps(hermes_config.modelos_por_papel(config_modelos), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    hermes_config.sincronizar_perfil(config_modelos, perfil)
     prompt = montar_prompt(tema, Path(caminho_exec), max_rodadas, n_pontos)
     prompt += hermes_config.instrucao_modelos(config_modelos)
     (workspace / "TEMA.md").write_text(

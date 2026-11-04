@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict
 
@@ -111,3 +112,60 @@ def instrucao_modelos(dados: Dict[str, str] | None = None) -> str:
         "Modelos por papel (use o indicado ao delegar; o filho herda o modelo do pai "
         f"quando o Hermes não permitir fixar): {', '.join(partes)}.\n"
     )
+
+
+def perfil_hermes(perfil: str | None = None) -> Path | None:
+    """Diretório do perfil usado pelo subprocesso (`HERMES_HOME/profiles/<perfil>`)."""
+    home = os.environ.get("HERMES_HOME")
+    if not home:
+        return None
+    raiz = Path(home).expanduser()
+    nome = perfil or os.environ.get("DR_HERMES_PROFILE") or os.environ.get("HERMES_PROFILE") or "deep-research"
+    candidato = raiz / "profiles" / nome
+    if candidato.is_dir():
+        return candidato
+    return raiz if (raiz / "SOUL.md").exists() else None
+
+
+def sincronizar_perfil(dados: Dict[str, str] | None = None, perfil: str | None = None) -> bool:
+    """Grava base_url/modelo/chave concretos no config.yaml do perfil Hermes.
+
+    O Hermes 0.22 não expande `${VAR}` no `model:` do perfil; sem isso o processo
+    sobe com modelo vazio. Mantém o resto do arquivo (delegação, limites) intacto.
+    """
+    dados = dados if dados is not None else carregar()
+    destino = perfil_hermes(perfil)
+    if destino is None:
+        return False
+    config = destino / "config.yaml"
+    try:
+        texto = config.read_text(encoding="utf-8")
+    except OSError:
+        return False
+
+    modelo = modelos_por_papel(dados).get("planejador") or dados.get("modelo_padrao") or ""
+    base = dados.get("openai_base_url") or ""
+    chave = dados.get("openai_api_key") or ""
+    if not (modelo or base or chave):
+        return False
+
+    def troca(campo: str, valor: str, atual: str) -> str:
+        if not valor:
+            return atual
+        padrao = re.compile(rf"(?m)^(\s{{2}}{campo}:\s*).*$")
+        return padrao.sub(lambda m: m.group(1) + json.dumps(valor), atual, count=1)
+
+    novo = texto
+    novo = troca("default", modelo, novo)
+    novo = troca("base_url", base, novo)
+    novo = troca("api_key", chave, novo)
+    if novo == texto:
+        return False
+    try:
+        tmp = config.with_suffix(".yaml.tmp")
+        tmp.write_text(novo, encoding="utf-8")
+        os.chmod(tmp, 0o600)
+        tmp.replace(config)
+    except OSError:
+        return False
+    return True

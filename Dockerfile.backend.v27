@@ -1,0 +1,30 @@
+# Backend sobre a imagem oficial do Hermes (v0.22.x, com delegação por papel).
+# O PyPI público parou em hermes-agent 0.19.0, que não tem `delegation.backend`.
+FROM nousresearch/hermes-agent:latest
+
+ENV PATH=/opt/hermes/.venv/bin:/opt/hermes/bin:$PATH
+ENV DR_HERMES_BIN=/opt/hermes/.venv/bin/hermes
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV HOST=0.0.0.0
+ENV PORT=8000
+ENV HERMES_HOME=/app/hermes_home
+ENV HERMES_PROFILE=deep-research
+ENV DR_HERMES_PROFILE=deep-research
+
+WORKDIR /app
+
+# Dependências que o venv do Hermes não traz.
+# O venv do Hermes não traz pip: bootstrap pelo get-pip e instala só o que falta.
+RUN python -c "import urllib.request;open('/tmp/get-pip.py','wb').write(urllib.request.urlopen('https://bootstrap.pypa.io/get-pip.py').read())" \
+ && python /tmp/get-pip.py --no-warn-script-location >/dev/null \
+ && python -m pip install --no-cache-dir "sqlalchemy[asyncio]>=2.0" pydantic-settings
+
+COPY app ./app
+COPY hermes_home ./hermes_home
+
+RUN mkdir -p /app/data /app/data/pesquisas
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
