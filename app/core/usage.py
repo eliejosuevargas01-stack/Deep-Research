@@ -2,8 +2,9 @@
 
 O Hermes escreve `usage.json` no workspace a cada turno — parcial, sobrescrito.
 A soma tem que ser monotônica: nenhum turno menor pode apagar o que já foi gasto.
-Quando existir `usage_<etapa>.json` (plan/search/audit/write), a soma por etapa é
-a verdade; `usage.json` cobre o caso de um único turno acumulado.
+Quando existir `usage_<etapa>.json` (um por invocação: plan/search/audit/write),
+a soma por etapa é a verdade; `usage.json` cobre o caso de um único turno
+acumulado (contrato antigo).
 """
 
 from __future__ import annotations
@@ -11,11 +12,38 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import unicodedata
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 ETAPAS = ("plan", "search", "audit", "write")
 CAMPOS = ("input_tokens", "output_tokens", "total_tokens")
+PERSONAS = ("planejador", "historiador", "pragmatico", "cetico", "visionario", "auditor", "redator")
+# grafias que aparecem no título da sessão do Hermes (goal truncado)
+_ALIAS_PERSONA = {
+    "planejador": ("planejador",),
+    "historiador": ("historiador",),
+    "pragmatico": ("pragmatico",),
+    "cetico": ("cetico",),
+    "visionario": ("visionario", "futurista"),
+    "auditor": ("auditor",),
+    "redator": ("redator",),
+}
+
+
+def nome_arquivo_uso(etapa: Optional[str] = None, ponto: int = 1, rodada: int = 1) -> str:
+    """Arquivo de uso da invocação: um por etapa (e por ponto/rodada na busca)."""
+    if not etapa:
+        return "usage.json"  # contrato antigo: um único turno acumulado
+    if etapa == "plan":
+        return "usage_plan.json"
+    if etapa == "search":
+        return f"usage_search_ponto_{int(ponto)}.json"
+    if etapa == "audit":
+        return f"usage_audit_ponto_{int(ponto)}_rodada_{int(rodada)}.json"
+    if etapa == "write":
+        return "usage_write.json"
+    return f"usage_{etapa}.json"
 
 
 def _ler(caminho: Path) -> Optional[Dict[str, Any]]:
@@ -30,6 +58,15 @@ def _ler(caminho: Path) -> Optional[Dict[str, Any]]:
 
 def _soma(usos) -> Dict[str, int]:
     return {campo: sum(int(u.get(campo) or 0) for u in usos) for campo in CAMPOS}
+
+
+def _persona(texto: str) -> Optional[str]:
+    """Persona citada no texto (título de sessão ou nome do arquivo de etapa)."""
+    limpo = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode().lower()
+    for persona, chaves in _ALIAS_PERSONA.items():
+        if any(chave in limpo for chave in chaves):
+            return persona
+    return None
 
 
 def _state_db() -> Optional[Path]:
@@ -88,8 +125,10 @@ def _do_state_db(workspace: Path) -> Optional[Dict[str, Any]]:
         total["output_tokens"] += saida
         total["total_tokens"] += entrada + saida
         rotulo = (titulo or modelo or "agente").strip()
+        # Persona reconhecida agrupa; título livre continua como veio (nada inventado).
+        rotulo = _persona(rotulo) or rotulo[:60]
         alvo = por_agente.setdefault(
-            rotulo[:60], {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            rotulo, {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         )
         alvo["input_tokens"] += entrada
         alvo["output_tokens"] += saida
@@ -97,13 +136,42 @@ def _do_state_db(workspace: Path) -> Optional[Dict[str, Any]]:
     return {"total": total, "por_agente": por_agente, "modelo": linhas[0][0] or None}
 
 
+def _do_arquivos(workspace: Path) -> Dict[str, Dict[str, int]]:
+    """Consumo de cada `usage_*.json` do workspace (uma invocação por arquivo)."""
+    achados: Dict[str, Dict[str, int]] = {}
+    for caminho in sorted(workspace.glob("usage_*.json")):
+        uso = _ler(caminho)
+        if uso:
+            achados[caminho.stem[len("usage_") :]] = {
+                campo: int(uso.get(campo) or 0) for campo in CAMPOS
+            }
+    return achados
+
+
+def _piso(workspace: Path) -> Dict[str, Dict[str, int]]:
+    """Estado já apurado: nenhuma etapa pode encolher entre leituras.
+
+    ponytail: o piso vive no `USAGE_SUMMARY.json` do workspace; apagar o arquivo
+    zera o histórico local (o banco ainda guarda o maior total já persistido).
+    """
+    anterior = _ler(workspace / "USAGE_SUMMARY.json") or {}
+    guardado = anterior.get("por_etapa")
+    piso: Dict[str, Dict[str, int]] = {}
+    if isinstance(guardado, dict):
+        for nome, uso in guardado.items():
+            if isinstance(uso, dict):
+                piso[str(nome)] = {campo: int(uso.get(campo) or 0) for campo in CAMPOS}
+    return piso
+
+
 def resumo_uso(workspace: Path) -> Dict[str, Any]:
     """Totais e quebra por etapa/agente da pesquisa."""
-    por_etapa = {}
-    for etapa in ETAPAS:
-        uso = _ler(workspace / f"usage_{etapa}.json")
-        if uso:
-            por_etapa[etapa] = {campo: int(uso.get(campo) or 0) for campo in CAMPOS}
+    por_etapa = _do_arquivos(workspace)
+    for nome, uso in _piso(workspace).items():
+        atual = por_etapa.get(nome) or {}
+        por_etapa[nome] = {
+            campo: max(int(atual.get(campo) or 0), uso.get(campo, 0)) for campo in CAMPOS
+        }
     cumulativo = _ler(workspace / "usage.json")
     if por_etapa:
         total = _soma(por_etapa.values())
@@ -127,14 +195,20 @@ def resumo_uso(workspace: Path) -> Dict[str, Any]:
         for agente, uso in agentes.items():
             if isinstance(uso, dict):
                 por_agente[str(agente)] = {campo: int(uso.get(campo) or 0) for campo in CAMPOS}
+    # Sem sessão por persona, o arquivo da etapa é o que atribui o gasto ao dono.
+    dono_etapa = {"plan": "planejador", "write": "redator"}
     for etapa, uso in por_etapa.items():
-        por_agente.setdefault(etapa, uso)
+        por_agente.setdefault(_persona(etapa) or dono_etapa.get(etapa, etapa), uso)
     return {
         "total": total,
         "por_etapa": por_etapa,
         "por_agente": por_agente,
         "modelo": (cumulativo or {}).get("model") or (estado or {}).get("modelo"),
-        "api_calls": int((cumulativo or {}).get("api_calls") or 0),
+        "api_calls": int((cumulativo or {}).get("api_calls") or 0)
+        + sum(
+            int((_ler(workspace / f"usage_{e}.json") or {}).get("api_calls") or 0)
+            for e in por_etapa
+        ),
     }
 
 
