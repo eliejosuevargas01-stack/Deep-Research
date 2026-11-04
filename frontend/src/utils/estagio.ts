@@ -24,3 +24,12 @@ export function resolverEstagioInicial(
   if (temDossie) return 'completed';
   return POR_STATUS[status ?? ''] ?? 'idle';
 }
+
+/**
+ * Dossiê persistido vence o status do pipeline: a auditoria pode reprovar e o
+ * Redator ainda assim ter gravado o relatório — a tela abre o relatório.
+ */
+export function deveMostrarDossie(status: string | null | undefined, temDossie: boolean): boolean {
+  if (temDossie) return true;
+  return status === 'concluido';
+}
