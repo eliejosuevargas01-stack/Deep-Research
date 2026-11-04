@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Copy, PanelRightClose } from 'lucide-react';
 import { PlanResponse, ModeloMetadados, SearchResponse, FontesResumo } from '../types/api';
-import { TokenUsageMeter } from './TokenUsageMeter';
+import { TokenUsageMeter, tituloTokensPorEtapa } from './TokenUsageMeter';
 import { SourcesExplorer, derivarFontesParaExplorer, converterFontesResumoParaExplorer, FonteExplorerItem, FonteExplorerStatus } from './SourcesExplorer';
 import '../styles/right-rail.css';
 
@@ -40,6 +40,13 @@ interface ContextSidebarProps {
 
 const RAIL_MODE_KEY = 'deepResearch.railMode';
 const RAIL_PANEL_ID = 'rr-rail-panel';
+
+/** Precedência de status: nunca regride quando fontes são mescladas. */
+const PESO_STATUS: Record<FonteExplorerStatus, number> = {
+  lendo: 0,
+  lida_nao_utilizada: 1,
+  utilizada: 2,
+};
 
 const TAB_ID: Record<RailMode, string> = {
   contexto: 'rr-tab-contexto',
@@ -191,7 +198,14 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
       cache.mapa.clear();
     }
     const acumular = (itens: FonteExplorerItem[]): FonteExplorerItem[] => {
-      for (const item of itens) cache.mapa.set(item.url, item);
+      for (const item of itens) {
+        // Monotônico: o parecer final não rebaixa o que o log ao vivo já provou
+        // (lida > lendo, utilizada > lida) nem remove URLs lidas.
+        const anterior = cache.mapa.get(item.url);
+        const mantemStatus =
+          anterior && PESO_STATUS[anterior.status] > PESO_STATUS[item.status];
+        cache.mapa.set(item.url, mantemStatus ? { ...item, status: anterior.status } : item);
+      }
       // Fora da coleta ninguém fica "lendo" para sempre, e a fonte lida que a
       // resposta final não repete não desaparece do painel.
       if (!fontesAtivas) {
@@ -420,11 +434,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
         <TokenUsageMeter
           metadados={metadadosModelo ?? plan?.metadados_modelo ?? null}
           aoVivo={tokensAoVivo ?? null}
-          titulo={
-            ['planejado', 'aguardando'].includes(statusNormalized)
-              ? 'Tokens do planejamento'
-              : 'Consumo de tokens da pesquisa'
-          }
+          titulo={tituloTokensPorEtapa(statusNormalized)}
         />
 
         {/* Contrato E2E: `.context-sidebar .status-badge-container > .status-badge-chip`
@@ -496,7 +506,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
             className="rr-rail__pane"
             hidden={mode !== 'fontes'}
           >
-            <SourcesExplorer items={itensFontes} />
+            <SourcesExplorer items={itensFontes} isActive={fontesAtivas} />
           </div>
         </div>
       </div>
