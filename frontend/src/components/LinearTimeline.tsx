@@ -362,12 +362,16 @@ const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
   const motivoBruto = (reprovados[0]?.justificativa?.trim() || 'critérios não atendidos').replace(/[.;]+$/, '');
   const motivo = motivoBruto.length > 70 ? `${motivoBruto.slice(0, 67).replace(/\s+\S*$/, '')}…` : motivoBruto;
   const percentual = Math.round(auditoria.pontuacao_percentual ?? 0);
+  // O denominador é o total de critérios avaliados (12), nunca o corte de
+  // aprovação (11) — era daí que saía a fração impossível 12/11.
+  const totalCriterios = auditoria.criterios?.length || 12;
   const aprovadoValido = auditoria.status === 'aprovado' && (auditoria.criterios_aprovados ?? 0) > 0;
+  const fracao = `${auditoria.criterios_aprovados}/${totalCriterios} · mín. ${minimos}`;
   const frase = reprovado
-    ? `reprovou o ponto ${pontoN} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos}). Motivo: ${motivo}. Nova busca em andamento.`
+    ? `reprovou o ponto ${pontoN} (${percentual}% · ${fracao}). Motivo: ${motivo}. Nova busca em andamento.`
     : aprovadoValido
-    ? `aprovou o ponto ${pontoN} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos})`
-    : `avalia o ponto ${pontoN} (${percentual}% · ${auditoria.criterios_aprovados}/${minimos})`;
+    ? `aprovou o ponto ${pontoN} (${percentual}% · ${fracao})`
+    : `avalia o ponto ${pontoN} (${percentual}% · ${fracao})`;
 
   const acoes =
     reprovado && (onRefazerBuscaPonto || onReauditarPonto) ? (
@@ -416,7 +420,7 @@ const LinhaAuditor: React.FC<LinhaAuditorProps> = ({
         <div className="tl-detalhe tl-callout">
           <p className="tl-callout-score">
             <strong>{`${percentual}%`}</strong>
-            <span>{`${auditoria.criterios_aprovados}/${minimos} critérios`}</span>
+            <span>{`${auditoria.criterios_aprovados}/${totalCriterios} critérios (corte: ${minimos})`}</span>
             <span className={`tl-callout-status ${reprovado ? 'reprovado' : aprovadoValido ? 'aprovado' : 'auditando'}`}>
               {reprovado ? 'reprovado' : aprovadoValido ? 'aprovado' : 'auditando'}
             </span>

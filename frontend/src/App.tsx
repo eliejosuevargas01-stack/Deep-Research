@@ -42,6 +42,7 @@ import {
 } from './types/api';
 import { converterFontesResumoParaExplorer, derivarFontesParaExplorer } from './components/SourcesExplorer';
 import { resolverEstagioInicial } from './utils/estagio';
+import { proximoRail } from './utils/rail';
 import { usePipelineStream, formatPersonaTitle } from './hooks/usePipelineStream';
 import { RefreshCw, RotateCcw } from 'lucide-react';
 
@@ -170,12 +171,15 @@ export const App: React.FC = () => {
   const [railMode, setRailMode] = useState<'contexto' | 'fontes'>('contexto');
 
   const handleToggleRail = (targetTab?: 'contexto' | 'fontes') => {
-    if (targetTab) {
-      setRailMode(targetTab);
-      setIsRailOpen((prev) => (prev && railMode === targetTab ? false : true));
-    } else {
+    if (!targetTab) {
       setIsRailOpen((prev) => !prev);
+      return;
     }
+    // Chip do topo: se o painel já está aberto E visivelmente nessa aba, fecha;
+    // em qualquer outro caso abre/mantém aberto e troca de aba.
+    const proximo = proximoRail(isRailOpen, railMode, targetTab);
+    setRailMode(proximo.modo);
+    setIsRailOpen(proximo.aberto);
   };
 
   // Rascunho em memória de configurações preservado entre navegações internas por hash
@@ -323,6 +327,12 @@ export const App: React.FC = () => {
         }
       }
     },
+    onWriterProgress: (evento) => {
+      setWriterProgress({
+        status: String(evento.status ?? 'redigindo'),
+        total_caracteres: Number(evento.total_caracteres ?? 0),
+      });
+    },
     onReportFinal: (report) => {
       setWriterResult({
         id_pesquisa: report.id_pesquisa,
@@ -430,6 +440,7 @@ export const App: React.FC = () => {
     total_tokens: number;
   } | null>(null);
   const [executionStartedAt, setExecutionStartedAt] = useState<string | null>(null);
+  const [writerProgress, setWriterProgress] = useState<{ status: string; total_caracteres: number } | null>(null);
 
   /** Tokens só sobem dentro da mesma pesquisa: turno parcial não apaga o total. */
   const registrarTokensAoVivo = useCallback(
@@ -449,6 +460,7 @@ export const App: React.FC = () => {
     setFontesPersistidas(null);
     setTokensAoVivo(null);
     setExecutionStartedAt(null);
+    setWriterProgress(null);
     clearReasoningItems();
   }, [clearReasoningItems]);
 
@@ -2069,6 +2081,7 @@ export const App: React.FC = () => {
                       pontoEmReprocesso={pontoEmReprocesso}
                       startedAt={effectiveStartedAt}
                       tokensAoVivo={tokensAoVivo ?? tokensEfetivos}
+                      writerProgress={writerProgress}
                       sourcesCount={effectiveSourcesCount}
                       isRailOpen={isRailOpen}
                       onToggleRail={handleToggleRail}
@@ -2107,6 +2120,7 @@ export const App: React.FC = () => {
                           reasoningItems={reasoningItems}
                           startedAt={effectiveStartedAt}
                           tokensAoVivo={tokensAoVivo ?? tokensEfetivos}
+                          writerProgress={writerProgress}
                           sourcesCount={effectiveSourcesCount}
                           isRailOpen={isRailOpen}
                           onToggleRail={handleToggleRail}
@@ -2124,6 +2138,7 @@ export const App: React.FC = () => {
                     onToggleCollapse={() => setIsRailOpen(false)}
                     initialMode={railMode}
                     mode={railMode}
+                    onModeChange={setRailMode}
                     pipelineStatus={pipelineStage !== 'idle' ? pipelineStage : currentPlan.status_pipeline}
                     cycleNumber={cycleNumber}
                     maxCycles={4}

@@ -34,6 +34,8 @@ interface ContextSidebarProps {
   onToggleCollapse?: () => void;
   initialMode?: RailMode;
   mode?: RailMode;
+  /** Fonte única de verdade: trocar de aba no painel avisa o App. */
+  onModeChange?: (mode: RailMode) => void;
 }
 
 const RAIL_MODE_KEY = 'deepResearch.railMode';
@@ -139,6 +141,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   onToggleCollapse,
   initialMode,
   mode: modeProp,
+  onModeChange,
 }) => {
   const [collapsedInternal, setCollapsedInternal] = useState(false);
   const collapsed = isCollapsed !== undefined ? isCollapsed : collapsedInternal;
@@ -232,6 +235,15 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
     return temFontesColetadas ? 'fontes' : 'contexto';
   });
   const userChangedModeRef = useRef(false);
+
+  const trocarModo = useCallback(
+    (next: RailMode) => {
+      userChangedModeRef.current = true;
+      setMode(next);
+      onModeChange?.(next);
+    },
+    [onModeChange]
+  );
 
   useEffect(() => {
     const targetMode = initialMode ?? modeProp;
@@ -329,8 +341,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
     else if (event.key === 'End') next = MODES[MODES.length - 1];
     if (!next) return;
     event.preventDefault();
-    userChangedModeRef.current = true;
-    setMode(next);
+    trocarModo(next);
     tabRefs.current[next]?.focus();
   };
 
@@ -348,10 +359,7 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
         ref={(node) => {
           tabRefs.current[value] = node;
         }}
-        onClick={() => {
-          userChangedModeRef.current = true;
-          setMode(value);
-        }}
+        onClick={() => trocarModo(value)}
       >
         <span>{rotulo}</span>
         {typeof count === 'number' && (

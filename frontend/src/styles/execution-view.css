@@ -772,3 +772,82 @@ button.exec-telemetry-chip--fontes:hover {
   outline: 2px solid var(--color-accent, currentColor);
   outline-offset: 2px;
 }
+
+/* ---------- Bússola da execução (fases, pontos, rodada e redação) ---------- */
+.exec-compass {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 10px;
+  background: var(--color-surface-subtle, transparent);
+}
+
+.exec-compass__phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.exec-compass__phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+}
+
+.exec-compass__phase.is-ativa {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.exec-compass__phase.is-concluida {
+  color: var(--color-text-secondary);
+}
+
+.exec-compass__phase-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 16px;
+  block-size: 16px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.exec-compass__points {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.exec-compass__point {
+  display: flex;
+  gap: 8px;
+  color: var(--color-text-secondary);
+}
+
+.exec-compass__point strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.exec-compass__live {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
