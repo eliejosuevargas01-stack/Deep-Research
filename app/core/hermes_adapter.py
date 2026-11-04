@@ -413,6 +413,9 @@ async def aguardar_coletas(pesquisa_id: str, timeout: float = 3600.0) -> None:
         await asyncio.sleep(3.0)
 
 
+_ETAPA_DO_ARTEFATO = {"AUDITORIA.json": "audit", "DOSSIE.json": "write"}
+
+
 async def aguardar_arquivo(
     pesquisa_id: str, nome: str, timeout: float = 3600.0, tema: Optional[str] = None
 ) -> Path:
@@ -430,6 +433,17 @@ async def aguardar_arquivo(
         exato = _workspace_exato(pesquisa_id, tema)
         if (exato / nome).exists():
             return exato
+        # O turno anterior pode ter morrido depois da busca (timeout, restart).
+        # Sem retomar a etapa, o endpoint ficaria esperando um arquivo que
+        # ninguém vai escrever até estourar o timeout.
+        etapa = _ETAPA_DO_ARTEFATO.get(nome)
+        if etapa and exato.is_dir():
+            try:
+                retomada = await hermes_planner.iniciar(tema, pesquisa_id, n_pontos=1, etapa=etapa)
+            except TypeError:  # planner antigo, sem o parâmetro de etapa
+                retomada = await hermes_planner.iniciar(tema, pesquisa_id, n_pontos=1)
+            await retomada.aguardar_arquivo(nome, timeout=timeout)
+            return retomada.workspace
         raise ValueError(f"{nome} ausente em {exato.name}")
     for workspace in _raiz_para(pesquisa_id):
         if (workspace / nome).exists():
