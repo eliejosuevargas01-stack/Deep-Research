@@ -33,3 +33,10 @@ export function deveMostrarDossie(status: string | null | undefined, temDossie: 
   if (temDossie) return true;
   return status === 'concluido';
 }
+
+/**
+ * Dossiê já pronto não volta para "reprovada"/"falha" por replay de status do SSE.
+ */
+export function naoRebaixarDossie(prev: PipelineStage, novo: PipelineStage): PipelineStage {
+  return prev === 'completed' ? prev : novo;
+}
