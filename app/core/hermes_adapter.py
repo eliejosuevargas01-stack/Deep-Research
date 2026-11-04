@@ -352,16 +352,36 @@ async def garantir_pesquisa(pesquisa_id: str, tema: str, n_pontos: int = 1) -> P
 
 def _workspace_exato(pesquisa_id: str, tema: str) -> Path:
     """Workspace determinístico da pesquisa (mesma regra de `criar_workspace`)."""
-    return hermes_planner._raiz_pesquisas() / f"{hermes_planner._slug(tema)}-{pesquisa_id[:8]}"
+    return hermes_planner.caminho_workspace(pesquisa_id, tema)
 
 
 def _raiz_para(pesquisa_id: str) -> List[Path]:
-    """Workspaces existentes para o id (o slug do tema varia)."""
+    """Workspaces existentes para o id (o slug do tema varia).
+
+    Só aceita pasta cuja marca `.pesquisa_id` confirma o dono ou, em workspaces
+    antigos sem marca, o sufixo derivado do id — nunca `plan-179`, que era comum
+    a todas as pesquisas da semana.
+    """
     base = hermes_planner._raiz_pesquisas()
-    sufixo = f"-{pesquisa_id[:8]}"
     if not base.exists():
         return []
-    return sorted(d for d in base.iterdir() if d.is_dir() and d.name.endswith(sufixo))
+    sufixos = {f"-{hermes_planner.sufixo_workspace(pesquisa_id)}"}
+    legado = f"-{pesquisa_id[:8]}"
+    if legado != sufixos.copy().pop():
+        sufixos.add(legado)
+    achados: List[Path] = []
+    for diretorio in base.iterdir():
+        if not diretorio.is_dir():
+            continue
+        marca = diretorio / ".pesquisa_id"
+        if marca.exists():
+            dono = marca.read_text(encoding="utf-8", errors="replace").strip()
+            if dono == pesquisa_id:
+                achados.append(diretorio)
+            continue
+        if any(diretorio.name.endswith(sufixo) for sufixo in sufixos):
+            achados.append(diretorio)
+    return sorted(achados)
 
 
 async def aguardar_coletas(pesquisa_id: str, timeout: float = 3600.0) -> None:

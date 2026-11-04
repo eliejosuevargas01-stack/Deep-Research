@@ -22,12 +22,14 @@ entre personas não existe porque cada uma tem arquivo próprio (auditor é escr
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import re
 import shutil
 import time
 import unicodedata
+import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -81,10 +83,44 @@ def _ajustar_dono(caminho: Path) -> None:
             pass
 
 
+_ID_COM_SUFIXO = re.compile(r"^plan-\d+-(?P<cauda>[0-9a-f]{8,})$")
+
+
+def sufixo_workspace(pesquisa_id: str) -> str:
+    """Sufixo estável e único do workspace para um id de pesquisa.
+
+    `plan-<timestamp>-<aleatório>`: usa a cauda aleatória. `pesquisa_id[:8]`
+    pegava `plan-179`, constante por ~11 dias, e duas pesquisas do mesmo tema
+    caíam na mesma pasta (dossiê e usage.json de outra execução).
+    Ids sem esse formato mantêm os 8 primeiros caracteres (contrato antigo).
+    """
+    achado = _ID_COM_SUFIXO.match(pesquisa_id or "")
+    if achado:
+        return achado.group("cauda")[:8]
+    limpo = re.sub(r"[^a-zA-Z0-9]", "", pesquisa_id or "")
+    if len(limpo) >= 8:
+        return limpo[:8]
+    return hashlib.sha256((pesquisa_id or "pesquisa").encode("utf-8")).hexdigest()[:8]
+
+
+def caminho_workspace(pesquisa_id: str, tema: str) -> Path:
+    """Caminho determinístico do workspace de uma pesquisa."""
+    return _raiz_pesquisas() / f"{_slug(tema)}-{sufixo_workspace(pesquisa_id)}"
+
+
 def criar_workspace(pesquisa_id: str, tema: str) -> Path:
     """Cria (ou reabre) o diretório isolado de uma pesquisa."""
-    destino = _raiz_pesquisas() / f"{_slug(tema)}-{pesquisa_id[:8]}"
+    destino = caminho_workspace(pesquisa_id, tema)
     destino.mkdir(parents=True, exist_ok=True)
+    marca = destino / ".pesquisa_id"
+    if marca.exists():
+        dono = marca.read_text(encoding="utf-8", errors="replace").strip()
+        if dono and dono != pesquisa_id:
+            # Nunca herda artefatos de outra execução: colisão de nome vira pasta nova.
+            destino = destino.with_name(f"{destino.name}-{uuid.uuid4().hex[:4]}")
+            destino.mkdir(parents=True, exist_ok=True)
+            marca = destino / ".pesquisa_id"
+    marca.write_text(pesquisa_id, encoding="utf-8")
     _ajustar_dono(destino)
     return destino
 
@@ -105,6 +141,9 @@ def montar_prompt(tema: str, workspace: Path, max_rodadas: int = 3, n_pontos: in
         f"Diretório de trabalho: {workspace}\n"
         f"Máximo de reprovações do auditor: {max_rodadas}\n"
         f"Pontos analíticos (perguntas) do plano: exatamente {n_pontos}\n\n"
+        "Regras de isolamento (inquebráveis): trabalhe exclusivamente dentro de "
+        f"{workspace}. Não leia, não escreva e não cite nada de `..`, `/` ou de "
+        "qualquer outro diretório de pesquisa em workspaces/.\n"
         "Execute o protocolo completo descrito no seu SOUL e responda apenas "
         "`OK <caminho absoluto do DOSSIE.json>`."
     )
@@ -270,6 +309,32 @@ async def _ciclo(ex: Execucao) -> None:
     await persistir_ciclo(ex.pesquisa_id, workspace)
 
 
+def _hermes_home_isolado(workspace: Path, perfil: str) -> Dict[str, str]:
+    """`HERMES_HOME` dentro do workspace da pesquisa.
+
+    Sessões e logs de delegação (`cache/delegation/live`) passam a viver na pasta
+    desta execução: nenhuma pesquisa lê a delegação de outra.
+    """
+    if os.environ.get("DR_HERMES_HOME_ISOLADO", "0") != "1":
+        # Desligado por padrão: o processo Hermes mantém o home do perfil (contrato
+        # testado). O watcher já só lê a delegação dentro desta pesquisa.
+        return {}
+    origem = os.environ.get("HERMES_HOME")
+    if not origem:
+        return {}
+    try:
+        home = workspace / ".hermes"
+        perfis = home / "profiles"
+        perfis.mkdir(parents=True, exist_ok=True)
+        alvo = perfis / perfil
+        base = Path(origem) / "profiles" / perfil
+        if not alvo.exists() and base.exists():
+            alvo.symlink_to(base, target_is_directory=True)
+        return {"HERMES_HOME": _mapear(home)}
+    except OSError:
+        return {}
+
+
 async def iniciar(
     tema: str,
     pesquisa_id: str,
@@ -306,6 +371,7 @@ async def iniciar(
     env["HERMES_DR_ALLOWED_PATH"] = caminho_exec
     env["DR_ALLOWED_PATH"] = caminho_exec
     env["DR_HERMES_EXEC_CWD"] = caminho_exec
+    env.update(_hermes_home_isolado(workspace, perfil))
 
     from app.core import hermes_stream
 

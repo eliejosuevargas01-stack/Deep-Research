@@ -259,7 +259,13 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
     : 'Aguardando';
 
   const idPesquisa = plan?.id_pesquisa ? String(plan.id_pesquisa) : null;
-  const idCurto = idPesquisa ? (idPesquisa.length > 8 ? idPesquisa.slice(0, 8) : idPesquisa) : '—';
+  // Últimos 8 caracteres: identidade única da execução. O prefixo (`plan-179`)
+  // era igual para toda pesquisa da mesma semana.
+  const idCurto = idPesquisa
+    ? `${idPesquisa.replace(/[^a-zA-Z0-9]/g, '').length > 8 ? '…' : ''}${idPesquisa
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .slice(-8)}`
+    : '—';
 
   const plano = plan?.plano_estruturado ?? null;
   const escopoPartes: string[] = [];
