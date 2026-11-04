@@ -41,7 +41,7 @@ import {
   WriterResponse,
 } from './types/api';
 import { converterFontesResumoParaExplorer, derivarFontesParaExplorer } from './components/SourcesExplorer';
-import { deveMostrarDossie, resolverEstagioInicial } from './utils/estagio';
+import { deveMostrarDossie, naoRebaixarDossie, resolverEstagioInicial } from './utils/estagio';
 import { proximoRail } from './utils/rail';
 import { usePipelineStream, formatPersonaTitle } from './hooks/usePipelineStream';
 import { RefreshCw, RotateCcw } from 'lucide-react';
@@ -314,8 +314,12 @@ export const App: React.FC = () => {
       else if (status === 'auditando') setPipelineStage('auditing');
       else if (status === 'redigindo') setPipelineStage('writing');
       else if (status === 'concluido') setPipelineStage('completed');
-      else if (status === 'reprovado') setPipelineStage('rejected');
-      else if (status === 'falha') setPipelineStage('failed');
+      // Status terminal de falha não rebaixa uma tela que já tem dossiê pronto
+      // (o replay inicial do SSE chega depois da hidratação).
+      else if (status === 'reprovado')
+        setPipelineStage((prev) => naoRebaixarDossie(prev, 'rejected'));
+      else if (status === 'falha')
+        setPipelineStage((prev) => naoRebaixarDossie(prev, 'failed'));
       if (currentPlan?.id_pesquisa) {
         const current = historyService.get(currentPlan.id_pesquisa);
         if (current) {
