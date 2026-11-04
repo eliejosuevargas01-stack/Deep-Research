@@ -10,13 +10,42 @@ O sistema opera sob o paradigma de **Estado Acumulativo sem Truncamento (Append-
 
 O **Hermes** atua como o cérebro central em todas as pontas do fluxo, enquanto o backend auxiliar gerencia a persistência no banco de dados e a hidratação dos prompts iniciais de cada subagente para evitar estouro de janela de contexto no agente orquestrador pai:
 
-1. **Ingestão Assíncrona:** O backend recebe os parâmetros da pesquisa (`tema`, `profundidade`, `veracidade`, `rondas de auditoria maxima`, `atualidade`, `callback`) e gera um `research_id`.
-2. **Hermes Planner:** Realiza uma busca exploratória inicial e decompõe o tema em $N$ pontos (onde $N = \text{profundidade}$, de 1 a 10). Para cada ponto, define `subperguntas`, `hipoteses` e `lacunas`'.
-3. **Fan-Out de Subagentes Buscadores:** Cada ponto é pesquisado em paralelo por **4 personas distintas** (`historiador`, `cetico`, `visionario`, `futurista`), totalizando até 40 execuções simultâneas por rodada (e até 160 execuções em 4 rodadas).
-4. **Hermes Auditor (Quality Gate):** Recebe no seu 1º prompt **100% da informação acumulada** de todas as rodadas daquele ponto (`R1 + R2 + ... + Rn`) sem truncamento e avalia as **12 perguntas na sua** estritamente com `true` ou `false`.
-5. **Loop de Retentativa Determinístico:** O Planner calcula a taxa de aprovação das 12 perguntas frente à meta de `veracidade`. Pontos reprovados voltam para os 4 buscadores na rodada seguinte, recebendo as perguntas `false` como foco e as URLs já lidas como *blacklist*.
-6. **Hermes Redator:** Quando o ponto é aprovado (ou atinge o limite de rodadas), o Redator recebe **toda a informação acumulada de todas as rodadas** e o vetor booleano final do Auditor, redigindo o relatório definitivo e documentando explicitamente as **lacunas** que permaneceram abertas.
-7. **Webhook Callback:** O resultado consolidado e a telemetria agregada são enviados via POST para a URL de `callback`.
+1. **Ingestão assíncrona:** o backend recebe os parâmetros da pesquisa (`tema`, `profundidade`, `veracidade_alvo`, `max_rodadas_auditoria`, `atualidade`, `callback_url`) e gera um `research_id`.
+2. **Planner:** realiza busca exploratória inicial e decompoe o tema em `N` pontos, onde `N = profundidade`.
+3. **Fan-out de buscadores:** cada ponto é pesquisado em paralelo por 4 personas (`historiador`, `cetico`, `visionario`, `futurista`).
+4. **Auditor:** recebe no 1º prompt o contexto acumulado de todas as rodadas do ponto e responde as 12 perguntas com `true` ou `false`.
+5. **Loop de retentativa:** o planner calcula a taxa de aprovação e, se necessário, dispara nova rodada com foco nas perguntas com `false` e URLs já lidas como bloqueio.
+6. **Redator:** quando o ponto é aprovado ou o limite é atingido, produz o relatório final e documenta as lacunas remanescentes.
+7. **Webhook callback:** o resultado consolidado e a telemetria agregada são enviados por POST para `callback_url`.
+
+---
+
+## Convenção de Nomes Canônica
+
+Os nomes abaixo são os valores oficiais do sistema e devem ser usados em toda a implementação, testes e documentação:
+
+- `research_id`
+- `tema`
+- `profundidade`
+- `veracidade_alvo`
+- `max_rodadas_auditoria`
+- `atualidade`
+- `callback_url`
+- `ponto_id`
+- `subperguntas`
+- `hipoteses`
+- `lacunas_iniciais`
+- `perguntas_auditoria`
+- `tentativa_atual`
+- `urls_usadas`
+- `urls_lidas`
+- `urls_lidas_nao_usadas`
+- `informacao_coletada`
+- `informacao_coletada_acumulada`
+- `perguntas_respondidas`
+- `resultado_final_auditor`
+
+> Regra: nomes de contrato em JSON e campos de banco devem usar o mesmo vocabulário para evitar inconsistência entre backend, planner, auditor e redator.
 
 ---
 
@@ -24,59 +53,157 @@ O **Hermes** atua como o cérebro central em todas as pontas do fluxo, enquanto 
 
 | Subagente | Persona | Papel na Coleta |
 | :--- | :--- | :--- |
-| **Subagente 1** | `historiador` | Aluno curioso focado em contexto histórico, fundamentos, dados basais e esclarecimento exaustivo das subperguntas. |
-| **Subagente 2** | `cetico` | Crítico focado em validação cruzada de evidências, verificação de fontes primárias, detecção de vieses e separação entre fato e especulação. |
-| **Subagente 3** | `visionario` | Analista focado em conexão de padrões, movimentos de mercado, tendências emergentes e desdobramentos estratégicos. |
-| **Subagente 4** | `futurista` | Estrategista de longo prazo focado em cenários prospectivos, impactos sistêmicos, riscos futuros e oportunidades disruptivas. |
+| **Subagente 1** | `historiador` | Contexto histórico, fundamentos e esclarecimento das subperguntas. |
+| **Subagente 2** | `cetico` | Validação cruzada, fontes primárias e detecção de viés. |
+| **Subagente 3** | `visionario` | Padrões, tendências emergentes e desdobramentos estratégicos. |
+| **Subagente 4** | `futurista` | Cenários prospectivos, riscos futuros e impactos sistêmicos. |
 
 ---
 
 ## Rastreamento de URLs
 
 Cada execução de subagente classifica as fontes consultadas em três categorias:
-* **`urls_usadas`**: URLs de onde a informação relevante foi efetivamente extraída para compor a resposta.
-* **`urls_lidas`**: Todas as URLs abertas/visitadas durante a execução.
-* **`urls_lidas_mas_nao_usadas`**: Calculada automaticamente pelo sistema (`urls_lidas - urls_usadas`), servindo para auditoria de eficiência e bloqueio de releitura nas rodadas subsequentes.
+
+- `urls_usadas`: URLs de onde a informação relevante foi extraída para compor a resposta.
+- `urls_lidas`: todas as URLs abertas ou visitadas durante a execução.
+- `urls_lidas_nao_usadas`: calculada automaticamente como `urls_lidas - urls_usadas`.
+
+Esse campo de diferença é usado para auditoria de eficiência e bloqueio de releitura nas rodadas subsequentes.
 
 ---
 
-## Estrutura Sugerida do Repositório
+## Contratos canônicos de Entrada e Saída
+
+### Payload inicial do usuário
+
+```json
+{
+  "tema": "matriz energetica no Brasil.",
+  "profundidade": 10,
+  "veracidade_alvo": 90,
+  "max_rodadas_auditoria": 4,
+  "atualidade": "24H",
+  "callback_url": "https://webhook.callback.com"
+}
+```
+
+### Saída do planner (decomposição inicial)
+
+```json
+{
+  "research_id": "123ABC321",
+  "tema": "matriz energetica no Brasil.",
+  "profundidade": 10,
+  "veracidade_alvo": 90,
+  "max_rodadas_auditoria": 4,
+  "atualidade": "24H",
+  "callback_url": "https://webhook.callback.com",
+  "pontos": [
+    {
+      "ponto_id": 1,
+      "enunciado": "Quais são as matrizes energéticas do Brasil e sua participação atual",
+      "subperguntas": [
+        "Qual o percentual atual de renováveis vs não-renováveis?",
+        "Como se divide a geração hidráulica, térmica, eólica e solar?",
+        "Quais foram as atualizações oficiais mais recentes?"
+      ],
+      "hipoteses": [
+        "Fontes renováveis representam mais de 45% da matriz energética total.",
+        "A geração solar distribuída cresceu acima da média histórica no último ciclo.",
+        "Gargalos de transmissão limitam o escoamento no Nordeste."
+      ],
+      "lacunas_iniciais": [
+        "Dados consolidados das últimas 24 horas do ONS.",
+        "Impacto exato do curtailment eólico recente.",
+        "Diferença metodológica entre dados da EPE e da ANEEL."
+      ],
+      "perguntas_auditoria": {
+        "1": "As fontes primárias oficiais (EPE, ANEEL ou ONS) foram citadas?",
+        "2": "Há distinção clara entre matriz energética e matriz elétrica?",
+        "3": "Os percentuais de participação de cada fonte somam valores consistentes?",
+        "4": "Os dados respeitam a janela de atualidade exigida (24H)?",
+        "5": "A capacidade instalada em GW foi informada?",
+        "6": "Há dados específicos sobre biomassa e derivados de cana?",
+        "7": "Há dados sobre combustíveis fósseis (petróleo, gás e carvão)?",
+        "8": "Eventuais divergências numéricas entre fontes foram explicadas?",
+        "9": "As tendências de expansão de curto/médio prazo foram mapeadas?",
+        "10": "Os riscos operacionais e de infraestrutura foram levantados?",
+        "11": "Há contextualização histórica da evolução dessa matriz?",
+        "12": "As projeções de longo prazo estão ancoradas em planos decenais ou dados reais?"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Estrutura da Implementação
 
 ```text
 hermes-deep-research/
-├── README.md
-├── docs/
-│   ├── PRD.md
-│   └── SPEC.md
+├── README.md / PRD.md / SDD.md
+├── config/
+│   └── hermes_config.yaml      # engine (OpenAI-compat), concorrência, caminho do banco
 ├── src/
-│   ├── api/
-│   │   └── routes.ts              # Endpoint POST /research e disparo de Webhook
-│   ├── orchestrator/
-│   │   ├── hermes_client.ts       # Wrapper da API do Hermes (captura reasoning/tokens/tools)
-│   │   ├── planner_service.ts     # Loop principal e controle de estado por ponto
-│   │   └── prompt_hydrator.ts     # Monta o 1º prompt a partir do banco (R1..Rn sem truncar)
-│   ├── prompts/
-│   │   ├── planner.md
-│   │   ├── subagents.md
-│   │   ├── auditor.md
-│   │   └── redator.md
+│   ├── main.py                 # entrypoint ASGI
+│   ├── api.py                  # POST /research, GET /research/{id}, GET /health
+│   ├── contracts.py            # contratos canônicos + validação (12 perguntas, mínimos)
+│   ├── hydrator.py             # monta o 1º prompt de cada papel a partir do banco
+│   ├── planner.py              # taxa de veracidade e decisão de fluxo
+│   ├── orchestrator.py         # máquina de estados (planner → personas → auditor → redator)
+│   ├── engine.py               # chamada ao núcleo agêntico + extração estrita de JSON
+│   ├── webhook.py              # callback final
+│   ├── prompts/                # planner.md, buscador.md, auditor.md, redator.md
 │   └── db/
-│       ├── schema.sql             # Tabelas PostgreSQL (JSONB)
-│       └── repository.ts          # Persistência de execuções e agregação de contexto
-└── data/
-    └── researches/                # Espelho opcional em JSON por execução para debug local
+│       ├── schema.sql          # DDL canônico PostgreSQL (SDD §5)
+│       ├── sqlite_manager.py   # schema local com as mesmas tabelas
+│       └── repository.py       # persistência, hidratação e consolidação
+├── tests/                      # 25 testes com engine determinístico (sem LLM)
+└── data/                       # runtime: deep_research.db (ignorado pelo git)
 ```
-Os 12 critérios (nota = quantos estão APROVADO, 0 a 12).
 
-    clareza_tematica — abordagem objetiva do eixo e aderência às subperguntas do plano.
-    corroboracao_canonica — suporte em fontes primárias verificáveis; URL sozinha não é prova.
-    atualidade — marcos e dados vigentes para o recorte; marco antigo não é estado atual.
-    ausencia_contradicoes — coerência interna entre os dados das personas.
-    embasamento_factual — ancoragem empírica; ausência de evidência ≠ falsidade.
-    aderencia_escopo — atém-se ao pedido, ao formato e ao público do plano.
-    profundidade_analitica — complexidade adequada, incertezas delimitadas.
-    precisao_dados — exatidão numérica, métricas, datas e identificadores.
-    neutralidade — fatos separados de hipóteses; equilíbrio analítico.
-    densidade_evidencias — proporção entre afirmações e URLs efetivamente usadas.
-    declaracao_incertezas — lacunas remanescentes expressas e delimitadas.
-    solidez_logica — conclusões decorrem das evidências apresentadas.
+---
+
+## Execução local
+
+```bash
+uv sync
+
+cp .env.example .env          # preencha LLM_API_KEY e DR_ENGINE_MODEL
+
+cd src && uvicorn main:app --host 0.0.0.0 --port 8000 --env-file ../.env
+```
+
+Variáveis lidas do `.env` (ou do ambiente): `LLM_BASE_URL`, `LLM_API_KEY`,
+`DR_ENGINE_MODEL`/`LLM_MODEL`, `DR_DB_PATH`, `DR_CONFIG`.
+
+```bash
+curl -s -X POST http://localhost:8000/research \
+  -H 'Content-Type: application/json' \
+  -d '{"tema":"matriz energetica no Brasil","profundidade":2,"veracidade_alvo":90,"max_rodadas_auditoria":4,"atualidade":"24H","callback_url":"https://webhook.example/cb"}'
+
+curl -s http://localhost:8000/research/<research_id>
+```
+
+O runtime local usa SQLite (`data/deep_research.db`); o DDL de produção em PostgreSQL está em
+`src/db/schema.sql`. Testes: `uv run pytest -q` (nenhuma chamada de LLM real).
+
+---
+
+## Critérios de auditoria
+
+Os 12 critérios abaixo compõem a métrica final do auditor. O cálculo usa a quantidade de respostas `true` sobre 12 perguntas.
+
+- clareza_tematica
+- corroboracao_canonica
+- atualidade
+- ausencia_contradicoes
+- embasamento_factual
+- aderencia_escopo
+- profundidade_analitica
+- precisao_dados
+- neutralidade
+- densidade_evidencias
+- declaracao_incertezas
+- solidez_logica
