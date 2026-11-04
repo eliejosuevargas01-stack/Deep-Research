@@ -18,7 +18,7 @@ docker create --name deep-research-test --restart unless-stopped --network proxy
   -e DR_HERMES_PROFILE=deep-research -e HERMES_PROFILE=deep-research \
   -e HERMES_HOME=/app/hermes_home \
   -e JINA_API_KEY= -e JINA_BASE_URL= -e JINA_READER_BASE_URL= \
-  deep-research-api:v27 app.main:app --host 0.0.0.0 --port 8000 >/dev/null
+  "${IMAGE:-deep-research-api:v28}" app.main:app --host 0.0.0.0 --port 8000 >/dev/null
 docker start deep-research-test >/dev/null
 sleep 8
 docker exec -u root deep-research-test chown -R 0:0 /app/hermes_home
