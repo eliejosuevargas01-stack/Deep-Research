@@ -100,3 +100,7 @@ hermes_home/backups/
 hermes_home/*.lock
 hermes_home/.install_id*
 hermes_home/.env
+hermes_home/plugin-update-checks/
+hermes_home/profiles/deep-research/backups/
+hermes_home/gateway_state.json
+hermes_home/.clean_shutdown
