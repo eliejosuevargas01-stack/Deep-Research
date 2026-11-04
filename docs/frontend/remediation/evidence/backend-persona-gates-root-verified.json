@@ -1,9 +1,0 @@
-{
-  "started_at": "2026-10-26T22:16:30.398833+00:00",
-  "elapsed_s": 120.965,
-  "exit_code": 0,
-  "database": "isolated temporary SQLite, removed after run",
-  "providers": "pytest externalprovider transports only; no live calls",
-  "log": "/home/eliezer/Escritorio/deep-research/Deep-Research/docs/frontend/remediation/evidence/backend-persona-gates-root-verified.txt",
-  "log_sha256": "e82171d2aa0cf95d910da9bb384f4b207bc07ed17ac04af19638ee92761d7499"
-}

@@ -1,8 +1,0 @@
-{
-  "command": "/home/eliezer/.local/bin/npm run build",
-  "exit_code": 0,
-  "summary": [
-    "\u2713 built in 3.50s"
-  ],
-  "note": "After responsive plan grid fix and independent fixture preparation"
-}
