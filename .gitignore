@@ -104,3 +104,7 @@ hermes_home/plugin-update-checks/
 hermes_home/profiles/deep-research/backups/
 hermes_home/gateway_state.json
 hermes_home/.clean_shutdown
+hermes_home/profiles/deep-research/gateway.lock
+hermes_home/profiles/deep-research/plugin-update-checks/
+hermes_home/profiles/deep-research/cache/
+hermes_home/profiles/deep-research/sessions/
