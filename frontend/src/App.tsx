@@ -559,6 +559,7 @@ export const App: React.FC = () => {
       setCurrentPlan(plano);
       setWriterResult(writer);
       setAuditResult(auditoria);
+      setSearchResult(detalhe.busca ?? null);
       setExecutionError(null);
       activeResearchIdRef.current = id;
       setActiveResearchId(id);
@@ -1802,6 +1803,18 @@ export const App: React.FC = () => {
     }
     setSearchResult(null);
     setAuditResult(record.auditResponse ?? null);
+    if (record.writerResponse || record.auditResponse) {
+      // Histórico local não guarda as coletas: a trilha vem do servidor.
+      void (async () => {
+        try {
+          const detalhe = await api.getResearch(record.id_pesquisa);
+          if (detalhe.busca) setSearchResult(detalhe.busca);
+          if (detalhe.auditoria) setAuditResult(detalhe.auditoria);
+        } catch {
+          /* offline: mantém o que o histórico local tinha */
+        }
+      })();
+    }
     setAuditCycleNumber(record.auditResponse ? 1 : null);
     navigateTo('research');
   };

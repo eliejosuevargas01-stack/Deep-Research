@@ -5,6 +5,7 @@ Permite reidratar o frontend sem histórico local (deep link).
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -87,6 +88,72 @@ def _resumo_auditoria_markdown(veredito: str, aprovados: int, total: int, criter
     if lacunas:
         linhas += ["", f"**Lacunas:** {lacunas}"]
     return "\n".join(linhas)
+
+
+_SECAO_PERSONA = re.compile(r"^##\s+(?P<persona>[a-zA-ZÀ-ÿ_ ]+)\s*$", re.M)
+
+
+def _personas_do_conteudo(conteudo: str) -> List[Dict[str, Any]]:
+    """Recorta `## <persona>` do conteúdo coletado para reidratar a trilha."""
+    texto = conteudo or ""
+    achados = list(_SECAO_PERSONA.finditer(texto))
+    personas: List[Dict[str, Any]] = []
+    for indice, achado in enumerate(achados):
+        inicio = achado.end()
+        fim = achados[indice + 1].start() if indice + 1 < len(achados) else len(texto)
+        analise = texto[inicio:fim].strip()
+        nome = achado.group("persona").strip().lower()
+        if not analise:
+            continue
+        personas.append(
+            {
+                "persona": nome,
+                "analise": analise,
+                "urls_fonte": [],
+                "urls_lidas": [],
+                "queries_executadas": 0,
+                "falha_coleta": False,
+                "lacunas": None,
+            }
+        )
+    return personas
+
+
+def _busca_persistida(pesquisa_id: str, coletas: List[Any], pontos: List[Any]) -> Optional[Dict[str, Any]]:
+    """SearchResponse reconstruído do banco, para a trilha sobreviver ao F5."""
+    if not coletas:
+        return None
+    ordem = {getattr(p, "ponto_id", None): getattr(p, "ponto_n", i + 1) for i, p in enumerate(pontos or [])}
+    status_ponto = {getattr(p, "ponto_id", None): getattr(p, "status", "coletado") for p in pontos or []}
+    resumo = []
+    for coleta in coletas:
+        try:
+            urls_lidas = json.loads(coleta.urls_lidas) if coleta.urls_lidas else []
+        except Exception:
+            urls_lidas = []
+        if not isinstance(urls_lidas, list):
+            urls_lidas = []
+        personas = _personas_do_conteudo(coleta.conteudo_coletado or "")
+        resumo.append(
+            {
+                "ponto_id": coleta.ponto_id,
+                "ponto_n": ordem.get(coleta.ponto_id) or len(resumo) + 1,
+                "status": status_ponto.get(coleta.ponto_id) or "coletado",
+                "falha_coleta": False,
+                "total_urls_lidas": len(urls_lidas),
+                "total_urls_fonte": len(urls_lidas),
+                "tamanho_conteudo_caracteres": len(coleta.conteudo_coletado or ""),
+                "tentativas": getattr(coleta, "rodada", 1) or 1,
+                "personas": personas,
+            }
+        )
+    return {
+        "id_pesquisa": pesquisa_id,
+        "total_pontos_processados": len(resumo),
+        "status_pesquisa": "coletado",
+        "total_falhas_coleta": 0,
+        "resumo_coletas": resumo,
+    }
 
 
 def _build_auditoria(pesquisa: Any, pontos: List[Any]) -> Optional[Dict[str, Any]]:
@@ -254,6 +321,10 @@ async def get_research_detail(
         fontes = None
 
     auditoria = _build_auditoria(pesquisa, pontos)
+    try:
+        coletas = await repo.get_collected_content(id_pesquisa)
+    except Exception:
+        coletas = []
 
     result: Dict[str, Any] = {
         "id": getattr(pesquisa, "id_pesquisa"),
@@ -269,6 +340,7 @@ async def get_research_detail(
         "metadados_redacao": metadados_redacao,
         "fontes": fontes,
         "auditoria": auditoria,
+        "busca": _busca_persistida(id_pesquisa, coletas, pontos),
         "tokens_prompt": int(getattr(pesquisa, "tokens_prompt", 0) or 0),
         "tokens_completion": int(getattr(pesquisa, "tokens_completion", 0) or 0),
         "tokens_total": int(getattr(pesquisa, "tokens_total", 0) or 0),

@@ -337,6 +337,8 @@ export interface ResearchDetail {
   metadados_redacao?: Record<string, unknown> | null;
   fontes?: FontesResumo | null;
   auditoria?: AuditResponse | null;
+  /** Coletas persistidas: reidratam a trilha das personas depois do F5. */
+  busca?: SearchResponse | null;
 }
 
 export interface ResearchHistoryRecord {
