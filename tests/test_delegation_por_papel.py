@@ -64,6 +64,24 @@ def test_salvar_configuracoes_propaga_modelos_distintos_por_subagente(modelos):
     assert rota.route_task({"goal": "Visionário: cenários de 2030."}, {})["model"] == "modelo-vis"
 
 
+def test_contexto_com_todas_as_personas_nao_sequestra_o_papel(modelos):
+    """O contexto da pesquisa lista as 4 personas; quem manda é o goal."""
+    plugin = _carregar_plugin()
+    rota = plugin.DelegationPorPapel()
+    tarefa = {
+        "goal": "Pesquise no papel de cético e grave CETICO_SEARCH.json",
+        "context": "Personas: historiador, visionário, cético, futurista.",
+    }
+    assert rota.route_task(tarefa, {})["model"] == "modelo-cet"
+
+
+def test_auditor_e_redator_por_verbo_da_tarefa(modelos):
+    plugin = _carregar_plugin()
+    rota = plugin.DelegationPorPapel()
+    assert rota.route_task({"goal": "Audite a rodada 1 da pesquisa"}, {})["model"] == "modelo-audit"
+    assert rota.route_task({"goal": "Redija o dossiê final"}, {})["model"] == "modelo-red"
+
+
 def test_papel_desconhecido_cai_no_modelo_padrao(modelos):
     plugin = _carregar_plugin()
     rota = plugin.DelegationPorPapel()

@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
 
 # persona -> trechos que aparecem no goal/context da tarefa delegada
 PAPEIS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("historiador", ("historiador", "história", "historia")),
+    ("historiador", ("historiador", "históri", "histori")),
     ("pragmatico", ("pragmátic", "pragmatic")),
     ("cetico", ("cétic", "cetic")),
     ("visionario", ("visionári", "visionari", "futurista")),
-    ("auditor", ("auditor",)),
-    ("redator", ("redator", "dossiê", "dossie")),
+    ("auditor", ("auditor", "audite", "auditoria", "12 critérios", "12 criterios")),
+    ("redator", ("redator", "redija", "dossiê", "dossie")),
 )
 
 
@@ -72,13 +72,21 @@ class DelegationPorPapel(DelegationProvider):
         modelos = _do_arquivo() or _do_config(config)
         if not modelos:
             return {}
-        texto = " ".join(
-            str(task.get(chave) or "") for chave in ("goal", "context", "role", "index")
-        ).lower()
-        for papel, chaves in PAPEIS:
-            modelo = modelos.get(papel)
-            if modelo and any(chave in texto for chave in chaves):
-                return {"model": modelo, "label": f"{papel} · {modelo}"}
+
+        def papel_no(texto: str) -> Optional[str]:
+            for papel, chaves in PAPEIS:
+                if modelos.get(papel) and any(chave in texto for chave in chaves):
+                    return papel
+            return None
+
+        # O `goal` manda: o `context` costuma listar todas as personas do plano e
+        # faria todo filho cair no primeiro papel da lista.
+        alvo = papel_no(str(task.get("goal") or "").lower()) or papel_no(str(task.get("role") or "").lower())
+        if alvo is None and task.get("context"):
+            alvo = papel_no(str(task.get("context") or "").lower())
+        if alvo:
+            modelo = modelos[alvo]
+            return {"model": modelo, "label": f"{alvo} · {modelo}"}
         padrao = modelos.get("planejador") or modelos.get("padrao")
         return {"model": padrao, "label": f"padrão · {padrao}"} if padrao else {}
 
