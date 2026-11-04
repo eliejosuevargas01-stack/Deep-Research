@@ -23,9 +23,15 @@ export function formatCompactTokens(n: unknown): string {
 interface TokenUsageMeterProps {
   metadados?: ModeloMetadados | null;
   aoVivo?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null;
+  /** Fase atual: o rótulo muda com a etapa, não fica fixo em "planejamento". */
+  titulo?: string;
 }
 
-export const TokenUsageMeter: React.FC<TokenUsageMeterProps> = ({ metadados, aoVivo }) => {
+export const TokenUsageMeter: React.FC<TokenUsageMeterProps> = ({
+  metadados,
+  aoVivo,
+  titulo = 'Consumo de tokens da pesquisa',
+}) => {
   const usage =
     aoVivo && aoVivo.total_tokens > 0
       ? { prompt_tokens: aoVivo.prompt_tokens, completion_tokens: aoVivo.completion_tokens, total_tokens: aoVivo.total_tokens }
@@ -34,7 +40,8 @@ export const TokenUsageMeter: React.FC<TokenUsageMeterProps> = ({ metadados, aoV
 
   if (!usage || !(total > 0)) {
     return (
-      <div className="rr-tokens rr-tokens--empty" aria-label="Consumo de tokens">
+      <div className="rr-tokens rr-tokens--empty" aria-label={titulo}>
+        <span className="rr-tokens__title">{titulo}</span>
         <span className="rr-tokens__total">Tokens</span>
         <span className="rr-tokens__empty">sem dados de tokens</span>
       </div>
@@ -48,8 +55,9 @@ export const TokenUsageMeter: React.FC<TokenUsageMeterProps> = ({ metadados, aoV
   const modelo = typeof metadados?.model_used === 'string' && metadados.model_used ? metadados.model_used : null;
 
   return (
-    <div className="rr-tokens" aria-label="Consumo de tokens">
+    <div className="rr-tokens" aria-label={titulo}>
       <div className="rr-tokens__head">
+        <span className="rr-tokens__title">{titulo}</span>
         <span className="rr-tokens__total">{formatCompactTokens(total)}</span>
         <span className="rr-tokens__unit">tokens</span>
         {modelo && (

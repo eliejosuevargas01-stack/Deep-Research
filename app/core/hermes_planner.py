@@ -289,6 +289,9 @@ async def _ciclo(ex: Execucao) -> None:
             usage = json.loads((workspace / "usage.json").read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             usage = None
+    from app.core import usage as usage_mod
+
+    resumo_usage = usage_mod.gravar_resumo(workspace)
 
     ex.resultado = {
         "pesquisa_id": ex.pesquisa_id,
@@ -301,7 +304,7 @@ async def _ciclo(ex: Execucao) -> None:
         "duracao_segundos": duracao,
         "exit_code": ex.codigo,
         "erro": ex.erro if ex.erro else (None if ex.codigo == 0 else f"hermes saiu com código {ex.codigo}"),
-        "usage": usage,
+        "usage": {**usage, "resumo": resumo_usage} if usage else resumo_usage,
     }
 
     from app.core.hermes_adapter import persistir_ciclo

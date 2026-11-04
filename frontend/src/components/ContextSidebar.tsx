@@ -175,24 +175,53 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
   });
   const copiadoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const fontesAcumuladasRef = useRef<{ id: string | null; mapa: Map<string, FonteExplorerItem> }>({
+    id: null,
+    mapa: new Map(),
+  });
+
   const itensFontes: FonteExplorerItem[] = React.useMemo(() => {
+    const idAtual = plan?.id_pesquisa ? String(plan.id_pesquisa) : null;
+    const cache = fontesAcumuladasRef.current;
+    if (cache.id !== idAtual) {
+      cache.id = idAtual;
+      cache.mapa.clear();
+    }
+    const acumular = (itens: FonteExplorerItem[]): FonteExplorerItem[] => {
+      for (const item of itens) cache.mapa.set(item.url, item);
+      // Fora da coleta ninguém fica "lendo" para sempre, e a fonte lida que a
+      // resposta final não repete não desaparece do painel.
+      if (!fontesAtivas) {
+        for (const [url, item] of cache.mapa) {
+          if (item.status === 'lendo') {
+            cache.mapa.set(url, { ...item, status: 'lida_nao_utilizada' });
+          }
+        }
+      }
+      return Array.from(cache.mapa.values());
+    };
+
     if (Array.isArray(fontes)) {
-      return fontes.map((f) => ({
-        url: f.url,
-        titulo: f.titulo ?? null,
-        dominio: f.dominio ?? null,
-        status: (f.status as FonteExplorerStatus) || 'utilizada',
-        ponto_n: typeof f.ponto_n === 'number' ? f.ponto_n : null,
-      }));
+      return acumular(
+        fontes.map((f) => ({
+          url: f.url,
+          titulo: f.titulo ?? null,
+          dominio: f.dominio ?? null,
+          status: (f.status as FonteExplorerStatus) || 'utilizada',
+          ponto_n: typeof f.ponto_n === 'number' ? f.ponto_n : null,
+        }))
+      );
     }
     if (fontes && typeof fontes === 'object' && ('consultadas' in fontes || 'utilizadas' in fontes)) {
-      return converterFontesResumoParaExplorer(fontes as FontesResumo);
+      return acumular(converterFontesResumoParaExplorer(fontes as FontesResumo));
     }
-    return derivarFontesParaExplorer(searchResult, {
-      emColeta: fontesAtivas,
-      reasoningItems,
-    });
-  }, [fontes, searchResult, fontesAtivas, reasoningItems]);
+    return acumular(
+      derivarFontesParaExplorer(searchResult, {
+        emColeta: fontesAtivas,
+        reasoningItems,
+      })
+    );
+  }, [fontes, searchResult, fontesAtivas, reasoningItems, plan?.id_pesquisa]);
   const temFontesColetadas = Array.isArray(itensFontes) && itensFontes.length > 0;
 
   const effectiveInitial = initialMode ?? modeProp;
@@ -380,7 +409,15 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
           {renderTab('fontes', 'Fontes', itensFontes.length)}
         </div>
 
-        <TokenUsageMeter metadados={metadadosModelo ?? plan?.metadados_modelo ?? null} aoVivo={tokensAoVivo ?? null} />
+        <TokenUsageMeter
+          metadados={metadadosModelo ?? plan?.metadados_modelo ?? null}
+          aoVivo={tokensAoVivo ?? null}
+          titulo={
+            ['planejado', 'aguardando'].includes(statusNormalized)
+              ? 'Tokens do planejamento'
+              : 'Consumo de tokens da pesquisa'
+          }
+        />
 
         {/* Contrato E2E: `.context-sidebar .status-badge-container > .status-badge-chip`
             precisa existir e estar visível nos dois modos. */}

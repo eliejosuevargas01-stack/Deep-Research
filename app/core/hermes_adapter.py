@@ -26,6 +26,7 @@ from pydantic import ValidationError
 
 from app.core import hermes_planner
 from app.core.hermes_ids import pontos_de
+from app.core.urls import sanitizar_url_fonte, sanitizar_urls
 from app.schemas.artefatos import (
     AuditoriaArtefato,
     BuscaArtefato,
@@ -438,16 +439,29 @@ async def aguardar_arquivo(
 # ---------------------------------------------------------------------------
 
 async def _aplicar_tokens(repo, pesquisa_id: str, workspace: Path) -> None:
-    """Copia o consumo do processo (usage.json) para a pesquisa — barato e idempotente."""
-    usage = _artefato_usage(workspace)
-    if not usage:
+    """Copia o consumo acumulado da pesquisa — nunca regride para um turno parcial."""
+    from app.core import usage as usage_mod
+
+    resumo = usage_mod.gravar_resumo(workspace)
+    total = resumo["total"]
+    if not total.get("total_tokens"):
         return
-    await repo.set_research_tokens(
-        pesquisa_id,
-        int(usage.get("input_tokens") or 0),
-        int(usage.get("output_tokens") or 0),
-        int(usage.get("total_tokens") or 0),
+    pesquisa = await repo.get_research(pesquisa_id)
+    atuais = (
+        int(getattr(pesquisa, "tokens_prompt", 0) or 0),
+        int(getattr(pesquisa, "tokens_completion", 0) or 0),
+        int(getattr(pesquisa, "tokens_total", 0) or 0),
     )
+    novos = (
+        int(total.get("input_tokens") or 0),
+        int(total.get("output_tokens") or 0),
+        int(total.get("total_tokens") or 0),
+    )
+    # Soma monotônica: o maior valor já persistido sobrevive a qualquer turno menor.
+    finais = tuple(max(a, n) for a, n in zip(atuais, novos))
+    if finais == atuais:
+        return
+    await repo.set_research_tokens(pesquisa_id, *finais)
 
 
 async def persistir_busca(repo, pesquisa, workspace: Path) -> Dict[str, Any]:
@@ -456,7 +470,9 @@ async def persistir_busca(repo, pesquisa, workspace: Path) -> Dict[str, Any]:
     if not await repo.get_collected_content(pesquisa.id_pesquisa):
         resumo = payload["resumo_coletas"][0] if payload["resumo_coletas"] else None
         personas = resumo["personas"] if resumo else []
-        urls = sorted({u for p in personas for u in (p["urls_fonte"] or [])})
+        urls_fonte = sanitizar_urls(u for p in personas for u in (p.get("urls_fonte") or []))
+        lidas = {sanitizar_url_fonte(u) for p in personas for u in (p.get("urls_lidas") or [])}
+        urls_lidas = sorted({u for u in lidas if u} | set(urls_fonte))
         conteudo = "\n\n".join(f"## {p['persona']}\n\n{p['analise']}" for p in personas)
         for ponto in await repo.list_points(pesquisa.id_pesquisa):
             await repo.save_collected_content(
@@ -465,8 +481,8 @@ async def persistir_busca(repo, pesquisa, workspace: Path) -> Dict[str, Any]:
                 tema=pesquisa.tema,
                 ponto=ponto.ponto,
                 conteudo_coletado=conteudo,
-                urls_lidas=urls,
-                urls_fonte=urls,
+                urls_lidas=urls_lidas,
+                urls_fonte=urls_fonte,
                 reasoning_coleta=None,
                 status_ponto="coletado",
                 metadados_coleta={
