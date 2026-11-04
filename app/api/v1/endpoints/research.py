@@ -91,23 +91,26 @@ def _resumo_auditoria_markdown(veredito: str, aprovados: int, total: int, criter
 
 
 _SECAO_PERSONA = re.compile(r"^##\s+(?P<persona>[a-zA-ZÀ-ÿ_ ]+)\s*$", re.M)
+_PERSONAS_CONHECIDAS = {"historiador", "visionario", "cetico", "futurista", "pragmatico"}
 
 
 def _personas_do_conteudo(conteudo: str) -> List[Dict[str, Any]]:
-    """Recorta `## <persona>` do conteúdo coletado para reidratar a trilha."""
+    """Recorta `## <persona>` do conteúdo coletado para reidratar a trilha.
+
+    Só cabeçalhos de persona contam: a análise traz `## Achados`, `## Fontes` etc.
+    """
     texto = conteudo or ""
-    achados = list(_SECAO_PERSONA.finditer(texto))
+    achados = [m for m in _SECAO_PERSONA.finditer(texto) if m.group("persona").strip().lower() in _PERSONAS_CONHECIDAS]
     personas: List[Dict[str, Any]] = []
     for indice, achado in enumerate(achados):
         inicio = achado.end()
-        fim = achados[indice + 1].start() if indice + 1 < len(achados) else len(texto)
-        analise = texto[inicio:fim].strip()
-        nome = achado.group("persona").strip().lower()
+        fim_secao = achados[indice + 1].start() if indice + 1 < len(achados) else len(texto)
+        analise = texto[inicio:fim_secao].strip()
         if not analise:
             continue
         personas.append(
             {
-                "persona": nome,
+                "persona": achado.group("persona").strip().lower(),
                 "analise": analise,
                 "urls_fonte": [],
                 "urls_lidas": [],

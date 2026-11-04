@@ -40,5 +40,12 @@ def test_busca_persistida_reconstroi_resumo_coletas():
     assert [p["persona"] for p in resumo["personas"]] == ["historiador", "visionario"]
 
 
+def test_subcabecalhos_do_conteudo_nao_viram_persona():
+    conteudo = "## historiador\n\nAchado real com fonte.\n\n## Achados\n- X\n\n## Fontes\n- Y\n"
+    personas = _personas_do_conteudo(conteudo)
+    assert [p["persona"] for p in personas] == ["historiador"]
+    assert "## Achados" in personas[0]["analise"]  # subcabeçalho faz parte da análise
+
+
 def test_sem_coletas_nao_inventa_busca():
     assert _busca_persistida("plan-1-a9f4c21b", [], []) is None
