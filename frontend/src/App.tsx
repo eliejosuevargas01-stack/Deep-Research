@@ -41,7 +41,7 @@ import {
   WriterResponse,
 } from './types/api';
 import { converterFontesResumoParaExplorer, derivarFontesParaExplorer } from './components/SourcesExplorer';
-import { resolverEstagioInicial } from './utils/estagio';
+import { deveMostrarDossie, resolverEstagioInicial } from './utils/estagio';
 import { proximoRail } from './utils/rail';
 import { usePipelineStream, formatPersonaTitle } from './hooks/usePipelineStream';
 import { RefreshCw, RotateCcw } from 'lucide-react';
@@ -821,7 +821,9 @@ export const App: React.FC = () => {
           }
         }
 
-        if (status.status_pipeline === 'concluido' && registro.writerResponse) {
+        const temDossie = Boolean(registro.writerResponse);
+
+        if (deveMostrarDossie(status.status_pipeline, temDossie) && registro.writerResponse) {
           setCurrentPlan(currentPlanResponse);
           setWriterResult(registro.writerResponse);
           setPipelineStage('completed');
@@ -839,8 +841,10 @@ export const App: React.FC = () => {
           return;
         }
 
+        // Dossiê persistido vence o status: uma pesquisa reprovada que chegou a
+        // redigir o dossiê abre o relatório, não a tela de auditoria reprovada.
         // B-02: Tratamento de falha e reprovação no F5 sem mascaramento por estagio cego
-        if (status.status_pipeline === 'falha') {
+        if (status.status_pipeline === 'falha' && !temDossie) {
           setCurrentPlan(currentPlanResponse);
           setPipelineStage('failed');
           setFailedStage(status.estagio_falha || 'searching');
@@ -848,7 +852,7 @@ export const App: React.FC = () => {
           return;
         }
 
-        if (status.status_pipeline === 'reprovado') {
+        if (status.status_pipeline === 'reprovado' && !temDossie) {
           setCurrentPlan(currentPlanResponse);
           setPipelineStage('rejected');
           setFailedStage(null);
