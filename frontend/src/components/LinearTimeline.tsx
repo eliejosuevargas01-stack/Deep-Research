@@ -284,7 +284,6 @@ const Passo: React.FC<PassoProps> = ({
         id={corpoId}
         className="tl-entrada-corpo"
         hidden={!aberto}
-        style={{ display: aberto ? undefined : 'none' }}
       >
         {hora || listaConsultas.length > 0 ? (
           <div className="tl-corpo-meta">

@@ -645,7 +645,7 @@ export const ExecutionView: React.FC<ExecutionViewProps> = ({
 
       <div className="execution-card-static-top">
         <header className="card-header execution-heading-row">
-        <div className="execution-heading-main" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="execution-heading-main execution-heading-main--row">
           <ConvergenceLogo phase={stage === 'auditing' ? 'audit' : (stage === 'writing' || stage === 'completed') ? 'synthesis' : 'stream'} size={18} />
           <h1 className="card-title execution-heading-title">
             {stage === 'failed'

@@ -80,21 +80,12 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   return (
     <div className="history-container" aria-labelledby="history-heading">
-      <header className="card-header" style={{ marginBottom: 0 }}>
+      <header className="card-header hist-header">
         <div>
           <h1 id="history-heading" className="card-title">
             Histórico de Investigações
           </h1>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              marginTop: '4px',
-              fontSize: '0.8rem',
-              color: 'var(--color-text-muted)',
-            }}
-          >
+          <div className="hist-subtitle">
             <AlertCircle size={14} aria-hidden="true" />
             <span>
               Histórico deste dispositivo. Segredos nunca são gravados.
@@ -105,10 +96,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         {records.length > 0 && (
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-secondary hist-clear-btn"
             onClick={onClearAll}
             title="Remover todas as pesquisas do histórico local"
-            style={{ color: 'var(--color-danger-text)' }}
           >
             <Trash2 size={16} aria-hidden="true" />
             <span>Limpar histórico</span>
@@ -117,12 +107,12 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       </header>
 
       {records.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '48px 16px' }}>
-          <History size={36} color="var(--color-text-muted)" style={{ margin: '0 auto 12px' }} />
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+        <div className="card hist-empty-card">
+          <History size={36} color="var(--color-text-muted)" className="hist-empty-icon" />
+          <h2 className="hist-empty-title">
             Nenhuma pesquisa gravada no histórico deste navegador
           </h2>
-          <p style={{ marginTop: '6px', fontSize: '0.88rem', color: 'var(--color-text-secondary)' }}>
+          <p className="hist-empty-text">
             Formule um tema e execute o fluxo: o resumo aparece aqui para reabrir quando quiser.
           </p>
           <button
@@ -140,7 +130,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="hist-list">
           <div className="history-toolbar">
             <label className="history-search">
               <Search size={14} aria-hidden="true" />
@@ -206,7 +196,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 }}
               >
                 <div className="history-info">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className="hist-item-top">
                     <span
                       className={`status-badge-chip ${
                         record.status === 'concluido'
@@ -218,7 +208,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                     >
                       {STATUS_LABEL[record.status] ?? record.status}
                     </span>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                    <span className="hist-item-id">
                       ID: {record.id_pesquisa.slice(0, 8)}...
                     </span>
                   </div>
@@ -230,7 +220,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                   </h2>
 
                   <div className="history-meta">
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="hist-meta-item">
                       <Calendar size={13} aria-hidden="true" />
                       {new Date(record.criado_em).toLocaleDateString('pt-BR', {
                         day: '2-digit',
@@ -241,14 +231,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                       })}
                     </span>
                     <span>•</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="hist-meta-item">
                       <Hash size={13} aria-hidden="true" />
                       {`${record.total_pontos} ${record.total_pontos === 1 ? 'ponto' : 'pontos'}`}
                     </span>
                     {hasDossier && (
                       <>
                         <span>•</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span className="hist-meta-item">
                           <FileText size={13} aria-hidden="true" />
                           Dossiê disponível
                         </span>
@@ -264,7 +254,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                         <>
                           <span>•</span>
                           <span
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            className="hist-meta-item"
                             title={`Etapa no servidor: ${rotuloStatus(vivo.status_pipeline)} (${vivo.total_pontos} pontos)`}
                           >
                             <span aria-hidden="true">●</span>
@@ -288,10 +278,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                   </button>
                   <button
                     type="button"
-                    className="btn-secondary"
+                    className="btn-secondary hist-delete-btn"
                     onClick={() => onDeleteRecord(record.id_pesquisa)}
                     title="Excluir do histórico local"
-                    style={{ padding: '8px 10px' }}
                     aria-label={`Excluir pesquisa ${record.tema}`}
                   >
                     <Trash2 size={15} aria-hidden="true" color="var(--color-danger-text)" />

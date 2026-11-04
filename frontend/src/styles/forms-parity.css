@@ -145,7 +145,7 @@
 }
 
 .composer-counter {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
   font-size: 11px;
   color: var(--color-text-secondary, #4A5254);
@@ -234,7 +234,7 @@
   }
 
   .composer-counter {
-    margin-left: auto;
+    margin-inline-start: auto;
   }
 
   /* Alvos de toque WCAG 2.5.8 (mínimo 44x44px no mobile <= 640px) */

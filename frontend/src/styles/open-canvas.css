@@ -14,7 +14,7 @@
 
 .workspace-grid > .sidebar-container {
   border: 0;
-  border-left: 1px solid var(--color-border);
+  border-inline-start: 1px solid var(--color-border);
   border-radius: 0;
   background: transparent;
   padding: 4px 0 4px 26px;
@@ -127,7 +127,7 @@
 }
 
 .reasoning-feed-stream {
-  border-left: 1px solid var(--color-border);
+  border-inline-start: 1px solid var(--color-border);
   padding-inline-start: 34px;
   margin-inline-start: 6px;
 }
@@ -272,7 +272,7 @@
 .audit-diagnostics-disclosure {
   background: transparent;
   border: 0;
-  border-left: 2px solid var(--color-warning-text);
+  border-inline-start: 2px solid var(--color-warning-text);
   border-radius: 0;
   padding: 2px 0 2px 16px;
   margin: 4px 0 18px;
@@ -487,7 +487,7 @@
 .docs-view .markdown-body .card {
   background: transparent !important;
   border: 0;
-  border-left: 1px solid var(--color-border);
+  border-inline-start: 1px solid var(--color-border);
   border-radius: 0;
   padding: 0 0 0 16px !important;
   box-shadow: none;
@@ -496,7 +496,7 @@
 .settings-container .alert-banner {
   border-radius: 0;
   border: 0;
-  border-left: 2px solid var(--violet);
+  border-inline-start: 2px solid var(--violet);
   background: transparent;
   padding: 4px 0 4px 16px;
 }
@@ -511,7 +511,7 @@
   }
 
   .workspace-grid > .sidebar-container {
-    border-left: 0;
+    border-inline-start: 0;
     border-top: 1px solid var(--color-border);
     padding: 20px 0 0;
   }
@@ -528,7 +528,7 @@
 .settings-container .alert-banner.warning {
   background: transparent !important;
   border: 0 !important;
-  border-left: 2px solid var(--color-primary) !important;
+  border-inline-start: 2px solid var(--color-primary) !important;
   border-radius: 0 !important;
   padding: 2px 0 2px 16px !important;
   color: var(--color-text-secondary);
@@ -715,13 +715,13 @@
 
 .docs-step {
   padding: 18px 18px 20px;
-  border-left: 1px solid var(--color-border);
+  border-inline-start: 1px solid var(--color-border);
   background: transparent;
   min-width: 0;
 }
 
 .docs-step:first-child {
-  border-left: 0;
+  border-inline-start: 0;
   padding-inline-start: 0;
 }
 
@@ -748,7 +748,7 @@
   }
 
   .docs-step:nth-child(3) {
-    border-left: 0;
+    border-inline-start: 0;
     padding-inline-start: 0;
   }
 
@@ -764,7 +764,7 @@
 
   .docs-step,
   .docs-step:nth-child(3) {
-    border-left: 0;
+    border-inline-start: 0;
     padding-inline-start: 0;
   }
 
@@ -942,7 +942,7 @@
     max-width: none !important;
     margin-top: 16px;
     padding-inline-start: 0;
-    border-left: 0;
+    border-inline-start: 0;
     border-top: 1px solid var(--color-border);
   }
 }

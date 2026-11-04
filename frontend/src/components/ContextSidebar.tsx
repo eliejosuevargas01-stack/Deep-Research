@@ -421,11 +421,10 @@ const ContextSidebarBase: React.FC<ContextSidebarProps> = ({
                   {idPesquisa && (
                     <button
                       type="button"
-                      className={`rr-copy${copiado ? ' is-copied' : ''}`}
+                      className={`rr-copy${copiado ? ' is-copied' : ''} rr-copy--sm`}
                       aria-label={copiado ? 'ID copiado' : 'Copiar ID da pesquisa'}
                       title={copiado ? 'Copiado' : 'Copiar ID completo'}
                       onClick={copiarId}
-                      style={{ padding: '6px', minWidth: '28px', minHeight: '28px' }}
                     >
                       {copiado ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
                     </button>

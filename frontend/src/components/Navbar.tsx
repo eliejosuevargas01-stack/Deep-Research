@@ -131,7 +131,7 @@ const NavbarBase: React.FC<NavbarProps> = ({
           {/* Status da Sessão Integrada (DominusLabs Pill Pattern) */}
           {isBootstrapping ? (
             <div className="pill pill-violet session-badge" title="Conectando a sessão…">
-              <span className="spinner" aria-hidden="true" style={{ width: 10, height: 10 }} />
+              <span className="spinner spinner--xs" aria-hidden="true" />
               <span>Conectando...</span>
             </div>
           ) : sessionAuthenticated ? (

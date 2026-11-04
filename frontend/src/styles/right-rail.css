@@ -217,7 +217,7 @@
 }
 
 .rr-tokens__model {
-  margin-left: auto;
+  margin-inline-start: auto;
   min-width: 0;
   max-width: 55%;
   font-family: var(--font-mono);
@@ -336,11 +336,16 @@
 }
 
 .rr-status__badge.buscando,
-.rr-status__badge.auditando,
 .rr-status__badge.redigindo {
   background: var(--color-info-bg);
   border: 1px solid var(--color-info-border);
   color: var(--color-info-text);
+}
+
+.rr-status__badge.auditando {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-text, #8a5a00);
 }
 
 .rr-status__badge.concluido {
@@ -427,7 +432,7 @@
   font-weight: 500;
   line-height: 1.45;
   color: var(--color-text-primary);
-  text-align: right;
+  text-align: end;
 }
 
 .rr-facts__mono {
@@ -456,7 +461,7 @@
   font-size: 12px;
   line-height: 1.45;
   color: var(--color-text-primary);
-  text-align: left;
+  text-align: start;
 }
 
 .rr-copy,
@@ -475,6 +480,14 @@ button.rr-copy {
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.rr-copy--sm {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 6px;
 }
 
 button.rr-copy::before,

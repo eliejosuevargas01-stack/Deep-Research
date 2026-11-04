@@ -28,7 +28,7 @@
 }
 
 .planning-elapsed {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--color-text-tertiary);
@@ -124,8 +124,8 @@
 }
 
 .planning-reasoning {
-  border-left: 1px solid var(--color-border);
-  padding-left: 16px;
+  border-inline-start: 1px solid var(--color-border);
+  padding-inline-start: 16px;
 }
 
 .planning-reasoning-label {
@@ -166,8 +166,8 @@
 
 .planning-error {
   margin: 20px 0 0;
-  padding-left: 16px;
-  border-left: 1px solid var(--danger);
+  padding-inline-start: 16px;
+  border-inline-start: 1px solid var(--danger);
   font-size: 13.5px;
   color: var(--danger);
 }
@@ -187,8 +187,8 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
-  padding-left: 18px;
-  border-left: 1px solid var(--color-border);
+  padding-inline-start: 18px;
+  border-inline-start: 1px solid var(--color-border);
 }
 
 .planning-step {

@@ -274,7 +274,7 @@ a.gdr-source-chip:focus-visible,
   margin: 10px 0 2px;
   padding: 8px 12px;
   background: var(--color-surface-subtle);
-  border-left: 1px solid var(--color-border-strong);
+  border-inline-start: 1px solid var(--color-border-strong);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   font-size: 0.85rem;
   line-height: 1.55;
@@ -512,8 +512,8 @@ a.gdr-source-chip:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
-  font-size: 0.72rem;
+  margin-inline-start: auto;
+  font-size: 0.74rem;
   line-height: 1;
   color: var(--color-text-secondary);
   white-space: nowrap;
@@ -551,7 +551,7 @@ a.gdr-source-chip:focus-visible,
 
 /* A dica ocupa a folga; o contador fica ancorado na borda direita. */
 .composer-meta .composer-counter {
-  margin-left: 0;
+  margin-inline-start: 0;
 }
 
 @media (max-width: 560px) {
@@ -670,7 +670,7 @@ a.gdr-source-chip:hover,
   margin: 0;
   padding: 0;
   border: 0;
-  border-left: 0;
+  border-inline-start: 0;
   background: none;
   border-radius: 0;
 }
@@ -780,7 +780,7 @@ a.gdr-source-chip:hover,
 }
 
 .tl-acoes-log {
-  margin-left: 0;
+  margin-inline-start: 0;
   opacity: 1;
 }
 

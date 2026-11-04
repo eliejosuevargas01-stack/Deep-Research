@@ -136,7 +136,7 @@
 .composer-anchor .composer-tools {
   display: flex;
   align-items: center;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 .composer-anchor .dock-triggers {
@@ -259,7 +259,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-left: 0;
+  margin-inline-start: 0;
   font-size: 11px;
   line-height: 1;
   color: var(--color-text-secondary);
@@ -601,7 +601,7 @@
 }
 
 .composer-anchor .dock-keys span {
-  margin-left: 4px;
+  margin-inline-start: 4px;
 }
 
 .composer-anchor .dock-status {
@@ -712,7 +712,7 @@
   }
 
   .composer-anchor .composer-tools {
-    margin-left: 0;
+    margin-inline-start: 0;
     flex: 0 0 auto;
   }
 
@@ -733,8 +733,8 @@
   }
 
   .composer-anchor .composer-counter {
-    margin-left: auto;
-    margin-right: 0;
+    margin-inline-start: auto;
+    margin-inline-end: 0;
   }
 
   .composer-anchor .composer-input {
@@ -756,7 +756,7 @@
     height: 44px;
     min-width: 44px;
     min-height: 44px;
-    margin-left: auto;
+    margin-inline-start: auto;
   }
 
   .composer-anchor .composer-legal {

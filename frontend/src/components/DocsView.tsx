@@ -5,14 +5,14 @@ import { BookOpen, ShieldCheck, Search, PenTool, Compass } from 'lucide-react';
 export const DocsView: React.FC = () => {
   return (
     <div className="docs-view">
-      <header style={{ marginBottom: '28px', borderBottom: '1px solid var(--color-border)', paddingBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <header className="docs-header">
+        <div className="docs-header-row">
           <BookOpen size={24} color="var(--color-primary)" aria-hidden="true" />
-          <h1 className="card-title" style={{ fontSize: '1.6rem' }}>
+          <h1 className="card-title docs-title">
             Como o Deep Research funciona
           </h1>
         </div>
-        <p style={{ marginTop: '8px', color: 'var(--color-text-secondary)', fontSize: '0.95rem' }}>
+        <p className="docs-subtitle">
           As quatro etapas, do plano ao dossiê.
         </p>
       </header>
@@ -27,33 +27,33 @@ export const DocsView: React.FC = () => {
 
         <div className="docs-steps">
           <div className="docs-step">
-            <Compass size={20} style={{ marginBottom: '6px' }} />
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>1. Planejamento (Plan)</h3>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+            <Compass size={20} className="docs-step-icon" />
+            <h3 className="docs-step-title">1. Planejamento (Plan)</h3>
+            <p className="docs-step-text">
               Divide o tema em pontos e define o que cada um precisa provar.
             </p>
           </div>
 
           <div className="docs-step">
-            <Search size={20} style={{ marginBottom: '6px' }} />
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>2. Busca Agêntica (Search)</h3>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+            <Search size={20} className="docs-step-icon" />
+            <h3 className="docs-step-title">2. Busca Agêntica (Search)</h3>
+            <p className="docs-step-text">
               Quatro personas varrem a web em paralelo: Historiador, Visionário, Cético e Futurista.
             </p>
           </div>
 
           <div className="docs-step">
-            <ShieldCheck size={20} style={{ marginBottom: '6px' }} />
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>3. Auditoria (Audit)</h3>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+            <ShieldCheck size={20} className="docs-step-icon" />
+            <h3 className="docs-step-title">3. Auditoria (Audit)</h3>
+            <p className="docs-step-text">
               Cada ponto é julgado nos 12 critérios. Se não atingir o limiar, volta para a busca com o motivo.
             </p>
           </div>
 
           <div className="docs-step">
-            <PenTool size={20} style={{ marginBottom: '6px' }} />
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>4. Redação (Writer)</h3>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+            <PenTool size={20} className="docs-step-icon" />
+            <h3 className="docs-step-title">4. Redação (Writer)</h3>
+            <p className="docs-step-text">
               Escreve o dossiê em Markdown com a fonte de cada trecho.
             </p>
           </div>

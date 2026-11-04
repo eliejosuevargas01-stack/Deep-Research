@@ -83,10 +83,10 @@ const SourceListSection: React.FC<SourceListSectionProps> = ({ items, emptyMessa
                 title={`Abrir fonte externa: ${item.url}`}
               >
                 <span>{item.url}</span>
-                <ExternalLink size={12} aria-hidden="true" style={{ flexShrink: 0 }} />
+                <ExternalLink size={12} aria-hidden="true" className="source-item-icon" />
               </a>
             ) : (
-              <span className="source-item-url-link" style={{ color: 'var(--color-text-muted)' }}>
+              <span className="source-item-url-link source-item-url-link--muted">
                 {item.url}
               </span>
             )}
@@ -159,7 +159,7 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
             <span>Fontes da Investigação</span>
           </h2>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="source-breakdown-actions">
             {loading && (
               <span className="source-status-badge indisponivel" title="Consultando status de fontes">
                 <RefreshCw size={12} className="animate-spin" aria-hidden="true" />
@@ -281,7 +281,7 @@ export const SourceBreakdown: React.FC<SourceBreakdownProps> = ({
           <AlertCircle size={18} aria-hidden="true" />
           <div>
             <strong>Este relatório não guardou as leituras brutas:</strong>
-            <p style={{ marginTop: '2px', fontSize: '0.82rem' }}>
+            <p className="source-notice-text">
               As contagens de fontes consultadas e não citadas não foram registradas para este dossiê e são
               apresentadas como indisponíveis (—). Exibindo abaixo as citações conhecidas extraídas do texto
               publicado.

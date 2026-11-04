@@ -383,7 +383,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <h1 id="settings-heading" className="card-title">
             Configurações
           </h1>
-          <p style={{ marginTop: '4px', fontSize: '0.88rem', color: 'var(--color-text-secondary)' }}>
+          <p className="set-lead">
             Chaves dos provedores e da busca ficam no servidor. A sessão abre sozinha, sem chave manual no navegador.
           </p>
         </div>
@@ -392,10 +392,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Aparência: tema e ambientação. No mobile a aba Ajustes abre esta tela. */}
       {(onToggleTheme || onToggleAmbient) && (
         <section className="card" aria-labelledby="appearance-heading">
-          <h2 id="appearance-heading" className="card-title" style={{ fontSize: '16px' }}>
+          <h2 id="appearance-heading" className="card-title set-h2">
             Aparência
           </h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
+          <div className="set-appearance-row">
             {onToggleTheme && (
               <button type="button" className="btn-secondary" aria-pressed={theme === 'dark'} onClick={onToggleTheme}>
                 {theme === 'dark' ? 'Tema escuro' : 'Tema claro'}
@@ -412,10 +412,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Cartão 1: Conexão e Sessão Integrada */}
       <section className="card" aria-labelledby="auth-heading">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+        <div className="set-section-head">
+          <div className="set-inline-row">
             <Server size={18} aria-hidden="true" color="var(--color-text-muted)" />
-            <h2 id="auth-heading" className="card-title" style={{ fontSize: '16px' }}>
+            <h2 id="auth-heading" className="card-title set-h2">
               Conexão e sessão
             </h2>
           </div>
@@ -426,12 +426,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+        <p className="set-note">
           As chaves ficam no servidor e não chegam ao navegador.
         </p>
 
         {/* Teste de Conexão */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div className="set-test-row">
           <button
             type="button"
             className="btn-secondary"
@@ -452,21 +452,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
 
           {connectionStatus === 'connected' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-success-text)', fontSize: '0.85rem', fontWeight: 500 }} role="status">
+            <div className="set-status-ok" role="status">
               <CheckCircle2 size={16} />
               <span>{connectionMessage}</span>
             </div>
           )}
 
           {connectionStatus === 'unauthorized' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-danger-text)', fontSize: '0.85rem', fontWeight: 500 }} role="alert">
+            <div className="set-status-err" role="alert">
               <AlertTriangle size={16} />
               <span>{connectionMessage}</span>
             </div>
           )}
 
           {connectionStatus === 'error' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-danger-text)', fontSize: '0.85rem', fontWeight: 500 }} role="alert">
+            <div className="set-status-err" role="alert">
               <AlertTriangle size={16} />
               <span>{connectionMessage}</span>
             </div>
@@ -476,37 +476,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Cartão 2: Cadastro e Atualização de Credenciais Cifradas */}
       <section className="card" aria-labelledby="creds-heading">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <div className="set-title-row">
           <Shield size={18} aria-hidden="true" color="var(--color-text-muted)" />
-          <h2 id="creds-heading" className="card-title" style={{ fontSize: '16px' }}>
+          <h2 id="creds-heading" className="card-title set-h2">
             Chaves dos provedores
           </h2>
         </div>
 
         {/* Aviso de Precedência RN-10 (Adendo 002) */}
-        <div className="alert-banner info" style={{ marginBottom: '16px' }}>
-          <Info size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
-          <div style={{ fontSize: '14px' }}>
+        <div className="alert-banner info set-banner-mb">
+          <Info size={18} aria-hidden="true" className="set-icon-shrink" />
+          <div className="set-info-text">
             <strong>Qual valor vale:</strong> o que está salvo aqui tem prioridade. Campo vazio usa o .env. A
             chave-mestra <code>CREDENTIALS_MASTER_KEY</code> fica só no ambiente.
           </div>
         </div>
 
         {hasDirtyDraft && (
-          <div className="alert-banner warning" style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-              <AlertTriangle size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
-              <span style={{ fontSize: '0.85rem' }}>
+          <div className="alert-banner warning set-draft-banner">
+            <div className="set-inline-row">
+              <AlertTriangle size={16} aria-hidden="true" className="set-icon-shrink" />
+              <span className="set-draft-text">
                 Você possui alterações não salvas no formulário (preservadas em memória nesta sessão). Salve antes de navegar para não perder os valores digitados.
               </span>
             </div>
             {onDiscardDraft && (
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary set-btn-sm"
                 onClick={onDiscardDraft}
                 disabled={isSaving}
-                style={{ fontSize: '0.82rem', padding: '4px 12px', minHeight: '32px' }}
                 title="Descartar rascunho de configurações em memória"
               >
                 Descartar rascunho
@@ -716,14 +715,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {saveSuccessMessage && (
-            <div className="alert-banner info" style={{ marginTop: '12px' }} role="status">
+            <div className="alert-banner info set-banner-mt" role="status">
               <CheckCircle2 size={16} aria-hidden="true" />
               <span>{saveSuccessMessage}</span>
             </div>
           )}
 
           {saveErrorMessage && (
-            <div style={{ marginTop: '12px' }}>
+            <div className="set-banner-mt">
               <ErrorNotice
                 compact
                 falha={{
@@ -739,14 +738,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           )}
 
-          <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="set-form-actions">
             {hasDirtyDraft && onDiscardDraft && (
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary set-touch"
                 onClick={onDiscardDraft}
                 disabled={isSaving}
-                style={{ minHeight: '44px' }}
                 title="Descartar rascunho de configurações em memória"
               >
                 <span>Descartar rascunho</span>
@@ -754,9 +752,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             )}
             <button
               type="submit"
-              className="btn-start-research"
+              className="btn-start-research set-touch"
               disabled={isSaving}
-              style={{ minHeight: '44px' }}
             >
               {isSaving ? (
                 <>
@@ -776,10 +773,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Cartão 3: Listagem de Credenciais e Origem Ativa */}
       <section className="card" aria-labelledby="creds-list-heading">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+        <div className="set-section-head-lg">
+          <div className="set-inline-row">
             <Server size={18} aria-hidden="true" color="var(--color-text-muted)" />
-            <h2 id="creds-list-heading" className="card-title" style={{ fontSize: '16px' }}>
+            <h2 id="creds-list-heading" className="card-title set-h2">
               Credenciais salvas
             </h2>
           </div>
@@ -799,16 +796,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Tratamento honesto e segregado: Erro de requisição vs Lista vazia */}
         {credentialsFetchError ? (
           sessionError ? (
-            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', padding: '12px 0' }}>
+            <p className="set-session-note">
               A lista de credenciais aparece assim que a sessão conectar.{' '}
               {onRetrySession && (
-                <button type="button" className="error-notice__btn" style={{ marginLeft: 8, minHeight: 32 }} onClick={onRetrySession}>
+                <button type="button" className="error-notice__btn set-retry-inline" onClick={onRetrySession}>
                   Tentar de novo
                 </button>
               )}
             </p>
           ) : (
-            <div style={{ margin: '12px 0' }}>
+            <div className="set-error-wrap">
               <ErrorNotice
                 compact
                 falha={apresentarErro(credentialsFetchError, { acao: 'carregar as credenciais' })}
@@ -819,7 +816,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           )
         ) : credentialsList.length === 0 ? (
-          <p style={{ fontSize: '0.88rem', color: 'var(--color-text-muted)', padding: '16px 0' }}>
+          <p className="set-empty-note">
             Nenhuma credencial salva. Enquanto isso, valem as variáveis do .env.
           </p>
         ) : (
@@ -837,17 +834,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <tbody>
                 {credentialsList.map((cred) => (
                   <tr key={cred.chave}>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{cred.chave}</td>
+                    <td className="set-cell-key">{cred.chave}</td>
                     <td>{cred.tipo}</td>
                     <td>
                       <span className={`origin-badge ${cred.origem_ativa}`}>
                         {cred.origem_ativa === 'ambiente' ? 'Ambiente (.env)' : 'Banco cifrado'}
                       </span>
                     </td>
-                    <td style={{ fontFamily: 'var(--font-mono)' }}>
+                    <td className="set-cell-mono">
                       {safeClientMask(cred.chave, cred.mascarado, cred.tipo)}
                     </td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                    <td className="set-cell-date">
                       {new Date(cred.atualizado_em).toLocaleString('pt-BR')}
                     </td>
                   </tr>

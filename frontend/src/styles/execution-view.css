@@ -248,6 +248,12 @@
   gap: 1px;
 }
 
+.execution-heading-main--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
 .execution-theme-inline {
   margin: 0;
   /* nowrap sem min-width:0 estourava o container: a 390px o tema media
@@ -268,8 +274,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
-  padding-right: 8px;
+  margin-inline-start: auto;
+  padding-inline-end: 8px;
   opacity: 0;
   transition: opacity 120ms ease;
 }
@@ -592,7 +598,7 @@
     top: calc(58px + 16px) !important;
     margin-top: 0 !important;
     border-top: 1px solid var(--rail-hairline, var(--color-border)) !important;
-    border-left: 1px solid var(--rail-hairline, var(--color-border)) !important;
+    border-inline-start: 1px solid var(--rail-hairline, var(--color-border)) !important;
     width: 320px !important;
     max-width: 320px !important;
     max-height: calc(100vh - 100px) !important;
@@ -708,7 +714,7 @@ button.exec-telemetry-chip--fontes:hover {
 }
 
 .exec-telemetry-chip--toggle {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 @media (max-width: 640px) {

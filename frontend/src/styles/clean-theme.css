@@ -36,7 +36,7 @@
   gap: 18px;
   padding: 22px 14px 18px;
   background: var(--color-chrome);
-  border-right: 1px solid var(--color-border);
+  border-inline-end: 1px solid var(--color-border);
 }
 
 .sidebar-brand {
@@ -132,8 +132,8 @@
 
 .app-sidebar.is-collapsed .sidebar-footer {
   align-items: center;
-  padding-left: 0;
-  padding-right: 0;
+  padding-inline-start: 0;
+  padding-inline-end: 0;
 }
 
 .app-sidebar.is-collapsed .sidebar-theme {
@@ -204,7 +204,7 @@
   color: var(--color-text-secondary);
   font-size: 13.5px;
   font-weight: 500;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -289,7 +289,7 @@
   border-radius: 7px;
   background: transparent;
   color: var(--color-text-secondary);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -354,7 +354,7 @@
   font-size: 12px;
   line-height: 1.35;
   font-weight: 500;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -449,8 +449,8 @@
 
 .plan-card .plan-header,
 .plan-card .plan-body {
-  padding-left: 0;
-  padding-right: 0;
+  padding-inline-start: 0;
+  padding-inline-end: 0;
 }
 
 /* Coluna de contexto: coluna branca contínua, sem cartões */
@@ -490,9 +490,9 @@
 .reasoning-feed-stream {
   position: relative;
   margin-top: 14px;
-  padding-left: 30px;
-  border-left: 1px solid var(--color-border);
-  margin-left: 12px;
+  padding-inline-start: 30px;
+  border-inline-start: 1px solid var(--color-border);
+  margin-inline-start: 12px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -560,8 +560,8 @@
 
 /* Composer: barra única, sem caixa pesada */
 .composer-anchor {
-  padding-left: 36px;
-  padding-right: 36px;
+  padding-inline-start: 36px;
+  padding-inline-end: 36px;
 }
 
 .composer-shell,
@@ -593,8 +593,8 @@
   }
 
   .composer-anchor {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-inline-start: 16px;
+    padding-inline-end: 16px;
   }
 }
 
@@ -618,8 +618,8 @@
 }
 
 .reasoning-feed-stream {
-  padding-left: 52px;
-  margin-left: 0;
+  padding-inline-start: 52px;
+  margin-inline-start: 0;
 }
 
 /* Stepper: concluído não compete com a etapa ativa */
@@ -656,7 +656,7 @@
 }
 
 .stage-step + .stage-step {
-  margin-left: 0;
+  margin-inline-start: 0;
 }
 
 /* Coluna de contexto: cartões internos deixam de existir */
@@ -685,7 +685,7 @@
   padding: 8px 0 0;
   gap: 16px;
   align-items: flex-start;
-  text-align: left;
+  text-align: start;
   max-width: 1100px;
   margin: 0 auto;
 }
@@ -916,7 +916,7 @@
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-size: 0.875rem;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   max-width: 390px;
 }
@@ -978,7 +978,7 @@
   border-bottom: 1px solid var(--color-border);
   border-radius: 0;
   background: transparent;
-  text-align: left;
+  text-align: start;
   box-shadow: none;
 }
 
@@ -1075,7 +1075,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  text-align: left;
+  text-align: start;
   box-shadow: none;
 }
 
@@ -1210,8 +1210,8 @@
   .workspace-main:has(.rr-rail) .bottom-dock,
   .workspace-main:has(.rr-rail) .dock-shell {
     max-width: calc(100% - 384px);
-    margin-left: 0;
-    margin-right: auto;
+    margin-inline-start: 0;
+    margin-inline-end: auto;
   }
 }
 
@@ -1240,7 +1240,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    padding-right: 8px;
+    padding-inline-end: 8px;
   }
 
   /* Cabeçalho fixo; só a linha do tempo rola. */
@@ -1261,7 +1261,7 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding-right: 6px;
+    padding-inline-end: 6px;
   }
 }
 
@@ -1295,7 +1295,7 @@
 @media (min-width: 1081px) {
   .workspace-main:has(.rr-rail) > .app-error-slot {
     max-width: calc(100% - 384px);
-    margin-right: auto;
+    margin-inline-end: auto;
   }
 }
 

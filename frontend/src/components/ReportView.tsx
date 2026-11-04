@@ -49,9 +49,22 @@ function isSafeUrl(url?: string): boolean {
  *    - Exige fornecimento obrigatório de artifact_hash pelo backend (inclusive para relatórios legados).
  *    - Exige igualdade exata (case-insensitive) entre artifact_hash e localHash.
  */
+/** Texto plano de um nó React (cabeçalhos do dossiê podem vir com `code`/`strong`). */
+export function textoPlano(no: React.ReactNode): string {
+  if (no === null || no === undefined || typeof no === 'boolean') return '';
+  if (typeof no === 'string' || typeof no === 'number') return String(no);
+  if (Array.isArray(no)) return no.map(textoPlano).join('');
+  if (React.isValidElement(no)) {
+    const props = no.props as { children?: React.ReactNode };
+    return textoPlano(props.children);
+  }
+  return '';
+}
+
 /** Slug estável para ancorar títulos do dossiê (índice e h2 usam o mesmo). */
 export function slugIndice(titulo: string): string {
   return titulo
+    .replace(/[*_`~]+/g, '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
@@ -565,8 +578,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onReset }) => {
           components={{
             // O dossiê costuma começar com "# Título", o que geraria um segundo <h1>
             // ao lado do <h1> da página. Rebaixa todos os níveis em um degrau.
-            h1: ({ children }) => <h2 id={slugIndice(String(children))}>{children}</h2>,
-            h2: ({ children }) => <h2 id={slugIndice(String(children))}>{children}</h2>,
+            h1: ({ children }) => <h2 id={slugIndice(textoPlano(children))}>{children}</h2>,
+            h2: ({ children }) => <h2 id={slugIndice(textoPlano(children))}>{children}</h2>,
             h3: ({ children }) => <h3>{children}</h3>,
             h4: ({ children }) => <h4>{children}</h4>,
             p: ({ children, node: _node, ...props }) => (

@@ -371,20 +371,25 @@
   contain-intrinsic-size: 0 auto 72px;
 }
 
-/* Contenção de leitura para Markdown do Dossiê (#report) */
-.markdown-content,
-.report-content {
-  max-width: 72ch;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.6;
+/* Ícone inline do link: não encolhe dentro do flex. */
+.source-item-icon {
+  flex-shrink: 0;
 }
 
-.markdown-content p,
-.report-content p,
-.report-card .markdown-body p {
-  max-width: 72ch;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.6;
+.source-item-url-link--muted {
+  color: var(--color-text-muted);
 }
+
+.source-breakdown-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.source-notice-text {
+  margin-top: 2px;
+  font-size: 0.82rem;
+}
+
+/* Medida de leitura do dossiê pertence a clean-theme.css (1 coluna min(520px,100%),
+   2 colunas >=1180px). Nada global aqui para não quebrar o preenchimento do cartão. */
