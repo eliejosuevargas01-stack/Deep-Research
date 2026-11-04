@@ -46,17 +46,41 @@ class _Delegacao:
         self.offsets: dict[str, int] = {}
 
     def _raiz(self) -> Optional[Path]:
+        """Delegação da pesquisa atual — nunca a pasta global de outra execução."""
+        candidatos = []
+        isolado = os.environ.get("DR_HERMES_DELEGATION_DIR")
+        if isolado:
+            candidatos.append(Path(isolado))
+        base_local = self.dono.ws / ".hermes" / "cache" / "delegation" / "live"
+        candidatos.append(base_local)
         home = os.environ.get("HERMES_HOME")
         perfil = os.environ.get("HERMES_PROFILE", "deep-research")
-        if not home:
-            return None
-        base = Path(home) / "profiles" / perfil / "cache" / "delegation" / "live"
-        if not base.exists():
-            return None
-        dirs = sorted((d for d in base.iterdir() if d.is_dir()), key=lambda d: d.stat().st_mtime)
-        return dirs[-1] if dirs else None
+        if home:
+            candidatos.append(
+                Path(home) / "profiles" / perfil / "cache" / "delegation" / "live"
+            )
+        raiz_ws = self.dono.ws.resolve()
+        for base in candidatos:
+            try:
+                if not base.exists():
+                    continue
+                if not base.resolve().is_relative_to(raiz_ws):
+                    continue
+            except OSError:
+                continue
+            dirs = sorted((d for d in base.iterdir() if d.is_dir()), key=lambda d: d.stat().st_mtime)
+            if dirs:
+                return dirs[-1]
+        return None
 
     def bombear(self) -> None:
+        """Publica atividade dos subagentes — só quando a fase ainda é de busca.
+
+        Delegar durante `auditando`/`redigindo` (auditor, redator) não pode
+        reabrir `stage.start` das personas: era o "AO VIVO" falso aos 18m49s.
+        """
+        if self.dono.status in ("auditando", "redigindo", "concluido", "falha"):
+            return
         atual = self._raiz()
         if atual is None:
             return
