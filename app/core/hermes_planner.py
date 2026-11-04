@@ -358,7 +358,15 @@ async def iniciar(
 
     workspace = criar_workspace(pesquisa_id, tema)
     caminho_exec = _mapear(workspace)
+    from app.core import hermes_config
+
+    config_modelos = hermes_config.carregar()
+    (workspace / "MODELS.json").write_text(
+        json.dumps(hermes_config.modelos_por_papel(config_modelos), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     prompt = montar_prompt(tema, Path(caminho_exec), max_rodadas, n_pontos)
+    prompt += hermes_config.instrucao_modelos(config_modelos)
     (workspace / "TEMA.md").write_text(
         f"# Tema\n\n{tema}\n\n## Prompt do turno\n\n```\n{prompt}\n```\n", encoding="utf-8"
     )
@@ -369,7 +377,12 @@ async def iniciar(
         "-z", prompt,
         "--usage-file", f"{caminho_exec}/usage.json",
     ]
+    modelo_planejador = config_modelos.get("modelo_planejador") or config_modelos.get("modelo_padrao")
+    if modelo_planejador:
+        argv += ["-m", modelo_planejador]
+    config_hermes = config_modelos
     env = {k: v for k, v in os.environ.items() if k != "HERMES_SESSION_ID"}
+    env.update(hermes_config.env_hermes(config_hermes))
     env["HERMES_PROFILE"] = perfil
     env["HERMES_DR_ALLOWED_PATH"] = caminho_exec
     env["DR_ALLOWED_PATH"] = caminho_exec

@@ -5,7 +5,7 @@ Atende a T038 e DT-01.
 
 from fastapi import APIRouter, Depends
 
-from app.api.v1.endpoints import admin, audit, hermes, pipeline, plan, research, search, writer
+from app.api.v1.endpoints import admin, audit, hermes, pipeline, plan, research, search, settings, writer
 from app.core.security import verify_api_key
 
 api_router = APIRouter(dependencies=[Depends(verify_api_key)])
@@ -19,3 +19,4 @@ api_router.include_router(pipeline.router, tags=["pipeline"])
 api_router.include_router(admin.router, tags=["admin"])
 api_router.include_router(research.router, tags=["research"])
 api_router.include_router(hermes.router, tags=["hermes"])
+api_router.include_router(settings.router, tags=["settings"])
