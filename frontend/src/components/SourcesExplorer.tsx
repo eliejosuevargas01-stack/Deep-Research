@@ -45,8 +45,12 @@ interface SourcesExplorerProps {
   isActive?: boolean;
 }
 
-export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
+export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items, isActive }) => {
   const lista = Array.isArray(items) ? items : [];
+  // Fora da coleta ninguém fica "lendo" para sempre, mesmo que o backend tenha
+  // persistido o estado intermediário.
+  const statusDe = (status: FonteExplorerStatus): FonteExplorerStatus =>
+    status === 'lendo' && isActive === false ? 'lida_nao_utilizada' : status;
 
   const grupos: Array<{ ponto_n: number | null; itens: FonteExplorerItem[] }> = [];
   const map = new Map<string, FonteExplorerItem[]>();
@@ -66,8 +70,8 @@ export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
   }
   const temPonto = grupos.some((g) => g.ponto_n !== null);
 
-  const lidas = lista.filter((f) => f.status !== 'lendo').length;
-  const citadas = lista.filter((f) => f.status === 'utilizada').length;
+  const lidas = lista.filter((f) => statusDe(f.status) !== 'lendo').length;
+  const citadas = lista.filter((f) => statusDe(f.status) === 'utilizada').length;
 
   return (
     <div className="rr-sources" aria-label="Fontes exploradas">
@@ -90,10 +94,11 @@ export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
               {rotulo && <p className="rr-sources__group-label">{rotulo}</p>}
               <ul className="rr-sources__list">
                 {grupo.itens.map((fonte, indice) => {
+                  const status = statusDe(fonte.status);
                   const dominio = dominioDe(fonte.url, fonte.dominio);
                   const titulo = fonte.titulo && fonte.titulo.trim() ? fonte.titulo.trim() : dominio;
                   const seguro = isSafeUrl(fonte.url);
-                  const rotuloStatus = STATUS_ROTULO[fonte.status] ?? (typeof fonte.status === 'string' ? fonte.status : 'Processado');
+                  const rotuloStatus = STATUS_ROTULO[status] ?? (typeof status === 'string' ? status : 'Processado');
                   const descricao = `${titulo} — ${dominio} — ${rotuloStatus}`;
                   const conteudo = (
                     <>
@@ -109,7 +114,7 @@ export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
                           {dominio}
                         </span>
                       </span>
-                      <span className={`rr-source__badge is-${fonte.status}`}>{rotuloStatus}</span>
+                      <span className={`rr-source__badge is-${status}`}>{rotuloStatus}</span>
                     </>
                   );
                   return (

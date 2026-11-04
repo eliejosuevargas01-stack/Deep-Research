@@ -83,6 +83,9 @@ export interface ModeloMetadados {
     completion_tokens: number;
     total_tokens: number;
   } | null;
+  /** Quebra real por etapa (usage_<etapa>.json) e por agente/sessão. */
+  por_etapa?: Record<string, { input_tokens?: number; output_tokens?: number; total_tokens?: number }> | null;
+  por_agente?: Record<string, { input_tokens?: number; output_tokens?: number; total_tokens?: number }> | null;
   cost_complete?: boolean | null;
   cost_estimated_total?: number | null;
   cost_currency?: string | null;
