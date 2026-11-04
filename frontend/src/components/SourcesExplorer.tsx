@@ -66,8 +66,16 @@ export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
   }
   const temPonto = grupos.some((g) => g.ponto_n !== null);
 
+  const lidas = lista.filter((f) => f.status !== 'lendo').length;
+  const citadas = lista.filter((f) => f.status === 'utilizada').length;
+
   return (
     <div className="rr-sources" aria-label="Fontes exploradas">
+      {lista.length > 0 && (
+        <p className="rr-sources__summary">
+          {lidas} lidas · {citadas} citadas
+        </p>
+      )}
       {lista.length === 0 ? (
         <p className="rr-sources__empty">Nenhuma fonte explorada ainda</p>
       ) : (
@@ -135,6 +143,7 @@ export const SourcesExplorer: React.FC<SourcesExplorerProps> = ({ items }) => {
 };
 
 import type { SearchResponse } from '../types/api';
+import { sanitizarUrlFonte } from '../utils/urls';
 
 export function derivarFontesParaExplorer(
   search: SearchResponse | null | undefined,
@@ -156,29 +165,23 @@ export function derivarFontesParaExplorer(
         const urlToUso = new Map<string, 'utilizada' | 'lida_nao_utilizada'>();
         if (Array.isArray((p as any).fontes)) {
           for (const f of (p as any).fontes) {
-            const raw = typeof f?.url === 'string' ? f.url.trim() : '';
-            if (!raw) continue;
-            if (!/^https?:\/\//i.test(raw)) continue;
-            const norm = raw.replace(/^http:\/\//i, 'https://');
+            const norm = sanitizarUrlFonte(f?.url);
+            if (!norm) continue;
             const uso = f?.uso === 'lida_nao_utilizada' ? 'lida_nao_utilizada' : 'utilizada';
             urlToUso.set(norm, uso);
           }
         }
         if (Array.isArray((p as any).urls_fonte)) {
           for (const raw of (p as any).urls_fonte) {
-            const url = String(raw ?? '').trim();
-            if (!url) continue;
-            if (!/^https?:\/\//i.test(url)) continue;
-            const norm = url.replace(/^http:\/\//i, 'https://');
+            const norm = sanitizarUrlFonte(raw);
+            if (!norm) continue;
             if (!urlToUso.has(norm)) urlToUso.set(norm, 'utilizada');
           }
         }
         if (Array.isArray((p as any).urls_lidas)) {
           for (const raw of (p as any).urls_lidas) {
-            const url = String(raw ?? '').trim();
-            if (!url) continue;
-            if (!/^https?:\/\//i.test(url)) continue;
-            const norm = url.replace(/^http:\/\//i, 'https://');
+            const norm = sanitizarUrlFonte(raw);
+            if (!norm) continue;
             if (!urlToUso.has(norm)) urlToUso.set(norm, 'lida_nao_utilizada');
           }
         }
@@ -211,8 +214,8 @@ export function derivarFontesParaExplorer(
     for (const item of opts.reasoningItems) {
       const texto = item.reasoning ?? '';
       for (const bruto of texto.match(achado) ?? []) {
-        const url = bruto.replace(/[.,;:]+$/, '');
-        if (vistos.has(url)) continue;
+        const url = sanitizarUrlFonte(bruto);
+        if (!url || vistos.has(url)) continue;
         vistos.add(url);
         let dominio: string | null = null;
         try {
@@ -224,7 +227,7 @@ export function derivarFontesParaExplorer(
           url,
           titulo: null,
           dominio,
-          status: 'lendo',
+          status: opts?.emColeta ? 'lendo' : 'lida_nao_utilizada',
           ponto_n: item.pointNumber ?? null,
         });
       }

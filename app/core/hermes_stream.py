@@ -19,6 +19,7 @@ from typing import Dict, Optional
 
 from app.core.hermes_ids import ponto_de, pontos_de
 from app.core.pipeline_runner import get_pipeline_event_hub
+from app.core.urls import sanitizar_url_fonte
 
 PERSONAS = {
     "historiador": "HISTORIADOR_SEARCH.json",
@@ -109,8 +110,12 @@ class _Delegacao:
 
 
 def _resumo_atividade(texto: str) -> Optional[str]:
-    """Extrai um sinal curto (url/ferramenta) do log do subagente."""
-    urls = re.findall(r"https?://[^\s\"')\]]+", texto)
+    """Extrai um sinal curto (url/ferramenta) do log do subagente.
+
+    O log é stdout bruto (HTML/JSON escapado): a URL só entra depois de validada,
+    senão o feed publica `https://^` e `.../relatorio\\nAirbnb`.
+    """
+    urls = [u for u in re.findall(r"https?://[^\s\"')\]]+", texto) if sanitizar_url_fonte(u)]
     if urls:
         # Uma linha por leitura: o renderer é Markdown, então linha solta viraria
         # parágrafo colado ("lendo a. lendo b"). Item de lista mantém uma por linha.

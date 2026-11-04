@@ -430,6 +430,20 @@ export const App: React.FC = () => {
   } | null>(null);
   const [executionStartedAt, setExecutionStartedAt] = useState<string | null>(null);
 
+  /** Tokens só sobem dentro da mesma pesquisa: turno parcial não apaga o total. */
+  const registrarTokensAoVivo = useCallback(
+    (tokens: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null | undefined) => {
+      if (!tokens || !(Number(tokens.total_tokens) > 0)) return;
+      const normalizado = {
+        prompt_tokens: Number(tokens.prompt_tokens ?? 0),
+        completion_tokens: Number(tokens.completion_tokens ?? 0),
+        total_tokens: Number(tokens.total_tokens ?? 0),
+      };
+      setTokensAoVivo((prev) => (prev && prev.total_tokens >= normalizado.total_tokens ? prev : normalizado));
+    },
+    []
+  );
+
   const resetTelemetryAndSourcesState = useCallback(() => {
     setFontesPersistidas(null);
     setTokensAoVivo(null);
@@ -795,7 +809,7 @@ export const App: React.FC = () => {
           setPipelineStage('completed');
           const totalTokens = Number(status.tokens_total ?? 0);
           if (totalTokens > 0) {
-            setTokensAoVivo({
+            registrarTokensAoVivo({
               prompt_tokens: Number(status.tokens_prompt ?? 0),
               completion_tokens: Number(status.tokens_completion ?? 0),
               total_tokens: totalTokens,
@@ -838,13 +852,13 @@ export const App: React.FC = () => {
           // Restaura tokens salvos no banco de dados para evitar reset na tela
           const totalTokens = Number(status.tokens_total ?? 0);
           if (totalTokens > 0) {
-            setTokensAoVivo({
+            registrarTokensAoVivo({
               prompt_tokens: Number(status.tokens_prompt ?? 0),
               completion_tokens: Number(status.tokens_completion ?? 0),
               total_tokens: totalTokens,
             });
           } else if (registro.tokens && registro.tokens.total_tokens > 0) {
-            setTokensAoVivo(registro.tokens);
+            registrarTokensAoVivo(registro.tokens);
           }
 
           // Restaura fontes persistidas para evitar contagem zero e lista vazia
@@ -1645,7 +1659,7 @@ export const App: React.FC = () => {
         if (cancelado) return;
         const total = Number(s.tokens_total ?? 0);
         if (total > 0) {
-          setTokensAoVivo({
+          registrarTokensAoVivo({
             prompt_tokens: Number(s.tokens_prompt ?? 0),
             completion_tokens: Number(s.tokens_completion ?? 0),
             total_tokens: total,

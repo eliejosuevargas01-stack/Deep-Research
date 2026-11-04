@@ -199,6 +199,14 @@
   min-width: 0;
 }
 
+.rr-tokens__title {
+  flex-basis: 100%;
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+}
+
 .rr-tokens__total {
   font-family: var(--font-mono);
   font-size: 16px;
@@ -672,6 +680,14 @@ a.rr-source:focus-visible {
   padding: 10px 16px;
   font-size: 11px;
   line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.rr-sources__summary {
+  margin: 0;
+  padding: 8px 16px 2px;
+  font-size: 11px;
+  line-height: 1.4;
   color: var(--color-text-secondary);
 }
 
