@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from conftest import FakeEngine
+from conftest import FakeExecutor
 from contracts import PERSONAS, ResearchRequest
 from orchestrator import Pipeline, PipelineError
 
@@ -53,7 +53,7 @@ def responder(papel, payload):
 
 @pytest.fixture
 def pipeline(config, repositorio):
-    engine = FakeEngine(responder)
+    engine = FakeExecutor(responder)
     webhooks: list[tuple[str, dict]] = []
     pipeline = Pipeline(
         repositorio,
@@ -91,7 +91,7 @@ def test_pipeline_completo_com_retentativa_e_webhook(config, repositorio, pipeli
     assert [ponto["rodada_atual"] for ponto in pontos] == [2, 2]
     assert pontos[0]["ultimo_resultado_auditor"]["8"] is False
 
-    engine: FakeEngine = pipeline.engine_fake
+    engine: FakeExecutor = pipeline.engine_fake
     auditorias = engine.payloads("auditor")
     for ponto_id in (1, 2):
         primeira = next(
@@ -156,7 +156,7 @@ def test_planner_invalido_retenta_e_registra_tentativa_rejeitada(config, reposit
                 return {"pontos": [incompleto]}
         return responder(papel, payload)
 
-    engine = FakeEngine(responder_com_falha)
+    engine = FakeExecutor(responder_com_falha)
     pipeline = Pipeline(
         repositorio, engine, config, notificador=lambda *args, **kwargs: None
     )
@@ -185,7 +185,7 @@ def test_falha_de_uma_persona_nao_derruba_o_ponto(config, repositorio):
             raise RuntimeError("provider fora do ar")
         return responder(papel, payload)
 
-    engine = FakeEngine(responder_sem_cetico)
+    engine = FakeExecutor(responder_sem_cetico)
     pipeline = Pipeline(repositorio, engine, config, notificador=lambda *args, **kwargs: None)
     research_id = pipeline.criar(
         ResearchRequest(
@@ -210,7 +210,7 @@ def test_falha_total_do_ponto_marca_run_como_failed(config, repositorio):
         return responder(papel, payload)
 
     pipeline = Pipeline(
-        repositorio, FakeEngine(responder_quebrado), config, notificador=lambda *a, **k: None
+        repositorio, FakeExecutor(responder_quebrado), config, notificador=lambda *a, **k: None
     )
     research_id = pipeline.criar(
         ResearchRequest(

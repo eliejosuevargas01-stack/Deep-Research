@@ -15,7 +15,10 @@ from contracts import PERSONAS
 PROMPTS = Path(__file__).with_name("prompts")
 
 SOULS: dict[str, str] = {
-    "planner": "Você é o planner. Decomponha o tema em pontos independentes e auditáveis, sem pesquisar.",
+    "planner": (
+        "Você é o planner. Faça a varredura exploratória na web para levantar o estado atual do "
+        "tema e então decomponha o tema em pontos independentes e auditáveis."
+    ),
     "historiador": "Você é o historiador. Traga origem, evolução, marcos e definições canônicas do ponto.",
     "cetico": "Você é o cético. Valide cruzado, priorize fontes primárias, exponha contradições e viés.",
     "visionario": "Você é o visionário. Identifique padrões, tendências emergentes e implicações estratégicas.",
@@ -47,6 +50,7 @@ def payload_buscador(
     *,
     research_id: str,
     tema: str,
+    atualidade: str,
     ponto: dict[str, Any],
     persona: str,
     rodada: int,
@@ -61,9 +65,11 @@ def payload_buscador(
         "persona": persona,
         "soul": SOULS[persona],
         "tema": tema,
+        "atualidade": atualidade,
         "ponto_enunciado": ponto["enunciado"],
         "subperguntas": ponto["subperguntas"],
         "hipoteses": ponto["hipoteses"],
+        "lacunas_iniciais": ponto["lacunas_iniciais"],
         "perguntas_auditoria_pendentes": perguntas_pendentes,
         "urls_lidas_ignoradas": urls_ignoradas,
         "max_queries": max_queries,
@@ -73,6 +79,7 @@ def payload_buscador(
 def payload_auditor(
     *,
     research_id: str,
+    atualidade: str,
     ponto: dict[str, Any],
     tentativa_atual: int,
     max_rodadas_auditoria: int,
@@ -83,6 +90,7 @@ def payload_auditor(
         "ponto_id": ponto["ponto_id"],
         "persona": "auditor",
         "soul": SOULS["auditor"],
+        "atualidade": atualidade,
         "tentativa_atual": tentativa_atual,
         "max_rodadas_auditoria": max_rodadas_auditoria,
         "perguntas_auditoria": ponto["perguntas_auditoria"],

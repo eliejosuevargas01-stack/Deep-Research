@@ -161,18 +161,21 @@ hermes-deep-research/
 │   ├── profiles/deep-research/
 │   │   ├── config.yaml         # provedor, modelos por subagente e max_concurrent_children: 40
 │   │   └── SOUL.md             # contratos operacionais do planner e subagentes no Hermes
-│   └── plugins/delegation_por_papel/
+│   └── plugins/delegation/por_papel/
 │       ├── __init__.py         # roteador de modelo por papel em cada delegate_task
 │       └── plugin.yaml
 ├── src/
 │   ├── main.py                 # entrypoint ASGI
 │   ├── api.py                  # POST /research, GET /research/{id}, GET/PUT /config, GET /health
-│   ├── config.py               # leitura e escrita direta no config.yaml do perfil Hermes
+│   ├── config.py               # config de execução (pipeline, binário e perfil do Hermes)
+│   ├── settings.py             # leitura/escrita do config.yaml do perfil Hermes
 │   ├── contracts.py            # contratos canônicos + validação (12 perguntas, mínimos, URLs)
 │   ├── hydrator.py             # monta o 1º prompt de cada papel a partir do banco
 │   ├── planner.py              # taxa de veracidade e decisão de fluxo
-│   ├── orchestrator.py         # invoca e acompanha o Hermes sem chamadas de API diretas
-│   ├── engine.py               # ponte de execução e telemetria com o runtime Hermes (state.db)
+│   ├── orchestrator.py         # lotes de tarefas por rodada; zero chamadas de API diretas
+│   ├── hermes_runner.py        # aciona `hermes -p deep-research` com cwd no workspace
+│   ├── telemetria.py           # tokens/modelo por subagente lidos do state.db
+│   ├── engine.py               # contrato AgentCall/Tarefa + extração de JSON
 │   ├── webhook.py              # callback final
 │   ├── prompts/                # planner.md, buscador.md, auditor.md, redator.md
 │   └── db/

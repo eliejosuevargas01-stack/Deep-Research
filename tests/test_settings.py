@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 import yaml
-from conftest import FakeEngine
+from conftest import FakeExecutor
 from fastapi.testclient import TestClient
 
 import settings
@@ -57,7 +57,7 @@ def test_endpoints_de_configuracao(config, repositorio, tmp_path, monkeypatch):
     monkeypatch.setenv("DR_HERMES_PROFILE_DIR", str(tmp_path))
     (tmp_path / "config.yaml").write_text(PERFIL, encoding="utf-8")
     cliente = TestClient(
-        create_app(Pipeline(repositorio, FakeEngine(lambda *_: {}), config))
+        create_app(Pipeline(repositorio, FakeExecutor(lambda *_: {}), config))
     )
 
     assert cliente.get("/config").json()["default_model"] == "modelo-antigo"
@@ -73,7 +73,7 @@ def test_endpoints_de_configuracao(config, repositorio, tmp_path, monkeypatch):
 
 
 def test_workspace_isolado_por_pesquisa(config, repositorio):
-    pipeline = Pipeline(repositorio, FakeEngine(lambda *_: {}), config)
+    pipeline = Pipeline(repositorio, FakeExecutor(lambda *_: {}), config)
     requisicao = ResearchRequest(
         tema="matriz energética",
         profundidade=1,

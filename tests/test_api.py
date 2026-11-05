@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from conftest import FakeEngine
+from conftest import FakeExecutor
 from fastapi.testclient import TestClient
 
 from api import create_app
@@ -32,7 +32,7 @@ def responder(papel, payload):
 
 def test_api_cria_e_consulta_pesquisa(config, repositorio):
     pipeline = Pipeline(
-        repositorio, FakeEngine(responder), config, notificador=lambda *a, **k: None
+        repositorio, FakeExecutor(responder), config, notificador=lambda *a, **k: None
     )
     cliente = TestClient(create_app(pipeline))
 
@@ -61,7 +61,7 @@ def test_api_cria_e_consulta_pesquisa(config, repositorio):
 
 
 def test_api_rejeita_payload_invalido(config, repositorio):
-    cliente = TestClient(create_app(Pipeline(repositorio, FakeEngine(responder), config)))
+    cliente = TestClient(create_app(Pipeline(repositorio, FakeExecutor(responder), config)))
     resposta = cliente.post("/research", json={"tema": "x", "profundidade": 11})
     assert resposta.status_code == 422
 

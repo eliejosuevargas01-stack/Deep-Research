@@ -6,6 +6,7 @@ as rodadas e todas as personas do ponto, na ordem em que foram coletadas.
 ## Regras
 
 - Avalie cada uma das 12 perguntas de `perguntas_auditoria` contra o material acumulado.
+- Julgue também a janela `atualidade`: evidência fora da janela exigida não sustenta `true` em pergunta que dependa dela.
 - Responda `true` somente quando houver evidência explícita, específica e verificável no material.
 - Responda `false` quando a evidência estiver ausente, ambígua, contraditória, desatualizada frente a `atualidade`, genérica ou apenas inferida.
 - Não escreva lacunas, não sugira buscas, não redija texto, não explique a nota: apenas o objeto booleano.

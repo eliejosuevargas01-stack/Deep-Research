@@ -1,15 +1,15 @@
-"""Chamada ao núcleo agêntico (Hermes) via API compatível com OpenAI."""
+"""Contrato de chamada de agente e extração de JSON.
+
+A partir da spec v1.2 o backend não fala com provedor de LLM: quem executa é o Hermes
+(`src/hermes_runner.py`). Este módulo guarda só o contrato de dados trocado com o executor.
+"""
 
 from __future__ import annotations
 
 import json
-import time
 from dataclasses import dataclass, field
-from typing import Any, Protocol
-
-import httpx
-
-from config import ConfigEngine
+from pathlib import Path
+from typing import Any, Protocol, Sequence
 
 
 class EngineError(RuntimeError):
@@ -28,63 +28,28 @@ class AgentCall:
     reasoning_tokens: int = 0
     total_tokens: int = 0
     latency_ms: int = 0
+    model_used: str = ""
 
 
-class Engine(Protocol):
-    def executar(self, papel: str, sistema: str, prompt: str) -> AgentCall: ...
+@dataclass(slots=True)
+class Tarefa:
+    """Um papel a executar no Hermes: prompt já hidratado pelo backend."""
+
+    id: str
+    papel: str
+    sistema: str
+    prompt: str
+    payload: dict[str, Any]
+    ponto_id: int | None = None
+    rodada: int = 1
 
 
-class OpenAICompatEngine:
-    """Cliente `POST {base_url}/chat/completions` com extração estrita de JSON."""
+class Executor(Protocol):
+    def planejar(self, workspace: Path, tarefa: Tarefa) -> AgentCall: ...
 
-    def __init__(self, config: ConfigEngine):
-        self._config = config
-
-    def executar(self, papel: str, sistema: str, prompt: str) -> AgentCall:
-        if not self._config.api_key:
-            raise EngineError(f"defina {self._config.api_key_env} para chamar o engine")
-        inicio = time.monotonic()
-        try:
-            resposta = httpx.post(
-                f"{self._config.base_url.rstrip('/')}/chat/completions",
-                headers={"Authorization": f"Bearer {self._config.api_key}"},
-                json={
-                    "model": self._config.model,
-                    "temperature": self._config.temperature,
-                    "stream": False,
-                    "messages": [
-                        {"role": "system", "content": sistema},
-                        {"role": "user", "content": prompt},
-                    ],
-                },
-                timeout=self._config.timeout_s,
-            )
-            resposta.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise EngineError(f"falha HTTP no engine: {exc}") from exc
-
-        corpo = resposta.json()
-        mensagem = corpo["choices"][0]["message"]
-        texto = mensagem.get("content") or ""
-        uso = corpo.get("usage") or {}
-        detalhes = uso.get("completion_tokens_details") or {}
-        call = AgentCall(
-            dados={},
-            texto=texto,
-            reasoning_trace=mensagem.get("reasoning_content") or mensagem.get("reasoning") or "",
-            tool_calls=mensagem.get("tool_calls") or [],
-            prompt_tokens=int(uso.get("prompt_tokens") or 0),
-            completion_tokens=int(uso.get("completion_tokens") or 0),
-            reasoning_tokens=int(detalhes.get("reasoning_tokens") or uso.get("reasoning_tokens") or 0),
-            total_tokens=int(uso.get("total_tokens") or 0),
-            latency_ms=int((time.monotonic() - inicio) * 1000),
-        )
-        try:
-            call.dados = extrair_json(texto)
-        except EngineError as exc:
-            # O texto bruto ainda é telemetria válida: devolve para o orquestrador persistir.
-            call.erro = str(exc)
-        return call
+    def executar(
+        self, workspace: Path, tarefas: Sequence[Tarefa]
+    ) -> dict[str, AgentCall]: ...
 
 
 def extrair_json(texto: str) -> dict[str, Any]:

@@ -9,7 +9,7 @@ import pytest
 
 from config import Config
 from db.repository import Repositorio
-from engine import AgentCall
+from engine import AgentCall, Tarefa
 
 
 def extrair_payload(prompt: str) -> dict[str, Any]:
@@ -18,17 +18,27 @@ def extrair_payload(prompt: str) -> dict[str, Any]:
     return json.loads(bloco.group(1))
 
 
-class FakeEngine:
-    """Engine determinístico: responde por papel e guarda o payload de cada chamada."""
+class FakeExecutor:
+    """Executor determinístico: responde por papel e guarda o payload de cada tarefa."""
 
     def __init__(self, responder: Callable[[str, dict[str, Any]], dict[str, Any]]):
         self._responder = responder
         self.chamadas: list[tuple[str, dict[str, Any]]] = []
+        self.workspaces: list[Any] = []
 
-    def executar(self, papel: str, sistema: str, prompt: str) -> AgentCall:
-        payload = extrair_payload(prompt)
-        self.chamadas.append((papel, payload))
-        dados = self._responder(papel, payload)
+    def planejar(self, workspace, tarefa: Tarefa) -> AgentCall:
+        return self._chamar(workspace, tarefa)
+
+    def executar(self, workspace, tarefas) -> dict[str, AgentCall]:
+        return {tarefa.id: self._chamar(workspace, tarefa) for tarefa in tarefas}
+
+    def _chamar(self, workspace, tarefa: Tarefa) -> AgentCall:
+        self.chamadas.append((tarefa.papel, tarefa.payload))
+        self.workspaces.append(workspace)
+        try:
+            dados = self._responder(tarefa.papel, tarefa.payload)
+        except Exception as exc:  # contrato do executor: falha vira AgentCall.erro
+            return AgentCall(dados={}, erro=str(exc), model_used=f"fake/{tarefa.papel}")
         return AgentCall(
             dados=dados,
             texto=json.dumps(dados, ensure_ascii=False),
@@ -37,6 +47,7 @@ class FakeEngine:
             reasoning_tokens=10,
             total_tokens=160,
             latency_ms=1,
+            model_used=f"fake/{tarefa.papel}",
         )
 
     def payloads(self, papel: str) -> list[dict[str, Any]]:
@@ -48,7 +59,6 @@ def config(tmp_path) -> Config:
     cfg = Config()
     cfg.pipeline.db_path = str(tmp_path / "deep_research.db")
     cfg.pipeline.workspaces_dir = str(tmp_path / "workspaces")
-    cfg.pipeline.max_pontos_paralelos = 2
     cfg.pipeline.tentativas_por_agente = 2
     return cfg
 
