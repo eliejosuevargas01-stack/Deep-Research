@@ -54,6 +54,7 @@ CREATE TABLE agent_executions (
     ponto_id INT,                        -- NULL apenas no Planner global ou consolidador final
     rodada INT NOT NULL DEFAULT 1,
     agent_role VARCHAR(32) NOT NULL,     -- 'planner', 'historiador', 'cetico', 'visionario', 'futurista', 'auditor', 'redator'
+    model_used VARCHAR(128),             -- Modelo efetivamente utilizado pelo agente/subagente no Hermes
     input_prompt_payload JSONB NOT NULL, -- Tudo o que entrou no 1º prompt do agente
     raw_output_payload JSONB NOT NULL,   -- O JSON retornado pelo agente
     informacao_coletada TEXT,            -- Preenchido pelos 4 subagentes buscadores

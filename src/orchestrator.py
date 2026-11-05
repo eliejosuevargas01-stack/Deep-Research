@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import secrets
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -12,6 +13,7 @@ from pydantic import ValidationError
 
 import hydrator
 import planner
+import settings
 from config import RAIZ, Config
 from contracts import (
     PERSONAS,
@@ -56,7 +58,25 @@ class Pipeline:
     def criar(self, requisicao: ResearchRequest) -> str:
         research_id = secrets.token_hex(8).upper()
         self._repo.criar_run(research_id, requisicao)
+        self._preparar_workspace(research_id)
         return research_id
+
+    def caminho_workspace(self, research_id: str) -> Path:
+        base = Path(self._config.pipeline.workspaces_dir)
+        if not base.is_absolute():
+            base = RAIZ / base
+        return base / research_id
+
+    def _preparar_workspace(self, research_id: str) -> Path:
+        """Diretório exclusivo da pesquisa; o Hermes roda com cwd aqui (SDD §2.2.3)."""
+        workspace = self.caminho_workspace(research_id)
+        workspace.mkdir(parents=True, exist_ok=True)
+        modelos = settings.ler_config()["modelos_por_papel"]
+        (workspace / "MODELS.json").write_text(
+            json.dumps({"modelos_por_papel": modelos}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return workspace
 
     def executar(self, research_id: str) -> None:
         run = self._repo.obter_run(research_id)

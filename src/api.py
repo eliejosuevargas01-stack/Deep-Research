@@ -6,6 +6,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 
 from contracts import ResearchRequest
 from orchestrator import Pipeline, construir_pipeline
+from settings import ConfigHermes, aplicar_config, ler_config
 
 
 def create_app(pipeline: Pipeline | None = None) -> FastAPI:
@@ -15,6 +16,16 @@ def create_app(pipeline: Pipeline | None = None) -> FastAPI:
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/config")
+    @app.get("/api/v1/settings", include_in_schema=False)
+    def ler_configuracao() -> dict:
+        return ler_config()
+
+    @app.put("/config")
+    @app.put("/api/v1/settings", include_in_schema=False)
+    def gravar_configuracao(payload: ConfigHermes) -> dict:
+        return aplicar_config(payload)
 
     @app.post("/research", status_code=202)
     def criar(requisicao: ResearchRequest, background: BackgroundTasks) -> dict[str, str]:

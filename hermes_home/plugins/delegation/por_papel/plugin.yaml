@@ -1,0 +1,5 @@
+name: por_papel
+version: 1.0.0
+description: "Delegation strategy 'por_papel': routes each delegate_task subagent to the model configured for its role (planner, historiador, cetico, visionario, futurista, auditor, redator) in delegation.backends.por_papel.modelos or in the research workspace MODELS.json."
+author: DominusLabs
+kind: backend

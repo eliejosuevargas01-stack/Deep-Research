@@ -47,6 +47,7 @@ class FakeEngine:
 def config(tmp_path) -> Config:
     cfg = Config()
     cfg.pipeline.db_path = str(tmp_path / "deep_research.db")
+    cfg.pipeline.workspaces_dir = str(tmp_path / "workspaces")
     cfg.pipeline.max_pontos_paralelos = 2
     cfg.pipeline.tentativas_por_agente = 2
     return cfg

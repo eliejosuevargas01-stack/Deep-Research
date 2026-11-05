@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS agent_executions (
     ponto_id INTEGER,
     rodada INTEGER NOT NULL DEFAULT 1,
     agent_role TEXT NOT NULL,
+    model_used TEXT,
     input_prompt_payload TEXT NOT NULL,
     raw_output_payload TEXT NOT NULL,
     informacao_coletada TEXT,
@@ -87,5 +88,8 @@ def conectar(caminho: str | Path) -> sqlite3.Connection:
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA foreign_keys=ON")
     con.executescript(SCHEMA)
+    colunas = {linha["name"] for linha in con.execute("PRAGMA table_info(agent_executions)")}
+    if "model_used" not in colunas:  # bancos criados antes da spec v1.2
+        con.execute("ALTER TABLE agent_executions ADD COLUMN model_used TEXT")
     con.commit()
     return con

@@ -99,6 +99,7 @@ class Repositorio:
         ponto_id: int | None,
         rodada: int,
         agent_role: str,
+        model_used: str | None = None,
         input_prompt_payload: dict[str, Any],
         call: AgentCall,
         informacao_coletada: str | None = None,
@@ -112,15 +113,16 @@ class Repositorio:
         with self._lock:
             cursor = self._con.execute(
                 "INSERT INTO agent_executions (research_id, ponto_id, rodada, agent_role,"
-                " input_prompt_payload, raw_output_payload, informacao_coletada, reasoning_trace,"
-                " tool_calls, urls_usadas, urls_lidas, urls_lidas_nao_usadas, prompt_tokens,"
-                " completion_tokens, reasoning_tokens, total_tokens, latency_ms)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " model_used, input_prompt_payload, raw_output_payload, informacao_coletada,"
+                " reasoning_trace, tool_calls, urls_usadas, urls_lidas, urls_lidas_nao_usadas,"
+                " prompt_tokens, completion_tokens, reasoning_tokens, total_tokens, latency_ms)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     research_id,
                     ponto_id,
                     rodada,
                     agent_role,
+                    model_used,
                     _dumps(input_prompt_payload),
                     _dumps(call.dados if call.dados else {"texto": call.texto}),
                     informacao_coletada,

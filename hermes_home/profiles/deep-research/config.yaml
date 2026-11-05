@@ -1,0 +1,33 @@
+model:
+  default: "deepseek/deepseek-v3.2"
+  provider: custom
+  base_url: "http://9router:20128/v1"
+  api_key: "${LLM_API_KEY}"
+  api_mode: chat_completions
+
+# O plugin por_papel é opt-in: no build da imagem ele é copiado para
+# /opt/hermes/plugins/delegation/por_papel (bundled); fora da imagem mora em
+# $HERMES_HOME/plugins/por_papel e precisa estar nesta lista.
+plugins:
+  enabled:
+    - por_papel
+
+delegation:
+  # Plugin bundled em /opt/hermes/plugins/delegation/por_papel
+  backend: por_papel
+  # planner (depth 0) -> subagentes (depth 1); 2 permite sub-delegação controlada
+  max_spawn_depth: 2
+  # 10 pontos simultâneos x 4 personas = até 40 subagentes concorrentes por rodada
+  max_concurrent_children: 40
+  # 0 = sem limite acumulado por execução (4 rodadas x 40 buscas + 40 auditorias + 10 redatores)
+  oneshot_max_children: 0
+  backends:
+    por_papel:
+      modelos:
+        planner: "deepseek/deepseek-v3.2"
+        historiador: "deepseek/deepseek-v3.2"
+        cetico: "deepseek/deepseek-v3.2"
+        visionario: "deepseek/deepseek-v3.2"
+        futurista: "deepseek/deepseek-v3.2"
+        auditor: "deepseek/deepseek-v3.2"
+        redator: "deepseek/deepseek-v3.2"

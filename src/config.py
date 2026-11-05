@@ -32,6 +32,7 @@ class ConfigPipeline:
     tentativas_por_agente: int = 2
     webhook_timeout_s: int = 15
     db_path: str = "data/deep_research.db"
+    workspaces_dir: str = "data/workspaces"
 
 
 @dataclass(slots=True)
