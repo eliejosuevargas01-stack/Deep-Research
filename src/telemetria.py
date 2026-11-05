@@ -57,7 +57,7 @@ def coletar(workspace: Path, desde: float) -> dict[str, dict[str, Any]]:
         titulo = linha["title"] or ""
         papel = PAPEL_NO_TITULO.search(titulo)
         partes = titulo.split()
-        tarefa_id = partes[1] if titulo.startswith("[") and len(partes) > 1 else "planner"
+        tarefa_id = partes[1] if titulo.startswith("[") and len(partes) > 1 else "_pai"
         entrada = por_tarefa.setdefault(
             tarefa_id,
             {

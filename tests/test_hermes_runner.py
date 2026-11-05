@@ -71,7 +71,9 @@ def test_lote_executa_uma_tarefa_por_papel(runner, tmp_path):
 
     saidas = runner.executar(workspace, tarefas)
 
+    pai = saidas.pop("__orquestrador__")
     assert set(saidas) == {"historiador_p1_r1", "auditor_p1_r1"}
+    assert pai.total_tokens == 1250  # sem state.db o usage.json é do delegador
     assert saidas["historiador_p1_r1"].dados["urls_usadas"]
     assert saidas["auditor_p1_r1"].dados["perguntas_respondidas"]["12"] is True
     assert json.loads((workspace / "tarefas.json").read_text())[0]["arquivo"] == (
@@ -111,6 +113,11 @@ def test_telemetria_le_tokens_e_modelo_do_state_db(tmp_path, monkeypatch):
         " 'openai/gpt-5.1', ?, 100.0, 110.0, 900, 120, 30, 4)",
         (str(workspace),),
     )
+    con.execute(
+        "INSERT INTO sessions VALUES ('s0', NULL, 'Você é o agente principal da rodada',"
+        " 'openai/gpt-5.1', ?, 90.0, 120.0, 400, 60, 10, 2)",
+        (str(workspace),),
+    )
     con.commit()
     con.close()
     monkeypatch.setenv("DR_HERMES_STATE_DB", str(banco))
@@ -120,3 +127,4 @@ def test_telemetria_le_tokens_e_modelo_do_state_db(tmp_path, monkeypatch):
     assert sessoes["auditor_p1_r2"]["total_tokens"] == 1050
     assert sessoes["auditor_p1_r2"]["model_used"] == "openai/gpt-5.1"
     assert sessoes["auditor_p1_r2"]["tool_calls"] == 4
+    assert sessoes["_pai"]["total_tokens"] == 470

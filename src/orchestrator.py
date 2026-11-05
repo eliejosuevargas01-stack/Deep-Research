@@ -349,6 +349,7 @@ class Pipeline:
         pendentes = tarefas
         for _tentativa in range(1, self._config.pipeline.tentativas_por_agente + 1):
             calls = self._executor.executar(workspace, pendentes)
+            self._registrar_orquestrador(calls, pendentes)
             novas: list[Tarefa] = []
             for tarefa in pendentes:
                 call = calls.get(tarefa.id) or AgentCall(dados={}, erro="tarefa sem saída")
@@ -396,6 +397,7 @@ class Pipeline:
         aceitos: dict[str, tuple[Any, AgentCall]] = {}
         for _tentativa in range(1, self._config.pipeline.tentativas_por_agente + 1):
             calls = self._executor.executar(workspace, pendentes)
+            self._registrar_orquestrador(calls, pendentes)
             novas: list[Tarefa] = []
             for tarefa in pendentes:
                 call = calls.get(tarefa.id) or AgentCall(dados={}, erro="tarefa sem saída")
@@ -449,6 +451,25 @@ class Pipeline:
         return validar
 
     # -- telemetria --------------------------------------------------------
+    def _registrar_orquestrador(
+        self, calls: dict[str, AgentCall], tarefas: list[Tarefa]
+    ) -> None:
+        """Tokens do agente principal do lote (o delegador), reportados pelo Hermes."""
+        pai = calls.pop("__orquestrador__", None)
+        if pai is None or not tarefas:
+            return
+        self._registrar(
+            Tarefa(
+                id="orquestrador",
+                papel="orquestrador",
+                sistema="",
+                prompt="",
+                payload={"lote": [tarefa.id for tarefa in tarefas]},
+                rodada=tarefas[0].rodada,
+            ),
+            pai,
+        )
+
     def _registrar(
         self,
         tarefa: Tarefa,

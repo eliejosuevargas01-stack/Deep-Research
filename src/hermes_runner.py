@@ -42,13 +42,13 @@ INSTRUCAO_LOTE = """\
 Você é o agente principal de uma pesquisa profunda. Trabalhe SOMENTE dentro de {workspace}.
 NÃO responda às tarefas: apenas delegue.
 
-1. Leia `tarefas.json` (lista de tarefas com `id`, `papel` e `arquivo`).
-2. Para CADA tarefa, chame `delegate_task` com `papel` = campo `papel` da tarefa e `goal` no formato
-   `[{primeiro_papel}] {primeiro_id} — execute o prompt de prompts/{primeiro_id}.md e grave o JSON em saidas/{primeiro_id}.json`.
-   O subagente deve ler o arquivo de prompt, fazer as buscas que o prompt pede e gravar o JSON final
-   em `saidas/<id>.json`.
-3. Dispare todas as tarefas em paralelo; não faça o trabalho de nenhuma delas você mesmo.
-4. Ao final, escreva `CONCLUIDO` em `saidas/_ok`."""
+1. Leia `tarefas.json` (lista com `id`, `papel` e `arquivo`).
+2. Esta rodada tem {quantidade} tarefas. Dispare as {quantidade} em paralelo, uma por item da lista,
+   sem pular nenhuma e sem escolher só a primeira.
+3. Cada `delegate_task` recebe `papel` = campo `papel` da tarefa e `goal` = `[{exemplo_papel}] {exemplo_id} — leia prompts/{exemplo_id}.md, execute o que ele pede e grave o objeto JSON em saidas/{exemplo_id}.json`
+   (trocando `{exemplo_id}` pelo `id` da tarefa correspondente).
+4. Não faça o trabalho de nenhuma delas você mesmo e não redija síntese.
+5. Ao final, escreva `CONCLUIDO` em `saidas/_ok`."""
 
 
 class HermesRunner:
@@ -115,12 +115,15 @@ class HermesRunner:
             )
         else:
             instrucao = INSTRUCAO_LOTE.format(
-                workspace=workspace, primeiro_papel=primeira.papel, primeiro_id=primeira.id
+                workspace=workspace,
+                quantidade=len(tarefas),
+                exemplo_papel=primeira.papel,
+                exemplo_id=primeira.id,
             )
 
         inicio = time.time()
         erro = self._acionar(workspace, instrucao)
-        return self._coletar_saidas(workspace, tarefas, inicio, erro)
+        return self._coletar_saidas(workspace, tarefas, inicio, erro, modo=modo)
 
     def _acionar(self, workspace: Path, instrucao: str) -> str:
         comando = [
@@ -154,7 +157,7 @@ class HermesRunner:
         return ""
 
     def _coletar_saidas(
-        self, workspace: Path, tarefas: list[Tarefa], inicio: float, erro: str
+        self, workspace: Path, tarefas: list[Tarefa], inicio: float, erro: str, *, modo: str
     ) -> dict[str, AgentCall]:
         uso = _ler_usage(workspace / "usage.json")
         sessoes = telemetria.coletar(workspace, inicio - 1)
@@ -184,13 +187,20 @@ class HermesRunner:
                 call.erro = str(exc)
             saidas[tarefa.id] = call
 
-        if len(tarefas) == 1 and not any(c.total_tokens for c in saidas.values()) and uso:
-            call = saidas[tarefas[0].id]
-            call.prompt_tokens = uso.get("prompt_tokens", 0)
-            call.completion_tokens = uso.get("completion_tokens", 0)
-            call.reasoning_tokens = uso.get("reasoning_tokens", 0)
-            call.total_tokens = uso.get("total_tokens", 0) or (
-                call.prompt_tokens + call.completion_tokens + call.reasoning_tokens
+        if modo == "planner":
+            if len(tarefas) == 1 and not saidas[tarefas[0].id].total_tokens and uso:
+                _aplicar_usage(saidas[tarefas[0].id], uso)
+            return saidas
+
+        # O agente principal delegou: os tokens dele ficam na sessão pai (ou no usage agregado).
+        pai = sessoes.get("_pai")
+        if pai:
+            saidas["__orquestrador__"] = AgentCall(
+                dados={}, model_used=pai.get("model_used", ""), **_tokens(pai)
+            )
+        elif uso:
+            saidas["__orquestrador__"] = AgentCall(
+                dados={}, model_used=self._modelos.get("planner", ""), **_usage_tokens(uso)
             )
         return saidas
 
@@ -203,6 +213,29 @@ def _tokens(sessao: dict[str, Any]) -> dict[str, Any]:
         "total_tokens": int(sessao.get("total_tokens", 0)),
         "latency_ms": int(sessao.get("latency_ms", 0)),
     }
+
+
+def _usage_tokens(uso: dict[str, int]) -> dict[str, Any]:
+    total = uso.get("total_tokens") or (
+        uso.get("prompt_tokens", 0)
+        + uso.get("completion_tokens", 0)
+        + uso.get("reasoning_tokens", 0)
+    )
+    return {
+        "prompt_tokens": uso.get("prompt_tokens", 0),
+        "completion_tokens": uso.get("completion_tokens", 0),
+        "reasoning_tokens": uso.get("reasoning_tokens", 0),
+        "total_tokens": total,
+        "latency_ms": 0,
+    }
+
+
+def _aplicar_usage(call: AgentCall, uso: dict[str, int]) -> None:
+    tokens = _usage_tokens(uso)
+    call.prompt_tokens = tokens["prompt_tokens"]
+    call.completion_tokens = tokens["completion_tokens"]
+    call.reasoning_tokens = tokens["reasoning_tokens"]
+    call.total_tokens = tokens["total_tokens"]
 
 
 def _ler_usage(caminho: Path) -> dict[str, int]:

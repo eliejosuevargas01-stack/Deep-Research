@@ -45,13 +45,15 @@ model:
   api_key: "${LLM_API_KEY}"
 
 delegation:
-  # Plugin bundled em /opt/hermes/plugins/delegation/por_papel
+  # Plugin instalado em $HERMES_HOME/plugins/por_papel (opt-in via plugins.enabled)
   backend: por_papel
   # planner (depth 0) -> subagentes (depth 1); 2 permite sub-delegação controlada
   max_spawn_depth: 2
   # 10 pontos simultâneos x 4 personas = até 40 subagentes concorrentes por rodada
   max_concurrent_children: 40
-  # 0 = sem limite acumulado por execução (4 rodadas x 40 buscas + 40 auditorias + 10 redatores = até 210 filhos)
+  # 0 = sem teto acumulado. Escopo do teto real, profundidade 10 e max_rodadas 10:
+  # 10 rodadas x (40 buscas + 10 auditorias) + 10 redatores = 510 filhos por pesquisa,
+  # sempre no máximo 40 simultâneos. O agente principal (delegador) não é filho.
   oneshot_max_children: 0
   backends:
     por_papel:
@@ -72,9 +74,9 @@ delegation:
 2. **Capacidade de 40 Subagentes Simultâneos (Zero Limite de 3 Pontos Paralelos):**
    - Não existe `max_pontos_paralelos: 3`. Quando `profundidade = 10`, todos os 10 pontos acionam suas 4 personas em paralelo, totalizando **40 subagentes simultâneos** (`max_concurrent_children: 40`).
 3. **Isolamento Estrito de Workspace por Pesquisa:**
-   - Cada `research_id` possui um diretório próprio isolado (`data/workspaces/{research_id}/`). O processo Hermes roda com `cwd` fixado nesse diretório e permissão restrita exclusivamente aos arquivos dessa pesquisa, impedindo leitura ou reaproveitamento de relatórios de outras pesquisas.
+   - Cada `research_id` possui um diretório próprio isolado (`data/workspaces/{research_id}/`). O processo Hermes roda com `cwd` fixado nesse diretório, recebe `DR_WORKSPACE` apontando para ele e é instruído (SOUL do perfil) a não ler nem escrever fora dele; a partição física de acesso é responsabilidade do perfil de container onde o Hermes executa, não há `chroot` por pesquisa.
 4. **Rastreamento Real de Tokens e Telemetria (`state.db` do Hermes):**
-   - O backend extrai os tokens reais (`prompt_tokens`, `completion_tokens`, `reasoning_tokens`, `total_tokens`), `tool_calls` e `reasoning_trace` diretamente do banco de sessões do Hermes (`state.db` filtrado pelo `cwd`/workspace da pesquisa) e dos recibos de execução de cada subagente, garantindo que 100% dos tokens gastos pelo agente principal e por todos os subagentes delegados sejam somados em `agent_executions` e `research_runs`.
+   - O backend extrai os tokens reais (`prompt_tokens`, `completion_tokens`, `reasoning_tokens`, `total_tokens`), `tool_calls` e `reasoning_trace` diretamente do banco de sessões do Hermes (`state.db` filtrado pelo `cwd`/workspace da pesquisa) e dos recibos de execução de cada subagente. Cada lote também registra o agente principal que delegou em `agent_executions` com `agent_role = 'orquestrador'`, garantindo que 100% dos tokens gastos pelo agente principal e por todos os subagentes delegados sejam somados em `research_runs`. Quando o `state.db` não está acessível, o `usage.json` do processo (`--usage-file`) é gravado na linha `orquestrador`: os tokens medidos são os do delegador, não dos filhos, e nenhum valor é inventado.
 
 ---
 
@@ -464,7 +466,7 @@ CREATE TABLE agent_executions (
     research_id VARCHAR(64) NOT NULL REFERENCES research_runs(research_id) ON DELETE CASCADE,
     ponto_id INT,                        -- NULL apenas no Planner global ou consolidador final
     rodada INT NOT NULL DEFAULT 1,
-    agent_role VARCHAR(32) NOT NULL,     -- 'planner', 'historiador', 'cetico', 'visionario', 'futurista', 'auditor', 'redator'
+    agent_role VARCHAR(32) NOT NULL,     -- 'planner', 'historiador', 'cetico', 'visionario', 'futurista', 'auditor', 'redator', 'orquestrador'
     model_used VARCHAR(128),             -- Modelo efetivamente utilizado pelo agente/subagente no Hermes
     input_prompt_payload JSONB NOT NULL, -- Tudo o que entrou no 1º prompt do agente
     raw_output_payload JSONB NOT NULL,   -- O JSON retornado pelo agente

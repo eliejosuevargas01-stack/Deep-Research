@@ -53,7 +53,7 @@ CREATE TABLE agent_executions (
     research_id VARCHAR(64) NOT NULL REFERENCES research_runs(research_id) ON DELETE CASCADE,
     ponto_id INT,                        -- NULL apenas no Planner global ou consolidador final
     rodada INT NOT NULL DEFAULT 1,
-    agent_role VARCHAR(32) NOT NULL,     -- 'planner', 'historiador', 'cetico', 'visionario', 'futurista', 'auditor', 'redator'
+    agent_role VARCHAR(32) NOT NULL,     -- 'planner', 'historiador', 'cetico', 'visionario', 'futurista', 'auditor', 'redator', 'orquestrador'
     model_used VARCHAR(128),             -- Modelo efetivamente utilizado pelo agente/subagente no Hermes
     input_prompt_payload JSONB NOT NULL, -- Tudo o que entrou no 1º prompt do agente
     raw_output_payload JSONB NOT NULL,   -- O JSON retornado pelo agente

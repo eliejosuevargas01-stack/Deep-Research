@@ -136,3 +136,37 @@ def test_model_used_persistido_por_papel(pipeline, repositorio):
         f"fake/{papel}"
         for papel in ("planner", "historiador", "cetico", "visionario", "futurista", "auditor", "redator")
     }
+
+
+def test_tokens_do_delegador_entram_como_orquestrador(config, repositorio):
+    from engine import AgentCall
+
+    class ExecutorComPai(FakeExecutor):
+        def executar(self, workspace, tarefas):
+            saidas = super().executar(workspace, tarefas)
+            saidas["__orquestrador__"] = AgentCall(
+                dados={},
+                prompt_tokens=10,
+                completion_tokens=5,
+                reasoning_tokens=1,
+                total_tokens=16,
+                model_used="fake/delegador",
+            )
+            return saidas
+
+    responder.ja_corrigiu = False
+    pipeline = Pipeline(
+        repositorio, ExecutorComPai(responder), config, notificador=lambda *a, **k: None
+    )
+    research_id = _executar(pipeline)
+
+    orquestradores = [
+        execucao
+        for execucao in repositorio.obter_execucoes(research_id)
+        if execucao["agent_role"] == "orquestrador"
+    ]
+    assert orquestradores
+    assert all(execucao["total_tokens"] == 16 for execucao in orquestradores)
+    assert all(execucao["model_used"] == "fake/delegador" for execucao in orquestradores)
+    run = repositorio.obter_run(research_id)
+    assert run["total_tokens"] >= 16 * len(orquestradores)
