@@ -109,9 +109,10 @@ hermes_home/profiles/deep-research/plugin-update-checks/
 hermes_home/profiles/deep-research/cache/
 hermes_home/profiles/deep-research/sessions/
 
-# Só os três arquivos de contrato do perfil são versionados; o resto é runtime.
+# Só os arquivos de contrato do perfil são versionados; o resto é runtime.
 hermes_home/profiles/deep-research/*
 !hermes_home/profiles/deep-research/SOUL.md
+!hermes_home/profiles/deep-research/SOUL.template.md
 !hermes_home/profiles/deep-research/README.md
 !hermes_home/profiles/deep-research/config.yaml
 hermes_home/state/
