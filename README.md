@@ -160,7 +160,7 @@ hermes-deep-research/
 ├── hermes_home/
 │   ├── profiles/deep-research/
 │   │   ├── config.yaml         # provedor, modelos por subagente e max_concurrent_children: 40
-│   │   └── SOUL.md             # contratos operacionais do planner e subagentes no Hermes
+│   │   ├── SOUL.template.md    # contratos operacionais; deploy materializa como SOUL.md
 │   └── plugins/delegation/por_papel/
 │       ├── __init__.py         # roteador de modelo por papel em cada delegate_task
 │       └── plugin.yaml
