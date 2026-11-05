@@ -39,7 +39,7 @@ Toda a configuração operacional do Hermes vive em `hermes_home/profiles/deep-r
 
 ```yaml
 model:
-  default: "deepseek/deepseek-v3.2"
+  default: "ag/gemini-3.8-flash-high"
   provider: custom
   base_url: "http://9router:20128/v1"
   api_key: "${LLM_API_KEY}"
@@ -58,14 +58,18 @@ delegation:
   backends:
     por_papel:
       modelos:
-        planner: "deepseek/deepseek-v3.2"
-        historiador: "deepseek/deepseek-v3.2"
-        cetico: "deepseek/deepseek-v3.2"
-        visionario: "deepseek/deepseek-v3.2"
-        futurista: "deepseek/deepseek-v3.2"
-        auditor: "deepseek/deepseek-v3.2"
-        redator: "deepseek/deepseek-v3.2"
+        planner: "ag/gemini-3.8-flash-high"
+        historiador: "ag/gemini-3.8-flash-high"
+        cetico: "ag/gemini-3.8-flash-high"
+        visionario: "ag/gemini-3.8-flash-high"
+        futurista: "ag/gemini-3.8-flash-high"
+        auditor: "ag/gemini-3.8-flash-high"
+        redator: "ag/gemini-3.8-flash-high"
 ```
+
+> Os ids de modelo acima precisam existir no roteador (`GET {base_url}/models`). Id ausente
+> derruba o `delegate_task` com `404 No active credentials for provider` — foi o que aconteceu
+> com `deepseek/deepseek-v3.2` no 9router.
 
 ### 2.2. Regras de Delegação, Modelos por Papel e Isolamento
 
@@ -143,14 +147,14 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 {
   "base_url": "http://9router:20128/v1",
   "api_key": "sk-...",
-  "default_model": "deepseek/deepseek-v3.2",
+  "default_model": "ag/gemini-3.8-flash-high",
   "max_concurrent_children": 40,
   "max_spawn_depth": 2,
   "oneshot_max_children": 0,
   "modelos_por_papel": {
-    "planner": "deepseek/deepseek-v3.2",
+    "planner": "ag/gemini-3.8-flash-high",
     "historiador": "gemini/gemini-3.5-flash-lite",
-    "cetico": "deepseek/deepseek-v3.2",
+    "cetico": "ag/gemini-3.8-flash-high",
     "visionario": "gemini/gemini-3.5-flash-lite",
     "futurista": "gemini/gemini-3.5-flash-lite",
     "auditor": "ocg/deepseek-v4.1-flash",

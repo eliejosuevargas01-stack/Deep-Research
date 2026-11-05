@@ -1,5 +1,5 @@
 model:
-  default: "deepseek/deepseek-v3.2"
+  default: "ag/gemini-3.8-flash-high"
   provider: custom
   base_url: "http://9router:20128/v1"
   api_key: "${LLM_API_KEY}"
@@ -24,10 +24,10 @@ delegation:
   backends:
     por_papel:
       modelos:
-        planner: "deepseek/deepseek-v3.2"
-        historiador: "deepseek/deepseek-v3.2"
-        cetico: "deepseek/deepseek-v3.2"
-        visionario: "deepseek/deepseek-v3.2"
-        futurista: "deepseek/deepseek-v3.2"
-        auditor: "deepseek/deepseek-v3.2"
-        redator: "deepseek/deepseek-v3.2"
+        planner: "ag/gemini-3.8-flash-high"
+        historiador: "ag/gemini-3.8-flash-high"
+        cetico: "ag/gemini-3.8-flash-high"
+        visionario: "ag/gemini-3.8-flash-high"
+        futurista: "ag/gemini-3.8-flash-high"
+        auditor: "ag/gemini-3.8-flash-high"
+        redator: "ag/gemini-3.8-flash-high"
