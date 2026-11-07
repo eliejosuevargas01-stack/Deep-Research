@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -26,18 +27,58 @@ PAPEIS = (
 )
 
 
-def _modelos_do_workspace() -> dict[str, str]:
-    """MODELS.json no cwd (workspace da pesquisa), quando existir."""
+_CAMINHO_WORKSPACE = re.compile(r"/[^\s\"']*data/workspaces/[^\s\"']*")
+_CHAVE_WORKSPACE = re.compile(
+    r"(?:WORKSPACE|workspace)\s*[:=]\s*([^\s\"']+)|Trabalhe\s+SOMENTE\s+dentro\s+de\s+([^\s\"']+)",
+    re.IGNORECASE,
+)
+
+
+def _workspace_da_task(task: Mapping[str, Any]) -> Path | None:
+    """Resolve o workspace a partir do texto da task (gateway roda com cwd alheio)."""
+    texto = " ".join(str(task.get(chave, "") or "") for chave in ("goal", "context", "prompt"))
+    if not texto.strip():
+        return None
+    candidatos = _CAMINHO_WORKSPACE.findall(texto)
+    for chave in _CHAVE_WORKSPACE.findall(texto):
+        candidatos.extend(parte for parte in chave if parte)
+    for candidato in reversed(candidatos):
+        base = Path(candidato.rstrip("/").rstrip("\\"))
+        for palpite in (base, *base.parents):
+            if (palpite / "MODELS.json").exists():
+                return palpite
+            if palpite.name == "workspaces":
+                break
+    return None
+
+
+def _ler_modelos(caminho: Path) -> dict[str, str]:
     try:
-        dados = json.loads(Path(os.getcwd(), "MODELS.json").read_text(encoding="utf-8"))
+        dados = json.loads(caminho.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
     modelos = dados.get("modelos_por_papel", dados)
+    if not isinstance(modelos, Mapping):
+        return {}
     return {
         papel: valor
         for papel, valor in modelos.items()
         if papel in PAPEIS and isinstance(valor, str) and valor
-    } if isinstance(modelos, Mapping) else {}
+    }
+
+
+def _modelos_do_workspace(task: Mapping[str, Any] | None = None) -> dict[str, str]:
+    """MODELS.json do workspace da pesquisa; fallback: cwd (comportamento antigo)."""
+    if task:
+        workspace = _workspace_da_task(task)
+        if workspace is not None:
+            modelos = _ler_modelos(workspace / "MODELS.json")
+            if modelos:
+                return modelos
+    try:
+        return _ler_modelos(Path(os.getcwd(), "MODELS.json"))
+    except OSError:
+        return {}
 
 
 class PorPapelDelegationProvider(DelegationProvider):
@@ -73,7 +114,7 @@ class PorPapelDelegationProvider(DelegationProvider):
             )
         modelos = self.settings(config).get("modelos")
         modelos = dict(modelos) if isinstance(modelos, Mapping) else {}
-        modelos.update(_modelos_do_workspace())
+        modelos.update(_modelos_do_workspace(task))
         modelo = modelos.get(papel)
         if not modelo:
             raise DelegationRouteError(

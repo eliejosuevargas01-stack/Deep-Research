@@ -54,6 +54,12 @@ class FakeExecutor:
         return [payload for nome, payload in self.chamadas if nome == papel]
 
 
+@pytest.fixture(autouse=True)
+def _sem_api_key(monkeypatch) -> None:
+    monkeypatch.delenv("DR_API_KEY", raising=False)
+    monkeypatch.delenv("API_KEY", raising=False)
+
+
 @pytest.fixture
 def config(tmp_path) -> Config:
     cfg = Config()

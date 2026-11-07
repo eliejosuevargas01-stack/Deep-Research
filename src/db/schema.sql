@@ -72,3 +72,14 @@ CREATE TABLE agent_executions (
 );
 
 CREATE INDEX idx_executions_lookup ON agent_executions (research_id, ponto_id, rodada, agent_role);
+
+-- 4. Log de eventos SSE (replay por Last-Event-ID + snapshot)
+CREATE TABLE research_events (
+    id SERIAL PRIMARY KEY,
+    research_id VARCHAR(64) NOT NULL REFERENCES research_runs(research_id) ON DELETE CASCADE,
+    tipo VARCHAR(64) NOT NULL,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_events_lookup ON research_events (research_id, id);

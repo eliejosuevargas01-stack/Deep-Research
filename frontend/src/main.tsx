@@ -1,31 +1,20 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { App } from './App';
+import { AppV12 } from './v12/AppV12';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles/main.css';
 import './styles/components.css';
-import './styles/planning-view.css';
-import './styles/icons-scale.css';
-import './styles/clean-theme.css';
-import './styles/ambient-cursor.css';
-import './styles/open-canvas.css';
-import './styles/world.css';
-import './styles/linear-timeline.css';
-import './styles/gdr-refit.css';
-import './styles/theme-contrast.css';
 import './styles/mobile-shell.css';
-import { initReducedMotionSMIL } from './utils/reduceMotion';
+import './styles/theme-contrast.css';
+import './v12/v12.css';
 
-// SMIL (`<animate>`/`animateTransform`/`animateMotion`) não é alcançado por
-// `@media (prefers-reduced-motion: reduce)` no CSS: sem `pauseAnimations()`
-// os ícones com anel animado seguem girando. Inicializa antes do render para
-// que o primeiro paint já respeite a preferência.
-initReducedMotionSMIL();
+// Fluxo ativo: API v1.2 (POST/GET /research, GET/PUT /config). O app legado
+// vive em frontend/legacy/ (fora de src, fora do tsconfig/vitest) e não entra no bundle.
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <AppV12 />
     </ErrorBoundary>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

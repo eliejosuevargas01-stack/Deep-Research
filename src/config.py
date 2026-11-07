@@ -23,6 +23,8 @@ class ConfigPipeline:
     hermes_profile: str = "deep-research"
     hermes_home: str = ""
     hermes_timeout_s: int = 3600
+    engine_url: str = ""
+    engine_token: str = ""
 
 
 @dataclass(slots=True)
@@ -48,6 +50,16 @@ class Config:
                 setattr(config.pipeline, atributo, valor)
         if valor := os.getenv("DR_HERMES_TIMEOUT_S"):
             config.pipeline.hermes_timeout_s = int(valor)
+        for env, atributo in (
+            ("DR_ENGINE_URL", "engine_url"),
+            ("DR_ENGINE_TOKEN", "engine_token"),
+        ):
+            if valor := os.getenv(env):
+                setattr(config.pipeline, atributo, valor)
+        if not config.pipeline.engine_token and (
+            valor := os.getenv("ENGINE_TOKEN")
+        ):
+            config.pipeline.engine_token = valor
         return config
 
 

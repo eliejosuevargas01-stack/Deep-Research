@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
 from pydantic import (
     BaseModel,
@@ -16,13 +17,55 @@ from pydantic import (
 PERSONAS: tuple[str, ...] = ("historiador", "cetico", "visionario", "futurista")
 PERGUNTAS: tuple[str, ...] = tuple(str(i) for i in range(1, 13))
 
+# 12 perguntas de auditoria ESTÁTICAS e universais (iguais para todos os pontos).
+# O planner NÃO as cria: o backend injeta esta cópia em cada ponto em `_planejar`
+# antes de persistir. Texto binário (sim/não), sem menção a ponto específico.
+PERGUNTAS_AUDITORIA_ESTATICAS: dict[str, str] = {
+    "1": "O material coletado aborda de forma clara e objetiva o eixo do ponto e responde às suas subperguntas? (sim/não)",
+    "2": "As afirmações centrais estão sustentadas por fontes primárias verificáveis, e não apenas por URLs citadas sem verificação? (sim/não)",
+    "3": "Os marcos e dados apresentados estão atualizados dentro da janela de atualidade exigida? (sim/não)",
+    "4": "Não há contradições internas relevantes entre as informações coletadas pelas 4 personas? (sim/não)",
+    "5": "As conclusões têm ancoragem empírica no material, sem tratar ausência de evidência como falsidade nem como prova? (sim/não)",
+    "6": "O material atém-se ao tema, ao enunciado e ao escopo do ponto, sem desvios relevantes? (sim/não)",
+    "7": "A análise tem profundidade adequada e delimita as incertezas em vez de apenas descrever fatos? (sim/não)",
+    "8": "Números, datas, unidades, métricas e identificadores estão precisos e consistentes entre as fontes? (sim/não)",
+    "9": "Fatos observados estão separados de hipóteses e interpretações, com neutralidade analítica? (sim/não)",
+    "10": "A densidade de evidências é proporcional às afirmações, com respaldo em urls_usadas? (sim/não)",
+    "11": "As incertezas e lacunas remanescentes estão declaradas e delimitadas explicitamente? (sim/não)",
+    "12": "As conclusões decorrem logicamente das evidências apresentadas, sem saltos lógicos? (sim/não)",
+}
+
+_FIM_SUJO = ".,;)]>"
+
+def _limpar_url(valor: str) -> str:
+    return valor.strip().rstrip(_FIM_SUJO).strip()
+
+
+def _url_valida(valor: str) -> bool:
+    try:
+        partes = urlsplit(valor)
+    except ValueError:
+        return False
+    if partes.scheme not in ("http", "https") or not partes.hostname:
+        return False
+    return " " not in valor
+
 
 def normalizar_urls(urls: Iterable[Any]) -> list[str]:
-    """Deduplica preservando a ordem de chegada."""
+    """Deduplica preservando a ordem; higieniza pontuação final e valida http/https.
+
+    URL inválida falha com ValueError (nunca é descartada em silêncio).
+    """
     vistas: dict[str, None] = {}
     for url in urls:
-        if isinstance(url, str) and (limpa := url.strip()):
-            vistas[limpa] = None
+        if not isinstance(url, str):
+            continue
+        limpa = _limpar_url(url)
+        if not limpa:
+            continue
+        if not _url_valida(limpa):
+            raise ValueError(f"URL inválida: {limpa}")
+        vistas[limpa] = None
     return list(vistas)
 
 
@@ -53,7 +96,9 @@ class PontoPlano(BaseModel):
     subperguntas: list[str] = Field(min_length=3)
     hipoteses: list[str] = Field(min_length=3)
     lacunas_iniciais: list[str] = Field(min_length=3)
-    perguntas_auditoria: dict[str, str]
+    perguntas_auditoria: dict[str, str] = Field(
+        default_factory=lambda: dict(PERGUNTAS_AUDITORIA_ESTATICAS)
+    )
 
     @field_validator("enunciado")
     @classmethod
@@ -91,11 +136,20 @@ class PontoPlano(BaseModel):
 
 
 class PlanoLLM(BaseModel):
-    """Saída bruta esperada do planner: só os pontos; o resto vem da requisição."""
+    """Saída bruta esperada do planner: pontos + links da varredura exploratória."""
 
     model_config = ConfigDict(extra="ignore")
 
     pontos: list[PontoPlano]
+    urls_lidas: list[str] = Field(default_factory=list)
+    urls_usadas: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _normalizar_urls(self) -> "PlanoLLM":
+        self.urls_usadas = normalizar_urls(self.urls_usadas)
+        # URL usada foi necessariamente lida; normaliza em vez de perder a citação.
+        self.urls_lidas = normalizar_urls([*self.urls_lidas, *self.urls_usadas])
+        return self
 
     def validar_para(self, profundidade: int) -> "PlanoLLM":
         if len(self.pontos) != profundidade:
@@ -140,16 +194,10 @@ class AuditorSaida(BaseModel):
     def _coerir_booleanos(cls, valor: Any) -> Any:
         if not isinstance(valor, dict):
             return valor
-        coerido: dict[str, bool] = {}
         for chave, bruto in valor.items():
-            chave = str(chave).strip()
-            if isinstance(bruto, bool):
-                coerido[chave] = bruto
-            elif isinstance(bruto, str) and bruto.strip().lower() in {"true", "false"}:
-                coerido[chave] = bruto.strip().lower() == "true"
-            else:
-                raise ValueError(f"pergunta {chave}: valor não booleano ({bruto!r})")
-        return coerido
+            if not isinstance(bruto, bool):
+                raise ValueError(f"pergunta {chave}: valor não booleano ({bruto!r}) — use true/false JSON")
+        return valor
 
     @model_validator(mode="after")
     def _exatamente_doze(self) -> "AuditorSaida":

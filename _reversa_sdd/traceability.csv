@@ -1,0 +1,26 @@
+id,requisito,fonte_sdd,unidade,arquivo_linha,teste,status
+RF01,Varredura exploratória + plano N pontos + urls planner,SDD §5.3,planejamento,src/orchestrator.py:176-223; src/contracts.py:118-141,tests/test_pipeline.py::test_planner_invalido_retenta_e_registra_tentativa_rejeitada,comprovado
+RF02,Fan-out até 40 (N pontos × 4 personas) em um lote,SDD §2,coleta-personas,src/orchestrator.py:225-259,tests/test_pipeline.py::test_coleta_fan_out_40_em_um_lote,comprovado
+RF03,Acúmulo integral no DB + prompt compactado sem perda factual,SDD §7,coleta-personas,src/db/repository.py:354-389; src/evidencias.py:1-123; src/hydrator.py:90-101+115-128,tests/test_evidencias.py; tests/test_repositorio.py::test_hidratacao_preserva_todas_as_rodadas_e_personas,comprovado
+RF04,Auditoria booleana estrita 12 perguntas,SDD §5.6,auditoria-e-loop,src/contracts.py:167-187,tests/test_contracts_e_gate.py::test_auditor_exige_booleanos_estritos,comprovado
+RF05,Cálculo de veracidade e loop (avaliar → nova rodada/limite/redator),SDD §5.7,auditoria-e-loop,src/planner.py:18-41,tests/test_contracts_e_gate.py::test_tabela_de_decisao_do_feature_06,comprovado
+RF06,Direcionamento retentativas (pendentes + urls ignoradas),SDD §5.4,coleta-personas,src/orchestrator.py:278-280+443-451,tests/test_garantias.py::test_blacklist_remove_url_repetida_entre_rodadas,comprovado
+RF07,Redação final + lacunas só com URLs usadas,SDD §5.8,redacao-e-consolidacao,src/orchestrator.py:594-610,tests/test_garantias.py::test_redator_rejeita_url_fora_das_usadas,comprovado
+RF08,Consolidação COMPLETED + webhook 5 tentativas + avaliacao_pontos,SDD §1,redacao-e-consolidacao,src/db/repository.py:394-510; src/webhook.py:14-50; src/orchestrator.py:149-173,tests/test_pipeline.py (webhook ok) + tests/test_webhook.py (5 tentativas); falha-com-COMPLETED sem teste,parcial
+RF09,GET/PUT /config sem segredo (provider só env) + engine dono,SDD §5.2,configuracao-e-execucao,src/settings.py:80-98+200-282; engine/service.py:191-227,tests/test_settings.py; smoke PUT api_key=x 422,comprovado
+RNF01,Telemetria real pai+filhos (state.db :ro) + fallback usage→orquestrador,SDD §3,telemetria-e-persistencia,src/telemetria.py:86-167; src/orchestrator.py:612-630,tests/test_lacunas.py; tests/test_garantias.py,comprovado
+RNF02,Hidratação pelo banco no 1º prompt (DB integral; prompt compactado),SDD §7,telemetria-e-persistencia,src/db/repository.py:354-389; src/hydrator.py,tests/test_repositorio.py::test_hidratacao_preserva_todas_as_rodadas_e_personas + tests/test_evidencias.py,comprovado
+RNF03,Isolamento de falha por persona + workspace confinado,SDD §2.2,coleta-personas,src/orchestrator.py:314-322; src/orchestrator.py:88-111,tests/test_pipeline.py::test_falha_de_uma_persona_nao_derruba_o_ponto,comprovado
+SDD-1,Arquitetura de execução e estados PROCESSING/COMPLETED/FAILED,SDD §1,redacao-e-consolidacao,src/orchestrator.py:114-173,tests/test_pipeline.py::test_falha_total_do_ponto_marca_run_como_failed,comprovado
+SDD-2,Perfil Hermes + delegação 40/2/0 + por_papel + 7 modelos (D-09),SDD §2,configuracao-e-execucao,src/settings.py:31-55; hermes_home/profiles/deep-research/config.yaml:1-21,script settings (forte×3/leve×4) + tests/test_settings.py,comprovado
+SDD-3,Estratégia de execução e injeção no 1º prompt,SDD §3,configuracao-e-execucao,src/hermes_runner.py:30-53+90-132,tests/test_hermes_runner.py,comprovado
+SDD-4,Convenção de nomes (enunciado × ponto_enunciado),SDD §4,planejamento,src/contracts.py:77; src/hydrator.py:71+121,tests/test_garantias.py::test_payloads_carregam_atualidade_e_lacunas,comprovado
+SDD-5,Contratos JSON (research/config/planner/buscador/auditor/avaliacao/redator),SDD §5,ingestao-e-api,src/contracts.py:54-70+144-204; src/api.py:130-157,tests/test_api.py + smoke auditorias/avaliacao,comprovado
+SDD-6,Schema do banco (SQLite exercitado; DDL PG não) + research_events,SDD §6,telemetria-e-persistencia,src/db/sqlite_manager.py:13-91; src/db/schema.sql:1-85,sem teste (DDL PG nunca executado),nao_executado
+SDD-7,Query de hidratação (2 SELECTs + Python) + compactação documentada,SDD §7,auditoria-e-loop,src/db/repository.py:354-389; src/evidencias.py,tests/test_repositorio.py::test_hidratacao_preserva_todas_as_rodadas_e_personas + tests/test_evidencias.py,comprovado
+D09,Modelos por papel forte/leve (D-09),DECISIONS D-09,configuracao-e-execucao,src/settings.py:31-55; engine/entrypoint.sh:10-31; hermes_home/profiles/deep-research/config.yaml:1-21,script settings 7 papéis,comprovado
+D10,API key (header/Bearer/query SSE) + health aberto (D-10),DECISIONS D-10,ingestao-e-api,src/api.py:23-42,tests/test_api_key.py:32-87 + smoke 401/202/422,comprovado
+D11,Compactação sem perda factual + compactacao{} (D-11),DECISIONS D-11,coleta-personas,src/evidencias.py:1-123; src/hydrator.py:90-101+115-128,tests/test_evidencias.py:18-103,comprovado
+D12,Imagem latest aceita (D-12),DECISIONS D-12,configuracao-e-execucao,engine/Dockerfile:2-5,comentário + compose 2 serviços,comprovado
+SSE,SSE persistido/replay/snapshot/heartbeat/at-least-once,SDD §4 (novo),ingestao-e-api,src/api.py:76-125; src/db/repository.py:199-227,tests/test_eventos.py:81-107; tests/test_api_key.py:66-87,comprovado
+AUTH,Auth 401 + PUT 422 p/ segredo + config sem api_key,SDD §5.2 (novo),ingestao-e-api,src/api.py:23-42; src/settings.py:93-98+141-144,tests/test_api_key.py + smoke,comprovado

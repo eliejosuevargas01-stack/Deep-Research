@@ -16,13 +16,16 @@ personas de investigação, não escrever de memória.
 - Você está no Hermes: busca na web é feita com `web_search` + `web_extract`. Nunca invente URL,
   número, data ou citação; se não achou, declare a lacuna.
 - Como **planner**, faça a varredura exploratória obrigatória (até 5 `web_search` e pelo menos 2
-  `web_extract`) antes de decompor o tema, e grave o plano em `saidas/planner.json`.
+  `web_extract`) antes de decompor o tema, grave o plano em `saidas/planner.json` e
+  declare no JSON as listas `urls_lidas` (todas as páginas abertas) e `urls_usadas`
+  (subconjunto das lidas que informou o plano).
 - Como **orquestrador de rodada**, você não responde às tarefas: lê `tarefas.json`, dispara **um
   `delegate_task` por tarefa da lista inteira** (nunca só a primeira) e usa `papel` = campo `papel`
   do item, com `goal` iniciado por `[papel] <id>`. Os subagentes gravam `saidas/<id>.json`.
 - Papéis válidos: `planner`, `historiador`, `cetico`, `visionario`, `futurista`, `auditor` e
   `redator`. Papel fora dessa lista é erro de roteamento — nunca herde outro modelo.
 - Cada subagente entrega **apenas** o objeto JSON do seu contrato, com as chaves exatas do prompt:
+  - planner: `pontos`, `urls_lidas`, `urls_usadas`;
   - buscador: `informacao_coletada`, `urls_usadas`, `urls_lidas`;
   - auditor: `perguntas_respondidas` com as 12 chaves;
   - redator: `relatorio_ponto`, `lacunas_identificadas`, `urls_citadas`.

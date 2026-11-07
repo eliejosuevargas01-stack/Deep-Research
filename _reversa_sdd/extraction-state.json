@@ -1,0 +1,31 @@
+{
+  "commits": false,
+  "completed": [
+    "ingestao-e-api",
+    "planejamento",
+    "coleta-personas",
+    "auditoria-e-loop",
+    "redacao-e-consolidacao",
+    "configuracao-e-execucao",
+    "telemetria-e-persistencia",
+    "README.md",
+    "architecture.md",
+    "traceability.csv",
+    "gaps.md",
+    "questions.md",
+    "confidence-report.md",
+    "cross-review-result.md",
+    "verification"
+  ],
+  "doc_level": "completo",
+  "framework": "Reversa",
+  "goal": "Documentar o backend Hermes Deep Research como implementado, verificado contra o codigo atual, para operacao sem ler o fonte",
+  "legacy_edits": false,
+  "mode": "local-source-extraction",
+  "organization": "module",
+  "pending": [],
+  "push": false,
+  "source_revision": "c7e66a6c7a4d70c15460bdd976c9d0812d8cc4a0",
+  "status": "completed",
+  "working_tree_dirty": true
+}

@@ -20,7 +20,6 @@ def responder(papel: str, payload: dict, *_, **__):
             "subperguntas": ["a", "b", "c"],
             "hipoteses": ["h1", "h2", "h3"],
             "lacunas_iniciais": ["l1", "l2", "l3"],
-            "perguntas_auditoria": {str(i): f"criterio {i}" for i in range(1, 13)},
         }
         return {"pontos": [ponto]}
     if papel in ("historiador", "cetico", "visionario", "futurista"):
@@ -170,3 +169,40 @@ def test_tokens_do_delegador_entram_como_orquestrador(config, repositorio):
     assert all(execucao["model_used"] == "fake/delegador" for execucao in orquestradores)
     run = repositorio.obter_run(research_id)
     assert run["total_tokens"] >= 16 * len(orquestradores)
+
+
+def test_backend_nao_fala_com_provedor_nem_busca_direto():
+    """PRD princípio 1: backend delega tudo ao Hermes; só o webhook pós-POST usa HTTP.
+
+    Exceções deliberadas e documentadas: `prompts/*.md` e SOUL (instruções ao agente,
+    não chamadas Python), o próprio `src/webhook.py` (notificação pós-pipeline) e o
+    HTTP interno do engine isolado (`hermes_runner.py` POST /run, `settings.py`
+    PUT /config — nunca o provedor de LLM, que vem só de env).
+    """
+    import re
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parent.parent / "src"
+    arquivos = sorted(raiz.rglob("*.py"))
+
+    importes_proibidos = re.compile(
+        r"(^|\W)(import\s+(openai|anthropic|google\.generativeai|requests)\b"
+        r"|from\s+(openai|anthropic|google\.generativeai|requests)(\s|\.|$))"
+    )
+    httpx_fora_do_webhook = re.compile(r"(^|\W)(import\s+httpx\b|from\s+httpx(\s|\.|$))")
+    strings_proibidas = ("/chat/completions", "web_search(", "web_extract(")
+
+    httpx_permitido = {"webhook.py", "hermes_runner.py", "settings.py"}
+    violacoes: list[str] = []
+    for arquivo in arquivos:
+        texto = arquivo.read_text(encoding="utf-8")
+        rel = str(arquivo.relative_to(raiz))
+        if importes_proibidos.search(texto):
+            violacoes.append(f"{rel}: import de SDK de LLM/busca")
+        if rel not in httpx_permitido and httpx_fora_do_webhook.search(texto):
+            violacoes.append(f"{rel}: httpx fora de webhook.py/engine interno")
+        for proibida in strings_proibidas:
+            if proibida in texto:
+                violacoes.append(f"{rel}: string {proibida!r}")
+
+    assert violacoes == []

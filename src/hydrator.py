@@ -12,6 +12,8 @@ from typing import Any
 
 from contracts import PERSONAS
 
+import evidencias
+
 PROMPTS = Path(__file__).with_name("prompts")
 
 SOULS: dict[str, str] = {
@@ -85,6 +87,7 @@ def payload_auditor(
     max_rodadas_auditoria: int,
     acumulado: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    compactado, estatisticas = evidencias.compactar_acumulado(acumulado)
     return {
         "research_id": research_id,
         "ponto_id": ponto["ponto_id"],
@@ -94,7 +97,8 @@ def payload_auditor(
         "tentativa_atual": tentativa_atual,
         "max_rodadas_auditoria": max_rodadas_auditoria,
         "perguntas_auditoria": ponto["perguntas_auditoria"],
-        "informacao_coletada_acumulada": acumulado,
+        "informacao_coletada_acumulada": compactado,
+        "compactacao": estatisticas,
     }
 
 
@@ -105,7 +109,10 @@ def payload_redator(
     resultado_final_auditor: dict[str, bool],
     urls_usadas_acumuladas: list[str],
     acumulado_integral: list[dict[str, Any]],
+    perguntas_nao_concluidas: dict[str, str] | None = None,
+    erro_coleta: str | None = None,
 ) -> dict[str, Any]:
+    compactado, estatisticas = evidencias.compactar_acumulado(acumulado_integral)
     return {
         "research_id": research_id,
         "ponto_id": ponto["ponto_id"],
@@ -114,6 +121,9 @@ def payload_redator(
         "ponto_enunciado": ponto["enunciado"],
         "resultado_final_auditor": resultado_final_auditor,
         "perguntas_auditoria": ponto["perguntas_auditoria"],
+        "perguntas_nao_concluidas": perguntas_nao_concluidas or {},
+        "erro_coleta": erro_coleta,
         "urls_usadas_acumuladas": urls_usadas_acumuladas,
-        "informacao_coletada_acumulada_integral": acumulado_integral,
+        "informacao_coletada_acumulada_integral": compactado,
+        "compactacao": estatisticas,
     }

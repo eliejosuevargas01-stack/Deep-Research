@@ -1,0 +1,11 @@
+[
+  {"method": "GET", "path": "/health", "auth": false, "request_schema": null, "response_schema": "{\"status\": string}", "status_codes": [200], "source": "src/api.py:49-51"},
+  {"method": "GET", "path": "/config", "auth": true, "request_schema": null, "response_schema": "ConfigEfetiva {base_url(env), api_key:\"\", default_model, provider_fonte:env, limites, modelos_por_papel{7}}", "status_codes": [200, 401], "source": "src/api.py:53-56"},
+  {"method": "GET", "path": "/api/v1/settings", "auth": true, "request_schema": null, "response_schema": "alias oculto de GET /config", "status_codes": [200, 401], "source": "src/api.py:54"},
+  {"method": "PUT", "path": "/config", "auth": true, "request_schema": "ConfigHermes parcial; base_url/api_key nao-vazio -> 422", "response_schema": "ConfigEfetiva", "status_codes": [200, 401, 422], "source": "src/api.py:58-64"},
+  {"method": "PUT", "path": "/api/v1/settings", "auth": true, "request_schema": "alias oculto de PUT /config", "response_schema": "ConfigEfetiva", "status_codes": [200, 401, 422], "source": "src/api.py:59"},
+  {"method": "POST", "path": "/research", "auth": true, "request_schema": "ResearchRequest {tema, profundidade 1..10, veracidade_alvo, max_rodadas_auditoria=4, atualidade=ALL, callback_url}", "response_schema": "{\"research_id\": string, \"status\": \"PROCESSING\"}", "status_codes": [202, 401, 422], "source": "src/api.py:66-70"},
+  {"method": "GET", "path": "/research/{research_id}", "auth": true, "request_schema": null, "response_schema": "research_runs + pontos[] + auditorias[] + avaliacao_pontos?", "status_codes": [200, 401, 404], "source": "src/api.py:72-74,130-157"},
+  {"method": "GET", "path": "/research/{research_id}/eventos", "auth": true, "request_schema": "?desde= / Last-Event-ID / ?api_key=", "response_schema": "text/event-stream snapshot|replay + heartbeat :ping/15s", "status_codes": [200, 401, 404], "source": "src/api.py:76-125"},
+  {"method": "GET", "path": "/research/{research_id}/events", "auth": true, "request_schema": "alias de /eventos", "response_schema": "text/event-stream", "status_codes": [200, 401, 404], "source": "src/api.py:77"}
+]

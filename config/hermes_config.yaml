@@ -11,3 +11,4 @@ pipeline:
   hermes_bin: "hermes"
   hermes_profile: "deep-research"
   hermes_timeout_s: 3600
+

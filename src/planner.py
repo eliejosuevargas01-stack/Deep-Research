@@ -39,3 +39,38 @@ def avaliar(
         "aprovado": aprovado,
         "proxima_acao": proxima_acao,
     }
+
+
+def avaliacao_pontos(
+    *,
+    research_id: str,
+    tema: str,
+    tentativa_atual: int,
+    avaliacoes: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Monta o objeto agregado SDD §5.7 a partir de decisões já calculadas por `avaliar`.
+
+    Cada item de `avaliacoes` é uma decisão de `avaliar` acrescida de `ponto_id`.
+    Reaproveita os números sem recalcular; descarta os campos de fluxo
+    (`tentativa_atual`, `proxima_acao`), que não fazem parte do shape da spec.
+
+    Consumida pelo fluxo via `Repositorio.obter_avaliacao` (D-08): alimenta a
+    consolidação, o `GET /research/{id}` e o evento `run.concluido`.
+    """
+    pontos = [
+        {
+            "ponto_id": avaliacao["ponto_id"],
+            "perguntas_true": avaliacao["perguntas_true"],
+            "total_perguntas": avaliacao["total_perguntas"],
+            "porcentagem_aprovacao": avaliacao["porcentagem_aprovacao"],
+            "meta_veracidade_alvo": avaliacao["meta_veracidade_alvo"],
+            "aprovado": avaliacao["aprovado"],
+        }
+        for avaliacao in avaliacoes
+    ]
+    return {
+        "research_id": research_id,
+        "tentativa_atual": tentativa_atual,
+        "tema": tema,
+        "avaliacao_pontos": pontos,
+    }

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import secrets
 from pathlib import Path
@@ -21,6 +22,7 @@ import settings
 from config import RAIZ, Config
 from contracts import (
     PERSONAS,
+    PERGUNTAS_AUDITORIA_ESTATICAS,
     AuditorSaida,
     BuscadorSaida,
     PlanoLLM,
@@ -57,6 +59,7 @@ class Pipeline:
         self._config = config
         self._notificador = notificador
         self._modelos: dict[str, str] = {}
+        self._tokens_por_papel: dict[str, int] = {}
         self._research_id_atual = ""
 
     @property
@@ -66,8 +69,22 @@ class Pipeline:
     def criar(self, requisicao: ResearchRequest) -> str:
         research_id = secrets.token_hex(8).upper()
         self._repo.criar_run(research_id, requisicao)
+        self._evento(research_id, "run.criado", {"research_id": research_id})
         self._preparar_workspace(research_id)
         return research_id
+
+    def _evento(self, research_id: str, tipo: str, payload: dict[str, Any]) -> int:
+        """Grava o evento antes de publicar: o SSE só lê do banco."""
+        return self._repo.emitir_evento(research_id, tipo, payload)
+
+    def _tokens_totais(self, research_id: str) -> dict[str, int]:
+        run = self._repo.obter_run(research_id) or {}
+        return {
+            "prompt_tokens": int(run.get("total_prompt_tokens") or 0),
+            "completion_tokens": int(run.get("total_completion_tokens") or 0),
+            "reasoning_tokens": int(run.get("total_reasoning_tokens") or 0),
+            "total_tokens": int(run.get("total_tokens") or 0),
+        }
 
     def caminho_workspace(self, research_id: str) -> Path:
         base = Path(self._config.pipeline.workspaces_dir)
@@ -79,7 +96,15 @@ class Pipeline:
         """Diretório exclusivo da pesquisa; o Hermes roda com cwd aqui (SDD §2.2.3)."""
         workspace = self.caminho_workspace(research_id)
         workspace.mkdir(parents=True, exist_ok=True)
-        modelos = settings.ler_config()["modelos_por_papel"]
+        # O engine roda como outro usuário (hermes) no container isolado; o backend
+        # (root) cria o workspace, então libera escrita para o motor.
+        for alvo in (workspace, workspace / "prompts", workspace / "saidas"):
+            alvo.mkdir(parents=True, exist_ok=True)
+            try:
+                alvo.chmod(0o777)
+            except OSError:
+                pass
+        modelos = (settings._ler_config_remota() or settings.ler_config())["modelos_por_papel"]
         (workspace / "MODELS.json").write_text(
             json.dumps({"modelos_por_papel": modelos}, ensure_ascii=False, indent=2),
             encoding="utf-8",
@@ -100,8 +125,14 @@ class Pipeline:
             atualidade=run["atualidade"],
             callback_url=run["callback_url"],
         )
+        try:
+            if not (os.getenv("DR_ENGINE_URL") or "").strip():
+                settings.materializar_perfil()
+        except Exception:
+            pass
         self._modelos = settings.ler_config()["modelos_por_papel"]
         workspace = self.caminho_workspace(research_id)
+        self._evento(research_id, "run.status", {"status": "PROCESSING"})
         try:
             self._planejar(research_id, requisicao, workspace)
             estado = {
@@ -117,8 +148,19 @@ class Pipeline:
                 self._coletar(research_id, requisicao, estado, workspace)
                 self._auditar(research_id, requisicao, estado, workspace)
             payload = self._repo.consolidar(research_id)
-        except Exception:
+            self._evento(
+                research_id,
+                "run.concluido",
+                {
+                    "status": "COMPLETED",
+                    "pontos_falhos": payload.get("pontos_falhos", []),
+                    "metricas_tokens": payload.get("metricas_tokens", {}),
+                    "avaliacao_pontos": (payload.get("avaliacao_pontos") or {}).get("avaliacao_pontos", []),
+                },
+            )
+        except Exception as exc:
             self._repo.marcar_status(research_id, "FAILED")
+            self._evento(research_id, "run.falhou", {"status": "FAILED", "erro": str(exc)})
             logger.exception("pesquisa %s falhou", research_id)
             raise
 
@@ -137,7 +179,11 @@ class Pipeline:
         sistema, prompt = hydrator.montar("planner", payload)
 
         def validar(dados: dict[str, Any]) -> PlanoLLM:
-            return PlanoLLM.model_validate(dados).validar_para(requisicao.profundidade)
+            plano = PlanoLLM.model_validate(dados).validar_para(requisicao.profundidade)
+            # Perguntas estáticas: backend sobrescreve qualquer valor do planner.
+            for ponto in plano.pontos:
+                ponto.perguntas_auditoria = dict(PERGUNTAS_AUDITORIA_ESTATICAS)
+            return plano
 
         tarefa = Tarefa(id="planner", papel="planner", sistema=sistema, prompt=prompt, payload=payload)
         plano: PlanoLLM | None = None
@@ -151,7 +197,12 @@ class Pipeline:
                     ultimo_erro = exc
                     call.erro = str(exc)
             if plano is not None:
-                self._registrar(tarefa, call)
+                self._registrar(
+                    tarefa,
+                    call,
+                    urls_usadas=plano.urls_usadas,
+                    urls_lidas=plano.urls_lidas,
+                )
                 break
             ultimo_erro = ultimo_erro or EngineError(call.erro or "planner sem saída")
             self._registrar(tarefa, call)
@@ -170,6 +221,11 @@ class Pipeline:
             "pontos": [ponto.model_dump() for ponto in plano.pontos],
         }
         self._repo.salvar_plano(research_id, plano_publico, plano.pontos)
+        self._evento(
+            research_id,
+            "plano.pronto",
+            {"pontos": [ponto.ponto_id for ponto in plano.pontos], "total_pontos": len(plano.pontos)},
+        )
 
     def _coletar(
         self,
@@ -206,9 +262,12 @@ class Pipeline:
                 )
 
         saidas = self._executar_lote(workspace, tarefas, BuscadorSaida.model_validate)
+        falhos: list[int] = []
         for ponto_id, item in estado.items():
+            self._evento(research_id, "ponto.iniciado", {"ponto_id": ponto_id, "rodada": item["rodada"]})
             ignoradas = set(item["ignoradas"])
             sucessos = 0
+            personas_ok: list[str] = []
             for persona in PERSONAS:
                 tarefa_id = f"{persona}_p{ponto_id}_r{item['rodada']}"
                 resultado = saidas.get(tarefa_id)
@@ -233,10 +292,39 @@ class Pipeline:
                     urls_lidas=urls_lidas,
                 )
                 sucessos += 1
-            if not sucessos:
-                raise PipelineError(
-                    f"ponto {ponto_id}: nenhuma persona concluiu a rodada {item['rodada']}"
+                personas_ok.append(persona)
+                self._evento(
+                    research_id,
+                    "fonte.lida",
+                    {
+                        "ponto_id": ponto_id,
+                        "rodada": item["rodada"],
+                        "persona": persona,
+                        "urls_lidas": urls_lidas,
+                        "urls_usadas": urls_usadas,
+                    },
                 )
+            acumulado = self._repo.hidratar(research_id, ponto_id)
+            self._evento(
+                research_id,
+                "ponto.coletado",
+                {
+                    "ponto_id": ponto_id,
+                    "rodada": item["rodada"],
+                    "urls_usadas": acumulado["urls_usadas"],
+                    "urls_lidas": acumulado["urls_lidas"],
+                    "personas": personas_ok,
+                },
+            )
+            if not sucessos:
+                erro = f"ponto {ponto_id}: nenhuma persona concluiu a rodada {item['rodada']}"
+                logger.warning("%s", erro)
+                self._evento(
+                    research_id, "ponto.erro", {"ponto_id": ponto_id, "erro": erro}
+                )
+                falhos.append(ponto_id)
+        for ponto_id in falhos:
+            estado.pop(ponto_id, None)
 
     def _auditar(
         self,
@@ -272,14 +360,50 @@ class Pipeline:
             )
 
         saidas = self._executar_lote(workspace, tarefas, AuditorSaida.model_validate)
-        encerrados: list[tuple[dict[str, Any], dict[str, bool], dict[str, Any], int]] = []
+        encerrados: list[
+            tuple[dict[str, Any], dict[str, bool], dict[str, Any], int, str | None]
+        ] = []
         for ponto_id, item in estado.items():
             tarefa_id = f"auditor_p{ponto_id}_r{item['rodada']}"
             resultado = saidas.get(tarefa_id)
             if resultado is None:
-                raise PipelineError(
-                    f"ponto {ponto_id}: auditor sem saída na rodada {item['rodada']}"
+                erro = (
+                    f"ponto {ponto_id}: auditor sem saída na rodada {item['rodada']};"
+                    " segue ao redator com as 12 perguntas não concluídas"
                 )
+                logger.warning("%s", erro)
+                item["erro_coleta"] = (
+                    f"{item.get('erro_coleta')}; {erro}" if item.get("erro_coleta") else erro
+                )
+                self._evento(
+                    research_id,
+                    "auditoria.executada",
+                    {
+                        "ponto_id": ponto_id,
+                        "rodada": item["rodada"],
+                        "perguntas_true": 0,
+                        "total_perguntas": 12,
+                        "porcentagem_aprovacao": 0.0,
+                        "aprovado": False,
+                        "auditor_ausente": True,
+                        "perguntas_respondidas": {str(i): False for i in range(1, 13)},
+                        "model_used": "",
+                        "total_tokens": 0,
+                    },
+                )
+                self._evento(
+                    research_id, "ponto.reprovado", {"ponto_id": ponto_id, "rodada": item["rodada"]}
+                )
+                encerrados.append(
+                    (
+                        item["ponto"],
+                        {str(i): False for i in range(1, 13)},
+                        acumulados[ponto_id],
+                        item["rodada"],
+                        item.get("erro_coleta"),
+                    )
+                )
+                continue
             saida, call = resultado
             tarefa = next(t for t in tarefas if t.id == tarefa_id)
             self._registrar(tarefa, call)
@@ -297,6 +421,30 @@ class Pipeline:
                 perguntas_respondidas=respostas,
                 decisao=decisao,
             )
+            self._evento(
+                research_id,
+                "auditoria.executada",
+                {
+                    "ponto_id": ponto_id,
+                    "rodada": item["rodada"],
+                    "perguntas_true": decisao["perguntas_true"],
+                    "total_perguntas": decisao["total_perguntas"],
+                    "porcentagem_aprovacao": decisao["porcentagem_aprovacao"],
+                    "aprovado": decisao["aprovado"],
+                    "perguntas_respondidas": respostas,
+                    "model_used": call.model_used or self._modelos.get("auditor") or "",
+                    "total_tokens": call.total_tokens
+                    or (call.prompt_tokens + call.completion_tokens + call.reasoning_tokens),
+                },
+            )
+            if decisao["aprovado"]:
+                self._evento(
+                    research_id, "ponto.aprovado", {"ponto_id": ponto_id, "rodada": item["rodada"]}
+                )
+            elif decisao["proxima_acao"] != planner.ACAO_NOVA_RODADA:
+                self._evento(
+                    research_id, "ponto.reprovado", {"ponto_id": ponto_id, "rodada": item["rodada"]}
+                )
             if decisao["proxima_acao"] == planner.ACAO_NOVA_RODADA:
                 item["pendentes"] = {
                     chave: pergunta
@@ -307,10 +455,10 @@ class Pipeline:
                 item["rodada"] += 1
                 continue
             encerrados.append(
-                (item["ponto"], respostas, acumulados[ponto_id], item["rodada"])
+                (item["ponto"], respostas, acumulados[ponto_id], item["rodada"], item.get("erro_coleta"))
             )
 
-        for ponto, _respostas, _acumulado, _rodada in encerrados:
+        for ponto, _respostas, _acumulado, _rodada, _erro in encerrados:
             del estado[ponto["ponto_id"]]
         if encerrados:
             self._redigir(research_id, encerrados, workspace)
@@ -318,18 +466,26 @@ class Pipeline:
     def _redigir(
         self,
         research_id: str,
-        encerrados: list[tuple[dict[str, Any], dict[str, bool], dict[str, Any], int]],
+        encerrados: list[tuple[dict[str, Any], dict[str, bool], dict[str, Any], int, str | None]],
         workspace: Path,
     ) -> None:
         tarefas: list[Tarefa] = []
         validadores: dict[str, Callable[[dict[str, Any]], RedatorSaida]] = {}
-        for ponto, respostas, acumulado, rodada in encerrados:
+        for ponto, respostas, acumulado, rodada, erro_coleta in encerrados:
+            nao_concluidas = {
+                chave: texto
+                for chave, texto in ponto["perguntas_auditoria"].items()
+                if not respostas.get(chave, False)
+            }
+            self._evento(research_id, "redator.iniciado", {"ponto_id": ponto["ponto_id"]})
             payload = hydrator.payload_redator(
                 research_id=research_id,
                 ponto=ponto,
                 resultado_final_auditor=respostas,
                 urls_usadas_acumuladas=acumulado["urls_usadas"],
                 acumulado_integral=acumulado["rodadas"],
+                perguntas_nao_concluidas=nao_concluidas,
+                erro_coleta=erro_coleta,
             )
             sistema, prompt = hydrator.montar("redator", payload)
             tarefa = Tarefa(
@@ -369,11 +525,16 @@ class Pipeline:
                 break
             pendentes = novas
 
-        for ponto, _respostas, _acumulado, _rodada in encerrados:
+        for ponto, _respostas, _acumulado, _rodada, _erro in encerrados:
             tarefa_id = f"redator_p{ponto['ponto_id']}"
             resultado = saidas.get(tarefa_id)
             if resultado is None:
-                raise PipelineError(f"ponto {ponto['ponto_id']}: redator sem saída válida")
+                erro = f"ponto {ponto['ponto_id']}: redator sem saída válida"
+                logger.warning("%s", erro)
+                self._evento(
+                    research_id, "ponto.erro", {"ponto_id": ponto["ponto_id"], "erro": erro}
+                )
+                continue
             saida, call = resultado
             tarefa = next(t for t in tarefas if t.id == tarefa_id)
             self._registrar(tarefa, call)
@@ -382,6 +543,9 @@ class Pipeline:
                 ponto_id=ponto["ponto_id"],
                 relatorio=saida.relatorio_ponto,
                 lacunas=saida.lacunas_identificadas,
+            )
+            self._evento(
+                research_id, "ponto.finalizado", {"ponto_id": ponto["ponto_id"]}
             )
 
     # -- lote + retentativa ------------------------------------------------
@@ -490,6 +654,23 @@ class Pipeline:
             informacao_coletada=informacao_coletada,
             urls_usadas=urls_usadas,
             urls_lidas=urls_lidas,
+        )
+        total = call.total_tokens or (
+            call.prompt_tokens + call.completion_tokens + call.reasoning_tokens
+        )
+        self._tokens_por_papel[tarefa.papel] = (
+            self._tokens_por_papel.get(tarefa.papel, 0) + total
+        )
+        self._evento(
+            self._research_id_atual,
+            "tokens.atualizados",
+            {
+                "papel": tarefa.papel,
+                "ponto_id": tarefa.ponto_id,
+                "tokens_execucao": total,
+                "tokens_por_papel": dict(self._tokens_por_papel),
+                **self._tokens_totais(self._research_id_atual),
+            },
         )
 
 

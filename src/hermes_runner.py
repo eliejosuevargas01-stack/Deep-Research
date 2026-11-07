@@ -33,8 +33,11 @@ Você é o agente principal (planner) de uma pesquisa profunda. Trabalhe SOMENTE
 1. Leia `prompts/{tarefa_id}.md`.
 2. Faça a varredura exploratória obrigatória: use `web_search` e abra as páginas relevantes com
    `web_extract` para levantar o estado atual do tema antes de planejar. Máximo de 5 buscas.
-3. Gere exatamente {profundidade} pontos, conforme as regras do prompt.
-4. Grave o objeto JSON final em `saidas/{tarefa_id}.json` (write_file) e responda apenas com o JSON.
+3. Gere exatamente {profundidade} pontos (ponto_id, enunciado, subperguntas, hipoteses, lacunas_iniciais), conforme as regras do prompt.
+   NÃO gere `perguntas_auditoria`: o backend injeta as 12 estáticas em cada ponto.
+4. Inclua no JSON as listas `urls_lidas` (todas as páginas abertas com `web_extract`)
+   e `urls_usadas` (subconjunto das lidas que informou o plano).
+5. Grave o objeto JSON final em `saidas/{tarefa_id}.json` (write_file) e responda apenas com o JSON.
 
 Não delegue esta etapa: o planner é você."""
 
@@ -69,6 +72,15 @@ class HermesRunner:
 
     # -- interno -----------------------------------------------------------
     def _modelos_por_papel(self) -> dict[str, str]:
+        import os as _os
+
+        try:
+            if not (_os.getenv("DR_ENGINE_URL") or "").strip():
+                from settings import materializar_perfil
+
+                materializar_perfil()
+        except Exception:
+            pass
         try:
             from settings import ler_config
 
@@ -82,6 +94,11 @@ class HermesRunner:
         workspace.mkdir(parents=True, exist_ok=True)
         (workspace / "prompts").mkdir(exist_ok=True)
         (workspace / "saidas").mkdir(exist_ok=True)
+        for alvo in (workspace, workspace / "prompts", workspace / "saidas"):
+            try:
+                alvo.chmod(0o777)
+            except OSError:
+                pass
         for tarefa in tarefas:
             (workspace / "prompts" / f"{tarefa.id}.md").write_text(
                 f"{tarefa.sistema}\n\n{tarefa.prompt}", encoding="utf-8"
@@ -125,7 +142,34 @@ class HermesRunner:
         erro = self._acionar(workspace, instrucao)
         return self._coletar_saidas(workspace, tarefas, inicio, erro, modo=modo)
 
+    def _acionar_via_engine(self, base: str, workspace: Path, instrucao: str) -> str:
+        import httpx  # import local: subprocess segue sem a dependência
+
+        headers = {"X-Engine-Token": self._cfg.engine_token} if self._cfg.engine_token else {}
+        try:
+            with httpx.Client(timeout=self._cfg.hermes_timeout_s + 30) as client:
+                resposta = client.post(
+                    f"{base}/run",
+                    json={
+                        "workspace": str(workspace),
+                        "instrucao": instrucao,
+                        "timeout_s": self._cfg.hermes_timeout_s,
+                    },
+                    headers=headers,
+                )
+        except Exception as exc:
+            return f"Engine não executou: {exc}"
+        if resposta.status_code != 200:
+            return f"Engine falhou ({resposta.status_code}): {resposta.text.strip()[:800]}"
+        return ""
+
     def _acionar(self, workspace: Path, instrucao: str) -> str:
+        base = (self._cfg.engine_url or "").rstrip("/")
+        if base:
+            return self._acionar_via_engine(base, workspace, instrucao)
+        return self._acionar_local(workspace, instrucao)
+
+    def _acionar_local(self, workspace: Path, instrucao: str) -> str:
         comando = [
             *shlex.split(self._cfg.hermes_bin),
             "-p",
@@ -164,7 +208,18 @@ class HermesRunner:
         saidas: dict[str, AgentCall] = {}
         for tarefa in tarefas:
             arquivo = workspace / "saidas" / f"{tarefa.id}.json"
-            sessao = sessoes.get(tarefa.id, {})
+            if modo == "planner" and tarefa.id == "planner" and tarefa.id not in sessoes:
+                chave_planner = next(
+                    (
+                        chave
+                        for chave, entrada in sessoes.items()
+                        if any(s.get("papel") == "planner" for s in entrada.get("sessoes", []))
+                    ),
+                    None,
+                )
+                sessao = sessoes.get("_pai") or (sessoes.get(chave_planner) if chave_planner else None) or {}
+            else:
+                sessao = sessoes.get(tarefa.id, {})
             modelo = sessao.get("model_used") or self._modelos.get(tarefa.papel, "")
             if not arquivo.exists():
                 motivo = erro or f"sem saidas/{tarefa.id}.json"
@@ -177,8 +232,6 @@ class HermesRunner:
                 dados={},
                 texto=texto,
                 model_used=modelo,
-                reasoning_trace=sessao.get("reasoning_trace", ""),
-                tool_calls=[],
                 **_tokens(sessao),
             )
             try:
@@ -212,6 +265,8 @@ def _tokens(sessao: dict[str, Any]) -> dict[str, Any]:
         "reasoning_tokens": int(sessao.get("reasoning_tokens", 0)),
         "total_tokens": int(sessao.get("total_tokens", 0)),
         "latency_ms": int(sessao.get("latency_ms", 0)),
+        "reasoning_trace": str(sessao.get("reasoning_trace", "") or ""),
+        "tool_calls": list(sessao.get("tool_calls_lista", []) or []),
     }
 
 

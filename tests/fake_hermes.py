@@ -26,7 +26,6 @@ def ponto(indice: int) -> dict:
         "subperguntas": [f"pergunta {i} do ponto {indice}" for i in range(1, 4)],
         "hipoteses": [f"hipotese {i} do ponto {indice}" for i in range(1, 4)],
         "lacunas_iniciais": [f"lacuna {i} do ponto {indice}" for i in range(1, 4)],
-        "perguntas_auditoria": {str(i): f"criterio {i} do ponto {indice}" for i in range(1, 13)},
     }
 
 

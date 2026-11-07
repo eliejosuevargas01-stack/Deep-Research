@@ -1,0 +1,275 @@
+/* Estilos do fluxo v1.2. Reusa .card/.btn-*/.form-*/.pill/.alert-banner existentes. */
+
+.v12-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 28px 24px 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.v12-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.v12-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.v12-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.v12-row-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+@media (max-width: 720px) {
+  .v12-row,
+  .v12-row-3,
+  .v12-row-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.v12-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.v12-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.v12-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.v12-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 24px;
+  margin: 0;
+}
+
+.v12-meta dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.v12-meta dd {
+  margin: 2px 0 0;
+}
+
+.v12-muted {
+  opacity: 0.75;
+  font-size: 0.875rem;
+}
+
+.v12-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.v12-point-card {
+  border: 1px solid var(--border, #e2e2e2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.v12-point-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.v12-md {
+  overflow-wrap: break-word;
+}
+
+.v12-md pre {
+  overflow-x: auto;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.v12-md table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.v12-md th,
+.v12-md td {
+  border: 1px solid var(--border, #ddd);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.v12-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.v12-table th,
+.v12-table td {
+  border-bottom: 1px solid var(--border, #e2e2e2);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.v12-url-list {
+  margin: 0;
+  padding: 12px 16px 16px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.v12-lacunas {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.v12-subtitle {
+  margin: 4px 0 0;
+  font-size: 1rem;
+}
+
+.v12-active {
+  outline: 2px solid var(--accent, #6d5ef0);
+}
+
+.v12-incompletos {
+  margin: 0;
+  padding: 4px 16px 16px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.v12-grupo {
+  padding: 4px 0 8px;
+}
+
+.v12-grupo-titulo {
+  margin: 8px 16px 0;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.v12-progresso {
+  position: relative;
+  margin-top: 12px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--surface-2, #eee);
+  overflow: hidden;
+}
+
+.v12-progresso-barra {
+  height: 100%;
+  background: var(--accent, #6d5ef0);
+  transition: width 0.3s ease;
+}
+
+.v12-progresso-rotulo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.v12-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.v12-dot--on {
+  opacity: 1;
+  animation: v12-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes v12-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.4);
+  }
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.8rem;
+  border: 1px solid var(--border, #ddd);
+}
+
+.pill-green {
+  background: #e6f6ec;
+  border-color: #b7e2c6;
+  color: #14662f;
+}
+
+.pill-amber {
+  background: #fdf3e0;
+  border-color: #f0d9a8;
+  color: #8a5a00;
+}
+
+.pill-red {
+  background: #fdeaea;
+  border-color: #f3b8b8;
+  color: #a01a1a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pill-green {
+    background: #123825;
+    border-color: #1f5c3d;
+    color: #9fe6bd;
+  }
+  .pill-amber {
+    background: #3d2c07;
+    border-color: #6b5212;
+    color: #f2cf7e;
+  }
+  .pill-red {
+    background: #431414;
+    border-color: #6e2222;
+    color: #f5a8a8;
+  }
+}

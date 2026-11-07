@@ -11,6 +11,7 @@ from typing import Any, Iterable
 from contracts import PERSONAS, PontoPlano, ResearchRequest, normalizar_urls
 from db.sqlite_manager import conectar
 from engine import AgentCall
+import planner
 
 CAMPOS_JSON_RUN = (
     "plano_inicial",
@@ -109,7 +110,9 @@ class Repositorio:
         usadas = normalizar_urls(urls_usadas)
         lidas = normalizar_urls([*urls_lidas, *usadas])
         nao_usadas = [url for url in lidas if url not in set(usadas)]
-        total = call.total_tokens or (call.prompt_tokens + call.completion_tokens)
+        total = call.total_tokens or (
+            call.prompt_tokens + call.completion_tokens + call.reasoning_tokens
+        )
         with self._lock:
             cursor = self._con.execute(
                 "INSERT INTO agent_executions (research_id, ponto_id, rodada, agent_role,"
@@ -193,6 +196,36 @@ class Repositorio:
             (status, status, research_id),
         )
 
+    # -- eventos SSE (persistidos antes de publicar) --------------------------
+    def emitir_evento(self, research_id: str, tipo: str, payload: dict[str, Any] | None = None) -> int:
+        with self._lock:
+            cursor = self._con.execute(
+                "INSERT INTO research_events (research_id, tipo, payload) VALUES (?, ?, ?)",
+                (research_id, tipo, _dumps(payload or {})),
+            )
+            self._con.commit()
+            return int(cursor.lastrowid)
+
+    def listar_eventos(self, research_id: str, depois_de: int = 0, limite: int = 500) -> list[dict[str, Any]]:
+        with self._lock:
+            linhas = self._con.execute(
+                "SELECT id, tipo, payload FROM research_events"
+                " WHERE research_id = ? AND id > ? ORDER BY id ASC LIMIT ?",
+                (research_id, depois_de, limite),
+            ).fetchall()
+        return [
+            {"id": linha["id"], "tipo": linha["tipo"], "payload": _loads(linha["payload"], {})}
+            for linha in linhas
+        ]
+
+    def ultimo_evento_id(self, research_id: str) -> int:
+        with self._lock:
+            linha = self._con.execute(
+                "SELECT COALESCE(MAX(id), 0) AS maximo FROM research_events WHERE research_id = ?",
+                (research_id,),
+            ).fetchone()
+        return int(linha["maximo"]) if linha else 0
+
     # -- leitura -----------------------------------------------------------
     def obter_run(self, research_id: str) -> dict[str, Any] | None:
         with self._lock:
@@ -220,6 +253,79 @@ class Repositorio:
             ponto["aprovado"] = bool(ponto["aprovado"])
             pontos.append(ponto)
         return pontos
+
+    def obter_auditorias(self, research_id: str) -> list[dict[str, Any]]:
+        """Histórico completo de auditorias (D-04): uma linha por rodada, sem sobrescrever."""
+        with self._lock:
+            linhas = self._con.execute(
+                "SELECT ponto_id, rodada, raw_output_payload, model_used,"
+                " prompt_tokens, completion_tokens, reasoning_tokens, total_tokens,"
+                " created_at FROM agent_executions"
+                " WHERE research_id = ? AND agent_role = 'auditor'"
+                " ORDER BY ponto_id ASC, rodada ASC, rowid ASC",
+                (research_id,),
+            ).fetchall()
+        auditorias = []
+        for linha in linhas:
+            saida = _loads(linha["raw_output_payload"], {})
+            perguntas = saida.get("perguntas_respondidas") if isinstance(saida, dict) else None
+            if not isinstance(perguntas, dict):
+                perguntas = {}
+            auditorias.append(
+                {
+                    "ponto_id": linha["ponto_id"],
+                    "rodada": linha["rodada"],
+                    "perguntas_respondidas": perguntas,
+                    "model_used": linha["model_used"],
+                    "prompt_tokens": linha["prompt_tokens"],
+                    "completion_tokens": linha["completion_tokens"],
+                    "reasoning_tokens": linha["reasoning_tokens"],
+                    "total_tokens": linha["total_tokens"],
+                    "created_at": linha["created_at"],
+                }
+            )
+        return auditorias
+
+    def obter_avaliacao(self, research_id: str) -> dict[str, Any] | None:
+        """Boletim oficial de veracidade (SDD §5.7); None se o run ainda não tem pontos."""
+        with self._lock:
+            return self._avaliacao_locked(research_id)
+
+    def _avaliacao_locked(self, research_id: str) -> dict[str, Any] | None:
+        run = self._con.execute(
+            "SELECT research_id, tema, veracidade_alvo, max_rodadas_auditoria"
+            " FROM research_runs WHERE research_id = ?",
+            (research_id,),
+        ).fetchone()
+        if run is None:
+            return None
+        pontos = self._con.execute(
+            "SELECT ponto_id, ultimo_resultado_auditor, rodada_atual FROM research_points"
+            " WHERE research_id = ? ORDER BY ponto_id ASC",
+            (research_id,),
+        ).fetchall()
+        if not pontos:
+            return None
+        auditados = [p for p in pontos if p["ultimo_resultado_auditor"]]
+        if not auditados:
+            return None
+        avaliacoes = []
+        for ponto in auditados:
+            respostas = _loads(ponto["ultimo_resultado_auditor"], {}) or {}
+            decisao = planner.avaliar(
+                perguntas_respondidas=respostas,
+                veracidade_alvo=run["veracidade_alvo"],
+                tentativa_atual=ponto["rodada_atual"] or 1,
+                max_rodadas_auditoria=run["max_rodadas_auditoria"],
+            )
+            avaliacoes.append({"ponto_id": ponto["ponto_id"], **decisao})
+        tentativa = max(int(ponto["rodada_atual"] or 1) for ponto in auditados)
+        return planner.avaliacao_pontos(
+            research_id=run["research_id"],
+            tema=run["tema"],
+            tentativa_atual=tentativa,
+            avaliacoes=avaliacoes,
+        )
 
     def obter_execucoes(
         self, research_id: str, ponto_id: int | None = None
@@ -289,7 +395,11 @@ class Repositorio:
         return self.hidratar(research_id, ponto_id)["urls_lidas"]
 
     def consolidar(self, research_id: str) -> dict[str, Any]:
-        """Consolida os pontos e fecha o run (PRD RF08, feature 10)."""
+        """Consolida os pontos e fecha o run (PRD RF08, feature 10).
+
+        Pontos sem relatório viram seção de ponto incompleto em vez de abortar o run;
+        FAILED só quando o run inteiro falha (nenhum ponto redigido).
+        """
         with self._lock:
             linhas = self._con.execute(
                 "SELECT ponto_id, enunciado, relatorio_ponto, lacunas_ponto FROM research_points"
@@ -298,19 +408,42 @@ class Repositorio:
             ).fetchall()
             if not linhas:
                 raise ValueError(f"pesquisa {research_id} não tem pontos")
-            sem_relatorio = [linha["ponto_id"] for linha in linhas if not linha["relatorio_ponto"]]
-            if sem_relatorio:
-                raise ValueError(f"pontos sem relatório: {sem_relatorio}")
+            pontos_falhos: list[dict[str, Any]] = []
+            for linha in linhas:
+                if not linha["relatorio_ponto"]:
+                    lacuna = self._lacuna_ponto(research_id, linha["ponto_id"])
+                    pontos_falhos.append(
+                        {"ponto_id": linha["ponto_id"], "erro": lacuna["erro"], "lacuna": lacuna["lacuna"]}
+                    )
+            if len(pontos_falhos) == len(linhas):
+                # Run inteiro falhou: nenhum ponto redigiu → FAILED no executar.
+                raise ValueError(
+                    "nenhum ponto com relatório: "
+                    + ", ".join(str(f["ponto_id"]) for f in pontos_falhos)
+                )
 
-            relatorios = [
-                f"## {linha['ponto_id']}. {linha['enunciado']}\n\n{linha['relatorio_ponto']}"
-                for linha in linhas
-            ]
+            relatorios = []
+            for linha in linhas:
+                if linha["relatorio_ponto"]:
+                    relatorios.append(
+                        f"## {linha['ponto_id']}. {linha['enunciado']}\n\n{linha['relatorio_ponto']}"
+                    )
+                else:
+                    falho = next(
+                        f for f in pontos_falhos if f["ponto_id"] == linha["ponto_id"]
+                    )
+                    relatorios.append(
+                        f"## {linha['ponto_id']}. {linha['enunciado']}\n\n"
+                        f"Ponto incompleto: {falho['lacuna']}"
+                        + (f"\n\nErro: {falho['erro']}" if falho["erro"] else "")
+                    )
             lacunas = [
                 {"ponto_id": linha["ponto_id"], "lacunas": linha["lacunas_ponto"]}
                 for linha in linhas
                 if linha["lacunas_ponto"]
             ]
+            for falho in pontos_falhos:
+                lacunas.append({"ponto_id": falho["ponto_id"], "lacunas": falho["lacuna"]})
 
             execucoes = self._con.execute(
                 "SELECT urls_usadas, urls_lidas FROM agent_executions"
@@ -336,6 +469,16 @@ class Repositorio:
             ).fetchone()
 
             relatorio_final = "\n\n".join(relatorios)
+            boletim = self._avaliacao_locked(research_id) or {}
+            avaliacao = boletim.get("avaliacao_pontos", [])
+            if avaliacao:
+                secoes = [
+                    f"- Ponto {item['ponto_id']}: {item['perguntas_true']}/"
+                    f"{item['total_perguntas']} ({item['porcentagem_aprovacao']}%) — "
+                    f"{'aprovado' if item['aprovado'] else 'reprovado'}"
+                    for item in avaliacao
+                ]
+                relatorio_final += "\n\n## Avaliação de veracidade\n\n" + "\n".join(secoes)
             self._con.execute(
                 "UPDATE research_runs SET status = 'COMPLETED', relatorio_final_consolidado = ?,"
                 " lacunas_finais_consolidadas = ?, urls_usadas_globais = ?,"
@@ -359,6 +502,8 @@ class Repositorio:
             "urls_usadas": usadas,
             "urls_lidas": lidas,
             "urls_lidas_nao_usadas": nao_usadas,
+            "avaliacao_pontos": boletim,
+            "pontos_falhos": pontos_falhos,
             "metricas_tokens": {
                 "prompt_tokens": int(tokens["prompt_tokens"]),
                 "completion_tokens": int(tokens["completion_tokens"]),
@@ -366,3 +511,35 @@ class Repositorio:
                 "total_tokens": int(tokens["total_tokens"]),
             },
         }
+
+    def _lacuna_ponto(self, research_id: str, ponto_id: int) -> dict[str, str | None]:
+        """Descreve o ponto sem relatório: perguntas não concluídas + erro de coleta."""
+        ponto = self._con.execute(
+            "SELECT perguntas_auditoria, ultimo_resultado_auditor FROM research_points"
+            " WHERE research_id = ? AND ponto_id = ?",
+            (research_id, ponto_id),
+        ).fetchone()
+        perguntas = _loads(ponto["perguntas_auditoria"], {}) if ponto else {}
+        respostas = _loads(ponto["ultimo_resultado_auditor"], {}) if ponto else {}
+        nao_concluidas = sorted(
+            (chave for chave in perguntas if not respostas.get(chave, False)),
+            key=lambda chave: int(chave) if chave.isdigit() else chave,
+        )
+        erro = None
+        eventos = self._con.execute(
+            "SELECT payload FROM research_events WHERE research_id = ? AND tipo = 'ponto.erro'"
+            " ORDER BY id ASC",
+            (research_id,),
+        ).fetchall()
+        for evento in eventos:
+            dado = _loads(evento["payload"], {})
+            if isinstance(dado, dict) and dado.get("ponto_id") == ponto_id and dado.get("erro"):
+                erro = str(dado["erro"])
+        if nao_concluidas:
+            lacuna = (
+                "perguntas não concluídas: "
+                + ", ".join(f"{chave} ({perguntas.get(chave, '')})" for chave in nao_concluidas)
+            )
+        else:
+            lacuna = "ponto sem relatório do redator"
+        return {"lacuna": lacuna, "erro": erro}

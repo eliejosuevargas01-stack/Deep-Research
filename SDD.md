@@ -1,101 +1,131 @@
 # SPEC — Especificação Técnica: Hermes Deep Research
 
-**Versão:** 1.2  
-**Core Engine:** Hermes (`hermes-agent` + perfil `deep-research` + plugin `por_papel`)  
+**Versão:** 1.3  
+**Data:** 2026-11-07  
+**Core Engine:** Hermes isolado (`engine/`, imagem `nousresearch/hermes-agent:latest`) + perfil `deep-research` + plugin `por_papel`
 
 ---
 
 ## 1. Arquitetura de Execução e Máquina de Estados
 
-O sistema **não faz chamadas diretas a APIs externas de LLM ou de busca** a partir do código Python. O backend atua exclusivamente como camada de persistência, hidratação de prompts a partir do banco de dados, configuração dinâmica do perfil Hermes (`config.yaml`) e acompanhamento do processo **Hermes**, que realiza todo o trabalho pesado de varredura web, delegação paralela de subagentes (`delegate_task`), auditoria e redação.
+O sistema **não faz chamadas diretas a APIs externas de LLM ou de busca** a partir do código Python. O backend (`api`, porta pública **8000**) atua como camada de persistência, hidratação de prompts a partir do banco de dados, configuração (modelos/limites, nunca segredos) e acompanhamento do processo **Hermes isolado** (`engine`, porta interna **8100**, sem publish, autenticação própria `X-Engine-Token`), que realiza todo o trabalho pesado de varredura web, delegação paralela de subagentes (`delegate_task`), auditoria e redação.
+
+```text
+compose:
+  api:    build Dockerfile.api, ports 8000:8000, env DR_ENGINE_URL=http://engine:8100
+  engine: build engine/Dockerfile (FROM nousresearch/hermes-agent:latest),
+          expose 8100 (rede interna), USER hermes, volumes workspaces + hermes_home
+```
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Ingestao: POST /research
-    Ingestao --> Hermes_Planner: Cria research_id e workspace isolado
+    [*] --> Ingestao: POST /research (API key)
+    Ingestao --> Hermes_Planner: Cria research_id, workspace isolado, evento run.criado
     Hermes_Planner --> FanOut_Buscadores: Varredura web exploratória + cria N pontos (1..10) + 12 perguntas/ponto
+    Hermes_Planner --> Hermes_Planner: Falha de validação → correção e retentativa (tentativas_por_agente)
 
     state "Loop por Ponto no Hermes (Todos os N pontos em paralelo — até 40 subagentes)" as LoopPonto {
         FanOut_Buscadores --> Persistencia_Busca: 4 Personas por ponto (Historiador, Cético, Visionário, Futurista)
-        Persistencia_Busca --> Hidratacao_Auditor: Salva R(k) no Banco + calcula URLs não usadas + lê tokens do Hermes
-        Hidratacao_Auditor --> Hermes_Auditor_12Q: Injeta informacao_coletada_acumulada (R1..Rk) no 1º prompt
+        Persistencia_Busca --> Hidratacao_Auditor: Salva R(k) no Banco + URLs + tokens; emite fonte.lida/ponto.coletado/tokens.atualizados
+        Hidratacao_Auditor --> Hermes_Auditor_12Q: Injeta informacao_coletada_acumulada (R1..Rk, compactada sem perda) no 1º prompt
         Hermes_Auditor_12Q --> Avaliacao_Planner: Retorna 12 booleans (true/false)
         Avaliacao_Planner --> FanOut_Buscadores: Avaliacao < veracidade_alvo e tentativa_atual < max_rodadas_auditoria
-        Avaliacao_Planner --> Hidratacao_Redator: Avaliacao >= veracidade_alvo ou tentativa_atual == max_rodadas_auditoria
+        Avaliacao_Planner --> Hidratacao_Redator: Avaliacao >= veracidade_alvo ou tentativa_atual == max_rodadas_auditoria ou auditor ausente
     }
 
-    Hidratacao_Redator --> Hermes_Redator_Final: Injeta contexto total (R1..Rn) + resultado_final_auditor
-    Hermes_Redator_Final --> Callback_Webhook: Escreve relatório + lacunas, consolida telemetria e envia POST
+    FanOut_Buscadores --> Ponto_Erro: Zero sucessos na rodada → ponto.erro, remove ponto, run segue
+    Hermes_Auditor_12Q --> Hidratacao_Redator: Auditor sem saída → redator com 12×false + perguntas_nao_concluidas
+    Hidratacao_Redator --> Hermes_Redator_Final: Injeta contexto total (R1..Rn, compactado) + resultado_final_auditor + perguntas_nao_concluidas
+    Hermes_Redator_Final --> Ponto_Erro: Redator sem saída válida → ponto.erro, pontos_falhos
+    Hermes_Redator_Final --> Callback_Webhook: Escreve relatório + lacunas, consolida telemetria + avaliacao_pontos, emite run.concluido, envia POST
+    Ponto_Erro --> Callback_Webhook: Run segue com pontos restantes
     Callback_Webhook --> [*]
 ```
 
+Eventos persistidos em cada transição (§8). `FAILED` só em exceção global ou zero relatórios.
+
 ---
 
-## 2. Configuração do Perfil Hermes (`config.yaml`) e Escala de 40 Subagentes
+## 2. Configuração do Perfil Hermes (`config.yaml`), Provider via Env e Escala de 40 Subagentes
 
-Toda a configuração operacional do Hermes vive em `hermes_home/profiles/deep-research/config.yaml` e é gerenciada em tempo de execução pelo endpoint `GET /config` e `PUT /config` (alias `/api/v1/settings`).
+Toda a configuração operacional do Hermes vive em `hermes_home/profiles/deep-research/config.yaml`, renderizado no boot do container engine pelo `engine/entrypoint.sh` a partir de variáveis de ambiente. O backend (`api`) nunca escreve segredo: com `DR_ENGINE_URL` configurado, o engine é o dono do config (`PUT /config` do backend repassa ao `PUT /config` do engine; sem engine, aplica no YAML local — dev/testes).
 
-### 2.1. Estrutura Canônica do `hermes_home/profiles/deep-research/config.yaml`
+### 2.1. Estrutura Canônica do `config.yaml` (renderizada, nunca commitada com segredo)
 
 ```yaml
 model:
-  default: "ag/gemini-3.8-flash-high"
-  provider: custom
-  base_url: "http://9router:20128/v1"
-  api_key: "${LLM_API_KEY}"
-
+  default: "ocg/deepseek-v4.1-flash"
+  provider: env            # provedor SOMENTE via ambiente; nunca base_url/api_key aqui
+providers:
+  env:
+    name: env
+    base_url: "https://9router.dominuslabs.online/v1"   # espelho informativo de LLM_BASE_URL
+    key_env: LLM_API_KEY                                 # nome da env, não o valor
+    model: "ocg/deepseek-v4.1-flash"
 delegation:
-  # Plugin instalado em $HERMES_HOME/plugins/por_papel (opt-in via plugins.enabled)
   backend: por_papel
   # planner (depth 0) -> subagentes (depth 1); 2 permite sub-delegação controlada
   max_spawn_depth: 2
   # 10 pontos simultâneos x 4 personas = até 40 subagentes concorrentes por rodada
   max_concurrent_children: 40
-  # 0 = sem teto acumulado. Escopo do teto real, profundidade 10 e max_rodadas 10:
+  # 0 = sem teto acumulado. Teto real, profundidade 10 e max_rodadas 10:
   # 10 rodadas x (40 buscas + 10 auditorias) + 10 redatores = 510 filhos por pesquisa,
   # sempre no máximo 40 simultâneos. O agente principal (delegador) não é filho.
   oneshot_max_children: 0
   backends:
     por_papel:
       modelos:
-        planner: "ag/gemini-3.8-flash-high"
-        historiador: "ag/gemini-3.8-flash-high"
-        cetico: "ag/gemini-3.8-flash-high"
-        visionario: "ag/gemini-3.8-flash-high"
-        futurista: "ag/gemini-3.8-flash-high"
-        auditor: "ag/gemini-3.8-flash-high"
-        redator: "ag/gemini-3.8-flash-high"
+        planner: "ocg/deepseek-v4.1-flash"
+        historiador: "gemini/gemini-3.5-flash-lite"
+        cetico: "gemini/gemini-3.5-flash-lite"
+        visionario: "gemini/gemini-3.5-flash-lite"
+        futurista: "gemini/gemini-3.5-flash-lite"
+        auditor: "ocg/deepseek-v4.1-flash"
+        redator: "ocg/deepseek-v4.1-flash"
+plugins:
+  enabled: [por_papel]
 ```
 
-> Os ids de modelo acima precisam existir no roteador (`GET {base_url}/models`). Id ausente
-> derruba o `delegate_task` com `404 No active credentials for provider` — foi o que aconteceu
-> com `deepseek/deepseek-v3.2` no 9router.
+Env obrigatórias (compose/`.env`, exemplos com placeholder):
+
+| Variável | Dono | Efeito |
+|---|---|---|
+| `LLM_BASE_URL` | engine | endpoint OpenAI-compatível (ex.: `https://SEU-ROTEADOR/v1`) |
+| `LLM_API_KEY` | engine | segredo; vai para `$HERMES_HOME/.env` + perfil `.env` (600) dentro do container, nunca ao YAML/API/git |
+| `LLM_MODEL` | engine | default = planner (forte). Ex.: `ocg/deepseek-v4.1-flash` |
+| `API_KEY` | api | chave da API pública (`DR_API_KEY` alias); compose exige definida |
+| `ENGINE_TOKEN` | ambos | `api` envia como `X-Engine-Token`; engine exige em tudo exceto `GET /health` |
+
+Overrides opcionais por papel (vazio = default do papel): `LLM_MODEL_PLANNER`, `LLM_MODEL_HISTORIADOR`, `LLM_MODEL_CETICO`, `LLM_MODEL_VISIONARIO`, `LLM_MODEL_FUTURISTA`, `LLM_MODEL_AUDITOR`, `LLM_MODEL_REDATOR`. Precedência: `LLM_MODEL_<PAPEL>` > (`LLM_MODEL` para planner) > default do papel (forte: planner/auditor/redator; leve: buscadores).
+
+> Se um detalhe de resolução de modelo no container divergir do descrito (ex.: override vazio herdando o forte), vale o comportamento observado via `GET /config` do engine — registrar como pendência, não afirmar.
 
 ### 2.2. Regras de Delegação, Modelos por Papel e Isolamento
 
 1. **Roteamento de Modelo por Subagente (`backend: por_papel`):**
-   - O plugin `delegation_por_papel` (instalado no diretório de plugins bundled do Hermes `/opt/hermes/plugins/delegation/por_papel`) intercepta cada `delegate_task` do Hermes e seleciona o modelo específico configurado para o papel da tarefa (`planner`, `historiador`, `cetico`, `visionario`, `futurista`, `auditor`, `redator`) a partir do `MODELS.json` gravado no workspace da pesquisa e do bloco `delegation.backends.por_papel.modelos` do `config.yaml`.
+   - O plugin `delegation_por_papel` intercepta cada `delegate_task` e seleciona o modelo do papel a partir do `MODELS.json` do workspace + bloco `delegation.backends.por_papel.modelos` do `config.yaml`.
 2. **Capacidade de 40 Subagentes Simultâneos (Zero Limite de 3 Pontos Paralelos):**
-   - Não existe `max_pontos_paralelos: 3`. Quando `profundidade = 10`, todos os 10 pontos acionam suas 4 personas em paralelo, totalizando **40 subagentes simultâneos** (`max_concurrent_children: 40`).
+   - Não existe `max_pontos_paralelos: 3`. Com `profundidade = 10`, todos os 10 pontos acionam suas 4 personas em paralelo (**40 simultâneos**, `max_concurrent_children: 40`). `latest` é o pin aceito (`nousresearch/hermes-agent:latest`; tag `0.22.5` não existe no registry).
 3. **Isolamento Estrito de Workspace por Pesquisa:**
-   - Cada `research_id` possui um diretório próprio isolado (`data/workspaces/{research_id}/`). O processo Hermes roda com `cwd` fixado nesse diretório, recebe `DR_WORKSPACE` apontando para ele e é instruído (SOUL do perfil) a não ler nem escrever fora dele; a partição física de acesso é responsabilidade do perfil de container onde o Hermes executa, não há `chroot` por pesquisa.
+   - Cada `research_id` possui diretório próprio (`/workspaces/{research_id}/`). O engine executa com `cwd` nele e `_resolver_workspace` retorna 403 fora de `/workspaces`. A API monta `hermes_home:ro`; o engine roda como `hermes`, `expose 8100` sem publish, sem mounts do host.
 4. **Rastreamento Real de Tokens e Telemetria (`state.db` do Hermes):**
-   - O backend extrai os tokens reais (`prompt_tokens`, `completion_tokens`, `reasoning_tokens`, `total_tokens`), `tool_calls` e `reasoning_trace` diretamente do banco de sessões do Hermes (`state.db` filtrado pelo `cwd`/workspace da pesquisa) e dos recibos de execução de cada subagente. Cada lote também registra o agente principal que delegou em `agent_executions` com `agent_role = 'orquestrador'`, garantindo que 100% dos tokens gastos pelo agente principal e por todos os subagentes delegados sejam somados em `research_runs`. Quando o `state.db` não está acessível, o `usage.json` do processo (`--usage-file`) é gravado na linha `orquestrador`: os tokens medidos são os do delegador, não dos filhos, e nenhum valor é inventado.
+   - O backend extrai tokens reais (`prompt_tokens`, `completion_tokens`, `reasoning_tokens`, `total_tokens`), `tool_calls` e `reasoning_trace` do banco de sessões do Hermes (`state.db` filtrado pelo `cwd`/workspace, montado `:ro` via `DR_HERMES_STATE_DB`) e dos recibos de cada subagente. Cada lote registra o delegador em `agent_executions` com `agent_role = 'orquestrador'`.
+   - **Fallback:** sem `state.db` acessível, o `usage.json` do processo (`--usage-file`, gravado por `POST /run` no workspace) alimenta a linha `orquestrador`: os tokens medidos são os do delegador, não dos filhos, e nenhum valor é inventado.
 
 ---
 
 ## 3. Estratégia de Execução e Injeção no 1º Prompt (Banco + Hermes)
 
 1. **Varredura Exploratória do Planner (`spawn_planner`):**
-   - O Planner no Hermes recebe o `tema`, `profundidade`, `veracidade_alvo`, `max_rodadas_auditoria` e `atualidade`.
-   - Ele executa uma **busca exploratória simples na web** (`web_search` e abertura livre de páginas com `web_extract`) apenas para coletar contexto suficiente sobre o estado atual do tema e, em seguida, formula os `N` pontos estruturados com `subperguntas`, `hipoteses`, `lacunas_iniciais` e as 12 `perguntas_auditoria`.
+   - O Planner recebe `tema`, `profundidade`, `veracidade_alvo`, `max_rodadas_auditoria` e `atualidade`.
+   - Executa busca exploratória (`web_search` + `web_extract` livre) e formula os `N` pontos com `subperguntas`, `hipoteses` e `lacunas_iniciais`, além de declarar `urls_lidas`/`urls_usadas` da varredura. NÃO gera `perguntas_auditoria`: o backend injeta as 12 ESTÁTICAS universais (`PERGUNTAS_AUDITORIA_ESTATICAS`) em cada ponto em `_planejar` antes de persistir.
 2. **Quando o Hermes dispara os Buscadores (`spawn_buscadores(research_id, ponto_id, rodada)`):**
-   - Se `rodada == 1`, o backend monta o 1º prompt para cada uma das 4 personas com `tema`, `atualidade`, `ponto_enunciado`, `subperguntas`, `hipoteses` e `lacunas_iniciais`.
-   - Se `rodada > 1`, o backend consulta no banco quais perguntas receberam `false` no auditor da rodada anterior (`perguntas_auditoria_pendentes`) e reúne todas as `urls_lidas` acumuladas daquele ponto (`urls_lidas_ignoradas`), injetando os dois conjuntos no 1º prompt dos 4 buscadores.
+   - Se `rodada == 1`: 1º prompt com `tema`, `atualidade`, `ponto_enunciado`, `subperguntas`, `hipoteses`, `lacunas_iniciais`.
+   - Se `rodada > 1`: + `perguntas_auditoria_pendentes` (só as `false` das 12 estáticas) e `urls_lidas_ignoradas` (todas as `urls_lidas` acumuladas do ponto).
 3. **Quando o Hermes dispara o Auditor (`spawn_auditor(research_id, ponto_id, rodada)`):**
-   - O backend executa um `SELECT` em `agent_executions` daquele ponto desde a rodada 1 até a rodada atual (`R1..Rk`), concatena integralmente `informacao_coletada` de todas as personas e rodadas sem qualquer resumo ou corte, e injeta no 1º prompt do auditor junto com `atualidade` e `perguntas_auditoria`.
+   - O backend executa a hidratação (§7: 2 SELECTs + agregação Python) e injeta `informacao_coletada_acumulada` (R1..Rk, **compactada sem perda**) + `compactacao{}` + `atualidade` + `perguntas_auditoria` no 1º prompt.
 4. **Quando o Hermes dispara o Redator (`spawn_redator(research_id, ponto_id)`):**
-   - O backend reúne `informacao_coletada_acumulada_integral` (`R1..Rn`), `urls_usadas_acumuladas` e `resultado_final_auditor` e injeta no 1º prompt do redator daquele ponto.
+   - Injeta `informacao_coletada_acumulada_integral` (R1..Rn, **compactada sem perda**) + `compactacao{}` + `urls_usadas_acumuladas` + `resultado_final_auditor` + `perguntas_nao_concluidas` + `erro_coleta`.
 
 ---
 
@@ -123,14 +153,18 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 - `informacao_coletada`
 - `informacao_coletada_acumulada`
 - `informacao_coletada_acumulada_integral`
+- `compactacao`
 - `perguntas_respondidas`
+- `perguntas_nao_concluidas`
 - `resultado_final_auditor`
+- `avaliacao_pontos`
 
 ---
 
 ## 5. Contratos JSON (Schemas de Entrada, Configuração e Saída)
 
 ### 5.1. Payload inicial do usuário (`POST /research`)
+
 ```json
 {
   "tema": "matriz energetica no Brasil.",
@@ -142,19 +176,22 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 }
 ```
 
-### 5.2. Payload de Configuração do Hermes (`GET /config` e `PUT /config`)
+Requer API key (quando configurada): `X-API-Key: <chave>` ou `Authorization: Bearer <chave>`. Resposta `202`: `{"research_id": "...", "status": "PROCESSING"}`.
+
+### 5.2. Payload de Configuração do Hermes (`GET /config` e `PUT /config`, alias `/api/v1/settings`)
+
+`PUT` aceita **somente** estes campos (omitidos = preservados). `base_url`/`api_key` só são aceitos vazios/nulos; qualquer valor não-vazio → **422**:
+
 ```json
 {
-  "base_url": "http://9router:20128/v1",
-  "api_key": "sk-...",
-  "default_model": "ag/gemini-3.8-flash-high",
+  "default_model": "ocg/deepseek-v4.1-flash",
   "max_concurrent_children": 40,
   "max_spawn_depth": 2,
   "oneshot_max_children": 0,
   "modelos_por_papel": {
-    "planner": "ag/gemini-3.8-flash-high",
+    "planner": "ocg/deepseek-v4.1-flash",
     "historiador": "gemini/gemini-3.5-flash-lite",
-    "cetico": "ag/gemini-3.8-flash-high",
+    "cetico": "gemini/gemini-3.5-flash-lite",
     "visionario": "gemini/gemini-3.5-flash-lite",
     "futurista": "gemini/gemini-3.5-flash-lite",
     "auditor": "ocg/deepseek-v4.1-flash",
@@ -163,55 +200,37 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 }
 ```
 
-### 5.3. Saída do planner (após varredura exploratória inicial no Hermes)
+Resposta do `GET /config` (nunca contém segredo):
+
 ```json
 {
-  "research_id": "123ABC321",
-  "tema": "matriz energetica no Brasil.",
-  "profundidade": 10,
-  "veracidade_alvo": 90,
-  "max_rodadas_auditoria": 4,
-  "atualidade": "24H",
-  "callback_url": "https://webhook.callback.com",
-  "pontos": [
-    {
-      "ponto_id": 1,
-      "enunciado": "Quais são as matrizes energéticas do Brasil e sua participação atual",
-      "subperguntas": [
-        "Qual o percentual atual de renováveis vs não-renováveis?",
-        "Como se divide a geração hidráulica, térmica, eólica e solar?",
-        "Quais foram as atualizações oficiais mais recentes?"
-      ],
-      "hipoteses": [
-        "Fontes renováveis representam mais de 45% da matriz energética total.",
-        "A geração solar distribuída cresceu acima da média histórica no último ciclo.",
-        "Gargalos de transmissão limitam o escoamento no Nordeste."
-      ],
-      "lacunas_iniciais": [
-        "Dados consolidados das últimas 24 horas do ONS.",
-        "Impacto exato do curtailment eólico recente.",
-        "Diferença metodológica entre dados da EPE e da ANEEL."
-      ],
-      "perguntas_auditoria": {
-        "1": "As fontes primárias oficiais (EPE, ANEEL ou ONS) foram citadas?",
-        "2": "Há distinção clara entre matriz energética e matriz elétrica?",
-        "3": "Os percentuais de participação de cada fonte somam valores consistentes?",
-        "4": "Os dados respeitam a janela de atualidade exigida (24H)?",
-        "5": "A capacidade instalada em GW foi informada?",
-        "6": "Há dados específicos sobre biomassa e derivados de cana?",
-        "7": "Há dados sobre combustíveis fósseis (petróleo, gás e carvão)?",
-        "8": "Eventuais divergências numéricas entre fontes foram explicadas?",
-        "9": "As tendências de expansão de curto/médio prazo foram mapeadas?",
-        "10": "Os riscos operacionais e de infraestrutura foram levantados?",
-        "11": "Há contextualização histórica da evolução dessa matriz?",
-        "12": "As projeções de longo prazo estão ancoradas em planos decenais ou dados reais?"
-      }
-    }
-  ]
+  "base_url": "https://SEU-ROTEADOR/v1",
+  "api_key": "",
+  "default_model": "ocg/deepseek-v4.1-flash",
+  "provider_fonte": "env",
+  "max_concurrent_children": 40,
+  "max_spawn_depth": 2,
+  "oneshot_max_children": 0,
+  "modelos_por_papel": {
+    "planner": "ocg/deepseek-v4.1-flash",
+    "historiador": "gemini/gemini-3.5-flash-lite",
+    "cetico": "gemini/gemini-3.5-flash-lite",
+    "visionario": "gemini/gemini-3.5-flash-lite",
+    "futurista": "gemini/gemini-3.5-flash-lite",
+    "auditor": "ocg/deepseek-v4.1-flash",
+    "redator": "ocg/deepseek-v4.1-flash"
+  }
 }
 ```
 
+`GET /health` (sempre aberto, mesmo com API key): `{"status": "ok"}`.
+
+### 5.3. Saída do planner (após varredura exploratória inicial no Hermes)
+
+(Igual ao PRD §3.2 — `research_id`, eco dos parâmetros, `pontos[]` com `ponto_id`, `enunciado`, `subperguntas`, `hipoteses`, `lacunas_iniciais`. O planner NÃO gera `perguntas_auditoria`: o backend injeta as 12 ESTÁTICAS idênticas em cada ponto em `_planejar` antes de persistir.)
+
 ### 5.4. Payload de entrada do subagente buscador no Hermes
+
 ```json
 {
   "research_id": "123ABC321",
@@ -233,8 +252,8 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
     "Dados consolidados das últimas 24 horas do ONS."
   ],
   "perguntas_auditoria_pendentes": {
-    "4": "Os dados respeitam a janela de atualidade exigida (24H)?",
-    "8": "Eventuais divergências numéricas entre fontes foram explicadas?"
+    "4": "Não há contradições internas relevantes entre as informações coletadas pelas 4 personas? (sim/não)",
+    "8": "Números, datas, unidades, métricas e identificadores estão precisos e consistentes entre as fontes? (sim/não)"
   },
   "urls_lidas_ignoradas": [
     "https://url1.com.br",
@@ -245,6 +264,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 ```
 
 ### 5.5. Saída padronizada do subagente buscador
+
 ```json
 {
   "research_id": "123ABC321",
@@ -268,13 +288,16 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 ### 5.6. Entrada e saída do auditor
 
 **Entrada injetada no 1º prompt do auditor:**
+
+(`perguntas_auditoria` = as 12 ESTÁTICAS idênticas em todos os pontos, injetadas pelo backend.)
+
 ```json
 {
   "research_id": "123ABC321",
   "ponto_id": 1,
   "persona": "auditor",
-  "atualidade": "24H",
   "soul": "Você é o auditor. Seu objetivo é avaliar rigorosamente todas as informações coletadas em todas as rodadas e responder somente com true ou false para cada uma das 12 perguntas.",
+  "atualidade": "24H",
   "tentativa_atual": 2,
   "max_rodadas_auditoria": 4,
   "perguntas_auditoria": {
@@ -284,23 +307,30 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
   "informacao_coletada_acumulada": [
     {
       "rodada": 1,
-      "historiador": "Informação integral da rodada 1...",
-      "cetico": "Informação integral da rodada 1...",
-      "visionario": "Informação integral da rodada 1...",
-      "futurista": "Informação integral da rodada 1..."
+      "historiador": "Informação da rodada 1 (compactada sem perda)...",
+      "cetico": "Informação da rodada 1 (compactada sem perda)...",
+      "visionario": "Informação da rodada 1 (compactada sem perda)...",
+      "futurista": "Informação da rodada 1 (compactada sem perda)..."
     },
     {
       "rodada": 2,
-      "historiador": "Informação integral da rodada 2...",
-      "cetico": "Informação integral da rodada 2...",
-      "visionario": "Informação integral da rodada 2...",
-      "futurista": "Informação integral da rodada 2..."
+      "historiador": "Informação da rodada 2 (compactada sem perda)...",
+      "cetico": "Informação da rodada 2 (compactada sem perda)...",
+      "visionario": "Informação da rodada 2 (compactada sem perda)...",
+      "futurista": "Informação da rodada 2 (compactada sem perda)..."
     }
-  ]
+  ],
+  "compactacao": {
+    "linhas_antes": 1200,
+    "linhas_depois": 980,
+    "chars_antes": 64000,
+    "chars_depois": 51000
+  }
 }
 ```
 
 **Saída estrita do auditor:**
+
 ```json
 {
   "research_id": "123ABC321",
@@ -323,7 +353,10 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 }
 ```
 
-### 5.7. Decisão de avaliação de veracidade
+### 5.7. Decisão de avaliação de veracidade (`avaliacao_pontos` — formato oficial)
+
+O boletim agregado é o **formato oficial** de avaliação: compõe a seção `## Avaliação de veracidade` do dossiê consolidado, integra o payload do webhook e é exposto em `GET /research/{id}` (omitido enquanto o run não tem pontos avaliados). `GET /research/{id}` também expõe `auditorias[]` (histórico completo por ponto/rodada, com respostas, taxa, aprovado, modelo e tokens — rastreabilidade D-04).
+
 ```json
 {
   "research_id": "123ABC321",
@@ -353,6 +386,7 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
 ### 5.8. Entrada e saída do redator
 
 **Entrada injetada no 1º prompt do redator:**
+
 ```json
 {
   "research_id": "123ABC321",
@@ -375,10 +409,14 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
     "12": true
   },
   "perguntas_auditoria": {
-    "1": "...",
-    "8": "Eventuais divergências numéricas entre fontes foram explicadas?",
-    "12": "..."
+    "1": "... (estática 1)",
+    "8": "Números, datas, unidades, métricas e identificadores estão precisos e consistentes entre as fontes? (sim/não)",
+    "12": "... (estática 12)"
   },
+  "perguntas_nao_concluidas": {
+    "8": "Números, datas, unidades, métricas e identificadores estão precisos e consistentes entre as fontes? (sim/não)"
+  },
+  "erro_coleta": null,
   "urls_usadas_acumuladas": [
     "https://www.epe.gov.br/pt/publicacoes-dados-abertos/publicacoes/balanco-energetico-nacional"
   ],
@@ -397,11 +435,18 @@ Os nomes abaixo são os únicos nomes oficiais do sistema e devem ser usados em 
       "visionario": "...",
       "futurista": "..."
     }
-  ]
+  ],
+  "compactacao": {
+    "linhas_antes": 2400,
+    "linhas_depois": 1950,
+    "chars_antes": 128000,
+    "chars_depois": 102000
+  }
 }
 ```
 
 **Saída do redator:**
+
 ```json
 {
   "research_id": "123ABC321",
@@ -464,7 +509,7 @@ CREATE TABLE research_points (
     UNIQUE (research_id, ponto_id)
 );
 
--- 3. Log Imutável de Execuções de Agentes no Hermes (Telemetria + Histórico Sem Truncamento)
+-- 3. Log Imutável de Execuções de Agentes no Hermes (Telemetria + Histórico Integral)
 CREATE TABLE agent_executions (
     execution_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     research_id VARCHAR(64) NOT NULL REFERENCES research_runs(research_id) ON DELETE CASCADE,
@@ -489,13 +534,39 @@ CREATE TABLE agent_executions (
 );
 
 CREATE INDEX idx_executions_lookup ON agent_executions (research_id, ponto_id, rodada, agent_role);
+
+-- 4. Log de eventos SSE (snapshot/replay por Last-Event-ID/desde, heartbeat, at-least-once)
+CREATE TABLE research_events (
+    id SERIAL PRIMARY KEY,
+    research_id VARCHAR(64) NOT NULL REFERENCES research_runs(research_id) ON DELETE CASCADE,
+    tipo VARCHAR(64) NOT NULL,           -- run.criado, plano.pronto, fonte.lida, ..., run.concluido
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_events_lookup ON research_events (research_id, id);
 ```
+
+SQLite local (`src/db/sqlite_manager.py`) espelha as 4 tabelas (`JSONB`→`TEXT`, `SERIAL`→`AUTOINCREMENT`). O arquivo local `data/deep_research.db` não é versionado (`data/` no `.gitignore`); `conectar()` cria as tabelas via `SCHEMA IF NOT EXISTS` no próximo open RW e o container possui as 4 tabelas.
 
 ---
 
-## 7. Query de Hidratação Sem Truncamento (Backend → 1º Prompt no Hermes)
+## 7. Hidratação Real (Backend → 1º Prompt no Hermes) + Compactação Determinística
 
-Para montar o 1º prompt do **Auditor** ou do **Redator** para um `ponto_id`, o backend executa:
+Implementação (`src/db/repository.py::hidratar`): **2 SELECTs + agregação em Python**, semanticamente equivalente à query de referência abaixo (ordenado por rodada, só personas buscadoras, `informacao_coletada NOT NULL`):
+
+```python
+# SELECT 1 — textos por rodada/persona
+"SELECT rodada, agent_role, informacao_coletada FROM agent_executions"
+" WHERE research_id = ? AND ponto_id = ? AND agent_role IN (?,?,?,?)"
+" AND informacao_coletada IS NOT NULL ORDER BY rodada ASC, rowid ASC"
+# SELECT 2 — URLs acumuladas (todas as roles do ponto, inclui planner)
+"SELECT urls_usadas, urls_lidas FROM agent_executions"
+" WHERE research_id = ? AND ponto_id = ? ORDER BY rowid ASC"
+# agregação: por_rodada[rodada][persona] = texto; usadas/lidas normalizadas e deduplicadas
+```
+
+Para referência em PostgreSQL (leitura única, sem compactação — o DB é integral; a compactação ocorre depois, só no prompt):
 
 ```sql
 SELECT
@@ -512,4 +583,45 @@ GROUP BY rodada
 ORDER BY rodada ASC;
 ```
 
-Essa query garante que `Rodada 1 + Rodada 2 + ... + Rodada K` entrem ordenadas e 100% completas no prompt inicial do agente avaliador ou redator em uma única operação de leitura.
+**Compactação determinística antes do prompt** (`src/evidencias.py::compactar_acumulado`, aplicada em `hydrator.payload_auditor/payload_redator`): o DB nunca é reescrito. Regras — normaliza espaços; remove linhas exatamente duplicadas (primeira ocorrência vence, ordem preservada); remove ruído de navegação por lista conservadora (`compartilhar`, `aceitar cookies`, `leia mais`, breadcrumbs `home >`, etc.); **linha com dígito, URL, data ou início de citação (`"`, `fonte:`, `segundo `) nunca é removida**. Estatísticas agregadas em `compactacao{}` no payload (`linhas_antes/depois`, `chars_antes/depois`).
+
+---
+
+## 8. SSE: Eventos, Snapshot, Last-Event-ID/desde, Heartbeat, At-Least-Once + Dedupe Cliente, Persist-Before-Publish
+
+- **Persist-before-publish:** `Pipeline._evento → repo.emitir_evento` (`INSERT` + commit, retorna `id`); o SSE só lê do banco (`listar_eventos`), nunca de memória.
+- **Endpoint:** `GET /research/{id}/eventos` (aliases `/events`), com API key via header ou `?api_key=`. `404` se a pesquisa não existe.
+- **Snapshot vs replay:** header `Last-Event-ID` vence; senão `?desde=`. `proximo <= 0` → snapshot (`id = ultimo_evento_id`, `event: snapshot`, `data` = run completo via `_consultar_run`) **seguido** de replay; `proximo > 0` → replay de eventos com `id > base`, ordem `id ASC`, limite 500/iteração.
+- **At-least-once + dedupe cliente:** o replay `depois_de=proximo` pode reduplicar o que o snapshot já trouxe; o cliente **deduplica por `id`** (fonte de verdade = banco). Nunca perde, pode duplicar — "sem duplicação" estrito não é garantido por desenho.
+- **Heartbeat:** `: ping` a cada `0.5s × 30 = 15s` ociosas; loop encerra em disconnect ou run removida.
+- **Tipos emitidos** (payloads em `orchestrator.py`): `run.criado`, `run.status`, `plano.pronto`, `ponto.iniciado`, `fonte.lida` (`urls_lidas/usadas` como **arrays**), `ponto.coletado` (`ponto_id`, `rodada`, `urls_usadas`, `urls_lidas`, `personas`), `auditoria.executada` (inclui `perguntas_respondidas`, `model_used`, `total_tokens`, `auditor_ausente` quando aplicável), `ponto.aprovado`/`ponto.reprovado`, `redator.iniciado`, `ponto.finalizado`, `tokens.atualizados` (`tokens_execucao` = delta do lote, `tokens_por_papel`, totais cumulativos), `run.concluido` (`status`, `pontos_falhos`, `metricas_tokens`, `avaliacao_pontos`), `ponto.erro`, `run.falhou`.
+
+---
+
+## 9. Resiliência (Falha por Ponto, sem Aborto Global)
+
+| Falha | Comportamento | Evento |
+|---|---|---|
+| Persona buscadora falha | demais seguem; bloqueio programático de re-busca mantido | — |
+| Zero sucessos no ponto/rodada | ponto removido do loop, run segue | `ponto.erro` |
+| Auditor sem saída | redator com 12×`false`, `auditor_ausente: true`, `perguntas_nao_concluidas`, `erro_coleta` | `auditoria.executada` + `ponto.reprovado` |
+| `tentativa_atual == max` sem aprovação | `ACAO_REDATOR_LIMITE` → redator com melhor esforço | `ponto.reprovado` |
+| Redator sem saída válida (após `tentativas_por_agente`) | ponto em `pontos_falhos`, seção de incompletude no dossiê | `ponto.erro` |
+| Exceção global | `FAILED`, log, raise | `run.falhou` |
+| Webhook falha (5 tentativas) | status segue `COMPLETED`, erro logado | — |
+
+`FAILED` somente quando nenhum relatório é produzido ou exceção escapa ao loop. Consolidação ordena pontos `1..N`, dedupica URLs globais, soma telemetria, anexa `## Avaliação de veracidade`.
+
+---
+
+## 10. API Key (API Pública) e Token do Engine (Interno)
+
+- **API pública (`api:8000`):** `_exigir_chave` — espera `DR_API_KEY` ou `API_KEY`. Fontes aceitas: header `X-API-Key`, `Authorization: Bearer <chave>`, query `?api_key=` (só SSE). Sem chave configurada → aberto (dev/testes). `GET /health` sempre aberto, mesmo com chave. Erro → `401 "API key inválida"`.
+- **Engine interno (`engine:8100`):** `_auth` — tudo exceto `GET /health` exige `X-Engine-Token == ENGINE_TOKEN`; token ausente no env → `500`; inválido → `401`. Porta nunca publicada; só rede interna do compose (`depends_on`).
+- **`PUT /config` com chave inválida → `401`; com credencial no payload → `422`; erro do engine repassado (`RuntimeError` após 30s ou 5xx).**
+
+---
+
+## 11. Compactação Determinística (Regras Finais)
+
+Ver §7. Resumo normativo: aplicada **somente** nos prompts de auditor/redator; DB intacto; preserva números/datas/URLs/citações; remove apenas linhas duplicadas exatas e ruído da lista conservadora; estatísticas em `compactacao{}` no payload e persistidas em `input_prompt_payload` para auditoria. Testes: `tests/test_evidencias.py` (deduplicação, preservação de chaves não-texto, invariância factual).

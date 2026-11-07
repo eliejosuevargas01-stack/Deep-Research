@@ -1,0 +1,59 @@
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      DR_ENGINE_URL: http://engine:8100
+      ENGINE_TOKEN: ${ENGINE_TOKEN}
+      DR_API_KEY: ${API_KEY:?defina API_KEY}
+      DR_WORKSPACES_DIR: /workspaces
+      DR_DB_PATH: /data/deep_research.db
+      DR_HERMES_STATE_DB: /hermes_home/profiles/deep-research/state.db
+    volumes:
+      - workspaces:/workspaces
+      - data:/data
+      - hermes_home:/hermes_home:ro
+    depends_on:
+      - engine
+
+  engine:
+    build:
+      context: .
+      dockerfile: engine/Dockerfile
+    expose:
+      - "8100"
+    environment:
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://9router.dominuslabs.online/v1}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-ocg/deepseek-v4.1-flash}
+      MODELO_FORTE_PADRAO: ${MODELO_FORTE_PADRAO:-ocg/deepseek-v4.1-flash}
+      MODELO_LEVE_PADRAO: ${MODELO_LEVE_PADRAO:-gemini/gemini-3.5-flash-lite}
+      LLM_MODEL_PLANNER: ${LLM_MODEL_PLANNER:-${LLM_MODEL:-ocg/deepseek-v4.1-flash}}
+      LLM_MODEL_HISTORIADOR: ${LLM_MODEL_HISTORIADOR:-gemini/gemini-3.5-flash-lite}
+      LLM_MODEL_CETICO: ${LLM_MODEL_CETICO:-gemini/gemini-3.5-flash-lite}
+      LLM_MODEL_VISIONARIO: ${LLM_MODEL_VISIONARIO:-gemini/gemini-3.5-flash-lite}
+      LLM_MODEL_FUTURISTA: ${LLM_MODEL_FUTURISTA:-gemini/gemini-3.5-flash-lite}
+      LLM_MODEL_AUDITOR: ${LLM_MODEL_AUDITOR:-ocg/deepseek-v4.1-flash}
+      LLM_MODEL_REDATOR: ${LLM_MODEL_REDATOR:-ocg/deepseek-v4.1-flash}
+      ENGINE_TOKEN: ${ENGINE_TOKEN}
+    volumes:
+      - workspaces:/workspaces
+      - hermes_home:/opt/data
+
+volumes:
+  workspaces: {}
+  data: {}
+  hermes_home: {}

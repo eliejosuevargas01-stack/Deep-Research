@@ -98,6 +98,57 @@ def test_sem_saida_vira_erro_por_tarefa(runner, tmp_path, monkeypatch):
     assert "sem saidas/historiador_p1_r1.json" in call.erro
 
 
+def test_acionar_via_engine_post_mockado(config, tmp_path, monkeypatch):
+    import httpx as _httpx
+
+    config.pipeline.engine_url = "http://engine:8090"
+    config.pipeline.engine_token = "tok-123"
+    visto: dict = {}
+
+    def _handler(requisicao: _httpx.Request) -> _httpx.Response:
+        visto["url"] = str(requisicao.url)
+        visto["token"] = requisicao.headers.get("X-Engine-Token")
+        visto["json"] = json.loads(requisicao.content.decode())
+        return _httpx.Response(200, json={"ok": True})
+
+    transporte = _httpx.MockTransport(_handler)
+    _RealClient = _httpx.Client
+    monkeypatch.setattr(
+        _httpx, "Client", lambda *a, **k: _RealClient(transport=transporte, timeout=k.get("timeout"))
+    )
+    runner = HermesRunner(config)
+    erro = runner._acionar(tmp_path / "ws", "instrucao-teste")
+    assert erro == ""
+    assert visto["url"] == "http://engine:8090/run"
+    assert visto["token"] == "tok-123"
+    assert visto["json"]["workspace"] == str(tmp_path / "ws")
+    assert visto["json"]["instrucao"] == "instrucao-teste"
+    assert visto["json"]["timeout_s"] == config.pipeline.hermes_timeout_s
+
+    transporte_erro = _httpx.MockTransport(
+        lambda req: _httpx.Response(500, text="quebrou feio")
+    )
+    monkeypatch.setattr(
+        _httpx, "Client", lambda *a, **k: _RealClient(transport=transporte_erro)
+    )
+    erro_http = runner._acionar(tmp_path / "ws", "x")
+    assert "500" in erro_http and "quebrou feio" in erro_http
+
+
+def test_acionar_local_sem_engine_usa_subprocess(runner, tmp_path):
+    workspace = tmp_path / "ws"
+    tarefa = Tarefa(
+        id="planner",
+        papel="planner",
+        sistema="sistema",
+        prompt=PROMPT,
+        payload={"profundidade": 2, "tema": "tema"},
+    )
+    call = runner.planejar(workspace, tarefa)
+    assert call.erro == ""
+    assert (workspace / "saidas" / "planner.json").exists()
+
+
 def test_telemetria_le_tokens_e_modelo_do_state_db(tmp_path, monkeypatch):
     workspace = tmp_path / "ws"
     workspace.mkdir()

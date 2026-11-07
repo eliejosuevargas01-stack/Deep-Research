@@ -12,7 +12,6 @@ PONTO = {
     "subperguntas": ["a", "b", "c"],
     "hipoteses": ["a", "b", "c"],
     "lacunas_iniciais": ["a", "b", "c"],
-    "perguntas_auditoria": {str(i): f"Pergunta {i}" for i in range(1, 13)},
 }
 
 
@@ -56,7 +55,10 @@ def test_api_cria_e_consulta_pesquisa(config, repositorio):
     assert consulta.status_code == 200
     corpo = consulta.json()
     assert corpo["status"] == "COMPLETED"
-    assert corpo["relatorio_final_consolidado"] == "## 1. Ponto único\n\nRELATORIO"
+    assert corpo["relatorio_final_consolidado"].startswith("## 1. Ponto único\n\nRELATORIO")
+    assert "## Avaliação de veracidade" in corpo["relatorio_final_consolidado"]
+    assert "- Ponto 1: 12/12 (100.0%) — aprovado" in corpo["relatorio_final_consolidado"]
+    assert corpo["avaliacao_pontos"]["avaliacao_pontos"][0]["aprovado"] is True
     assert corpo["pontos"][0]["aprovado"] is True
 
 

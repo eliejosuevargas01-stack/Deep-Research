@@ -1,34 +1,62 @@
 # Hermes Deep Research
 
-Pipeline assíncrono, auditável e modular de pesquisa profunda operado integralmente pelo **Hermes** (`hermes-agent`), sob o paradigma de **Estado Acumulativo sem Truncamento (Append-Only Context Hydration)**.
+Pipeline assíncrono, auditável e modular de pesquisa profunda operado integralmente pelo **Hermes** (`hermes-agent`), sob o paradigma de **Estado Acumulativo (DB Integral + Prompt Compactado sem Perda Factual)**.
 
-## Arquitetura do Sistema
+**Versão:** 1.3 (2026-11-07) · PRD.md / SDD.md são a especificação vigente.
 
-O **Hermes** é o único motor de inteligência, busca web e delegação do sistema. O backend auxiliar **não faz chamadas diretas a APIs externas de LLM ou buscadores**: ele aciona unicamente o Hermes em um workspace isolado por pesquisa, gerencia a persistência no banco de dados, hidrata o 1º prompt de cada papel e sincroniza o `config.yaml` do perfil Hermes:
+## Arquitetura (`api` + `engine` isolado)
 
-1. **Ingestão assíncrona:** o backend recebe os parâmetros da pesquisa (`tema`, `profundidade`, `veracidade_alvo`, `max_rodadas_auditoria`, `atualidade`, `callback_url`), cria o workspace exclusivo da execução e gera um `research_id`.
-2. **Hermes Planner (com busca exploratória inicial):** o agente principal no Hermes realiza uma varredura exploratória simples na web (`web_search` e leitura livre de páginas com `web_extract`) apenas para coletar informação basal sobre o tema e decompô-lo em `N` pontos independentes (`N = profundidade`, de 1 a 10).
-3. **Fan-out massivo de subagentes buscadores (até 40 simultâneos):** sem trava artificial de 3 pontos paralelos, todos os `N` pontos em aberto acionam simultaneamente as 4 personas de busca (`historiador`, `cetico`, `visionario`, `futurista`) via `delegate_task` no Hermes, chegando a **40 subagentes simultâneos** (`10 pontos × 4 personas`, com `max_concurrent_children: 40` no `config.yaml`).
-4. **Hermes Auditor (12 perguntas booleanas):** recebe no 1º prompt 100% do contexto acumulado de todas as rodadas do ponto (`R1 + R2 + ... + Rk`) sem truncamento e responde as 12 perguntas estritamente com `true` ou `false`.
-5. **Loop de retentativa determinístico:** calcula-se a taxa de aprovação frente a `veracidade_alvo`. Se reprovado e abaixo de `max_rodadas_auditoria`, dispara-se nova rodada de busca no Hermes injetando as perguntas `false` como foco e todas as `urls_lidas` anteriores como bloqueio (*blacklist*).
-6. **Hermes Redator:** quando o ponto é aprovado ou atinge o limite de rodadas, o Redator recebe toda a informação acumulada de todas as rodadas e o resultado final do Auditor, produzindo o relatório analítico exaustivo e documentando explicitamente as lacunas remanescentes.
-7. **Webhook callback:** o resultado consolidado de todos os pontos e a telemetria real somada das sessões do Hermes (agente principal + subagentes) são enviados por POST para `callback_url`.
+| Serviço | Imagem/build | Porta | Papel |
+|---|---|---|---|
+| `api` | `Dockerfile.api` (python:3.12-slim) | **8000 pública** | backend: valida, hidrata prompts do banco, despacha ao engine, persiste, SSE, webhook |
+| `engine` | `engine/Dockerfile` (`FROM nousresearch/hermes-agent:latest`) | **8100 interna** (expose, sem publish) | Hermes isolado: `USER hermes`, `POST /run`, `GET/PUT /config`, `GET /health` |
 
----
+- O **Hermes** é o único motor de inteligência, busca web e delegação. O backend **não faz chamadas diretas a LLMs/buscadores**: aciona o engine via `DR_ENGINE_URL=http://engine:8100` em workspace isolado por pesquisa (`/workspaces/{research_id}`).
+- Fluxo: **Ingestão** (`POST /research` → `research_id` + workspace) → **Planner** (varredura exploratória + N pontos; backend injeta as 12 perguntas estáticas em cada ponto) → **Fan-out** (N×4 personas, até 40 simultâneos) → **Auditor** (12 booleanos, contexto acumulado compactado) → **Loop** (pendentes + blacklist de URLs) → **Redator** (relatório + lacunas, só URLs acumuladas) → **Webhook** (dossiê + `avaliacao_pontos` + tokens).
+- Telemetria real: `state.db` do Hermes montado `:ro` (`DR_HERMES_STATE_DB`) + fallback `usage.json` na linha `orquestrador` (tokens do delegador, nunca inventados).
 
-## Configuração Dinâmica do Hermes (`config.yaml`) e Modelos por Subagente
+## Env obrigatórias
 
-Todas as configurações do Hermes — provedor OpenAI-compatible (`base_url`, `api_key`), limites de concorrência (`max_concurrent_children: 40`, `oneshot_max_children: 0`) e o **modelo específico de cada subagente** — são gerenciadas diretamente no arquivo `hermes_home/profiles/deep-research/config.yaml` através do endpoint de configurações (`GET /config` e `PUT /config`, ou `/api/v1/settings`):
+```bash
+cp .env.example .env   # edite com valores reais; .env é ignorado pelo git
+```
 
-- `planner` (Agente Principal / Planejador)
-- `historiador` (Subagente Buscador 1)
-- `cetico` (Subagente Buscador 2)
-- `visionario` (Subagente Buscador 3)
-- `futurista` (Subagente Buscador 4)
-- `auditor` (Subagente Auditor de 12 Critérios)
-- `redator` (Subagente Redator do Dossiê)
+| Variável | Serviço | Uso |
+|---|---|---|
+| `LLM_BASE_URL` | engine | endpoint OpenAI-compatível |
+| `LLM_API_KEY` | engine | segredo → `.env` 600 dentro do container; nunca no YAML/API/git |
+| `LLM_MODEL` | engine | default = planner (forte). Ex.: `ocg/deepseek-v4.1-flash` |
+| `API_KEY` | api | chave da API pública (compose exige definida); sem ela o backend fica aberto (só dev) |
+| `ENGINE_TOKEN` | ambos | `X-Engine-Token` entre api e engine |
 
-O roteamento de modelos no Hermes utiliza `delegation.backend: por_papel` (plugin `delegation_por_papel`), garantindo que cada subagente delegado execute com o modelo configurado para o seu papel.
+Placeholders nos exemplos: `https://SEU-ROTEADOR/v1`, `***`. **Nunca commitar chave real.**
+
+## Modelos por papel (defaults)
+
+Forte (`ocg/deepseek-v4.1-flash`): `planner`, `auditor`, `redator`. Leve (`gemini/gemini-3.5-flash-lite`): `historiador`, `cetico`, `visionario`, `futurista`. Overrides: `LLM_MODEL_<PAPEL>` (ex.: `LLM_MODEL_AUDITOR`); `LLM_MODEL` só afeta o planner. `PUT /config` altera modelos/limites; credencial no payload → **422**.
+
+## SSE / resume
+
+`GET /research/{id}/eventos` (alias `/events`): snapshot (run completo) quando `desde=0`, replay `id > base` via `Last-Event-ID` ou `?desde=`, heartbeat `: ping` ~15s, at-least-once com **dedupe do cliente por `id`**. Reload/troca de página restaura do `id 0` sem perda. SSE aceita `?api_key=`.
+
+## API key
+
+Pública: `X-API-Key` ou `Bearer` (SSE: `?api_key=`); `GET /health` sempre aberto; erro → `401`. Interna: `X-Engine-Token` (engine, tudo exceto `/health`).
+
+## Comandos (compose)
+
+```bash
+docker compose config        # valida interpolação (exige API_KEY definida)
+docker compose up --build -d # sobe api (8000) + engine (8100 interna)
+docker compose logs -f api engine
+curl localhost:8000/health
+curl -H "X-API-Key: $API_KEY" localhost:8000/config
+```
+
+## Testes
+
+- Backend: `.venv/bin/python -m pytest tests -q` → **78 passed** (pipeline, contratos, settings, webhook, eventos/SSE, evidências, garantias, lacunas, repositório, engine, API key).
+- Frontend: `npm test --prefix frontend` → **51 passed** (14 arquivos: `apiV12`, `ssePesquisa`, `usePesquisaAoVivo`, views, validação).
 
 ---
 
@@ -56,8 +84,11 @@ Os nomes abaixo são os valores oficiais do sistema e devem ser usados em toda a
 - `informacao_coletada`
 - `informacao_coletada_acumulada`
 - `informacao_coletada_acumulada_integral`
+- `compactacao`
 - `perguntas_respondidas`
+- `perguntas_nao_concluidas`
 - `resultado_final_auditor`
+- `avaliacao_pontos`
 
 > Regra: nomes de contrato em JSON e campos de banco devem usar o mesmo vocabulário para evitar inconsistência entre backend, planner, buscadores, auditor e redator.
 
@@ -103,6 +134,9 @@ Esse campo de diferença é usado para auditoria de eficiência e bloqueio de re
 
 ### Saída do planner (após busca exploratória inicial)
 
+O planner gera `ponto_id`, `enunciado`, `subperguntas`, `hipoteses` e `lacunas_iniciais`.
+O backend injeta `perguntas_auditoria` (as 12 estáticas abaixo) em cada ponto antes de persistir.
+
 ```json
 {
   "research_id": "123ABC321",
@@ -131,24 +165,13 @@ Esse campo de diferença é usado para auditoria de eficiência e bloqueio de re
         "Impacto exato do curtailment eólico recente.",
         "Diferença metodológica entre dados da EPE e da ANEEL."
       ],
-      "perguntas_auditoria": {
-        "1": "As fontes primárias oficiais (EPE, ANEEL ou ONS) foram citadas?",
-        "2": "Há distinção clara entre matriz energética e matriz elétrica?",
-        "3": "Os percentuais de participação de cada fonte somam valores consistentes?",
-        "4": "Os dados respeitam a janela de atualidade exigida (24H)?",
-        "5": "A capacidade instalada em GW foi informada?",
-        "6": "Há dados específicos sobre biomassa e derivados de cana?",
-        "7": "Há dados sobre combustíveis fósseis (petróleo, gás e carvão)?",
-        "8": "Eventuais divergências numéricas entre fontes foram explicadas?",
-        "9": "As tendências de expansão de curto/médio prazo foram mapeadas?",
-        "10": "Os riscos operacionais e de infraestrutura foram levantados?",
-        "11": "Há contextualização histórica da evolução dessa matriz?",
-        "12": "As projeções de longo prazo estão ancoradas em planos decenais ou dados reais?"
-      }
+      "perguntas_auditoria": "(injetada pelo backend — ver § Critérios de Auditoria; idêntica em todos os pontos)"
     }
   ]
 }
 ```
+
+> Boletim oficial `avaliacao_pontos` (por ponto: `perguntas_true/12`, `%`, `meta`, `aprovado`) compõe o dossiê (`## Avaliação de veracidade`), o webhook e o `GET /research/{id}`. Detalhes: SDD §5.7.
 
 ---
 
@@ -156,51 +179,63 @@ Esse campo de diferença é usado para auditoria de eficiência e bloqueio de re
 
 ```text
 hermes-deep-research/
-├── README.md / PRD.md / SDD.md
+├── README.md / PRD.md / SDD.md   # especificação v1.3
+├── engine/
+│   ├── Dockerfile                # FROM nousresearch/hermes-agent:latest, USER hermes, expose 8100
+│   ├── entrypoint.sh             # renderiza config.yaml do env (provider env, sem segredo)
+│   └── service.py                # GET /health, GET/PUT /config, POST /run (X-Engine-Token)
 ├── hermes_home/
-│   ├── profiles/deep-research/
-│   │   ├── config.yaml         # provedor, modelos por subagente e max_concurrent_children: 40
-│   │   ├── SOUL.template.md    # contratos operacionais; deploy materializa como SOUL.md
+│   ├── profiles/deep-research/   # semente de perfil (SOUL, plugin); segredo nunca commitado
 │   └── plugins/delegation/por_papel/
-│       ├── __init__.py         # roteador de modelo por papel em cada delegate_task
-│       └── plugin.yaml
 ├── src/
-│   ├── main.py                 # entrypoint ASGI
-│   ├── api.py                  # POST /research, GET /research/{id}, GET/PUT /config, GET /health
-│   ├── config.py               # config de execução (pipeline, binário e perfil do Hermes)
-│   ├── settings.py             # leitura/escrita do config.yaml do perfil Hermes
-│   ├── contracts.py            # contratos canônicos + validação (12 perguntas, mínimos, URLs)
-│   ├── hydrator.py             # monta o 1º prompt de cada papel a partir do banco
-│   ├── planner.py              # taxa de veracidade e decisão de fluxo
-│   ├── orchestrator.py         # lotes de tarefas por rodada; zero chamadas de API diretas
-│   ├── hermes_runner.py        # aciona `hermes -p deep-research` com cwd no workspace
-│   ├── telemetria.py           # tokens/modelo por subagente lidos do state.db
-│   ├── engine.py               # contrato AgentCall/Tarefa + extração de JSON
-│   ├── webhook.py              # callback final
-│   ├── prompts/                # planner.md, buscador.md, auditor.md, redator.md
+│   ├── main.py                   # entrypoint ASGI
+│   ├── api.py                    # POST /research, GET /research/{id}, GET/PUT /config, SSE /eventos, GET /health
+│   ├── config.py                 # config de execução (pipeline, binário e perfil do Hermes)
+│   ├── settings.py               # provider só env; PUT com credencial → 422; repassa ao engine
+│   ├── contracts.py              # contratos canônicos + validação (12 estáticas, mínimos, URLs)
+│   ├── evidencias.py             # compactação determinística (DB intacto, prompt sem perda factual)
+│   ├── hydrator.py               # monta o 1º prompt de cada papel a partir do banco
+│   ├── planner.py                # taxa de veracidade, decisão de fluxo, avaliacao_pontos
+│   ├── orchestrator.py           # lotes por rodada; resiliência por ponto; eventos SSE
+│   ├── hermes_runner.py          # despacha ao engine; telemetria state.db :ro + fallback usage.json
+│   ├── telemetria.py             # tokens/modelo por subagente lidos do state.db
+│   ├── engine.py                 # contrato AgentCall/Tarefa + extração de JSON
+│   ├── webhook.py                # callback final (5 tentativas 1s/2s/4s/8s)
+│   ├── prompts/                  # planner.md, buscador.md, auditor.md, redator.md
 │   └── db/
-│       ├── schema.sql          # DDL canônico PostgreSQL (SDD §6)
-│       ├── sqlite_manager.py   # schema local com as mesmas tabelas
-│       └── repository.py       # persistência, hidratação e consolidação
-├── tests/                      # suíte de testes de contrato, configuração Hermes e pipeline
-└── data/                       # runtime: deep_research.db e workspaces isolados por pesquisa
+│       ├── schema.sql            # DDL canônico PostgreSQL (SDD §6, 4 tabelas incl. research_events)
+│       ├── sqlite_manager.py     # schema local paritário
+│       └── repository.py         # persistência, hidratação (2 SELECTs), consolidação, eventos
+├── frontend/src/v12/             # fluxo ativo: AppV12, ResearchViews, SettingsV12, usePesquisaAoVivo, ssePesquisa
+├── frontend/src/services/apiV12.ts  # POST/GET /research, GET/PUT /config, X-API-Key (?api_key no SSE)
+├── tests/                        # suíte backend (78 testes)
+└── data/                         # runtime: deep_research.db e workspaces isolados por pesquisa
 ```
 
 ---
 
-## Critérios de Auditoria (12 Perguntas)
+## Documentação Reversa (as-built)
 
-Os 12 critérios abaixo orientam a formulação das 12 perguntas binárias (`"1"` a `"12"`) de cada ponto e compõem a métrica final do auditor (`quantidade de respostas true / 12`):
+A documentação reversa do backend como implementado — contratos, fluxos, banco, telemetria, divergências vs PRD/SDD e rastreabilidade RF01-RF12/RNF01-RNF03 e D-01..D-12 — está em [`_reversa_sdd/`](_reversa_sdd/README.md). Provas executáveis em `_reversa_sdd/verification/` (pytest, smoke HTTP, inventário SQLite, e2e do runner).
 
-1. `clareza_tematica` — abordagem objetiva do eixo e aderência às subperguntas do plano.
-2. `corroboracao_canonica` — suporte em fontes primárias verificáveis; URL sozinha não é prova.
-3. `atualidade` — marcos e dados vigentes para a janela de `atualidade` exigida; marco antigo não é estado atual.
-4. `ausencia_contradicoes` — coerência interna entre os dados coletados pelas 4 personas.
-5. `embasamento_factual` — ancoragem empírica; ausência de evidência ≠ falsidade.
-6. `aderencia_escopo` — atém-se ao tema, ao enunciado e às subperguntas do ponto.
-7. `profundidade_analitica` — complexidade adequada e incertezas delimitadas.
-8. `precisao_dados` — exatidão numérica, métricas, datas, unidades e identificadores.
-9. `neutralidade` — fatos separados de hipóteses; equilíbrio analítico.
-10. `densidade_evidencias` — proporção consistente entre afirmações e `urls_usadas`.
-11. `declaracao_incertezas` — lacunas remanescentes expressas e delimitadas.
-12. `solidez_logica` — conclusões decorrem diretamente das evidências apresentadas.
+---
+
+## Critérios de Auditoria (12 Perguntas ESTÁTICAS)
+
+As 12 perguntas abaixo são ESTÁTICAS e universais: idênticas em todos os pontos.
+O planner NÃO as cria; o backend injeta `PERGUNTAS_AUDITORIA_ESTATICAS` em cada ponto
+em `_planejar` antes de persistir. O auditor responde cada uma com `true`/`false`;
+a métrica é `quantidade de respostas true / 12`:
+
+1. `clareza_tematica` — "O material coletado aborda de forma clara e objetiva o eixo do ponto e responde às suas subperguntas? (sim/não)"
+2. `corroboracao_canonica` — "As afirmações centrais estão sustentadas por fontes primárias verificáveis, e não apenas por URLs citadas sem verificação? (sim/não)"
+3. `atualidade` — "Os marcos e dados apresentados estão atualizados dentro da janela de atualidade exigida? (sim/não)"
+4. `ausencia_contradicoes` — "Não há contradições internas relevantes entre as informações coletadas pelas 4 personas? (sim/não)"
+5. `embasamento_factual` — "As conclusões têm ancoragem empírica no material, sem tratar ausência de evidência como falsidade nem como prova? (sim/não)"
+6. `aderencia_escopo` — "O material atém-se ao tema, ao enunciado e ao escopo do ponto, sem desvios relevantes? (sim/não)"
+7. `profundidade_analitica` — "A análise tem profundidade adequada e delimita as incertezas em vez de apenas descrever fatos? (sim/não)"
+8. `precisao_dados` — "Números, datas, unidades, métricas e identificadores estão precisos e consistentes entre as fontes? (sim/não)"
+9. `neutralidade` — "Fatos observados estão separados de hipóteses e interpretações, com neutralidade analítica? (sim/não)"
+10. `densidade_evidencias` — "A densidade de evidências é proporcional às afirmações, com respaldo em urls_usadas? (sim/não)"
+11. `declaracao_incertezas` — "As incertezas e lacunas remanescentes estão declaradas e delimitadas explicitamente? (sim/não)"
+12. `solidez_logica` — "As conclusões decorrem logicamente das evidências apresentadas, sem saltos lógicos? (sim/não)"

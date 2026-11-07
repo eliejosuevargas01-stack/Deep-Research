@@ -77,6 +77,17 @@ CREATE TABLE IF NOT EXISTS agent_executions (
 
 CREATE INDEX IF NOT EXISTS idx_executions_lookup
     ON agent_executions (research_id, ponto_id, rodada, agent_role);
+
+CREATE TABLE IF NOT EXISTS research_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    research_id TEXT NOT NULL REFERENCES research_runs(research_id) ON DELETE CASCADE,
+    tipo TEXT NOT NULL,
+    payload TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_lookup
+    ON research_events (research_id, id);
 """
 
 
