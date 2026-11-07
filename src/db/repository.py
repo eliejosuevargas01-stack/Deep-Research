@@ -8,7 +8,7 @@ import threading
 from pathlib import Path
 from typing import Any, Iterable
 
-from contracts import PERSONAS, PontoPlano, ResearchRequest, normalizar_urls
+from contracts import PERSONAS, PontoPlano, ResearchRequest, chave_url, normalizar_urls
 from db.sqlite_manager import conectar
 from engine import AgentCall
 import planner
@@ -109,7 +109,8 @@ class Repositorio:
     ) -> str:
         usadas = normalizar_urls(urls_usadas)
         lidas = normalizar_urls([*urls_lidas, *usadas])
-        nao_usadas = [url for url in lidas if url not in set(usadas)]
+        chaves_usadas = {chave_url(url) for url in usadas}
+        nao_usadas = [url for url in lidas if chave_url(url) not in chaves_usadas]
         total = call.total_tokens or (
             call.prompt_tokens + call.completion_tokens + call.reasoning_tokens
         )
@@ -156,6 +157,24 @@ class Repositorio:
             )
             self._con.commit()
             return str(cursor.lastrowid)
+
+    def carregar_auditoria(self, *, research_id: str, ponto_id: int) -> dict[str, bool]:
+        """Último resultado persistido do auditor; JSON inválido/ausente vira {}."""
+        with self._lock:
+            linha = self._con.execute(
+                "SELECT ultimo_resultado_auditor FROM research_points"
+                " WHERE research_id = ? AND ponto_id = ?",
+                (research_id, ponto_id),
+            ).fetchone()
+        if linha is None:
+            return {}
+        try:
+            dado = _loads(linha["ultimo_resultado_auditor"], {})
+        except (ValueError, TypeError):
+            return {}
+        if not isinstance(dado, dict):
+            return {}
+        return {str(k): bool(v) for k, v in dado.items()}
 
     def salvar_auditoria(
         self,
@@ -457,7 +476,8 @@ class Repositorio:
                 lidas.extend(_loads(linha["urls_lidas"], []))
             usadas = normalizar_urls(usadas)
             lidas = normalizar_urls(lidas)
-            nao_usadas = [url for url in lidas if url not in set(usadas)]
+            chaves_usadas = {chave_url(url) for url in usadas}
+            nao_usadas = [url for url in lidas if chave_url(url) not in chaves_usadas]
 
             tokens = self._con.execute(
                 "SELECT COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,"

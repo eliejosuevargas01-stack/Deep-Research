@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Iterable
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from pydantic import (
     BaseModel,
@@ -24,11 +25,11 @@ PERGUNTAS_AUDITORIA_ESTATICAS: dict[str, str] = {
     "1": "O material coletado aborda de forma clara e objetiva o eixo do ponto e responde às suas subperguntas? (sim/não)",
     "2": "As afirmações centrais estão sustentadas por fontes primárias verificáveis, e não apenas por URLs citadas sem verificação? (sim/não)",
     "3": "Os marcos e dados apresentados estão atualizados dentro da janela de atualidade exigida? (sim/não)",
-    "4": "Não há contradições internas relevantes entre as informações coletadas pelas 4 personas? (sim/não)",
+    "4": "As informações coletadas pelas 4 personas são internamente coerentes (ou têm eventuais diferenças de recorte/metodologia claramente identificadas)? (sim/não)",
     "5": "As conclusões têm ancoragem empírica no material, sem tratar ausência de evidência como falsidade nem como prova? (sim/não)",
     "6": "O material atém-se ao tema, ao enunciado e ao escopo do ponto, sem desvios relevantes? (sim/não)",
     "7": "A análise tem profundidade adequada e delimita as incertezas em vez de apenas descrever fatos? (sim/não)",
-    "8": "Números, datas, unidades, métricas e identificadores estão precisos e consistentes entre as fontes? (sim/não)",
+    "8": "Números, datas, unidades, métricas e identificadores estão precisos e com eventuais divergências metodológicas entre fontes devidamente delimitadas? (sim/não)",
     "9": "Fatos observados estão separados de hipóteses e interpretações, com neutralidade analítica? (sim/não)",
     "10": "A densidade de evidências é proporcional às afirmações, com respaldo em urls_usadas? (sim/não)",
     "11": "As incertezas e lacunas remanescentes estão declaradas e delimitadas explicitamente? (sim/não)",
@@ -36,6 +37,35 @@ PERGUNTAS_AUDITORIA_ESTATICAS: dict[str, str] = {
 }
 
 _FIM_SUJO = ".,;)]>"
+
+logger = logging.getLogger(__name__)
+
+# Filtro de política: agregador/dever de casa, slide e rede social não sustentam
+# evidência primária. Descarte com warning, nunca ValueError (a rodada segue válida).
+DOMINIOS_BLOQUEADOS: frozenset[str] = frozenset(
+    {
+        "x.com",
+        "twitter.com",
+        "facebook.com",
+        "instagram.com",
+        "tiktok.com",
+        "pinterest.com",
+        "prezi.com",
+        "slideshare.net",
+        "pt.slideshare.net",
+        "studocu.com",
+        "brainly.com.br",
+        "brainly.com",
+    }
+)
+
+
+def _host_bloqueado(host: str) -> bool:
+    host = (host or "").lower().rstrip(".")
+    if host.startswith("www."):
+        host = host[4:]
+    return any(host == dominio or host.endswith("." + dominio) for dominio in DOMINIOS_BLOQUEADOS)
+
 
 def _limpar_url(valor: str) -> str:
     return valor.strip().rstrip(_FIM_SUJO).strip()
@@ -48,15 +78,75 @@ def _url_valida(valor: str) -> bool:
         return False
     if partes.scheme not in ("http", "https") or not partes.hostname:
         return False
+    try:
+        partes.port
+    except ValueError:
+        return False
+    host = partes.hostname.lower().rstrip(".")
+    if host.startswith("www."):
+        host = host[4:]
+    # Validação dura: rejeitar host truncado (ex.: https://www.fazenda.pt-br/composicao/,
+    # onde urlsplit lê hostname "www.fazenda.pt-br"). Hífron/dígito/underscore no TLD
+    # indica path colado no host, não um domínio real.
+    labels = host.split(".")
+    if len(labels) < 2 or any(not rotulo for rotulo in labels):
+        return False
+    tld = labels[-1]
+    # IDN punycode (xn--p1ai) é TLD válido; hífen/dígito fora dele indica path colado no host.
+    if tld.startswith("xn--"):
+        if len(tld) < 6:
+            return False
+    elif not tld.isalpha() or any(ch.isdigit() for ch in tld):
+        return False
+    if "_" in tld:
+        return False
     return " " not in valor
 
 
-def normalizar_urls(urls: Iterable[Any]) -> list[str]:
-    """Deduplica preservando a ordem; higieniza pontuação final e valida http/https.
+def chave_url(valor: str) -> str:
+    """Chave canônica para dedupe/comparação de URLs.
 
-    URL inválida falha com ValueError (nunca é descartada em silêncio).
+    scheme e host em minúsculas, sem ``www.`` nem ponto final; porta default
+    removida; path com percent-decoding; barra final removida (vazio vira "/");
+    fragment descartado; query mantida. O resultado inteiro vai em minúsculas:
+    dedupe de paths case-sensitive é raro na prática e o ganho de recall
+    compensa (``ponytail:`` se um dia case-sensitive importar — p.ex. pastas
+    distintas só por caixa —, trocar o ``.lower()`` final por lower só em
+    scheme+host e cobrir com teste de colisão intencional).
+    """
+    partes = urlsplit(valor.strip())
+    esquema = partes.scheme.lower()
+    host = (partes.hostname or "").lower().rstrip(".")
+    if host.startswith("www."):
+        host = host[4:]
+    try:
+        porta = partes.port
+    except ValueError:
+        porta = None
+    padrao = {"http": 80, "https": 443}
+    rede = host
+    if porta and porta != padrao.get(esquema):
+        rede = f"{host}:{porta}"
+    caminho = unquote(partes.path or "")
+    if len(caminho) > 1:
+        caminho = caminho.rstrip("/")
+    if not caminho:
+        caminho = "/"
+    chave = f"{esquema}://{rede}{caminho}"
+    if partes.query:
+        chave += f"?{partes.query}"
+    return chave.lower()
+
+
+def normalizar_urls(urls: Iterable[Any]) -> list[str]:
+    """Deduplica (por ``chave_url``) preservando a primeira forma limpa; higieniza e valida.
+
+    URL inválida falha com ValueError (nunca descartada em silêncio).
+    URL de domínio bloqueado é filtro de política: descartada com
+    logger.warning, sem invalidar a rodada.
     """
     vistas: dict[str, None] = {}
+    saidas: list[str] = []
     for url in urls:
         if not isinstance(url, str):
             continue
@@ -65,8 +155,15 @@ def normalizar_urls(urls: Iterable[Any]) -> list[str]:
             continue
         if not _url_valida(limpa):
             raise ValueError(f"URL inválida: {limpa}")
-        vistas[limpa] = None
-    return list(vistas)
+        partes = urlsplit(limpa)
+        if _host_bloqueado(partes.hostname or ""):
+            logger.warning("URL descartada por política de domínio: %s", limpa)
+            continue
+        chave = chave_url(limpa)
+        if chave not in vistas:
+            vistas[chave] = None
+            saidas.append(limpa)
+    return saidas
 
 
 class ResearchRequest(BaseModel):

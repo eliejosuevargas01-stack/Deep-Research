@@ -52,10 +52,10 @@ def test_hidratacao_preserva_todas_as_rodadas_e_personas(repositorio):
                 input_prompt_payload={},
                 call=AgentCall(dados={}),
                 informacao_coletada=texto,
-                urls_usadas=[f"https://fonte/{persona}/{rodada}"],
+                urls_usadas=[f"https://fonte.test/{persona}/{rodada}"],
                 urls_lidas=[
-                    f"https://fonte/{persona}/{rodada}",
-                    f"https://ignorada/{persona}/{rodada}",
+                    f"https://fonte.test/{persona}/{rodada}",
+                    f"https://ignorada.test/{persona}/{rodada}",
                 ],
             )
 

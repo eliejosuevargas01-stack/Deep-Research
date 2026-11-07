@@ -27,10 +27,10 @@ def responder(papel, payload):
         ponto_id = payload["ponto_id"]
         return {
             "informacao_coletada": f"coleta {papel} rodada {rodada} ponto {ponto_id}",
-            "urls_usadas": [f"https://fonte/{papel}/{ponto_id}/{rodada}"],
+            "urls_usadas": [f"https://fonte.test/{papel}/{ponto_id}/{rodada}"],
             "urls_lidas": [
-                f"https://fonte/{papel}/{ponto_id}/{rodada}",
-                f"https://ignorada/{papel}/{ponto_id}/{rodada}",
+                f"https://fonte.test/{papel}/{ponto_id}/{rodada}",
+                f"https://ignorada.test/{papel}/{ponto_id}/{rodada}",
             ],
         }
     if papel == "auditor":
@@ -117,7 +117,7 @@ def test_pipeline_completo_com_retentativa_e_webhook(config, repositorio, pipeli
         == PERGUNTAS_AUDITORIA_ESTATICAS["8"]
     )
     assert len(persona_rodada_2["urls_lidas_ignoradas"]) == 8  # 4 personas x 2 URLs na rodada 1
-    assert all("fonte/" in url or "ignorada/" in url for url in persona_rodada_2["urls_lidas_ignoradas"])
+    assert all("fonte.test/" in url or "ignorada.test/" in url for url in persona_rodada_2["urls_lidas_ignoradas"])
 
     redator = next(p for p in engine.payloads("redator") if p["ponto_id"] == 1)
     assert redator["resultado_final_auditor"]["8"] is False
@@ -391,8 +391,8 @@ def test_planner_registra_urls_lidas_e_usadas(config, repositorio):
     def responder_com_urls(papel, payload):
         if papel == "planner":
             saida = responder(papel, payload)
-            saida["urls_lidas"] = ["https://varredura/a", "https://varredura/b"]
-            saida["urls_usadas"] = ["https://varredura/a"]
+            saida["urls_lidas"] = ["https://varredura.test/a", "https://varredura.test/b"]
+            saida["urls_usadas"] = ["https://varredura.test/a"]
             return saida
         return responder(papel, payload)
 
@@ -418,13 +418,13 @@ def test_planner_registra_urls_lidas_e_usadas(config, repositorio):
         if e["agent_role"] == "planner"
     ]
     assert len(linhas) == 1
-    assert linhas[0]["urls_usadas"] == ["https://varredura/a"]
-    assert linhas[0]["urls_lidas"] == ["https://varredura/a", "https://varredura/b"]
+    assert linhas[0]["urls_usadas"] == ["https://varredura.test/a"]
+    assert linhas[0]["urls_lidas"] == ["https://varredura.test/a", "https://varredura.test/b"]
 
     run = repositorio.obter_run(research_id)
-    assert "https://varredura/a" in run["urls_usadas_globais"]
-    assert "https://varredura/b" in run["urls_lidas_globais"]
-    assert "https://varredura/b" in run["urls_nao_usadas_globais"]
+    assert "https://varredura.test/a" in run["urls_usadas_globais"]
+    assert "https://varredura.test/b" in run["urls_lidas_globais"]
+    assert "https://varredura.test/b" in run["urls_nao_usadas_globais"]
 
 
 def test_planner_com_url_invalida_retenta_ou_falha(config, repositorio):

@@ -22,6 +22,7 @@ import settings
 from config import RAIZ, Config
 from contracts import (
     PERSONAS,
+    PERGUNTAS,
     PERGUNTAS_AUDITORIA_ESTATICAS,
     AuditorSaida,
     BuscadorSaida,
@@ -366,27 +367,35 @@ class Pipeline:
         for ponto_id, item in estado.items():
             tarefa_id = f"auditor_p{ponto_id}_r{item['rodada']}"
             resultado = saidas.get(tarefa_id)
+            anteriores = self._repo.carregar_auditoria(research_id=research_id, ponto_id=ponto_id)
             if resultado is None:
                 erro = (
                     f"ponto {ponto_id}: auditor sem saída na rodada {item['rodada']};"
-                    " segue ao redator com as 12 perguntas não concluídas"
+                    " segue ao redator com as perguntas não concluídas da base acumulada"
                 )
                 logger.warning("%s", erro)
                 item["erro_coleta"] = (
                     f"{item.get('erro_coleta')}; {erro}" if item.get("erro_coleta") else erro
                 )
+                # Auditor ausente não rebaixa: reaproveita o merge acumulado.
+                mescladas = {
+                    chave: bool(anteriores.get(chave, False)) for chave in PERGUNTAS
+                }
                 self._evento(
                     research_id,
                     "auditoria.executada",
                     {
                         "ponto_id": ponto_id,
                         "rodada": item["rodada"],
-                        "perguntas_true": 0,
+                        "perguntas_true": sum(1 for v in mescladas.values() if v),
                         "total_perguntas": 12,
-                        "porcentagem_aprovacao": 0.0,
+                        "porcentagem_aprovacao": planner.taxa_aprovacao(mescladas),
                         "aprovado": False,
                         "auditor_ausente": True,
-                        "perguntas_respondidas": {str(i): False for i in range(1, 13)},
+                        "perguntas_respondidas": mescladas,
+                        "perguntas_respondidas_rodada": {
+                            str(i): False for i in range(1, 13)
+                        },
                         "model_used": "",
                         "total_tokens": 0,
                     },
@@ -397,7 +406,7 @@ class Pipeline:
                 encerrados.append(
                     (
                         item["ponto"],
-                        {str(i): False for i in range(1, 13)},
+                        mescladas,
                         acumulados[ponto_id],
                         item["rodada"],
                         item.get("erro_coleta"),
@@ -407,7 +416,12 @@ class Pipeline:
             saida, call = resultado
             tarefa = next(t for t in tarefas if t.id == tarefa_id)
             self._registrar(tarefa, call)
-            respostas = saida.perguntas_respondidas
+            brutas = saida.perguntas_respondidas
+            # Merge monotônico: base de coleta é acumulativa, true nunca volta a false.
+            respostas = {
+                chave: bool(anteriores.get(chave, False) or brutas.get(chave, False))
+                for chave in PERGUNTAS
+            }
             decisao = planner.avaliar(
                 perguntas_respondidas=respostas,
                 veracidade_alvo=requisicao.veracidade_alvo,
@@ -432,6 +446,7 @@ class Pipeline:
                     "porcentagem_aprovacao": decisao["porcentagem_aprovacao"],
                     "aprovado": decisao["aprovado"],
                     "perguntas_respondidas": respostas,
+                    "perguntas_respondidas_rodada": brutas,
                     "model_used": call.model_used or self._modelos.get("auditor") or "",
                     "total_tokens": call.total_tokens
                     or (call.prompt_tokens + call.completion_tokens + call.reasoning_tokens),

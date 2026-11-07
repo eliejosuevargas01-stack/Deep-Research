@@ -28,8 +28,8 @@ def responder(papel, payload):
     if papel in PERSONAS:
         return {
             "informacao_coletada": f"coleta {papel}",
-            "urls_usadas": [f"https://fonte/{papel}"],
-            "urls_lidas": [f"https://fonte/{papel}"],
+            "urls_usadas": [f"https://fonte.test/{papel}"],
+            "urls_lidas": [f"https://fonte.test/{papel}"],
         }
     if papel == "auditor":
         return {"perguntas_respondidas": {str(i): True for i in range(1, 13)}}

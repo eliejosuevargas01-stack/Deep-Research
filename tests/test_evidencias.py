@@ -18,9 +18,9 @@ PONTO = {
 
 
 def test_linhas_unicas_permanecem_duplicatas_somem():
-    texto = "Fato solar 42% em 2024 (https://fonte/a)\nCompartilhar\nFato solar 42% em 2024 (https://fonte/a)\nOutro fato único"
+    texto = "Fato solar 42% em 2024 (https://fonte.test/a)\nCompartilhar\nFato solar 42% em 2024 (https://fonte.test/a)\nOutro fato único"
     compacto, est = compactar_texto(texto)
-    assert "Fato solar 42% em 2024 (https://fonte/a)" in compacto
+    assert "Fato solar 42% em 2024 (https://fonte.test/a)" in compacto
     assert "Outro fato único" in compacto
     assert compacto.count("Fato solar 42%") == 1
     assert "Compartilhar" not in compacto
@@ -41,8 +41,8 @@ def test_payloads_auditor_redator_menores_shape_igual():
     acumulado = [
         {
             "rodada": 1,
-            "historiador": "Fato A 10% (https://f/a)\nCompartilhar\nFato A 10% (https://f/a)",
-            "cetico": "Fato A 10% (https://f/a)\nFato B 20/01/2024",
+            "historiador": "Fato A 10% (https://f.test/a)\nCompartilhar\nFato A 10% (https://f.test/a)",
+            "cetico": "Fato A 10% (https://f.test/a)\nFato B 20/01/2024",
         }
     ]
     antes = len(json.dumps(acumulado, ensure_ascii=False))
@@ -58,7 +58,7 @@ def test_payloads_auditor_redator_menores_shape_igual():
         research_id="R",
         ponto=PONTO,
         resultado_final_auditor={str(i): True for i in range(1, 13)},
-        urls_usadas_acumuladas=["https://f/a"],
+        urls_usadas_acumuladas=["https://f.test/a"],
         acumulado_integral=acumulado,
     )
     for chave in (
@@ -92,7 +92,7 @@ def test_payloads_auditor_redator_menores_shape_igual():
     assert depois_a < antes and depois_r < antes
     corpo = auditor["informacao_coletada_acumulada"][0]
     assert corpo["rodada"] == 1
-    assert "10%" in corpo["historiador"] and "https://f/a" in corpo["historiador"]
+    assert "10%" in corpo["historiador"] and "https://f.test/a" in corpo["historiador"]
     assert auditor["compactacao"]["chars_depois"] < auditor["compactacao"]["chars_antes"]
     # Persistido intacto: entrada original não foi mutada.
     assert acumulado[0]["historiador"].count("Fato A 10%") == 2

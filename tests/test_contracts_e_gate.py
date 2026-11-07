@@ -77,11 +77,11 @@ def test_auditor_rejeita_valor_nao_booleano():
 def test_buscador_rejeita_url_invalida():
     from contracts import normalizar_urls
 
-    assert normalizar_urls(["https://fonte/x).", "  https://fonte/y]; "]) == [
-        "https://fonte/x",
-        "https://fonte/y",
+    assert normalizar_urls(["https://fonte.test/x).", "  https://fonte.test/y]; "]) == [
+        "https://fonte.test/x",
+        "https://fonte.test/y",
     ]
-    for ruim in ["ftp://fonte/x", "sem-esquema", "https://", "https://exa mplo/x"]:
+    for ruim in ["ftp://fonte.test/x", "sem-esquema", "https://", "https://exa mplo/x"]:
         with pytest.raises(ValidationError):
             BuscadorSaida.model_validate(
                 {"informacao_coletada": "fato", "urls_usadas": [ruim], "urls_lidas": []}
@@ -92,14 +92,14 @@ def test_buscador_normaliza_urls_e_calcula_diferenca():
     saida = BuscadorSaida.model_validate(
         {
             "informacao_coletada": " texto ",
-            "urls_usadas": ["https://usada", " https://usada "],
-            "urls_lidas": ["https://lida-nao-usada", "https://usada"],
+            "urls_usadas": ["https://usada.test", " https://usada.test "],
+            "urls_lidas": ["https://lida-nao-usada.test", "https://usada.test"],
         }
     )
     assert saida.informacao_coletada == "texto"
-    assert saida.urls_usadas == ["https://usada"]
-    assert saida.urls_lidas == ["https://lida-nao-usada", "https://usada"]
-    assert saida.urls_lidas_nao_usadas == ["https://lida-nao-usada"]
+    assert saida.urls_usadas == ["https://usada.test"]
+    assert saida.urls_lidas == ["https://lida-nao-usada.test", "https://usada.test"]
+    assert saida.urls_lidas_nao_usadas == ["https://lida-nao-usada.test"]
 
 
 @pytest.mark.parametrize(
