@@ -84,6 +84,7 @@ class PedidoRun(BaseModel):
     workspace: str
     instrucao: str
     timeout_s: int = 600
+    toolsets: list[str] | None = None
 
 
 def _auth(x_engine_token: str | None = Header(default=None)) -> None:
@@ -227,11 +228,7 @@ async def gravar_config(payload: AtualizacaoConfig, _: None = AUTENTICADO) -> di
     return _config_publica()
 
 
-@app.post("/run")
-async def rodar(pedido: PedidoRun, _: None = AUTENTICADO) -> dict[str, Any]:
-    workspace = _resolver_workspace(pedido.workspace)
-    timeout = min(max(pedido.timeout_s, 1), RUN_TIMEOUT_MAX)
-    workspace.mkdir(parents=True, exist_ok=True)
+def _montar_comando(pedido: PedidoRun, workspace: Path) -> list[str]:
     comando = [
         "hermes",
         "-p",
@@ -241,6 +238,17 @@ async def rodar(pedido: PedidoRun, _: None = AUTENTICADO) -> dict[str, Any]:
         "--usage-file",
         str(workspace / "usage.json"),
     ]
+    if pedido.toolsets is not None:
+        comando += ["-t", ",".join(pedido.toolsets)]
+    return comando
+
+
+@app.post("/run")
+async def rodar(pedido: PedidoRun, _: None = AUTENTICADO) -> dict[str, Any]:
+    workspace = _resolver_workspace(pedido.workspace)
+    timeout = min(max(pedido.timeout_s, 1), RUN_TIMEOUT_MAX)
+    workspace.mkdir(parents=True, exist_ok=True)
+    comando = _montar_comando(pedido, workspace)
     try:
         processo = await asyncio.to_thread(
             subprocess.run,

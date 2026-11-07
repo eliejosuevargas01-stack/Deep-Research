@@ -11,6 +11,8 @@ import logging
 import os
 import re
 import secrets
+import threading
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -186,7 +188,15 @@ class Pipeline:
                 ponto.perguntas_auditoria = dict(PERGUNTAS_AUDITORIA_ESTATICAS)
             return plano
 
-        tarefa = Tarefa(id="planner", papel="planner", sistema=sistema, prompt=prompt, payload=payload)
+        tarefa = Tarefa(
+            id="planner",
+            papel="planner",
+            sistema=sistema,
+            prompt=prompt,
+            payload=payload,
+            # planner precisa buscar E gravar saidas/planner.json (sem delegar).
+            toolsets=("web", "file"),
+        )
         plano: PlanoLLM | None = None
         ultimo_erro: Exception | None = None
         for _tentativa in range(1, self._config.pipeline.tentativas_por_agente + 1):
@@ -259,10 +269,24 @@ class Pipeline:
                         payload=payload,
                         ponto_id=ponto_id,
                         rodada=item["rodada"],
+                        # lote de coleta: o pai delega; os filhos herdam web+file (sem terminal).
+                        toolsets=("web", "file", "delegation"),
                     )
                 )
 
-        saidas = self._executar_lote(workspace, tarefas, BuscadorSaida.model_validate)
+        emitidas_vivo: set[str] = set()
+        parar = threading.Event()
+        observador = threading.Thread(
+            target=self._observar_coleta,
+            args=(research_id, workspace, tarefas, emitidas_vivo, parar),
+            daemon=True,
+        )
+        observador.start()
+        try:
+            saidas = self._executar_lote(workspace, tarefas, BuscadorSaida.model_validate)
+        finally:
+            parar.set()
+            observador.join()
         falhos: list[int] = []
         for ponto_id, item in estado.items():
             self._evento(research_id, "ponto.iniciado", {"ponto_id": ponto_id, "rodada": item["rodada"]})
@@ -294,6 +318,9 @@ class Pipeline:
                 )
                 sucessos += 1
                 personas_ok.append(persona)
+                if tarefa.id in emitidas_vivo:
+                    continue
+                emitidas_vivo.add(tarefa.id)
                 self._evento(
                     research_id,
                     "fonte.lida",
@@ -357,6 +384,8 @@ class Pipeline:
                     payload=payload,
                     ponto_id=ponto_id,
                     rodada=item["rodada"],
+                    # auditor: filhos só precisam de file para escrever saidas/<id>.json.
+                    toolsets=("file", "delegation"),
                 )
             )
 
@@ -511,6 +540,7 @@ class Pipeline:
                 payload=payload,
                 ponto_id=ponto["ponto_id"],
                 rodada=rodada,
+                toolsets=("file", "delegation"),
             )
             tarefas.append(tarefa)
             validadores[tarefa.id] = self._validador_redator(acumulado["urls_usadas"])
@@ -563,6 +593,62 @@ class Pipeline:
                 research_id, "ponto.finalizado", {"ponto_id": ponto["ponto_id"]}
             )
 
+    def _observar_coleta(
+        self,
+        research_id: str,
+        workspace: Path,
+        tarefas: list[Tarefa],
+        emitidas: set[str],
+        parar: threading.Event,
+    ) -> None:
+        """Emite fonte.lida as JSONs aparecem em saidas/<id>.json (poll 2s).
+
+        Só emite quando o arquivo parseia e contém urls_lidas/urls_usadas.
+        Sem arquivo (FakeExecutor), nada emite — comportamento antigo segue.
+        """
+        por_id = {tarefa.id: tarefa for tarefa in tarefas}
+        while not parar.is_set():
+            for tarefa_id, tarefa in por_id.items():
+                if tarefa_id in emitidas:
+                    continue
+                arquivo = workspace / "saidas" / f"{tarefa_id}.json"
+                try:
+                    texto = arquivo.read_text(encoding="utf-8")
+                except OSError:
+                    continue
+                try:
+                    dados = json.loads(texto)
+                except ValueError:
+                    continue
+                if not isinstance(dados, dict):
+                    continue
+                if "urls_lidas" not in dados or "urls_usadas" not in dados:
+                    continue
+                emitidas.add(tarefa_id)
+                lidas, usadas = self._urls_do_arquivo(dados)
+                self._evento(
+                    research_id,
+                    "fonte.lida",
+                    {
+                        "ponto_id": tarefa.ponto_id,
+                        "rodada": tarefa.rodada,
+                        "persona": tarefa.papel,
+                        "urls_lidas": lidas,
+                        "urls_usadas": usadas,
+                    },
+                )
+            parar.wait(2.0)
+
+    @staticmethod
+    def _urls_do_arquivo(dados: dict[str, Any]) -> tuple[list[str], list[str]]:
+        """Mesma normalização do caminho final; arquivo em escrita/URL suja não derruba a thread."""
+        try:
+            usadas = normalizar_urls(dados.get("urls_usadas") or [])
+            lidas = normalizar_urls([*(dados.get("urls_lidas") or []), *usadas])
+        except ValueError:
+            return [], []
+        return lidas, usadas
+
     # -- lote + retentativa ------------------------------------------------
     def _executar_lote(
         self,
@@ -609,6 +695,7 @@ class Pipeline:
             payload=tarefa.payload,
             ponto_id=tarefa.ponto_id,
             rodada=tarefa.rodada,
+            toolsets=tarefa.toolsets,
         )
 
     def _validador_redator(

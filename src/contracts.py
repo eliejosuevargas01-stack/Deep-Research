@@ -258,12 +258,25 @@ class PlanoLLM(BaseModel):
         return self
 
 
+def _coagir_texto(valor: Any) -> Any:
+    """Aceita lista de strings (modo de falha real do redator/buscador) unindo com '\n- '."""
+    if isinstance(valor, list):
+        partes = [item.strip() for item in valor if isinstance(item, str) and item.strip()]
+        return "\n- ".join(partes)
+    return valor
+
+
 class BuscadorSaida(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     informacao_coletada: str
     urls_usadas: list[str] = Field(default_factory=list)
     urls_lidas: list[str] = Field(default_factory=list)
+
+    @field_validator("informacao_coletada", mode="before")
+    @classmethod
+    def _coagir_informacao(cls, valor: Any) -> Any:
+        return _coagir_texto(valor)
 
     @model_validator(mode="after")
     def _normalizar(self) -> "BuscadorSaida":
@@ -310,6 +323,11 @@ class RedatorSaida(BaseModel):
     relatorio_ponto: str
     lacunas_identificadas: str = ""
     urls_citadas: list[str] = Field(default_factory=list)
+
+    @field_validator("relatorio_ponto", "lacunas_identificadas", mode="before")
+    @classmethod
+    def _coagir_textos(cls, valor: Any) -> Any:
+        return _coagir_texto(valor)
 
     @model_validator(mode="after")
     def _normalizar(self) -> "RedatorSaida":

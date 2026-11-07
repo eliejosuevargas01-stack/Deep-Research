@@ -42,6 +42,7 @@ class Tarefa:
     payload: dict[str, Any]
     ponto_id: int | None = None
     rodada: int = 1
+    toolsets: tuple[str, ...] | None = None
 
 
 class Executor(Protocol):

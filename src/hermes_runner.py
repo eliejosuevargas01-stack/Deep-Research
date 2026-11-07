@@ -139,22 +139,37 @@ class HermesRunner:
             )
 
         inicio = time.time()
-        erro = self._acionar(workspace, instrucao)
+        erro = self._acionar(workspace, instrucao, self._toolsets_lote(tarefas))
         return self._coletar_saidas(workspace, tarefas, inicio, erro, modo=modo)
 
-    def _acionar_via_engine(self, base: str, workspace: Path, instrucao: str) -> str:
+    @staticmethod
+    def _toolsets_lote(tarefas: list[Tarefa]) -> list[str] | None:
+        """União ordenada dos toolsets do lote; None = default do Hermes (sem -t)."""
+        vistos: list[str] = []
+        for tarefa in tarefas:
+            for nome in tarefa.toolsets or ():
+                if nome not in vistos:
+                    vistos.append(nome)
+        return vistos or None
+
+    def _acionar_via_engine(
+        self, base: str, workspace: Path, instrucao: str, toolsets: list[str] | None = None
+    ) -> str:
         import httpx  # import local: subprocess segue sem a dependência
 
         headers = {"X-Engine-Token": self._cfg.engine_token} if self._cfg.engine_token else {}
+        corpo: dict[str, Any] = {
+            "workspace": str(workspace),
+            "instrucao": instrucao,
+            "timeout_s": self._cfg.hermes_timeout_s,
+        }
+        if toolsets is not None:
+            corpo["toolsets"] = toolsets
         try:
             with httpx.Client(timeout=self._cfg.hermes_timeout_s + 30) as client:
                 resposta = client.post(
                     f"{base}/run",
-                    json={
-                        "workspace": str(workspace),
-                        "instrucao": instrucao,
-                        "timeout_s": self._cfg.hermes_timeout_s,
-                    },
+                    json=corpo,
                     headers=headers,
                 )
         except Exception as exc:
@@ -163,10 +178,12 @@ class HermesRunner:
             return f"Engine falhou ({resposta.status_code}): {resposta.text.strip()[:800]}"
         return ""
 
-    def _acionar(self, workspace: Path, instrucao: str) -> str:
+    def _acionar(
+        self, workspace: Path, instrucao: str, toolsets: list[str] | None = None
+    ) -> str:
         base = (self._cfg.engine_url or "").rstrip("/")
         if base:
-            return self._acionar_via_engine(base, workspace, instrucao)
+            return self._acionar_via_engine(base, workspace, instrucao, toolsets)
         return self._acionar_local(workspace, instrucao)
 
     def _acionar_local(self, workspace: Path, instrucao: str) -> str:
