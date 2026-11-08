@@ -30,8 +30,8 @@ SOULS: dict[str, str] = {
         "e responda somente com true ou false para cada uma das 12 perguntas."
     ),
     "redator": (
-        "Você é o redator-chefe. Redija o relatório definitivo usando 100% da base informacional "
-        "coletada em todas as rodadas, citando as urls_usadas e documentando as lacunas remanescentes."
+        "Você é o redator-chefe. Redija o relatório definitivo com alta densidade analítica e concisão, "
+        "sintetizando os dados essenciais apurados, citando as urls_usadas e documentando as lacunas remanescentes."
     ),
 }
 

@@ -32,6 +32,7 @@ from contracts import (
     PontoPlano,
     RedatorSaida,
     ResearchRequest,
+    chave_url,
     normalizar_urls,
 )
 from db.repository import Repositorio
@@ -701,13 +702,13 @@ class Pipeline:
     def _validador_redator(
         self, urls_permitidas: list[str]
     ) -> Callable[[dict[str, Any]], RedatorSaida]:
-        permitidas = set(urls_permitidas)
+        chaves_permitidas = {chave_url(u) for u in urls_permitidas if chave_url(u)}
 
         def validar(dados: dict[str, Any]) -> RedatorSaida:
             saida = RedatorSaida.model_validate(dados)
             texto = f"{saida.relatorio_ponto}\n{saida.lacunas_identificadas}"
             citadas = normalizar_urls([*saida.urls_citadas, *URL_NO_TEXTO.findall(texto)])
-            fora = sorted({url for url in citadas if url not in permitidas})
+            fora = sorted({url for url in citadas if chave_url(url) not in chaves_permitidas})
             if fora:
                 raise ValueError(
                     "URLs fora de urls_usadas_acumuladas: " + ", ".join(fora[:5])

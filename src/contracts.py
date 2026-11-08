@@ -324,6 +324,29 @@ class RedatorSaida(BaseModel):
     lacunas_identificadas: str = ""
     urls_citadas: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _aceitar_aliases(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        dados = dict(data)
+        if "relatorio_ponto" not in dados:
+            for k in ("relatorio", "relatorio_final", "conteudo", "texto"):
+                if k in dados and dados[k]:
+                    dados["relatorio_ponto"] = dados[k]
+                    break
+        if "lacunas_identificadas" not in dados:
+            for k in ("lacunas", "lacunas_ponto", "lacuna", "limitacoes"):
+                if k in dados and dados[k]:
+                    dados["lacunas_identificadas"] = dados[k]
+                    break
+        if "urls_citadas" not in dados:
+            for k in ("urls", "fontes", "referencias", "urls_usadas"):
+                if k in dados and isinstance(dados[k], list):
+                    dados["urls_citadas"] = dados[k]
+                    break
+        return dados
+
     @field_validator("relatorio_ponto", "lacunas_identificadas", mode="before")
     @classmethod
     def _coagir_textos(cls, valor: Any) -> Any:

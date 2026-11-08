@@ -193,3 +193,45 @@ def test_fonte_viva_emite_durante_coleta_sem_duplicar(config, repositorio, tmp_p
 
     chaves = [_chave(e) for e in fontes]
     assert len(chaves) == len(set(chaves))
+
+
+def test_redator_aceita_aliases():
+    saida = RedatorSaida.model_validate(
+        {
+            "relatorio": "Texto analítico em relatorio",
+            "lacunas": "Resumo de lacunas em lacunas",
+            "fontes": ["https://fonte.test/1"],
+        }
+    )
+    assert saida.relatorio_ponto == "Texto analítico em relatorio"
+    assert saida.lacunas_identificadas == "Resumo de lacunas em lacunas"
+    assert saida.urls_citadas == ["https://fonte.test/1"]
+
+
+def test_validador_redator_aceita_variacoes_canonicas(config, repositorio):
+    from orchestrator import Pipeline
+    import pytest
+
+    pipe = Pipeline(repositorio, None, config)
+    validador = pipe._validador_redator(["https://epe.gov.br/ben/"])
+
+    # Variações canônicas (www., sem barra, maiúsculas) devem passar
+    saida = validador(
+        {
+            "relatorio_ponto": "Relatório citando https://www.epe.gov.br/ben",
+            "lacunas_identificadas": "Nenhuma lacuna",
+            "urls_citadas": ["https://EPE.gov.br/ben/"],
+        }
+    )
+    assert saida.relatorio_ponto
+
+    # URL realmente inventada deve falhar
+    with pytest.raises(ValueError, match="URLs fora de urls_usadas_acumuladas"):
+        validador(
+            {
+                "relatorio_ponto": "Relatório citando https://inventada.test/x",
+                "lacunas_identificadas": "Nenhuma lacuna",
+                "urls_citadas": [],
+            }
+        )
+

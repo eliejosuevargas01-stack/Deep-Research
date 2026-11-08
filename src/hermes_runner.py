@@ -176,6 +176,13 @@ class HermesRunner:
             return f"Engine não executou: {exc}"
         if resposta.status_code != 200:
             return f"Engine falhou ({resposta.status_code}): {resposta.text.strip()[:800]}"
+        try:
+            dados = resposta.json()
+            if isinstance(dados, dict) and dados.get("returncode", 0) != 0:
+                detalhe = (dados.get("stderr") or dados.get("stdout") or f"código {dados.get('returncode')}").strip()
+                return detalhe[-800:]
+        except Exception:
+            pass
         return ""
 
     def _acionar(
